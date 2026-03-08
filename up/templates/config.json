@@ -1,0 +1,6 @@
+{
+  "modo": "solo",
+  "paralelizacao": true,
+  "commit_docs": true,
+  "auto_advance": false
+}
