@@ -28,6 +28,7 @@ Sistema de desenvolvimento orientado a fases para projetos de software.
 | Comando | Descricao | Uso |
 |---------|-----------|-----|
 | `/up:novo-projeto` | Inicializar novo projeto com coleta de contexto | `/up:novo-projeto` |
+| `/up:mapear-codigo` | Analisar codebase existente com agentes paralelos | `/up:mapear-codigo` |
 | `/up:retomar` | Restaurar contexto da sessao anterior | `/up:retomar` |
 
 ### Ciclo de Fase
@@ -86,6 +87,13 @@ Sistema de desenvolvimento orientado a fases para projetos de software.
 ```
 
 ## Fluxos de Trabalho Comuns
+
+### Projeto com Codigo Existente (brownfield)
+```
+/up:mapear-codigo
+/up:novo-projeto
+/up:discutir-fase 1
+```
 
 ### Novo Projeto (do zero)
 ```
