@@ -1,0 +1,33 @@
+{
+  "name": "up-cc",
+  "version": "0.1.1",
+  "description": "Simplified spec-driven development for Claude Code, Gemini and OpenCode.",
+  "bin": {
+    "up-cc": "bin/install.js"
+  },
+  "files": [
+    "bin",
+    "agents",
+    "commands",
+    "workflows",
+    "templates",
+    "references",
+    "hooks"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "gemini",
+    "gemini-cli",
+    "opencode",
+    "ai",
+    "spec-driven-development",
+    "meta-prompting",
+    "context-engineering"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.7.0"
+  }
+}
