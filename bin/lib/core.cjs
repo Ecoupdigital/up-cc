@@ -88,7 +88,7 @@ function execGit(cwd, args) {
   try {
     const escaped = args.map(a => {
       if (/^[a-zA-Z0-9._\-/=:@]+$/.test(a)) return a;
-      return "'" + a.replace(/'/g, "'\\'") + "'";
+      return "'" + a.replace(/'/g, "'\\''") + "'";
     });
     const stdout = execSync('git ' + escaped.join(' '), {
       cwd,

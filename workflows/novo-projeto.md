@@ -9,7 +9,7 @@ Inicializar um novo projeto: questionamento, pesquisa (opcional), requisitos, ro
 **PRIMEIRO PASSO OBRIGATORIO -- Execute antes de qualquer interacao:**
 
 ```bash
-INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init new-project)
+INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init novo-projeto)
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
@@ -454,7 +454,7 @@ Ler ROADMAP.md criado e apresentar inline:
 **[N] fases** | **[X] requisitos mapeados** | Todos requisitos v1 cobertos
 
 | # | Fase | Objetivo | Requisitos | Criterios |
-|---|------|----------|------------|----------|
+|---|------|----------|------------|-----------|
 | 1 | [Nome] | [Objetivo] | [REQ-IDs] | [contagem] |
 | 2 | [Nome] | [Objetivo] | [REQ-IDs] | [contagem] |
 ```

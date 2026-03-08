@@ -34,7 +34,7 @@ Capturar a ideia em secao "Ideias Adiadas". Nao perca, nao atue sobre ela.
 Numero da fase do argumento (obrigatorio).
 
 ```bash
-INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init phase-op "${PHASE}")
+INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init operacao-fase "${PHASE}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 

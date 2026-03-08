@@ -9,7 +9,7 @@ Flags: --pesquisar (pesquisa profunda), --sem-pesquisa (pular), --auto (encadear
 ## 1. Inicializar
 
 ```bash
-INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init plan-phase "$PHASE")
+INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init planejar-fase "$PHASE")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 

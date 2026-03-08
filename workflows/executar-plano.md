@@ -13,7 +13,7 @@ Ler config.json para configuracoes de comportamento de planejamento.
 Carregar contexto de execucao:
 
 ```bash
-INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init execute-phase "${PHASE}")
+INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init executar-fase "${PHASE}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 

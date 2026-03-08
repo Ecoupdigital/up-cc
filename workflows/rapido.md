@@ -34,7 +34,7 @@ Exibir banner:
 **Passo 2: Inicializar**
 
 ```bash
-INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init quick "$DESCRIPTION")
+INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init rapido "$DESCRIPTION")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
@@ -145,7 +145,7 @@ Inserir apos secao `### Bloqueios/Preocupacoes`:
 ### Tarefas Rapidas Completadas
 
 | # | Descricao | Data | Commit | Diretorio |
-|---|-----------|------|--------|----------|
+|---|-----------|------|--------|-----------|
 ```
 
 **6c. Adicionar nova linha a tabela:**

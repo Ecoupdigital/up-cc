@@ -12,7 +12,7 @@ Orquestrador coordena, nao executa. Cada subagente carrega o contexto completo d
 Carregar contexto:
 
 ```bash
-INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init execute-phase "${PHASE_ARG}")
+INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init executar-fase "${PHASE_ARG}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 

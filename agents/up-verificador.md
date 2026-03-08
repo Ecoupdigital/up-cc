@@ -241,7 +241,7 @@ gaps:
 ### Verdades Observaveis
 
 | # | Verdade | Status | Evidencia |
-|---|---------|--------|----------|
+|---|---------|--------|-----------|
 | 1 | {verdade} | VERIFIED | {evidencia} |
 | 2 | {verdade} | FAILED | {o que esta errado} |
 
@@ -260,12 +260,12 @@ gaps:
 ### Cobertura de Requisitos
 
 | Requisito | Plano Fonte | Descricao | Status | Evidencia |
-|-----------|-------------|-----------|--------|----------|
+|-----------|-------------|-----------|--------|-----------|
 
 ### Anti-Padroes Encontrados
 
 | Arquivo | Linha | Padrao | Severidade | Impacto |
-|---------|-------|--------|------------|--------|
+|---------|-------|--------|------------|---------|
 
 ### Verificacao Humana Necessaria
 
@@ -354,3 +354,4 @@ return <div>No messages</div>  // Sempre mostra "no messages"
 - [ ] VERIFICATION.md criado com relatorio completo
 - [ ] Resultados retornados ao orquestrador (NAO commitados)
 </success_criteria>
+</output>

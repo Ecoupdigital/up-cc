@@ -8,8 +8,8 @@
  * Usage: node up-tools.cjs <command> [args] [--raw] [--cwd <path>]
  *
  * Commands:
- *   init planejar-fase|executar-fase|novo-projeto|rapido|retomar
- *   state load|get|update|advance-plan|update-progress|add-decision|record-session
+ *   init planejar-fase|executar-fase|novo-projeto|rapido|retomar|operacao-fase|progresso|verificar-trabalho
+ *   state load|get|update|advance-plan|update-progress|add-decision|record-session|record-metric|snapshot
  *   roadmap get-phase|analyze|update-plan-progress
  *   phase add|remove|find|complete
  *   config get|set
@@ -18,6 +18,9 @@
  *   progress [json|table|bar]
  *   timestamp [full|date|filename]
  *   slug <text>
+ *   phase-plan-index <phase>
+ *   state-snapshot
+ *   summary-extract <path> [--fields field1,field2]
  */
 
 const fs = require('fs');
@@ -28,6 +31,85 @@ const {
   findPhaseInternal, getRoadmapPhaseInternal,
   pathExistsInternal, generateSlugInternal, toPosixPath,
 } = require('./lib/core.cjs');
+
+// --- Frontmatter helpers ---
+
+function extractFrontmatter(content) {
+  const frontmatter = {};
+  const match = content.match(/^---\n([\s\S]+?)\n---/);
+  if (!match) return frontmatter;
+
+  const yaml = match[1];
+  const lines = yaml.split('\n');
+  let stack = [{ obj: frontmatter, key: null, indent: -1 }];
+
+  for (const line of lines) {
+    if (line.trim() === '') continue;
+    const indentMatch = line.match(/^(\s*)/);
+    const indent = indentMatch ? indentMatch[1].length : 0;
+    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
+      stack.pop();
+    }
+    const current = stack[stack.length - 1];
+    const keyMatch = line.match(/^(\s*)([a-zA-Z0-9_-]+):\s*(.*)/);
+    if (keyMatch) {
+      const key = keyMatch[2];
+      const value = keyMatch[3].trim();
+      if (value === '' || value === '[') {
+        current.obj[key] = value === '[' ? [] : {};
+        current.key = null;
+        stack.push({ obj: current.obj[key], key: null, indent });
+      } else if (value.startsWith('[') && value.endsWith(']')) {
+        current.obj[key] = value.slice(1, -1).split(',').map(s => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+        current.key = null;
+      } else {
+        current.obj[key] = value.replace(/^["']|["']$/g, '');
+        current.key = null;
+      }
+    } else if (line.trim().startsWith('- ')) {
+      const itemValue = line.trim().slice(2).replace(/^["']|["']$/g, '');
+      if (typeof current.obj === 'object' && !Array.isArray(current.obj) && Object.keys(current.obj).length === 0) {
+        const parent = stack.length > 1 ? stack[stack.length - 2] : null;
+        if (parent) {
+          for (const k of Object.keys(parent.obj)) {
+            if (parent.obj[k] === current.obj) {
+              parent.obj[k] = [itemValue];
+              current.obj = parent.obj[k];
+              break;
+            }
+          }
+        }
+      } else if (Array.isArray(current.obj)) {
+        current.obj.push(itemValue);
+      }
+    }
+  }
+  return frontmatter;
+}
+
+function extractObjective(content) {
+  const m = content.match(/<objective>\s*\n?\s*(.+)/);
+  return m ? m[1].trim() : null;
+}
+
+function getMilestoneInfo(cwd) {
+  try {
+    const roadmap = fs.readFileSync(path.join(cwd, '.plano', 'ROADMAP.md'), 'utf-8');
+    const inProgressMatch = roadmap.match(/🚧\s*\*\*v(\d+\.\d+)\s+([^*]+)\*\*/);
+    if (inProgressMatch) {
+      return { version: 'v' + inProgressMatch[1], name: inProgressMatch[2].trim() };
+    }
+    const cleaned = roadmap.replace(/<details>[\s\S]*?<\/details>/gi, '');
+    const headingMatch = cleaned.match(/## .*v(\d+\.\d+)[:\s]+([^\n(]+)/);
+    if (headingMatch) {
+      return { version: 'v' + headingMatch[1], name: headingMatch[2].trim() };
+    }
+    const versionMatch = cleaned.match(/v(\d+\.\d+)/);
+    return { version: versionMatch ? 'v' + versionMatch[1] : 'v0.1', name: 'MVP' };
+  } catch {
+    return { version: 'v0.1', name: 'MVP' };
+  }
+}
 
 // --- State helpers ---
 
@@ -109,8 +191,17 @@ function main() {
         case 'retomar':
           cmdInitRetomar(cwd, raw);
           break;
+        case 'operacao-fase':
+          cmdInitOperacaoFase(cwd, args[2], raw);
+          break;
+        case 'progresso':
+          cmdInitProgresso(cwd, raw);
+          break;
+        case 'verificar-trabalho':
+          cmdInitVerificarTrabalho(cwd, args[2], raw);
+          break;
         default:
-          error(`Unknown init workflow: ${workflow}\nAvailable: planejar-fase, executar-fase, novo-projeto, rapido, retomar`);
+          error(`Unknown init workflow: ${workflow}\nAvailable: planejar-fase, executar-fase, novo-projeto, rapido, retomar, operacao-fase, progresso, verificar-trabalho`);
       }
       break;
     }
@@ -140,8 +231,23 @@ function main() {
         cmdStateRecordSession(cwd, {
           stopped_at: stoppedIdx !== -1 ? args[stoppedIdx + 1] : null,
         }, raw);
+      } else if (sub === 'record-metric') {
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        const durationIdx = args.indexOf('--duration');
+        const tasksIdx = args.indexOf('--tasks');
+        const filesIdx = args.indexOf('--files');
+        cmdStateRecordMetric(cwd, {
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          duration: durationIdx !== -1 ? args[durationIdx + 1] : null,
+          tasks: tasksIdx !== -1 ? args[tasksIdx + 1] : null,
+          files: filesIdx !== -1 ? args[filesIdx + 1] : null,
+        }, raw);
+      } else if (sub === 'snapshot') {
+        cmdStateSnapshot(cwd, raw);
       } else {
-        error('Unknown state subcommand. Available: load, get, update, advance-plan, update-progress, add-decision, record-session');
+        error('Unknown state subcommand. Available: load, get, update, advance-plan, update-progress, add-decision, record-session, record-metric, snapshot');
       }
       break;
     }
@@ -229,6 +335,26 @@ function main() {
     // ==================== SLUG ====================
     case 'slug': {
       cmdSlug(args[1], raw);
+      break;
+    }
+
+    // ==================== PHASE-PLAN-INDEX ====================
+    case 'phase-plan-index': {
+      cmdPhasePlanIndex(cwd, args[1], raw);
+      break;
+    }
+
+    // ==================== STATE-SNAPSHOT ====================
+    case 'state-snapshot': {
+      cmdStateSnapshot(cwd, raw);
+      break;
+    }
+
+    // ==================== SUMMARY-EXTRACT ====================
+    case 'summary-extract': {
+      const fieldsIdx = args.indexOf('--fields');
+      const fields = fieldsIdx !== -1 ? args[fieldsIdx + 1].split(',') : [];
+      cmdSummaryExtract(cwd, args[1], fields, raw);
       break;
     }
 
@@ -380,6 +506,174 @@ function cmdInitRetomar(cwd, raw) {
     project_exists: pathExistsInternal(cwd, '.plano/PROJECT.md'),
     planning_exists: pathExistsInternal(cwd, '.plano'),
     commit_docs: config.commit_docs,
+  };
+
+  output(result, raw);
+}
+
+function cmdInitOperacaoFase(cwd, phase, raw) {
+  const config = loadConfig(cwd);
+  let phaseInfo = findPhaseInternal(cwd, phase);
+
+  if (!phaseInfo) {
+    const roadmapPhase = getRoadmapPhaseInternal(cwd, phase);
+    if (roadmapPhase?.found) {
+      const phaseName = roadmapPhase.phase_name;
+      phaseInfo = {
+        found: true,
+        directory: null,
+        phase_number: roadmapPhase.phase_number,
+        phase_name: phaseName,
+        phase_slug: phaseName ? phaseName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') : null,
+        plans: [],
+        summaries: [],
+        incomplete_plans: [],
+        has_research: false,
+        has_context: false,
+        has_verification: false,
+      };
+    }
+  }
+
+  const result = {
+    commit_docs: config.commit_docs,
+    phase_found: !!phaseInfo,
+    phase_dir: phaseInfo?.directory || null,
+    phase_number: phaseInfo?.phase_number || null,
+    phase_name: phaseInfo?.phase_name || null,
+    phase_slug: phaseInfo?.phase_slug || null,
+    padded_phase: phaseInfo?.phase_number?.padStart(2, '0') || null,
+    has_research: phaseInfo?.has_research || false,
+    has_context: phaseInfo?.has_context || false,
+    has_plans: (phaseInfo?.plans?.length || 0) > 0,
+    has_verification: false,
+    plan_count: phaseInfo?.plans?.length || 0,
+    roadmap_exists: pathExistsInternal(cwd, '.plano/ROADMAP.md'),
+    plano_exists: pathExistsInternal(cwd, '.plano'),
+    state_path: '.plano/STATE.md',
+    roadmap_path: '.plano/ROADMAP.md',
+  };
+
+  if (phaseInfo?.directory) {
+    const phaseDirFull = path.join(cwd, phaseInfo.directory);
+    try {
+      const files = fs.readdirSync(phaseDirFull);
+      const contextFile = files.find(f => f.endsWith('-CONTEXT.md') || f === 'CONTEXT.md');
+      if (contextFile) result.context_path = toPosixPath(path.join(phaseInfo.directory, contextFile));
+      const researchFile = files.find(f => f.endsWith('-RESEARCH.md') || f === 'RESEARCH.md');
+      if (researchFile) result.research_path = toPosixPath(path.join(phaseInfo.directory, researchFile));
+      const verificationFile = files.find(f => f.endsWith('-VERIFICATION.md') || f === 'VERIFICATION.md');
+      if (verificationFile) {
+        result.verification_path = toPosixPath(path.join(phaseInfo.directory, verificationFile));
+        result.has_verification = true;
+      }
+    } catch {}
+  }
+
+  output(result, raw);
+}
+
+function cmdInitProgresso(cwd, raw) {
+  const config = loadConfig(cwd);
+  const milestone = getMilestoneInfo(cwd);
+
+  const fasesDir = path.join(cwd, '.plano', 'fases');
+  const phases = [];
+  let currentPhase = null;
+  let nextPhase = null;
+
+  try {
+    const entries = fs.readdirSync(fasesDir, { withFileTypes: true });
+    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
+
+    for (const dir of dirs) {
+      const match = dir.match(/^(\d+(?:\.\d+)*)-?(.*)/);
+      const phaseNumber = match ? match[1] : dir;
+      const phaseName = match && match[2] ? match[2] : null;
+
+      const phasePath = path.join(fasesDir, dir);
+      const phaseFiles = fs.readdirSync(phasePath);
+
+      const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
+      const summaries = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+      const hasResearch = phaseFiles.some(f => f.endsWith('-RESEARCH.md') || f === 'RESEARCH.md');
+
+      const status = summaries.length >= plans.length && plans.length > 0 ? 'complete' :
+                     plans.length > 0 ? 'in_progress' :
+                     hasResearch ? 'researched' : 'pending';
+
+      const phaseInfo = {
+        number: phaseNumber,
+        name: phaseName,
+        directory: '.plano/fases/' + dir,
+        status,
+        plan_count: plans.length,
+        summary_count: summaries.length,
+        has_research: hasResearch,
+      };
+
+      phases.push(phaseInfo);
+
+      if (!currentPhase && (status === 'in_progress' || status === 'researched')) {
+        currentPhase = phaseInfo;
+      }
+      if (!nextPhase && status === 'pending') {
+        nextPhase = phaseInfo;
+      }
+    }
+  } catch {}
+
+  let pausedAt = null;
+  try {
+    const state = fs.readFileSync(path.join(cwd, '.plano', 'STATE.md'), 'utf-8');
+    const pauseMatch = state.match(/\*\*Paused At:\*\*\s*(.+)/);
+    if (pauseMatch) pausedAt = pauseMatch[1].trim();
+  } catch {}
+
+  const result = {
+    commit_docs: config.commit_docs,
+    milestone_version: milestone.version,
+    milestone_name: milestone.name,
+    phases,
+    phase_count: phases.length,
+    completed_count: phases.filter(p => p.status === 'complete').length,
+    in_progress_count: phases.filter(p => p.status === 'in_progress').length,
+    current_phase: currentPhase,
+    next_phase: nextPhase,
+    paused_at: pausedAt,
+    has_work_in_progress: !!currentPhase,
+    state_exists: pathExistsInternal(cwd, '.plano/STATE.md'),
+    roadmap_exists: pathExistsInternal(cwd, '.plano/ROADMAP.md'),
+    project_exists: pathExistsInternal(cwd, '.plano/PROJECT.md'),
+    state_path: '.plano/STATE.md',
+    roadmap_path: '.plano/ROADMAP.md',
+    project_path: '.plano/PROJECT.md',
+  };
+
+  output(result, raw);
+}
+
+function cmdInitVerificarTrabalho(cwd, phase, raw) {
+  if (!phase) error('phase required for init verificar-trabalho');
+
+  const config = loadConfig(cwd);
+  const phaseInfo = findPhaseInternal(cwd, phase);
+
+  let hasVerification = false;
+  if (phaseInfo?.directory) {
+    try {
+      const files = fs.readdirSync(path.join(cwd, phaseInfo.directory));
+      hasVerification = files.some(f => f.endsWith('-VERIFICATION.md') || f === 'VERIFICATION.md');
+    } catch {}
+  }
+
+  const result = {
+    commit_docs: config.commit_docs,
+    phase_found: !!phaseInfo,
+    phase_dir: phaseInfo?.directory || null,
+    phase_number: phaseInfo?.phase_number || null,
+    phase_name: phaseInfo?.phase_name || null,
+    has_verification: hasVerification,
   };
 
   output(result, raw);
@@ -591,6 +885,108 @@ function cmdStateRecordSession(cwd, options, raw) {
   } else {
     output({ recorded: false, reason: 'No session fields found in STATE.md' }, raw, 'false');
   }
+}
+
+function cmdStateRecordMetric(cwd, options, raw) {
+  const statePath = path.join(cwd, '.plano', 'STATE.md');
+  if (!fs.existsSync(statePath)) { output({ error: 'STATE.md not found' }, raw); return; }
+
+  let content = fs.readFileSync(statePath, 'utf-8');
+  const { phase, plan, duration, tasks, files } = options;
+
+  if (!phase || !plan || !duration) {
+    output({ error: 'phase, plan, and duration required' }, raw);
+    return;
+  }
+
+  const metricsPattern = /(##\s*Performance Metrics[\s\S]*?\n\|[^\n]+\n\|[-|\s]+\n)([\s\S]*?)(?=\n##|\n$|$)/i;
+  const metricsMatch = content.match(metricsPattern);
+
+  if (metricsMatch) {
+    let tableBody = metricsMatch[2].trimEnd();
+    const newRow = `| Phase ${phase} P${plan} | ${duration} | ${tasks || '-'} tasks | ${files || '-'} files |`;
+
+    if (tableBody.trim() === '' || tableBody.includes('None yet')) {
+      tableBody = newRow;
+    } else {
+      tableBody = tableBody + '\n' + newRow;
+    }
+
+    content = content.replace(metricsPattern, (_match, header) => `${header}${tableBody}\n`);
+    fs.writeFileSync(statePath, content, 'utf-8');
+    output({ recorded: true, phase, plan, duration }, raw, 'true');
+  } else {
+    output({ recorded: false, reason: 'Performance Metrics section not found in STATE.md' }, raw, 'false');
+  }
+}
+
+function cmdStateSnapshot(cwd, raw) {
+  const statePath = path.join(cwd, '.plano', 'STATE.md');
+  if (!fs.existsSync(statePath)) { output({ error: 'STATE.md not found' }, raw); return; }
+
+  const content = fs.readFileSync(statePath, 'utf-8');
+
+  const currentPhase = stateExtractField(content, 'Current Phase');
+  const currentPhaseName = stateExtractField(content, 'Current Phase Name');
+  const totalPhasesRaw = stateExtractField(content, 'Total Phases');
+  const currentPlan = stateExtractField(content, 'Current Plan');
+  const totalPlansRaw = stateExtractField(content, 'Total Plans in Phase');
+  const status = stateExtractField(content, 'Status');
+  const progressRaw = stateExtractField(content, 'Progress');
+  const lastActivity = stateExtractField(content, 'Last Activity');
+  const pausedAt = stateExtractField(content, 'Paused At');
+
+  const totalPhases = totalPhasesRaw ? parseInt(totalPhasesRaw, 10) : null;
+  const totalPlansInPhase = totalPlansRaw ? parseInt(totalPlansRaw, 10) : null;
+  const progressPercent = progressRaw ? parseInt(progressRaw.replace('%', ''), 10) : null;
+
+  const decisions = [];
+  const decisionsMatch = content.match(/##\s*Decisions Made[\s\S]*?\n\|[^\n]+\n\|[-|\s]+\n([\s\S]*?)(?=\n##|\n$|$)/i);
+  if (decisionsMatch) {
+    const rows = decisionsMatch[1].trim().split('\n').filter(r => r.includes('|'));
+    for (const row of rows) {
+      const cells = row.split('|').map(c => c.trim()).filter(Boolean);
+      if (cells.length >= 3) {
+        decisions.push({ phase: cells[0], summary: cells[1], rationale: cells[2] });
+      }
+    }
+  }
+
+  const blockers = [];
+  const blockersMatch = content.match(/##\s*Blockers\s*\n([\s\S]*?)(?=\n##|$)/i);
+  if (blockersMatch) {
+    const items = blockersMatch[1].match(/^-\s+(.+)$/gm) || [];
+    for (const item of items) {
+      blockers.push(item.replace(/^-\s+/, '').trim());
+    }
+  }
+
+  const session = { last_date: null, stopped_at: null, resume_file: null };
+  const sessionMatch = content.match(/##\s*Session\s*\n([\s\S]*?)(?=\n##|$)/i);
+  if (sessionMatch) {
+    const s = sessionMatch[1];
+    const ld = s.match(/\*\*Last Date:\*\*\s*(.+)/i) || s.match(/^Last Date:\s*(.+)/im);
+    const sa = s.match(/\*\*Stopped At:\*\*\s*(.+)/i) || s.match(/^Stopped At:\s*(.+)/im);
+    const rf = s.match(/\*\*Resume File:\*\*\s*(.+)/i) || s.match(/^Resume File:\s*(.+)/im);
+    if (ld) session.last_date = ld[1].trim();
+    if (sa) session.stopped_at = sa[1].trim();
+    if (rf) session.resume_file = rf[1].trim();
+  }
+
+  output({
+    current_phase: currentPhase,
+    current_phase_name: currentPhaseName,
+    total_phases: totalPhases,
+    current_plan: currentPlan,
+    total_plans_in_phase: totalPlansInPhase,
+    status,
+    progress_percent: progressPercent,
+    last_activity: lastActivity,
+    decisions,
+    blockers,
+    paused_at: pausedAt,
+    session,
+  }, raw);
 }
 
 // =====================================================================
@@ -1114,6 +1510,128 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
     roadmap_updated: fs.existsSync(roadmapPath),
     state_updated: fs.existsSync(statePath),
   }, raw);
+}
+
+function cmdPhasePlanIndex(cwd, phase, raw) {
+  if (!phase) error('phase required for phase-plan-index');
+
+  const fasesDir = path.join(cwd, '.plano', 'fases');
+  const normalized = normalizePhaseName(phase);
+
+  let phaseDir = null;
+  try {
+    const entries = fs.readdirSync(fasesDir, { withFileTypes: true });
+    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort((a, b) => comparePhaseNum(a, b));
+    const match = dirs.find(d => d.startsWith(normalized));
+    if (match) phaseDir = path.join(fasesDir, match);
+  } catch {}
+
+  if (!phaseDir) {
+    output({ phase: normalized, error: 'Phase not found', plans: [], waves: {}, incomplete: [], has_checkpoints: false }, raw);
+    return;
+  }
+
+  const phaseFiles = fs.readdirSync(phaseDir);
+  const planFiles = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md').sort();
+  const summaryFiles = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+
+  const completedPlanIds = new Set(
+    summaryFiles.map(s => s.replace('-SUMMARY.md', '').replace('SUMMARY.md', ''))
+  );
+
+  const plans = [];
+  const waves = {};
+  const incomplete = [];
+  let hasCheckpoints = false;
+
+  for (const planFile of planFiles) {
+    const planId = planFile.replace('-PLAN.md', '').replace('PLAN.md', '');
+    const planPath = path.join(phaseDir, planFile);
+    const content = fs.readFileSync(planPath, 'utf-8');
+    const fm = extractFrontmatter(content);
+
+    const xmlTasks = content.match(/<task[\s>]/gi) || [];
+    const mdTasks = content.match(/##\s*Task\s*\d+/gi) || [];
+    const taskCount = xmlTasks.length || mdTasks.length;
+
+    const wave = parseInt(fm.wave, 10) || 1;
+
+    let autonomous = true;
+    if (fm.autonomous !== undefined) {
+      autonomous = fm.autonomous === 'true' || fm.autonomous === true;
+    }
+    if (!autonomous) hasCheckpoints = true;
+
+    let filesModified = [];
+    const fmFiles = fm['files_modified'] || fm['files-modified'];
+    if (fmFiles) {
+      filesModified = Array.isArray(fmFiles) ? fmFiles : [fmFiles];
+    }
+
+    const hasSummary = completedPlanIds.has(planId);
+    if (!hasSummary) incomplete.push(planId);
+
+    plans.push({
+      id: planId,
+      wave,
+      autonomous,
+      objective: extractObjective(content) || fm.objective || null,
+      files_modified: filesModified,
+      task_count: taskCount,
+      has_summary: hasSummary,
+    });
+
+    const waveKey = String(wave);
+    if (!waves[waveKey]) waves[waveKey] = [];
+    waves[waveKey].push(planId);
+  }
+
+  output({ phase: normalized, plans, waves, incomplete, has_checkpoints: hasCheckpoints }, raw);
+}
+
+function cmdSummaryExtract(cwd, summaryPath, fields, raw) {
+  if (!summaryPath) error('summary-path required for summary-extract');
+
+  const fullPath = path.join(cwd, summaryPath);
+  if (!fs.existsSync(fullPath)) {
+    output({ error: 'File not found', path: summaryPath }, raw);
+    return;
+  }
+
+  const content = fs.readFileSync(fullPath, 'utf-8');
+  const fm = extractFrontmatter(content);
+
+  const parseDecisions = (decisionsList) => {
+    if (!decisionsList || !Array.isArray(decisionsList)) return [];
+    return decisionsList.map(d => {
+      const colonIdx = d.indexOf(':');
+      if (colonIdx > 0) {
+        return { summary: d.substring(0, colonIdx).trim(), rationale: d.substring(colonIdx + 1).trim() };
+      }
+      return { summary: d, rationale: null };
+    });
+  };
+
+  const fullResult = {
+    path: summaryPath,
+    one_liner: fm['one-liner'] || null,
+    key_files: fm['key-files'] || [],
+    tech_added: (fm['tech-stack'] && fm['tech-stack'].added) || [],
+    patterns: fm['patterns-established'] || [],
+    decisions: parseDecisions(fm['key-decisions']),
+    requirements_completed: fm['requirements-completed'] || [],
+  };
+
+  if (fields && fields.length > 0) {
+    const filtered = { path: summaryPath };
+    for (const field of fields) {
+      if (fullResult[field] !== undefined) filtered[field] = fullResult[field];
+    }
+    output(filtered, raw);
+    return;
+  }
+
+  output(fullResult, raw);
 }
 
 // =====================================================================

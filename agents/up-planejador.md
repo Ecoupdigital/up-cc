@@ -158,7 +158,7 @@ Cada tarefa tem quatro campos obrigatorios:
 ## Tipos de Tarefa
 
 | Tipo | Usar Para | Autonomia |
-|------|-----------|----------|
+|------|-----------|-----------|
 | `auto` | Tudo que Claude pode fazer independentemente | Totalmente autonomo |
 | `checkpoint:human-verify` | Verificacao visual/funcional | Pausa para usuario |
 | `checkpoint:decision` | Escolhas de implementacao | Pausa para usuario |
@@ -241,7 +241,7 @@ Se qualquer item falhar, corrija ANTES de retornar. Nao dependa de checker exter
 ### Passo 1: Carregar Estado do Projeto
 
 ```bash
-INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init plan-phase "${PHASE}")
+INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init planejar-fase "${PHASE}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
@@ -387,3 +387,4 @@ Plano esta completo quando:
 - [ ] Commit feito via up-tools
 - [ ] Resultado estruturado retornado
 </success_criteria>
+</output>

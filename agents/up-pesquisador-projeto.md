@@ -187,11 +187,11 @@ Todos os arquivos → `.plano/pesquisa/`
 
 ### Framework Core
 | Tecnologia | Versao | Proposito | Por Que |
-|------------|--------|-----------|--------|
+|------------|--------|-----------|---------|
 
 ### Database
 | Tecnologia | Versao | Proposito | Por Que |
-|------------|--------|-----------|--------|
+|------------|--------|-----------|---------|
 
 ### Bibliotecas de Suporte
 | Biblioteca | Versao | Proposito | Quando Usar |
@@ -241,7 +241,7 @@ Adie: [Feature]: [razao]
 
 ### Limites de Componentes
 | Componente | Responsabilidade | Comunica Com |
-|------------|-----------------|-------------|
+|------------|-----------------|--------------|
 
 ### Fluxo de Dados
 [Como dados fluem pelo sistema]
@@ -328,7 +328,7 @@ Em `.plano/pesquisa/`:
 
 ### Arquivos Criados
 | Arquivo | Proposito |
-|---------|----------|
+|---------|-----------|
 | .plano/pesquisa/STACK.md | Recomendacoes de tecnologia |
 | .plano/pesquisa/FEATURES.md | Paisagem de features |
 | .plano/pesquisa/ARCHITECTURE.md | Padroes de arquitetura |
@@ -355,3 +355,4 @@ Em `.plano/pesquisa/`:
 - [ ] Arquivos escritos (NAO commitar — orquestrador lida com isso)
 - [ ] Retorno estruturado fornecido ao orquestrador
 </success_criteria>
+</output>

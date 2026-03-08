@@ -398,3 +398,4 @@ Se feedback de revisao fornecido:
 - [ ] Arquivos escritos
 - [ ] Retorno estruturado fornecido ao orquestrador
 </success_criteria>
+</output>

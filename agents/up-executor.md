@@ -33,7 +33,7 @@ Antes de executar, descubra o contexto do projeto:
 Carregue o contexto de execucao:
 
 ```bash
-INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init execute-phase "${PHASE}")
+INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init executar-fase "${PHASE}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
@@ -406,3 +406,4 @@ Execucao do plano completa quando:
 - [ ] Commit final de metadados feito (inclui SUMMARY.md, STATE.md, ROADMAP.md)
 - [ ] Formato de conclusao retornado ao orquestrador
 </success_criteria>
+</output>

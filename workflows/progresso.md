@@ -8,7 +8,7 @@ Verificar progresso do projeto, resumir trabalho recente e o que vem a seguir, e
 **Carregar contexto de progresso:**
 
 ```bash
-INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init progress)
+INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init progresso)
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 

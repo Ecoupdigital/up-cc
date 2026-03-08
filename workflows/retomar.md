@@ -16,7 +16,7 @@ Restaurar instantaneamente contexto completo do projeto para que "Onde paramos?"
 Carregar contexto:
 
 ```bash
-INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init resume)
+INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init retomar)
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 

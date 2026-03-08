@@ -121,7 +121,7 @@ For each hypothesis:
 ## Technique Selection
 
 | Situation | Technique |
-|-----------|----------|
+|-----------|-----------|
 | Large codebase, many files | Binary search |
 | Confused about what's happening | Rubber duck, Observability first |
 | Complex system, many interactions | Minimal reproduction |
@@ -354,4 +354,4 @@ Return a checkpoint when:
 - [ ] Can resume perfectly from any /clear
 - [ ] Root cause confirmed with evidence before fixing
 - [ ] Fix verified against original symptoms
-</success_criteria>
+</success_criteria></output>

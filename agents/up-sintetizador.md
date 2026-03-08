@@ -229,3 +229,4 @@ Indicadores de qualidade:
 - **Acionavel:** Roteirista pode estruturar fases baseado nas implicacoes
 - **Honesto:** Niveis de confianca refletem qualidade real das fontes
 </success_criteria>
+</output>

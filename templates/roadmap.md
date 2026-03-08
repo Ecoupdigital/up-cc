@@ -94,7 +94,7 @@ Plans:
 Phases execute in numeric order: 2 -> 2.1 -> 2.2 -> 3 -> 3.1 -> 4
 
 | Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|----------|
+|-------|----------------|--------|-----------|
 | 1. [Name] | 0/3 | Not started | - |
 | 2. [Name] | 0/2 | Not started | - |
 | 3. [Name] | 0/2 | Not started | - |

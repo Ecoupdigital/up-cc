@@ -122,13 +122,13 @@ Tasks completed: [N]/[N]
 - [Task 2 name]
 - [Task 3 name]
 
-SUMMARY: .plano/phases/XX-name/{phase}-{plan}-SUMMARY.md
+SUMMARY: .plano/fases/XX-name/{phase}-{plan}-SUMMARY.md
 ```
 
 What to commit:
 
 ```bash
-node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs({phase}-{plan}): complete [plan-name] plan" --files .plano/phases/XX-name/{phase}-{plan}-PLAN.md .plano/phases/XX-name/{phase}-{plan}-SUMMARY.md .plano/STATE.md .plano/ROADMAP.md
+node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs({phase}-{plan}): complete [plan-name] plan" --files .plano/fases/XX-name/{phase}-{plan}-PLAN.md .plano/fases/XX-name/{phase}-{plan}-SUMMARY.md .plano/STATE.md .plano/ROADMAP.md
 ```
 
 **Note:** Code files NOT included - already committed per-task.

@@ -60,7 +60,7 @@ Common types: Tech stack, Timeline, Budget, Dependencies, Compatibility, Perform
 <!-- Decisions that constrain future work. Add throughout project lifecycle. -->
 
 | Decision | Rationale | Outcome |
-|----------|-----------|--------|
+|----------|-----------|---------|
 | [Choice] | [Why] | [Good / Revisit / Pending] |
 
 ---
