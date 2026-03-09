@@ -4,7 +4,7 @@
 
 - [x] **Fase 1: Sistema UP base** - Existente
 - [x] **Fase 2: Agentes paralelos e mapeamento** - Existente
-- [ ] **Fase 3: Templates e formatos padrao** - Formatos estruturados compartilhados entre comandos
+- [x] **Fase 3: Templates e formatos padrao** - Formatos estruturados compartilhados entre comandos
 - [ ] **Fase 4: References de auditoria** - Documentos de referencia para cada dimensao de analise
 - [ ] **Fase 5: Agentes auditores de dimensao** - Agentes especializados em UX, performance e modernidade
 - [ ] **Fase 6: Sintetizador de melhorias** - Cruzamento cross-dimensao e relatorio consolidado
@@ -33,7 +33,8 @@
   1. Toda sugestao gerada por qualquer agente contem obrigatoriamente: arquivo, linha, problema, sugestao concreta, esforco (P/M/G) e impacto (P/M/G)
   2. O relatorio final apresenta sugestoes organizadas em matriz 2x2 de esforco x impacto com quadrantes nomeados (quick wins, projetos estrategicos, preenchimentos, evitar)
   3. Templates sao arquivos markdown em up/templates/ que agentes carregam e preenchem
-**Planos**: TBD
+**Planos**: 1/1 completo
+**Completado**: 2026-03-09
 
 ### Fase 4: References de auditoria
 **Objetivo**: Agentes auditores tem catalogos de padroes documentados para cada dimensao, garantindo analise sistematica e nao ad-hoc
@@ -117,7 +118,7 @@
 |------|-----------------|--------|------------|
 | 1. Sistema UP base | N/A | Existente | Pre-existente |
 | 2. Agentes paralelos e mapeamento | N/A | Existente | Pre-existente |
-| 3. Templates e formatos padrao | 0/? | Nao iniciado | - |
+| 3. Templates e formatos padrao | 1/1 | Completa | 2026-03-09 |
 | 4. References de auditoria | 0/? | Nao iniciado | - |
 | 5. Agentes auditores de dimensao | 0/? | Nao iniciado | - |
 | 6. Sintetizador de melhorias | 0/? | Nao iniciado | - |

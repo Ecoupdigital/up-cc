@@ -4,8 +4,8 @@
 
 ### Infraestrutura (INFRA)
 
-- [ ] INFRA-01: Template de sugestao estruturado com formato obrigatorio (arquivo, linha, problema, sugestao concreta, esforco, impacto)
-- [ ] INFRA-02: Matriz esforco x impacto com 4 quadrantes (quick wins, projetos estrategicos, preenchimentos, evitar)
+- [x] INFRA-01: Template de sugestao estruturado com formato obrigatorio (arquivo, linha, problema, sugestao concreta, esforco, impacto)
+- [x] INFRA-02: Matriz esforco x impacto com 4 quadrantes (quick wins, projetos estrategicos, preenchimentos, evitar)
 - [ ] INFRA-03: Mapa de cobertura obrigatorio (lista todo arquivo analisado + % de cobertura)
 - [ ] INFRA-04: Standalone -- cria .plano/ se nao existir, detecta stack automaticamente sem /up:novo-projeto
 - [ ] INFRA-05: Deteccao de framework/stack antes da analise (React/Vue/Next/Tailwind/etc.) para ajustar heuristicas
@@ -52,8 +52,8 @@
 
 | Requisito | Fase | Status |
 |-----------|------|--------|
-| INFRA-01 | Fase 3 | Pendente |
-| INFRA-02 | Fase 3 | Pendente |
+| INFRA-01 | Fase 3 | Completo |
+| INFRA-02 | Fase 3 | Completo |
 | INFRA-03 | Fase 5 | Pendente |
 | INFRA-04 | Fase 7, 9 | Pendente |
 | INFRA-05 | Fase 4 | Pendente |
