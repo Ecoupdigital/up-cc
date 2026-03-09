@@ -88,16 +88,21 @@ Sistema de desenvolvimento orientado a fases para projetos de software.
 
 ## Fluxos de Trabalho Comuns
 
-### Projeto com Codigo Existente (brownfield)
+### Projeto com Codigo Existente (mais comum)
 ```
-/up:mapear-codigo
-/up:novo-projeto
-/up:discutir-fase 1
+/up:mapear-codigo              # Analisa codebase (stack, arquitetura, concerns)
+/up:novo-projeto               # Detecta brownfield automaticamente
+/up:discutir-fase 1            # Discute no contexto do codigo existente
+/up:planejar-fase 1            # Planos respeitam convencoes do codebase
+/up:executar-fase 1
+/up:verificar-trabalho 1
 ```
+Dica: /up:novo-projeto detecta codigo existente e adapta as perguntas.
+O mapeamento do codebase alimenta todo o pipeline automaticamente.
 
 ### Novo Projeto (do zero)
 ```
-/up:novo-projeto
+/up:novo-projeto               # Detecta greenfield automaticamente
 /up:discutir-fase 1
 /up:planejar-fase 1
 /up:executar-fase 1

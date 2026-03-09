@@ -453,11 +453,25 @@ function cmdInitNovoProjeto(cwd, raw) {
     hasCode = files.trim().length > 0;
   } catch {}
 
+  // Check if codebase mapping exists
+  const hasCodebaseMap = pathExistsInternal(cwd, '.plano/codebase');
+  let codebaseFiles = [];
+  if (hasCodebaseMap) {
+    try {
+      const fs = require('fs');
+      codebaseFiles = fs.readdirSync(path.join(cwd, '.plano/codebase'))
+        .filter(f => f.endsWith('.md'))
+        .map(f => `.plano/codebase/${f}`);
+    } catch {}
+  }
+
   const result = {
     commit_docs: config.commit_docs,
     project_exists: pathExistsInternal(cwd, '.plano/PROJECT.md'),
     planning_exists: pathExistsInternal(cwd, '.plano'),
     has_existing_code: hasCode,
+    has_codebase_map: hasCodebaseMap,
+    codebase_files: codebaseFiles,
     has_git: pathExistsInternal(cwd, '.git'),
     project_path: '.plano/PROJECT.md',
   };

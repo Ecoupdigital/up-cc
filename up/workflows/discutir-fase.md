@@ -85,6 +85,18 @@ Extrair:
 - **REQUIREMENTS.md** -- Criterios de aceitacao, restricoes
 - **STATE.md** -- Progresso atual, flags ou notas
 
+**Passo 1b: Ler mapeamento do codebase (se brownfield)**
+```bash
+ls .plano/codebase/*.md 2>/dev/null
+```
+
+Se `.plano/codebase/` existe (projeto brownfield):
+- Ler `ARCHITECTURE.md` -- entender estrutura do sistema para perguntas de design
+- Ler `CONVENTIONS.md` -- entender padroes existentes para alinhar discussao
+- Ler `CONCERNS.md` -- divida tecnica que pode afetar decisoes da fase
+
+**Uso:** Areas cinzentas devem considerar restricoes e padroes do codebase existente. Perguntas como "Essa fase vai mexer em que partes do sistema?" sao informadas pela arquitetura conhecida.
+
 **Passo 2: Ler todos CONTEXT.md de fases anteriores**
 ```bash
 find .plano/fases -name "*-CONTEXT.md" 2>/dev/null | sort
