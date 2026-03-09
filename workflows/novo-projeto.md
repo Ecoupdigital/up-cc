@@ -612,7 +612,11 @@ Criar roteiro:
 6. Retornar ROADMAP CREATED com resumo
 
 **Se projeto brownfield:**
-- Considerar divida tecnica de CONCERNS.md ao priorizar fases
+- Ler .plano/codebase/ARCHITECTURE.md e .plano/codebase/STACK.md para entender o que ja existe
+- Agrupar funcionalidades existentes em fases macro concluidas (max 3-6 fases, por dominio)
+- Fases existentes usam checkbox marcado [x], status "Existente", sem criterios de sucesso, sem planos
+- Numerar fases NOVAS apos as existentes (ex: se 3 fases existentes, nova fase comeca em 4)
+- Considerar divida tecnica de CONCERNS.md ao priorizar fases novas
 - Respeitar convencoes existentes de CONVENTIONS.md
 - Fases de refatoracao/correcao devem vir antes de features que dependem delas
 
