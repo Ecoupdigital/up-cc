@@ -45,7 +45,7 @@
   2. Reference de modernidade contem catalogo de padroes obsoletos com alternativas modernas e nivel de urgencia
   3. Reference de UX contem heuristicas de avaliacao traduzidas para sinais detectaveis em codigo (CSS, componentes, fluxos)
   4. Cada reference inclui instrucoes de deteccao de framework/stack para ajustar heuristicas (React vs Vue vs vanilla, Tailwind vs CSS puro)
-**Planos**: TBD
+**Planos**: 1/3 em progresso
 
 ### Fase 5: Agentes auditores de dimensao
 **Objetivo**: Cada dimensao de analise (UX, performance, modernidade) tem um agente especializado que analisa o codebase completo e produz sugestoes estruturadas
@@ -119,7 +119,7 @@
 | 1. Sistema UP base | N/A | Existente | Pre-existente |
 | 2. Agentes paralelos e mapeamento | N/A | Existente | Pre-existente |
 | 3. Templates e formatos padrao | 1/1 | Completa | 2026-03-09 |
-| 4. References de auditoria | 0/? | Nao iniciado | - |
+| 4. References de auditoria | 1/3 | Em progresso | - |
 | 5. Agentes auditores de dimensao | 0/? | Nao iniciado | - |
 | 6. Sintetizador de melhorias | 0/? | Nao iniciado | - |
 | 7. Comando /up:melhorias | 0/? | Nao iniciado | - |
