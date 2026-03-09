@@ -100,6 +100,9 @@ Task(
 - {context_path} (DECISOES DO USUARIO de /up:discutir-fase)
 - {research_path} (Pesquisa Tecnica - se existir)
 - {verification_path} (Lacunas de Verificacao - se --gaps)
+- .plano/codebase/CONVENTIONS.md (Convencoes do codebase - se existir, BROWNFIELD)
+- .plano/codebase/CONCERNS.md (Divida tecnica - se existir, BROWNFIELD)
+- .plano/codebase/ARCHITECTURE.md (Arquitetura existente - se existir, BROWNFIELD)
 </files_to_read>
 
 **IDs de requisitos da fase (cada ID DEVE aparecer no campo `requirements` de um plano):** {phase_req_ids}
@@ -110,6 +113,12 @@ Se RESEARCH_INLINE=true:
 - Pesquisar o dominio antes de planejar
 - Usar Context7/docs oficiais para verificar versoes e APIs
 - Documentar achados de pesquisa no inicio de cada PLAN.md
+
+**Se arquivos de codebase existem (brownfield):**
+- Respeitar padroes e convencoes de CONVENTIONS.md nos planos
+- Considerar divida tecnica de CONCERNS.md ao definir tarefas
+- Alinhar planos com arquitetura existente de ARCHITECTURE.md
+- NAO recriar infraestrutura que ja existe
 </planning_context>
 
 <self_check>

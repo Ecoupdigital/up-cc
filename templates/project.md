@@ -145,24 +145,38 @@ PROJECT.md evolves throughout the project lifecycle.
 
 <brownfield>
 
-For existing codebases:
+Para codebases existentes (brownfield):
 
-1. **Map codebase first** via `/up:mapear`
+O workflow `/up:novo-projeto` detecta brownfield automaticamente e adapta o fluxo.
 
-2. **Infer Validated requirements** from existing code:
-   - What does the codebase actually do?
-   - What patterns are established?
-   - What's clearly working and relied upon?
+1. **Mapear codebase** via `/up:mapear-codigo` (opcional mas recomendado)
+   - Produz 7 documentos em `.plano/codebase/`
+   - STACK.md, ARCHITECTURE.md, CONVENTIONS.md, CONCERNS.md, etc.
 
-3. **Gather Active requirements** from user:
-   - Present inferred current state
-   - Ask what they want to build next
+2. **`/up:novo-projeto` detecta brownfield e:**
+   - Carrega documentos do mapeamento como contexto
+   - Pergunta "O que voce quer fazer com esse codigo?" (nao "O que voce quer construir?")
+   - Explora: o que funciona, o que causa dor, divida tecnica, retrocompatibilidade
 
-4. **Initialize:**
-   - Validated = inferred from existing code
-   - Active = user's goals for this work
-   - Out of Scope = boundaries user specifies
-   - Context = includes current codebase state
+3. **Inferir requisitos Validados** do codebase existente:
+   - Features que ja funcionam em producao
+   - Padroes e convencoes estabelecidos
+   - Integrações e dependencias que devem ser preservadas
+
+4. **Coletar requisitos Ativos** do usuario:
+   - Apresentar estado atual inferido
+   - Perguntar objetivos: novas features, refatoracao, correcoes, migracoes
+
+5. **Inicializar PROJECT.md:**
+   - Validados = inferidos do codigo existente
+   - Ativos = objetivos do usuario para este trabalho
+   - Fora do Escopo = fronteiras definidas pelo usuario
+   - Contexto = referencia .plano/codebase/ com dados do mapeamento
+
+6. **Pipeline downstream usa codebase map:**
+   - `/up:discutir-fase` carrega ARCHITECTURE.md e CONVENTIONS.md para perguntas informadas
+   - `/up:planejar-fase` passa CONVENTIONS.md e CONCERNS.md ao planejador
+   - Roteirista prioriza divida tecnica antes de features dependentes
 
 </brownfield>
 
