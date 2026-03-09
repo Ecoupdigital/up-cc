@@ -48,6 +48,7 @@ Sistema de desenvolvimento orientado a fases para projetos de software.
 | `/up:pausar` | Criar handoff .continue-aqui.md | `/up:pausar` |
 | `/up:adicionar-fase` | Adicionar fase ao roadmap | `/up:adicionar-fase "Deploy em producao"` |
 | `/up:remover-fase` | Remover fase futura e renumerar | `/up:remover-fase 5` |
+| `/up:resetar` | Resetar projeto (limpar .plano/) | `/up:resetar` |
 
 ### Utilitarios
 
