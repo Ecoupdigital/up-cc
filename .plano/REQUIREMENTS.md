@@ -52,22 +52,22 @@
 
 | Requisito | Fase | Status |
 |-----------|------|--------|
-| INFRA-01 | TBD | Pendente |
-| INFRA-02 | TBD | Pendente |
-| INFRA-03 | TBD | Pendente |
-| INFRA-04 | TBD | Pendente |
-| INFRA-05 | TBD | Pendente |
-| MELH-01 | TBD | Pendente |
-| MELH-02 | TBD | Pendente |
-| MELH-03 | TBD | Pendente |
-| MELH-04 | TBD | Pendente |
-| MELH-05 | TBD | Pendente |
-| MELH-06 | TBD | Pendente |
-| IDEIA-01 | TBD | Pendente |
-| IDEIA-02 | TBD | Pendente |
-| IDEIA-03 | TBD | Pendente |
-| IDEIA-04 | TBD | Pendente |
-| IDEIA-05 | TBD | Pendente |
-| IDEIA-06 | TBD | Pendente |
-| INTEG-01 | TBD | Pendente |
-| INTEG-02 | TBD | Pendente |
+| INFRA-01 | Fase 3 | Pendente |
+| INFRA-02 | Fase 3 | Pendente |
+| INFRA-03 | Fase 5 | Pendente |
+| INFRA-04 | Fase 7, 9 | Pendente |
+| INFRA-05 | Fase 4 | Pendente |
+| MELH-01 | Fase 7 | Pendente |
+| MELH-02 | Fase 5 | Pendente |
+| MELH-03 | Fase 5 | Pendente |
+| MELH-04 | Fase 5 | Pendente |
+| MELH-05 | Fase 6 | Pendente |
+| MELH-06 | Fase 6 | Pendente |
+| IDEIA-01 | Fase 9 | Pendente |
+| IDEIA-02 | Fase 8 | Pendente |
+| IDEIA-03 | Fase 8 | Pendente |
+| IDEIA-04 | Fase 8 | Pendente |
+| IDEIA-05 | Fase 8 | Pendente |
+| IDEIA-06 | Fase 9 | Pendente |
+| INTEG-01 | Fase 10 | Pendente |
+| INTEG-02 | Fase 10 | Pendente |
