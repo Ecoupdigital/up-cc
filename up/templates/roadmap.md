@@ -127,5 +127,45 @@ Phases execute in numeric order: 2 -> 2.1 -> 2.2 -> 3 -> 3.1 -> 4
 - `Not started` - Haven't begun
 - `In progress` - Currently working
 - `Complete` - Done (add completion date)
+- `Existing` - Pre-existing functionality (brownfield only, never planned/executed via UP)
 - `Deferred` - Pushed to later (with reason)
 </status_values>
+
+<brownfield_example>
+For brownfield projects, existing functionality is grouped into completed phases before new work:
+
+```markdown
+## Phases
+
+- [x] **Phase 1: Authentication and users** - Existing
+- [x] **Phase 2: Core content** - Existing
+- [ ] **Phase 3: New feature** - [One-line description]
+
+## Phase Details
+
+### Phase 1: Authentication and users
+**Status**: Existing
+**Features**: Login, registration, profiles, permissions
+**Plans**: N/A (pre-existing)
+
+### Phase 2: Core content
+**Status**: Existing
+**Features**: CRUD operations, search, categories
+**Plans**: N/A (pre-existing)
+
+### Phase 3: New feature
+**Goal**: [What this phase delivers]
+**Depends on**: Phase 2
+**Requirements**: [REQ-01, REQ-02]
+**Success Criteria** (what must be TRUE):
+  1. [Observable behavior from user perspective]
+**Plans**: TBD
+```
+
+Guidelines for existing phases:
+- Group by domain, not individual features (max 3-6 existing phases)
+- No success criteria (not derived via goal-backward)
+- No plans (not planned/executed via UP)
+- New phases numbered after existing ones
+- Progress table shows "Existing" status and "N/A" for plans
+</brownfield_example>

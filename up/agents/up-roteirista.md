@@ -272,6 +272,17 @@ Se research/SUMMARY.md fornecido:
 - Note flags de pesquisa
 - Use como input, nao mandato
 
+## Passo 3.5: Identificar Funcionalidades Existentes (Brownfield)
+Se codebase docs existem (.plano/codebase/ARCHITECTURE.md, STACK.md):
+1. Ler ARCHITECTURE.md e extrair funcionalidades ja implementadas
+2. Agrupar funcionalidades em fases macro por dominio (3-6 max)
+3. Criar fases existentes com:
+   - Status: checkbox marcado `[x]`
+   - Sufixo: `- Existente`
+   - Sem criterios de sucesso (nao foram planejados/executados via UP)
+   - Sem requisitos mapeados (sao requisitos validados, nao ativos)
+4. Numerar fases novas APOS as existentes
+
 ## Passo 4: Identificar Fases
 Aplique metodologia de identificacao de fases:
 1. Agrupe requisitos por fronteiras naturais de entrega
@@ -354,6 +365,74 @@ Se feedback de revisao fornecido:
 **Cobertura:** {X}/{X} requisitos mapeados
 ```
 </structured_returns>
+
+<brownfield_phases>
+
+## Fases Existentes (Brownfield)
+
+Quando o projeto e brownfield (codebase existente), o roteiro deve comecar com fases que representam o que JA EXISTE. Estas fases nao foram planejadas/executadas via UP — elas representam funcionalidades ja implementadas.
+
+### Regras
+
+1. **Agrupar por dominio, nao por feature individual** — Max 3-6 fases existentes
+2. **Status "Existente"** — Diferente de "Complete" (nunca foi planejado/executado via UP)
+3. **Checkbox marcado** `[x]` — Visualmente indica que ja esta pronto
+4. **Sem criterios de sucesso** — Nao foram derivados via goal-backward
+5. **Sem planos** — Nao foram planejados
+6. **Fases novas vem APOS** — Numeracao continua das existentes
+
+### Exemplo
+
+```markdown
+## Fases
+
+- [x] **Fase 1: Autenticacao e usuarios** - Existente
+- [x] **Fase 2: Chat e atendimento** - Existente
+- [x] **Fase 3: Dashboard e metricas** - Existente
+- [ ] **Fase 4: Filtro de usuarios no chat** - Nova feature
+- [ ] **Fase 5: Relatorios avancados** - Nova feature
+
+## Detalhes das Fases
+
+### Fase 1: Autenticacao e usuarios
+**Status**: Existente
+**Funcionalidades**: Login, cadastro, perfis, permissoes
+**Planos**: N/A (pre-existente)
+
+### Fase 2: Chat e atendimento
+**Status**: Existente
+**Funcionalidades**: Chat em tempo real, filas de atendimento, historico
+**Planos**: N/A (pre-existente)
+
+### Fase 3: Dashboard e metricas
+**Status**: Existente
+**Funcionalidades**: Dashboard principal, metricas de atendimento
+**Planos**: N/A (pre-existente)
+
+### Fase 4: Filtro de usuarios no chat
+**Objetivo**: Permitir filtrar usuarios por criterios no chat
+**Depende de**: Fase 2
+**Requisitos**: CHAT-01, CHAT-02
+**Criterios de Sucesso** (o que deve ser VERDADE):
+  1. Atendente pode filtrar usuarios por nome, email ou status
+  2. Filtros persistem entre sessoes
+**Planos**: TBD
+```
+
+### Na Tabela de Progresso
+
+Fases existentes aparecem como completas sem planos:
+
+```markdown
+| Fase | Planos Completos | Status | Completado |
+|------|-----------------|--------|------------|
+| 1. Autenticacao e usuarios | N/A | Existente | Pre-existente |
+| 2. Chat e atendimento | N/A | Existente | Pre-existente |
+| 3. Dashboard e metricas | N/A | Existente | Pre-existente |
+| 4. Filtro de usuarios no chat | 0/2 | Nao iniciado | - |
+```
+
+</brownfield_phases>
 
 <anti_patterns>
 
