@@ -8,7 +8,7 @@
  * Usage: node up-tools.cjs <command> [args] [--raw] [--cwd <path>]
  *
  * Commands:
- *   init planejar-fase|executar-fase|novo-projeto|rapido|retomar|operacao-fase|progresso|verificar-trabalho|melhorias|ideias
+ *   init planejar-fase|executar-fase|novo-projeto|rapido|retomar|operacao-fase|progresso|verificar-trabalho|melhorias|ideias|iniciar
  *   state load|get|update|advance-plan|update-progress|add-decision|record-session|record-metric|snapshot
  *   roadmap get-phase|analyze|update-plan-progress
  *   phase add|remove|find|complete|generate-from-report
@@ -206,8 +206,11 @@ function main() {
         case 'ideias':
           cmdInitIdeias(cwd, raw);
           break;
+        case 'iniciar':
+          cmdInitIniciar(cwd, raw);
+          break;
         default:
-          error(`Unknown init workflow: ${workflow}\nAvailable: planejar-fase, executar-fase, novo-projeto, rapido, retomar, operacao-fase, progresso, verificar-trabalho, melhorias, ideias`);
+          error(`Unknown init workflow: ${workflow}\nAvailable: planejar-fase, executar-fase, novo-projeto, rapido, retomar, operacao-fase, progresso, verificar-trabalho, melhorias, ideias, iniciar`);
       }
       break;
     }
@@ -481,6 +484,66 @@ function cmdInitNovoProjeto(cwd, raw) {
     has_codebase_map: hasCodebaseMap,
     codebase_files: codebaseFiles,
     has_git: pathExistsInternal(cwd, '.git'),
+    project_path: '.plano/PROJECT.md',
+  };
+
+  output(result, raw);
+}
+
+function cmdInitIniciar(cwd, raw) {
+  const config = loadConfig(cwd);
+  const { execSync } = require('child_process');
+
+  let hasCode = false;
+  try {
+    const files = execSync('find . -maxdepth 3 \\( -name "*.ts" -o -name "*.js" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.swift" -o -name "*.java" \\) 2>/dev/null | grep -v node_modules | grep -v .git | head -5', {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    hasCode = files.trim().length > 0;
+  } catch {}
+
+  const hasCodebaseMap = pathExistsInternal(cwd, '.plano/codebase');
+  let codebaseFiles = [];
+  if (hasCodebaseMap) {
+    try {
+      codebaseFiles = fs.readdirSync(path.join(cwd, '.plano/codebase'))
+        .filter(f => f.endsWith('.md'))
+        .map(f => `.plano/codebase/${f}`);
+    } catch {}
+  }
+
+  // Stack hints from package.json
+  const pkgPath = path.join(cwd, 'package.json');
+  let stackHints = {};
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    const allDeps = Object.assign({}, pkg.dependencies || {}, pkg.devDependencies || {});
+    stackHints = {
+      has_react: !!allDeps.react,
+      has_next: !!allDeps.next,
+      has_vue: !!allDeps.vue,
+      has_nuxt: !!allDeps.nuxt,
+      has_svelte: !!allDeps.svelte,
+      has_tailwind: !!allDeps.tailwindcss,
+      has_prisma: !!(allDeps['@prisma/client'] || allDeps.prisma),
+      has_typescript: !!(allDeps.typescript || pathExistsInternal(cwd, 'tsconfig.json')),
+      type_module: pkg.type === 'module',
+    };
+  } catch {}
+
+  const result = {
+    commit_docs: config.commit_docs,
+    project_exists: pathExistsInternal(cwd, '.plano/PROJECT.md'),
+    planning_exists: pathExistsInternal(cwd, '.plano'),
+    has_existing_code: hasCode,
+    has_codebase_map: hasCodebaseMap,
+    codebase_files: codebaseFiles,
+    has_git: pathExistsInternal(cwd, '.git'),
+    has_package_json: pathExistsInternal(cwd, 'package.json'),
+    has_readme: pathExistsInternal(cwd, 'README.md') || pathExistsInternal(cwd, 'readme.md'),
+    stack_hints: stackHints,
     project_path: '.plano/PROJECT.md',
   };
 
