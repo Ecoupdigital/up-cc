@@ -50,6 +50,12 @@ Sistema de desenvolvimento orientado a fases para projetos de software.
 | `/up:remover-fase` | Remover fase futura e renumerar | `/up:remover-fase 5` |
 | `/up:resetar` | Resetar projeto (limpar .plano/) | `/up:resetar` |
 
+### Auditoria
+
+| Comando | Descricao | Uso |
+|---------|-----------|-----|
+| `/up:melhorias` | Auditoria completa do codebase (UX, performance, modernidade) | `/up:melhorias` |
+
 ### Utilitarios
 
 | Comando | Descricao | Uso |
@@ -115,6 +121,12 @@ O mapeamento do codebase alimenta todo o pipeline automaticamente.
 /up:retomar
 /up:progresso
 ```
+
+### Auditoria de Codebase
+```
+/up:melhorias   # Auditoria completa (standalone, nao requer /up:novo-projeto)
+```
+Resultado em .plano/melhorias/RELATORIO.md com sugestoes priorizadas.
 
 ### Correcao Rapida
 ```
