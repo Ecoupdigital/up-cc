@@ -278,6 +278,124 @@ Sugestoes Modernidade: .plano/melhorias/modernidade-sugestoes.md
 
 **NAO committar automaticamente.** O relatorio e informativo -- o usuario decide o que fazer com ele. Se o projeto tem .plano/ com STATE.md, NAO atualizar STATE.md (melhorias e standalone, nao parte do ciclo de fases).
 
+---
+
+**Passo 8: Aprovacao interativa e integracao com roadmap (opcional)**
+
+Este passo permite converter sugestoes aprovadas em fases executaveis no ROADMAP.md.
+
+1. Perguntar ao usuario se quer integrar sugestoes ao roadmap:
+
+```
+AskUserQuestion(
+  header: "Integrar ao Roadmap",
+  question: "Deseja converter sugestoes aprovadas em fases no ROADMAP.md?",
+  multiSelect: false,
+  options: [
+    { label: "Sim, selecionar sugestoes", description: "Escolher quais sugestoes viram fases executaveis" },
+    { label: "Nao, apenas o relatorio", description: "Manter apenas o relatorio como referencia" }
+  ]
+)
+```
+
+Se usuario escolher "Nao": sair com mensagem "Relatorio salvo em .plano/melhorias/RELATORIO.md. Use /up:melhorias novamente para integrar ao roadmap quando quiser."
+
+2. Se sim, ler `.plano/melhorias/RELATORIO.md` e extrair todas as sugestoes (ID + titulo + quadrante).
+
+Para extrair sugestoes do RELATORIO.md: usar regex `### (MELH-\d+): (.+)` para capturar ID e titulo. Parsear a tabela de campos logo abaixo para Esforco/Impacto/Dimensao. Determinar quadrante pelo cabecalho da secao onde a sugestao aparece (Quick Wins, Projetos Estrategicos, Preenchimentos, Evitar).
+
+3. Apresentar sugestoes agrupadas por quadrante para selecao:
+
+```
+AskUserQuestion(
+  header: "Selecionar Sugestoes",
+  question: "Quais sugestoes devem virar fases no roadmap? (Quick Wins recomendados primeiro)",
+  multiSelect: true,
+  options: [
+    // Quick Wins primeiro (recomendados)
+    { label: "MELH-001: [titulo]", description: "Quick Win | Esforco P, Impacto G | [dimensao]" },
+    { label: "MELH-003: [titulo]", description: "Quick Win | Esforco P, Impacto M | [dimensao]" },
+    // Depois Projetos Estrategicos
+    { label: "MELH-005: [titulo]", description: "Estrategico | Esforco M, Impacto G | [dimensao]" },
+    // Depois Preenchimentos
+    { label: "MELH-008: [titulo]", description: "Preenchimento | Esforco P, Impacto P | [dimensao]" },
+    // Nunca incluir quadrante "Evitar" na lista
+  ]
+)
+```
+
+**IMPORTANTE:** NAO incluir sugestoes do quadrante "Evitar" na lista de opcoes. Se o usuario perguntar, explicar que sugestoes com alto esforco e baixo impacto nao sao recomendadas para o roadmap.
+
+Labels no multiSelect devem ser curtos: "MELH-001: Titulo curto" (max ~60 chars). Description complementa: "Quick Win | Esforco P, Impacto G | Performance".
+
+4. Verificar se existe `.plano/ROADMAP.md`:
+   - Se existe: usar diretamente
+   - Se NAO existe: perguntar ao usuario:
+     ```
+     AskUserQuestion(
+       header: "Criar Roadmap",
+       question: "Nao existe ROADMAP.md. Deseja criar um para adicionar as fases?",
+       multiSelect: false,
+       options: [
+         { label: "Sim, criar roadmap", description: "Cria .plano/ROADMAP.md com as fases selecionadas" },
+         { label: "Nao, cancelar", description: "Manter apenas o relatorio" }
+       ]
+     )
+     ```
+     Se sim, criar ROADMAP.md minimo:
+     ```bash
+     mkdir -p .plano
+     ```
+     Escrever `.plano/ROADMAP.md` com:
+     ```markdown
+     # Roadmap: [nome do projeto de package.json ou diretorio]
+
+     ## Fases
+
+     ## Detalhes das Fases
+
+     ## Tabela de Progresso
+
+     | Fase | Planos Completos | Status | Completado |
+     |------|-----------------|--------|------------|
+     ```
+
+5. Chamar CLI para gerar fases:
+
+```bash
+echo '{"source":"melhorias","report_path":".plano/melhorias/RELATORIO.md","approved_ids":["MELH-001","MELH-003","MELH-005"],"grouping":"auto"}' | node "$HOME/.claude/up/bin/up-tools.cjs" phase generate-from-report
+```
+
+Substituir approved_ids pela lista real selecionada pelo usuario.
+
+6. Parsear resultado JSON e apresentar resumo:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ UP > FASES GERADAS NO ROADMAP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[Para cada fase criada:]
+Fase [N]: [Nome]
+  Sugestoes: [IDs listados]
+  Diretorio: [caminho]
+
+Total: [N] fases criadas com [M] sugestoes
+
+───────────────────────────────────────────────────────────────
+
+## Proximos Passos
+
+Para cada fase gerada:
+1. `/up:discutir-fase [N]` -- Refinar escopo e decisoes
+2. `/up:planejar-fase [N]` -- Criar planos de execucao
+3. `/up:executar-fase [N]` -- Implementar
+
+<sub>/clear primeiro -- janela de contexto limpa</sub>
+
+───────────────────────────────────────────────────────────────
+```
+
 </process>
 
 <success_criteria>
