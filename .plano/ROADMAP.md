@@ -9,7 +9,7 @@
 - [x] **Fase 5: Agentes auditores de dimensao** - Agentes especializados em UX, performance e modernidade
 - [x] **Fase 6: Sintetizador de melhorias** - Cruzamento cross-dimensao e relatorio consolidado
 - [ ] **Fase 7: Comando /up:melhorias** - Command e workflow standalone para auditoria completa (1/2 planos)
-- [ ] **Fase 8: Agente idealizador** - Agente que sugere features novas por analise de codigo e mercado
+- [x] **Fase 8: Agente idealizador** - Agente que sugere features novas por analise de codigo e mercado
 - [ ] **Fase 9: Comando /up:ideias** - Command e workflow standalone para sugestao de features
 - [ ] **Fase 10: Integracao com roadmap** - Geracao de fases e apresentacao interativa de resultados
 
@@ -92,7 +92,8 @@
   2. Agente pesquisador de mercado busca concorrentes e tendencias relevantes via web search e apresenta comparativo
   3. Cada sugestao de feature tem score ICE (Impact x Confidence x Ease, escala 1-10) para priorizacao objetiva
   4. Para cada 3 sugestoes positivas, pelo menos 1 anti-feature e apresentada (feature que NAO deve ser implementada, com justificativa)
-**Planos**: 1/2 completo
+**Planos**: 2/2 completo
+**Completado**: 2026-03-10
 
 ### Fase 9: Comando /up:ideias
 **Objetivo**: Usuario pode invocar /up:ideias em qualquer projeto e receber sugestoes de features novas com pesquisa de mercado
@@ -126,6 +127,6 @@
 | 5. Agentes auditores de dimensao | 3/3 | Completa | 2026-03-10 |
 | 6. Sintetizador de melhorias | 1/1 | Completa | 2026-03-10 |
 | 7. Comando /up:melhorias | 1/2 | Em progresso | - |
-| 8. Agente idealizador | 1/2 | Em progresso | - |
+| 8. Agente idealizador | 2/2 | Completa | 2026-03-10 |
 | 9. Comando /up:ideias | 0/? | Nao iniciado | - |
 | 10. Integracao com roadmap | 0/? | Nao iniciado | - |
