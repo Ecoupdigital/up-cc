@@ -1101,7 +1101,7 @@ function cmdRoadmapGetPhase(cwd, phaseNum, raw) {
     const content = fs.readFileSync(roadmapPath, 'utf-8');
     const escapedPhase = escapeRegex(phaseNum);
 
-    const phasePattern = new RegExp(`#{2,4}\\s*Phase\\s+${escapedPhase}:\\s*([^\\n]+)`, 'i');
+    const phasePattern = new RegExp(`#{2,4}\\s*(?:Phase|Fase)\\s+${escapedPhase}:\\s*([^\\n]+)`, 'i');
     const headerMatch = content.match(phasePattern);
 
     if (!headerMatch) {
@@ -1112,11 +1112,11 @@ function cmdRoadmapGetPhase(cwd, phaseNum, raw) {
     const phaseName = headerMatch[1].trim();
     const headerIndex = headerMatch.index;
     const restOfContent = content.slice(headerIndex);
-    const nextHeaderMatch = restOfContent.match(/\n#{2,4}\s+Phase\s+\d/i);
+    const nextHeaderMatch = restOfContent.match(/\n#{2,4}\s+(?:Phase|Fase)\s+\d/i);
     const sectionEnd = nextHeaderMatch ? headerIndex + nextHeaderMatch.index : content.length;
     const section = content.slice(headerIndex, sectionEnd).trim();
 
-    const goalMatch = section.match(/\*\*Goal:\*\*\s*([^\n]+)/i);
+    const goalMatch = section.match(/\*\*(?:Goal|Objetivo):\*\*\s*([^\n]+)/i);
     const goal = goalMatch ? goalMatch[1].trim() : null;
 
     output({ found: true, phase_number: phaseNum, phase_name: phaseName, goal, section }, raw, section);
@@ -1136,7 +1136,7 @@ function cmdRoadmapAnalyze(cwd, raw) {
   const content = fs.readFileSync(roadmapPath, 'utf-8');
   const phasesDir = path.join(cwd, '.plano', 'fases');
 
-  const phasePattern = /#{2,4}\s*Phase\s+(\d+[A-Z]?(?:\.\d+)*)\s*:\s*([^\n]+)/gi;
+  const phasePattern = /#{2,4}\s*(?:Phase|Fase)\s+(\d+[A-Z]?(?:\.\d+)*)\s*:\s*([^\n]+)/gi;
   const phases = [];
   let match;
 
@@ -1146,11 +1146,11 @@ function cmdRoadmapAnalyze(cwd, raw) {
 
     const sectionStart = match.index;
     const restOfContent = content.slice(sectionStart);
-    const nextHeader = restOfContent.match(/\n#{2,4}\s+Phase\s+\d/i);
+    const nextHeader = restOfContent.match(/\n#{2,4}\s+(?:Phase|Fase)\s+\d/i);
     const sectionEnd = nextHeader ? sectionStart + nextHeader.index : content.length;
     const section = content.slice(sectionStart, sectionEnd);
 
-    const goalMatch = section.match(/\*\*Goal:\*\*\s*([^\n]+)/i);
+    const goalMatch = section.match(/\*\*(?:Goal|Objetivo):\*\*\s*([^\n]+)/i);
     const goal = goalMatch ? goalMatch[1].trim() : null;
 
     const normalized = normalizePhaseName(phaseNum);
@@ -1175,7 +1175,7 @@ function cmdRoadmapAnalyze(cwd, raw) {
       }
     } catch {}
 
-    const checkboxPattern = new RegExp(`-\\s*\\[(x| )\\]\\s*.*Phase\\s+${escapeRegex(phaseNum)}`, 'i');
+    const checkboxPattern = new RegExp(`-\\s*\\[(x| )\\]\\s*.*(?:Phase|Fase)\\s+${escapeRegex(phaseNum)}`, 'i');
     const checkboxMatch = content.match(checkboxPattern);
     const roadmapComplete = checkboxMatch ? checkboxMatch[1] === 'x' : false;
 
@@ -1249,7 +1249,7 @@ function cmdRoadmapUpdatePlanProgress(cwd, phaseNum, raw) {
 
   // Update plan count in phase detail section
   const planCountPattern = new RegExp(
-    `(#{2,4}\\s*Phase\\s+${phaseEscaped}[\\s\\S]*?\\*\\*Plans:\\*\\*\\s*)[^\\n]+`,
+    `(#{2,4}\\s*(?:Phase|Fase)\\s+${phaseEscaped}[\\s\\S]*?\\*\\*(?:Plans|Planos):\\*\\*\\s*)[^\\n]+`,
     'i'
   );
   const planCountText = isComplete
@@ -1259,7 +1259,7 @@ function cmdRoadmapUpdatePlanProgress(cwd, phaseNum, raw) {
 
   if (isComplete) {
     const checkboxPattern = new RegExp(
-      `(-\\s*\\[)[ ](\\]\\s*.*Phase\\s+${phaseEscaped}[:\\s][^\\n]*)`,
+      `(-\\s*\\[)[ ](\\]\\s*.*(?:Phase|Fase)\\s+${phaseEscaped}[:\\s][^\\n]*)`,
       'i'
     );
     roadmapContent = roadmapContent.replace(checkboxPattern, `$1x$2 (completed ${today})`);
@@ -1325,7 +1325,7 @@ function cmdPhaseAdd(cwd, description, raw) {
   const content = fs.readFileSync(roadmapPath, 'utf-8');
   const slug = generateSlugInternal(description);
 
-  const phasePattern = /#{2,4}\s*Phase\s+(\d+)[A-Z]?(?:\.\d+)*:/gi;
+  const phasePattern = /#{2,4}\s*(?:Phase|Fase)\s+(\d+)[A-Z]?(?:\.\d+)*:/gi;
   let maxPhase = 0;
   let m;
   while ((m = phasePattern.exec(content)) !== null) {
@@ -1341,7 +1341,11 @@ function cmdPhaseAdd(cwd, description, raw) {
   fs.mkdirSync(dirPath, { recursive: true });
   fs.writeFileSync(path.join(dirPath, '.gitkeep'), '');
 
-  const phaseEntry = `\n### Phase ${newPhaseNum}: ${description}\n\n**Goal:** [To be planned]\n**Requirements**: TBD\n**Depends on:** Phase ${maxPhase}\n**Plans:** 0 plans\n`;
+  // Detect ROADMAP language: if it contains '### Fase ' use Portuguese, otherwise English
+  const usePt = /###\s*Fase\s+\d/.test(content);
+  const phaseEntry = usePt
+    ? `\n### Fase ${newPhaseNum}: ${description}\n\n**Objetivo:** [A ser planejado]\n**Requisitos**: TBD\n**Depende de:** Fase ${maxPhase}\n**Planos:** 0 planos\n`
+    : `\n### Phase ${newPhaseNum}: ${description}\n\n**Goal:** [To be planned]\n**Requirements**: TBD\n**Depends on:** Phase ${maxPhase}\n**Plans:** 0 plans\n`;
 
   let updatedContent;
   const lastSeparator = content.lastIndexOf('\n---');
@@ -1439,12 +1443,12 @@ function cmdPhaseRemove(cwd, targetPhase, options, raw) {
 
   const targetEscaped = escapeRegex(targetPhase);
   const sectionPattern = new RegExp(
-    `\\n?#{2,4}\\s*Phase\\s+${targetEscaped}\\s*:[\\s\\S]*?(?=\\n#{2,4}\\s+Phase\\s+\\d|$)`,
+    `\\n?#{2,4}\\s*(?:Phase|Fase)\\s+${targetEscaped}\\s*:[\\s\\S]*?(?=\\n#{2,4}\\s+(?:Phase|Fase)\\s+\\d|$)`,
     'i'
   );
   roadmapContent = roadmapContent.replace(sectionPattern, '');
 
-  const checkboxPattern = new RegExp(`\\n?-\\s*\\[[ x]\\]\\s*.*Phase\\s+${targetEscaped}[:\\s][^\\n]*`, 'gi');
+  const checkboxPattern = new RegExp(`\\n?-\\s*\\[[ x]\\]\\s*.*(?:Phase|Fase)\\s+${targetEscaped}[:\\s][^\\n]*`, 'gi');
   roadmapContent = roadmapContent.replace(checkboxPattern, '');
 
   if (!isDecimal) {
@@ -1455,11 +1459,11 @@ function cmdPhaseRemove(cwd, targetPhase, options, raw) {
       const newStr = String(newNum);
 
       roadmapContent = roadmapContent.replace(
-        new RegExp(`(#{2,4}\\s*Phase\\s+)${oldStr}(\\s*:)`, 'gi'),
+        new RegExp(`(#{2,4}\\s*(?:Phase|Fase)\\s+)${oldStr}(\\s*:)`, 'gi'),
         `$1${newStr}$2`
       );
       roadmapContent = roadmapContent.replace(
-        new RegExp(`(Phase\\s+)${oldStr}([:\\s])`, 'g'),
+        new RegExp(`((?:Phase|Fase)\\s+)${oldStr}([:\\s])`, 'g'),
         `$1${newStr}$2`
       );
     }
@@ -1508,13 +1512,13 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
     const phaseEscaped = escapeRegex(phaseNum);
 
     const checkboxPattern = new RegExp(
-      `(-\\s*\\[)[ ](\\]\\s*.*Phase\\s+${phaseEscaped}[:\\s][^\\n]*)`,
+      `(-\\s*\\[)[ ](\\]\\s*.*(?:Phase|Fase)\\s+${phaseEscaped}[:\\s][^\\n]*)`,
       'i'
     );
     roadmapContent = roadmapContent.replace(checkboxPattern, `$1x$2 (completed ${today})`);
 
     const planCountPattern = new RegExp(
-      `(#{2,4}\\s*Phase\\s+${phaseEscaped}[\\s\\S]*?\\*\\*Plans:\\*\\*\\s*)[^\\n]+`,
+      `(#{2,4}\\s*(?:Phase|Fase)\\s+${phaseEscaped}[\\s\\S]*?\\*\\*(?:Plans|Planos):\\*\\*\\s*)[^\\n]+`,
       'i'
     );
     roadmapContent = roadmapContent.replace(planCountPattern, `$1${summaryCount}/${planCount} plans complete`);
@@ -1525,7 +1529,7 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
     const reqPath = path.join(cwd, '.plano', 'REQUIREMENTS.md');
     if (fs.existsSync(reqPath)) {
       const reqMatch = roadmapContent.match(
-        new RegExp(`Phase\\s+${escapeRegex(phaseNum)}[\\s\\S]*?\\*\\*Requirements:\\*\\*\\s*([^\\n]+)`, 'i')
+        new RegExp(`(?:Phase|Fase)\\s+${escapeRegex(phaseNum)}[\\s\\S]*?\\*\\*(?:Requirements|Requisitos):\\*\\*\\s*([^\\n]+)`, 'i')
       );
       if (reqMatch) {
         const reqIds = reqMatch[1].replace(/[\[\]]/g, '').split(/[,\s]+/).map(r => r.trim()).filter(Boolean);
@@ -1567,7 +1571,7 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
   if (isLastPhase && fs.existsSync(roadmapPath)) {
     try {
       const roadmapForPhases = fs.readFileSync(roadmapPath, 'utf-8');
-      const phasePattern = /#{2,4}\s*Phase\s+(\d+[A-Z]?(?:\.\d+)*)\s*:\s*([^\n]+)/gi;
+      const phasePattern = /#{2,4}\s*(?:Phase|Fase)\s+(\d+[A-Z]?(?:\.\d+)*)\s*:\s*([^\n]+)/gi;
       let pm;
       while ((pm = phasePattern.exec(roadmapForPhases)) !== null) {
         if (comparePhaseNum(pm[1], phaseNum) > 0) {
