@@ -8,7 +8,7 @@
  * Usage: node up-tools.cjs <command> [args] [--raw] [--cwd <path>]
  *
  * Commands:
- *   init planejar-fase|executar-fase|novo-projeto|rapido|retomar|operacao-fase|progresso|verificar-trabalho
+ *   init planejar-fase|executar-fase|novo-projeto|rapido|retomar|operacao-fase|progresso|verificar-trabalho|melhorias
  *   state load|get|update|advance-plan|update-progress|add-decision|record-session|record-metric|snapshot
  *   roadmap get-phase|analyze|update-plan-progress
  *   phase add|remove|find|complete
@@ -200,8 +200,11 @@ function main() {
         case 'verificar-trabalho':
           cmdInitVerificarTrabalho(cwd, args[2], raw);
           break;
+        case 'melhorias':
+          cmdInitMelhorias(cwd, raw);
+          break;
         default:
-          error(`Unknown init workflow: ${workflow}\nAvailable: planejar-fase, executar-fase, novo-projeto, rapido, retomar, operacao-fase, progresso, verificar-trabalho`);
+          error(`Unknown init workflow: ${workflow}\nAvailable: planejar-fase, executar-fase, novo-projeto, rapido, retomar, operacao-fase, progresso, verificar-trabalho, melhorias`);
       }
       break;
     }
@@ -688,6 +691,44 @@ function cmdInitVerificarTrabalho(cwd, phase, raw) {
     phase_number: phaseInfo?.phase_number || null,
     phase_name: phaseInfo?.phase_name || null,
     has_verification: hasVerification,
+  };
+
+  output(result, raw);
+}
+
+function cmdInitMelhorias(cwd, raw) {
+  const config = loadConfig(cwd);
+  const now = new Date();
+
+  // Detectar stack hints do projeto para ajustar auditoria
+  const pkgPath = path.join(cwd, 'package.json');
+  let stackHints = {};
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    const allDeps = Object.assign({}, pkg.dependencies || {}, pkg.devDependencies || {});
+    stackHints = {
+      has_react: !!allDeps.react,
+      has_next: !!allDeps.next,
+      has_vue: !!allDeps.vue,
+      has_nuxt: !!allDeps.nuxt,
+      has_svelte: !!allDeps.svelte,
+      has_tailwind: !!allDeps.tailwindcss,
+      has_prisma: !!(allDeps['@prisma/client'] || allDeps.prisma),
+      has_typescript: !!(allDeps.typescript || pathExistsInternal(cwd, 'tsconfig.json')),
+      type_module: pkg.type === 'module',
+    };
+  } catch {}
+
+  const result = {
+    planning_exists: pathExistsInternal(cwd, '.plano'),
+    melhorias_dir: '.plano/melhorias',
+    melhorias_exists: pathExistsInternal(cwd, '.plano/melhorias'),
+    has_claude_md: pathExistsInternal(cwd, 'CLAUDE.md'),
+    has_package_json: pathExistsInternal(cwd, 'package.json'),
+    date: now.toISOString().split('T')[0],
+    timestamp: now.toISOString(),
+    commit_docs: config.commit_docs,
+    stack_hints: stackHints,
   };
 
   output(result, raw);
