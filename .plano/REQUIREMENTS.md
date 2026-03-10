@@ -31,7 +31,7 @@
 ### Integracao (INTEG)
 
 - [x] INTEG-01: Geracao automatica de fases no ROADMAP.md a partir de sugestoes/ideias aprovadas
-- [ ] INTEG-02: Apresentacao interativa de sugestoes com aprovacao/rejeicao por item
+- [x] INTEG-02: Apresentacao interativa de sugestoes com aprovacao/rejeicao por item
 
 ## Requisitos v2 (Adiados)
 
@@ -70,4 +70,4 @@
 | IDEIA-05 | Fase 8 | Completo |
 | IDEIA-06 | Fase 9 | Completo |
 | INTEG-01 | Fase 10 | Completo |
-| INTEG-02 | Fase 10 | Pendente |
+| INTEG-02 | Fase 10 | Completo |
