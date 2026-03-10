@@ -63,40 +63,56 @@ Apos instalar, reinicie o Claude Code e digite `/up:ajuda` para ver todos os com
 
 ### 1. Inicializando um projeto
 
-O UP funciona tanto para projetos novos (greenfield) quanto para codebases existentes (brownfield). A deteccao e automatica.
+O UP tem duas formas de comecar, dependendo do que voce precisa.
 
-#### Projeto novo (do zero)
+#### Adocao leve — `/up:iniciar` (recomendado para projetos existentes)
+
+```
+/up:iniciar
+```
+
+O UP vai:
+1. Detectar automaticamente a stack, estrutura e features do seu projeto
+2. Criar `PROJECT.md` documentando o que existe — **sem fazer perguntas**
+3. Criar `config.json` com valores padrao
+4. Parar
+
+Sem questionario, sem requisitos, sem roadmap. Voce vai construindo incrementalmente conforme precisa:
+
+```
+/up:iniciar                    # Registra projeto, cria PROJECT.md
+/up:mapear-codigo              # Analise profunda do codebase (opcional)
+/up:melhorias                  # Descobre o que melhorar
+/up:planejar-fase 1            # Quando tiver algo para implementar
+```
+
+Ideal quando voce quer adotar o UP num projeto existente sem definir tudo de cara.
+
+#### Pipeline completo — `/up:novo-projeto`
 
 ```
 /up:novo-projeto
 ```
 
 O UP vai:
-1. Perguntar "O que voce quer construir?"
+1. Perguntar "O que voce quer construir?" (greenfield) ou "O que voce quer fazer com esse codigo?" (brownfield)
 2. Fazer perguntas de acompanhamento para entender o projeto
 3. Opcionalmente pesquisar o ecossistema do dominio (stack, features, armadilhas)
 4. Definir requisitos interativamente, agrupados por categoria
 5. Gerar ROADMAP.md com fases, criterios de sucesso e rastreabilidade
 6. Criar PROJECT.md, STATE.md e config.json
 
-Ao final voce tera um `.plano/` completo pronto para o pipeline de fases.
+Ideal quando voce ja sabe o que quer fazer e quer o pipeline completo de cara. Funciona tanto para projetos novos (greenfield) quanto existentes (brownfield) — a deteccao e automatica.
 
-#### Projeto existente (brownfield)
+#### Mapeamento de codebase
+
+Ambos os caminhos se beneficiam do mapeamento profundo do codebase:
 
 ```
-/up:mapear-codigo         # Opcional, mas recomendado
-/up:novo-projeto          # Detecta brownfield automaticamente
+/up:mapear-codigo
 ```
 
-Se voce tem codigo no diretorio, o UP detecta e adapta:
-- Carrega o mapeamento do codebase (se `/up:mapear-codigo` ja rodou)
-- Pergunta "O que voce quer **fazer** com esse codigo?" em vez de "O que voce quer construir?"
-- Infere requisitos **validados** do codebase existente (features que ja funcionam)
-- Separa seus novos objetivos como requisitos **ativos**
-- Pesquisa foca em tecnologias **novas**, nao nas que voce ja usa
-- Todo o pipeline downstream (discutir, planejar, executar) recebe contexto do codebase
-
-O `/up:mapear-codigo` produz 7 documentos em `.plano/codebase/`:
+Produz 7 documentos em `.plano/codebase/`:
 
 | Documento | Conteudo |
 |-----------|----------|
@@ -108,14 +124,7 @@ O `/up:mapear-codigo` produz 7 documentos em `.plano/codebase/`:
 | TESTING.md | Infraestrutura de testes, cobertura |
 | CONCERNS.md | Divida tecnica, areas frageis, seguranca |
 
-Esses documentos alimentam automaticamente o restante do pipeline.
-
-#### Reinicializando um projeto
-
-Se voce ja tem um `.plano/PROJECT.md` e roda `/up:novo-projeto` novamente, o UP oferece:
-- **Revisar e atualizar** — Atualizar com novos objetivos
-- **Recomecar do zero** — Recriar tudo
-- **Cancelar** — Manter como esta
+Esses documentos alimentam automaticamente o restante do pipeline (discutir, planejar, executar).
 
 ### 2. O pipeline de fases
 
@@ -300,7 +309,8 @@ O UP:
 
 | Comando | Descricao |
 |---------|-----------|
-| `/up:novo-projeto` | Inicializar projeto (detecta greenfield/brownfield) |
+| `/up:iniciar` | Registrar projeto existente (leve, sem questionario) |
+| `/up:novo-projeto` | Inicializar projeto completo (questionario + requisitos + roadmap) |
 | `/up:mapear-codigo` | Analisar codebase existente com agentes paralelos |
 | `/up:retomar` | Restaurar contexto da sessao anterior |
 | `/up:discutir-fase N` | Coletar contexto por questionamento estruturado |
@@ -312,6 +322,8 @@ O UP:
 | `/up:adicionar-fase "desc"` | Adicionar fase ao final do roadmap |
 | `/up:remover-fase N` | Remover fase futura e renumerar |
 | `/up:adicionar-testes N` | Gerar testes para fase completa |
+| `/up:melhorias` | Auditoria completa (UX, performance, modernidade) |
+| `/up:ideias` | Sugestoes de features com pesquisa de mercado |
 | `/up:rapido "tarefa"` | Tarefa rapida com commits atomicos |
 | `/up:depurar` | Depuracao sistematica com metodo cientifico |
 | `/up:configurar` | Configurar opcoes do workflow |
@@ -332,14 +344,17 @@ O UP:
 --gaps-only       Executar apenas planos de fechamento de gaps
 ```
 
-### Pipeline
+### Pipelines
 
 ```
+Leve (recomendado para projetos existentes):
+/up:iniciar → /up:planejar-fase N → /up:executar-fase N → /up:verificar-trabalho N
+
+Completo:
 /up:novo-projeto → /up:discutir-fase N → /up:planejar-fase N → /up:executar-fase N → /up:verificar-trabalho N
-                                                                                              │
-                                                                                       Gaps? ─┤
-                                                                                       Sim  → /up:planejar-fase N --gaps
-                                                                                       Nao  → Proxima fase
+
+Ciclo de gaps:
+/up:verificar-trabalho N → Gaps? → /up:planejar-fase N --gaps → /up:executar-fase N --gaps-only → Re-verificar
 ```
 
 ## Estrutura do `.plano/`
