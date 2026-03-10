@@ -6,7 +6,7 @@
 
 - [x] INFRA-01: Template de sugestao estruturado com formato obrigatorio (arquivo, linha, problema, sugestao concreta, esforco, impacto)
 - [x] INFRA-02: Matriz esforco x impacto com 4 quadrantes (quick wins, projetos estrategicos, preenchimentos, evitar)
-- [ ] INFRA-03: Mapa de cobertura obrigatorio (lista todo arquivo analisado + % de cobertura)
+- [x] INFRA-03: Mapa de cobertura obrigatorio (lista todo arquivo analisado + % de cobertura)
 - [ ] INFRA-04: Standalone -- cria .plano/ se nao existir, detecta stack automaticamente sem /up:novo-projeto
 - [x] INFRA-05: Deteccao de framework/stack antes da analise (React/Vue/Next/Tailwind/etc.) para ajustar heuristicas
 
@@ -14,8 +14,8 @@
 
 - [ ] MELH-01: Comando /up:melhorias com workflow e command standalone
 - [x] MELH-02: Agente de auditoria UX/navegabilidade (CSS, componentes, fluxos, formularios, hierarquia visual)
-- [ ] MELH-03: Agente de auditoria de performance (bundle, re-renders, queries, deps, lazy loading, caching)
-- [ ] MELH-04: Agente de auditoria de modernidade (libs desatualizadas, padroes obsoletos, alternativas modernas)
+- [x] MELH-03: Agente de auditoria de performance (bundle, re-renders, queries, deps, lazy loading, caching)
+- [x] MELH-04: Agente de auditoria de modernidade (libs desatualizadas, padroes obsoletos, alternativas modernas)
 - [ ] MELH-05: Sintetizador cross-dimensao (cruza insights, deduplica, valida conflitos entre dimensoes)
 - [ ] MELH-06: Relatorio consolidado em .plano/melhorias/ com todas as sugestoes priorizadas
 
@@ -54,13 +54,13 @@
 |-----------|------|--------|
 | INFRA-01 | Fase 3 | Completo |
 | INFRA-02 | Fase 3 | Completo |
-| INFRA-03 | Fase 5 | Pendente |
+| INFRA-03 | Fase 5 | Completo |
 | INFRA-04 | Fase 7, 9 | Pendente |
 | INFRA-05 | Fase 4 | Completo |
 | MELH-01 | Fase 7 | Pendente |
 | MELH-02 | Fase 5 | Completo |
-| MELH-03 | Fase 5 | Pendente |
-| MELH-04 | Fase 5 | Pendente |
+| MELH-03 | Fase 5 | Completo |
+| MELH-04 | Fase 5 | Completo |
 | MELH-05 | Fase 6 | Pendente |
 | MELH-06 | Fase 6 | Pendente |
 | IDEIA-01 | Fase 9 | Pendente |
