@@ -130,4 +130,4 @@
 | 7. Comando /up:melhorias | 1/2 | Em progresso | - |
 | 8. Agente idealizador | 2/2 | Completa | 2026-03-10 |
 | 9. Comando /up:ideias | 2/2 | Completa | 2026-03-10 |
-| 10. Integracao com roadmap | 1/2 | In Progress|  |
+| 10. Integracao com roadmap | 2/2 | Complete   | 2026-03-10 |
