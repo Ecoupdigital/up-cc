@@ -8,7 +8,7 @@
  * Usage: node up-tools.cjs <command> [args] [--raw] [--cwd <path>]
  *
  * Commands:
- *   init planejar-fase|executar-fase|novo-projeto|rapido|retomar|operacao-fase|progresso|verificar-trabalho|melhorias
+ *   init planejar-fase|executar-fase|novo-projeto|rapido|retomar|operacao-fase|progresso|verificar-trabalho|melhorias|ideias
  *   state load|get|update|advance-plan|update-progress|add-decision|record-session|record-metric|snapshot
  *   roadmap get-phase|analyze|update-plan-progress
  *   phase add|remove|find|complete
@@ -203,8 +203,11 @@ function main() {
         case 'melhorias':
           cmdInitMelhorias(cwd, raw);
           break;
+        case 'ideias':
+          cmdInitIdeias(cwd, raw);
+          break;
         default:
-          error(`Unknown init workflow: ${workflow}\nAvailable: planejar-fase, executar-fase, novo-projeto, rapido, retomar, operacao-fase, progresso, verificar-trabalho, melhorias`);
+          error(`Unknown init workflow: ${workflow}\nAvailable: planejar-fase, executar-fase, novo-projeto, rapido, retomar, operacao-fase, progresso, verificar-trabalho, melhorias, ideias`);
       }
       break;
     }
@@ -723,6 +726,44 @@ function cmdInitMelhorias(cwd, raw) {
     planning_exists: pathExistsInternal(cwd, '.plano'),
     melhorias_dir: '.plano/melhorias',
     melhorias_exists: pathExistsInternal(cwd, '.plano/melhorias'),
+    has_claude_md: pathExistsInternal(cwd, 'CLAUDE.md'),
+    has_package_json: pathExistsInternal(cwd, 'package.json'),
+    date: now.toISOString().split('T')[0],
+    timestamp: now.toISOString(),
+    commit_docs: config.commit_docs,
+    stack_hints: stackHints,
+  };
+
+  output(result, raw);
+}
+
+function cmdInitIdeias(cwd, raw) {
+  const config = loadConfig(cwd);
+  const now = new Date();
+
+  // Detectar stack hints do projeto para contextualizar analise
+  const pkgPath = path.join(cwd, 'package.json');
+  let stackHints = {};
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    const allDeps = Object.assign({}, pkg.dependencies || {}, pkg.devDependencies || {});
+    stackHints = {
+      has_react: !!allDeps.react,
+      has_next: !!allDeps.next,
+      has_vue: !!allDeps.vue,
+      has_nuxt: !!allDeps.nuxt,
+      has_svelte: !!allDeps.svelte,
+      has_tailwind: !!allDeps.tailwindcss,
+      has_prisma: !!(allDeps['@prisma/client'] || allDeps.prisma),
+      has_typescript: !!(allDeps.typescript || pathExistsInternal(cwd, 'tsconfig.json')),
+      type_module: pkg.type === 'module',
+    };
+  } catch {}
+
+  const result = {
+    planning_exists: pathExistsInternal(cwd, '.plano'),
+    ideias_dir: '.plano/ideias',
+    ideias_exists: pathExistsInternal(cwd, '.plano/ideias'),
     has_claude_md: pathExistsInternal(cwd, 'CLAUDE.md'),
     has_package_json: pathExistsInternal(cwd, 'package.json'),
     date: now.toISOString().split('T')[0],
