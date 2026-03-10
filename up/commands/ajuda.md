@@ -55,6 +55,7 @@ Sistema de desenvolvimento orientado a fases para projetos de software.
 | Comando | Descricao | Uso |
 |---------|-----------|-----|
 | `/up:melhorias` | Auditoria completa do codebase (UX, performance, modernidade) | `/up:melhorias` |
+| `/up:ideias` | Sugestoes de features novas com pesquisa de mercado | `/up:ideias` |
 
 ### Utilitarios
 
@@ -127,6 +128,12 @@ O mapeamento do codebase alimenta todo o pipeline automaticamente.
 /up:melhorias   # Auditoria completa (standalone, nao requer /up:novo-projeto)
 ```
 Resultado em .plano/melhorias/RELATORIO.md com sugestoes priorizadas.
+
+### Ideacao de Features
+```
+/up:ideias      # Sugestoes de features novas (standalone, nao requer /up:novo-projeto)
+```
+Resultado em .plano/ideias/RELATORIO.md com ranking ICE e anti-features.
 
 ### Correcao Rapida
 ```
