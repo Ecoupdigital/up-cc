@@ -9,8 +9,8 @@
 ## Posicao Atual
 
 **Fase**: 10 de 10
-**Plano**: 0 de ? na fase atual
-**Status**: Fase 9 completa (2/2 planos), fase 10 pendente
+**Plano**: 1 de 2 na fase atual
+**Status**: Fase 10 em progresso (1/2 planos)
 **Progresso**:
 ```
 Fase 1: Sistema UP base           [████████████████████] Existente
@@ -22,7 +22,7 @@ Fase 6: Sintetizador melhorias    [███████████████
 Fase 7: Comando /up:melhorias     [████████████████████] Completa
 Fase 8: Agente idealizador        [████████████████████] Completa
 Fase 9: Comando /up:ideias        [████████████████████] Completa
-Fase 10: Integracao com roadmap   [░░░░░░░░░░░░░░░░░░░░] Nao iniciado
+Fase 10: Integracao com roadmap   [██████████░░░░░░░░░░] Em progresso (1/2)
 ```
 
 ## Metricas de Performance
@@ -31,7 +31,7 @@ Fase 10: Integracao com roadmap   [░░░░░░░░░░░░░░░
 |---------|-------|
 | Fases completas | 7/8 (novas) |
 | Requisitos cobertos | 19/19 |
-| Planos executados | 15 |
+| Planos executados | 16 |
 
 ## Contexto Acumulado
 
@@ -49,6 +49,7 @@ Fase 10: Integracao com roadmap   [░░░░░░░░░░░░░░░
 | 8 | Dimensao primaria = finding mais completo | Na mesclagem cross-dimensao, o finding com mais caracteres em Problema+Sugestao define a dimensao primaria | 6 |
 | 9 | 2 agentes de ideias + 1 consolidador | ICE scoring e anti-features requerem cruzar analise de codigo com pesquisa de mercado; espelha padrao provado de melhorias (3 auditores -> 1 sintetizador) | 8 |
 | 10 | Confidence base varia por fonte no ICE scoring | Codigo puro=5, concorrente confirmado=8, tendencia=4, ambas fontes=9 -- reflete nivel de evidencia de cada tipo de fonte | 8 |
+| 11 | Deteccao de idioma ROADMAP por regex simples | Testar '### Fase ' no conteudo e suficiente para diferenciar PT/EN sem config adicional | 10 |
 
 ### TODOs
 
@@ -62,5 +63,5 @@ Nenhum bloqueio ativo.
 
 ## Continuidade de Sessao
 
-**Ultima sessao**: 2026-03-10 -- Execucao do plano 09-002 (workflow ideias)
-**Proxima acao**: Planejar e executar fase 10 (integracao com roadmap)
+**Ultima sessao**: 2026-03-10 -- Execucao do plano 10-001 (CLI generate-from-report)
+**Proxima acao**: Executar plano 10-002 (apresentacao interativa de resultados)
