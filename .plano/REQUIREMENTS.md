@@ -16,8 +16,8 @@
 - [x] MELH-02: Agente de auditoria UX/navegabilidade (CSS, componentes, fluxos, formularios, hierarquia visual)
 - [x] MELH-03: Agente de auditoria de performance (bundle, re-renders, queries, deps, lazy loading, caching)
 - [x] MELH-04: Agente de auditoria de modernidade (libs desatualizadas, padroes obsoletos, alternativas modernas)
-- [ ] MELH-05: Sintetizador cross-dimensao (cruza insights, deduplica, valida conflitos entre dimensoes)
-- [ ] MELH-06: Relatorio consolidado em .plano/melhorias/ com todas as sugestoes priorizadas
+- [x] MELH-05: Sintetizador cross-dimensao (cruza insights, deduplica, valida conflitos entre dimensoes)
+- [x] MELH-06: Relatorio consolidado em .plano/melhorias/ com todas as sugestoes priorizadas
 
 ### Ideias (IDEIA)
 
@@ -61,8 +61,8 @@
 | MELH-02 | Fase 5 | Completo |
 | MELH-03 | Fase 5 | Completo |
 | MELH-04 | Fase 5 | Completo |
-| MELH-05 | Fase 6 | Pendente |
-| MELH-06 | Fase 6 | Pendente |
+| MELH-05 | Fase 6 | Completo |
+| MELH-06 | Fase 6 | Completo |
 | IDEIA-01 | Fase 9 | Pendente |
 | IDEIA-02 | Fase 8 | Pendente |
 | IDEIA-03 | Fase 8 | Pendente |

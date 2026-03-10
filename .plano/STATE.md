@@ -4,12 +4,12 @@
 
 **Projeto**: Agentes de Auditoria e Ideias para UP
 **Valor Central**: Cobertura completa do codebase com sugestoes concretas e acionaveis (arquivo, linha, problema, solucao, esforco, impacto)
-**Foco Atual**: Fase 5 - Agentes auditores de dimensao (completa)
+**Foco Atual**: Fase 6 - Sintetizador de melhorias (plano 001 completo)
 
 ## Posicao Atual
 
-**Fase**: 5 de 10
-**Plano**: 3 de 3 na fase atual (completo)
+**Fase**: 6 de 10
+**Plano**: 1 de 1 na fase atual (completo)
 **Status**: Fase completa
 **Progresso**:
 ```
@@ -18,7 +18,7 @@ Fase 2: Agentes paralelos         [███████████████
 Fase 3: Templates e formatos      [████████████████████] Completa
 Fase 4: References de auditoria   [████████████████████] Completa
 Fase 5: Agentes auditores         [████████████████████] Completa
-Fase 6: Sintetizador melhorias    [░░░░░░░░░░░░░░░░░░░░] Nao iniciado
+Fase 6: Sintetizador melhorias    [████████████████████] Completa
 Fase 7: Comando /up:melhorias     [░░░░░░░░░░░░░░░░░░░░] Nao iniciado
 Fase 8: Agente idealizador        [░░░░░░░░░░░░░░░░░░░░] Nao iniciado
 Fase 9: Comando /up:ideias        [░░░░░░░░░░░░░░░░░░░░] Nao iniciado
@@ -29,9 +29,9 @@ Fase 10: Integracao com roadmap   [░░░░░░░░░░░░░░░
 
 | Metrica | Valor |
 |---------|-------|
-| Fases completas | 3/8 (novas) |
+| Fases completas | 4/8 (novas) |
 | Requisitos cobertos | 19/19 |
-| Planos executados | 8 |
+| Planos executados | 9 |
 
 ## Contexto Acumulado
 
@@ -46,10 +46,11 @@ Fase 10: Integracao com roadmap   [░░░░░░░░░░░░░░░
 | 5 | Fases existentes agrupadas em 2 macro-blocos | Sistema UP base + agentes paralelos cobrem todo o brownfield relevante | 1,2 |
 | 6 | P/M/G mapeado binario para matriz 2x2 | P=baixo, M/G=alto -- simplicidade sobre granularidade para priorizacao | 3 |
 | 7 | Empate M/M classifica como Projetos Estrategicos | Abordagem conservadora -- assume custo alto quando ambiguo | 3 |
+| 8 | Dimensao primaria = finding mais completo | Na mesclagem cross-dimensao, o finding com mais caracteres em Problema+Sugestao define a dimensao primaria | 6 |
 
 ### TODOs
 
-- [ ] Definir regra de "dimensao primaria" quando finding pertence a multiplas dimensoes (Fase 6)
+- [x] Definir regra de "dimensao primaria" quando finding pertence a multiplas dimensoes (Fase 6) -- Implementado: finding com descricao mais completa (mais caracteres em Problema+Sugestao) define dimensao primaria
 - [ ] Avaliar se 2 agentes de ideias sao suficientes vs 3 (custo de contexto) (Fase 8)
 - [x] Definir heuristica de deteccao de CSS frameworks (Tailwind, Bootstrap) para ajustar auditoria UX (Fase 5) -- Implementado em audit-ux.md stack_detection
 
@@ -59,5 +60,5 @@ Nenhum bloqueio ativo.
 
 ## Continuidade de Sessao
 
-**Ultima sessao**: 2026-03-10 -- Execucao do plano 05-003 (agente auditor de modernidade)
-**Proxima acao**: Planejar e executar Fase 6 (Sintetizador de melhorias)
+**Ultima sessao**: 2026-03-10 -- Execucao do plano 06-001 (agente sintetizador de melhorias)
+**Proxima acao**: Planejar e executar Fase 7 (Comando /up:melhorias)
