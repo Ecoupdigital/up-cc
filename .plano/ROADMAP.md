@@ -92,7 +92,7 @@
   2. Agente pesquisador de mercado busca concorrentes e tendencias relevantes via web search e apresenta comparativo
   3. Cada sugestao de feature tem score ICE (Impact x Confidence x Ease, escala 1-10) para priorizacao objetiva
   4. Para cada 3 sugestoes positivas, pelo menos 1 anti-feature e apresentada (feature que NAO deve ser implementada, com justificativa)
-**Planos**: TBD
+**Planos**: 1/2 completo
 
 ### Fase 9: Comando /up:ideias
 **Objetivo**: Usuario pode invocar /up:ideias em qualquer projeto e receber sugestoes de features novas com pesquisa de mercado
@@ -126,6 +126,6 @@
 | 5. Agentes auditores de dimensao | 3/3 | Completa | 2026-03-10 |
 | 6. Sintetizador de melhorias | 1/1 | Completa | 2026-03-10 |
 | 7. Comando /up:melhorias | 1/2 | Em progresso | - |
-| 8. Agente idealizador | 0/? | Nao iniciado | - |
+| 8. Agente idealizador | 1/2 | Em progresso | - |
 | 9. Comando /up:ideias | 0/? | Nao iniciado | - |
 | 10. Integracao com roadmap | 0/? | Nao iniciado | - |

@@ -22,8 +22,8 @@
 ### Ideias (IDEIA)
 
 - [ ] IDEIA-01: Comando /up:ideias com workflow e command standalone
-- [ ] IDEIA-02: Agente analista de codigo (mapear features existentes para identificar gaps)
-- [ ] IDEIA-03: Agente pesquisador de mercado (concorrentes, tendencias via web search)
+- [x] IDEIA-02: Agente analista de codigo (mapear features existentes para identificar gaps)
+- [x] IDEIA-03: Agente pesquisador de mercado (concorrentes, tendencias via web search)
 - [ ] IDEIA-04: Sugestoes com priorizacao ICE (Impact x Confidence x Ease, escala 1-10)
 - [ ] IDEIA-05: Anti-features obrigatorias (1 anti-feature para cada 3 sugestoes positivas)
 - [ ] IDEIA-06: Relatorio consolidado em .plano/ideias/
@@ -64,8 +64,8 @@
 | MELH-05 | Fase 6 | Completo |
 | MELH-06 | Fase 6 | Completo |
 | IDEIA-01 | Fase 9 | Pendente |
-| IDEIA-02 | Fase 8 | Pendente |
-| IDEIA-03 | Fase 8 | Pendente |
+| IDEIA-02 | Fase 8 | Completo |
+| IDEIA-03 | Fase 8 | Completo |
 | IDEIA-04 | Fase 8 | Pendente |
 | IDEIA-05 | Fase 8 | Pendente |
 | IDEIA-06 | Fase 9 | Pendente |
