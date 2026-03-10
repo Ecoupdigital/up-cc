@@ -19,6 +19,8 @@ Standalone: works without /up:novo-projeto. Creates .plano/melhorias/ automatica
 Detects project stack (React/Vue/Next/Tailwind/etc.) and adjusts analysis heuristics.
 
 Output: .plano/melhorias/RELATORIO.md with suggestions organized in effort x impact matrix (4 quadrants).
+
+Optionally, after reviewing results, user can select suggestions to convert into executable phases in ROADMAP.md.
 </objective>
 
 <execution_context>
@@ -33,6 +35,8 @@ $ARGUMENTS
 It creates .plano/melhorias/ automatically and runs the full audit pipeline.
 
 **If .plano/melhorias/ already exists:** Asks user if they want to overwrite previous audit or cancel.
+
+**Integration with roadmap:** After the audit completes, the user can optionally select suggestions to convert into ROADMAP.md phases. Requires the `phase generate-from-report` CLI subcommand.
 </context>
 
 <process>
