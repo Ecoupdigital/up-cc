@@ -10,7 +10,7 @@
 - [x] **Fase 6: Sintetizador de melhorias** - Cruzamento cross-dimensao e relatorio consolidado
 - [ ] **Fase 7: Comando /up:melhorias** - Command e workflow standalone para auditoria completa (1/2 planos)
 - [x] **Fase 8: Agente idealizador** - Agente que sugere features novas por analise de codigo e mercado
-- [ ] **Fase 9: Comando /up:ideias** - Command e workflow standalone para sugestao de features
+- [x] **Fase 9: Comando /up:ideias** - Command e workflow standalone para sugestao de features
 - [ ] **Fase 10: Integracao com roadmap** - Geracao de fases e apresentacao interativa de resultados
 
 ## Detalhes das Fases
@@ -104,7 +104,8 @@
   2. Agentes paralelos analisam codigo e pesquisam mercado/concorrentes, seguidos por consolidacao
   3. Relatorio em .plano/ideias/ contem sugestoes limitadas (max 15-20) com score ICE e categorizacao (must-have, performance, delighter)
   4. Secao de anti-features esta presente e e proporcional as sugestoes positivas
-**Planos**: TBD
+**Planos**: 2/2 completo
+**Completado**: 2026-03-10
 
 ### Fase 10: Integracao com roadmap
 **Objetivo**: Sugestoes aprovadas pelo usuario sao convertidas automaticamente em fases executaveis no ROADMAP.md
@@ -128,5 +129,5 @@
 | 6. Sintetizador de melhorias | 1/1 | Completa | 2026-03-10 |
 | 7. Comando /up:melhorias | 1/2 | Em progresso | - |
 | 8. Agente idealizador | 2/2 | Completa | 2026-03-10 |
-| 9. Comando /up:ideias | 0/? | Nao iniciado | - |
+| 9. Comando /up:ideias | 2/2 | Completa | 2026-03-10 |
 | 10. Integracao com roadmap | 0/? | Nao iniciado | - |
