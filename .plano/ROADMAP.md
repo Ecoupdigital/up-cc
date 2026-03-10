@@ -8,7 +8,7 @@
 - [x] **Fase 4: References de auditoria** - Documentos de referencia para cada dimensao de analise
 - [x] **Fase 5: Agentes auditores de dimensao** - Agentes especializados em UX, performance e modernidade
 - [x] **Fase 6: Sintetizador de melhorias** - Cruzamento cross-dimensao e relatorio consolidado
-- [ ] **Fase 7: Comando /up:melhorias** - Command e workflow standalone para auditoria completa
+- [ ] **Fase 7: Comando /up:melhorias** - Command e workflow standalone para auditoria completa (1/2 planos)
 - [ ] **Fase 8: Agente idealizador** - Agente que sugere features novas por analise de codigo e mercado
 - [ ] **Fase 9: Comando /up:ideias** - Command e workflow standalone para sugestao de features
 - [ ] **Fase 10: Integracao com roadmap** - Geracao de fases e apresentacao interativa de resultados
@@ -81,7 +81,7 @@
   2. O comando detecta a stack do projeto (React/Vue/Next/Tailwind/etc.) e ajusta a analise
   3. Tres agentes rodam em paralelo (UX, performance, modernidade), seguidos pelo sintetizador
   4. Usuario recebe relatorio final com sugestoes priorizadas por quadrante de esforco x impacto
-**Planos**: TBD
+**Planos**: 1/2 completo
 
 ### Fase 8: Agente idealizador
 **Objetivo**: Projeto recebe sugestoes de features novas baseadas em analise de codigo existente, pesquisa de mercado e perspectiva do usuario final
@@ -125,7 +125,7 @@
 | 4. References de auditoria | 3/3 | Completa | 2026-03-09 |
 | 5. Agentes auditores de dimensao | 3/3 | Completa | 2026-03-10 |
 | 6. Sintetizador de melhorias | 1/1 | Completa | 2026-03-10 |
-| 7. Comando /up:melhorias | 0/? | Nao iniciado | - |
+| 7. Comando /up:melhorias | 1/2 | Em progresso | - |
 | 8. Agente idealizador | 0/? | Nao iniciado | - |
 | 9. Comando /up:ideias | 0/? | Nao iniciado | - |
 | 10. Integracao com roadmap | 0/? | Nao iniciado | - |
