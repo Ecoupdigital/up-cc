@@ -13,7 +13,7 @@
 ### Melhorias (MELH)
 
 - [ ] MELH-01: Comando /up:melhorias com workflow e command standalone
-- [ ] MELH-02: Agente de auditoria UX/navegabilidade (CSS, componentes, fluxos, formularios, hierarquia visual)
+- [x] MELH-02: Agente de auditoria UX/navegabilidade (CSS, componentes, fluxos, formularios, hierarquia visual)
 - [ ] MELH-03: Agente de auditoria de performance (bundle, re-renders, queries, deps, lazy loading, caching)
 - [ ] MELH-04: Agente de auditoria de modernidade (libs desatualizadas, padroes obsoletos, alternativas modernas)
 - [ ] MELH-05: Sintetizador cross-dimensao (cruza insights, deduplica, valida conflitos entre dimensoes)
@@ -58,7 +58,7 @@
 | INFRA-04 | Fase 7, 9 | Pendente |
 | INFRA-05 | Fase 4 | Completo |
 | MELH-01 | Fase 7 | Pendente |
-| MELH-02 | Fase 5 | Pendente |
+| MELH-02 | Fase 5 | Completo |
 | MELH-03 | Fase 5 | Pendente |
 | MELH-04 | Fase 5 | Pendente |
 | MELH-05 | Fase 6 | Pendente |

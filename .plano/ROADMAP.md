@@ -121,7 +121,7 @@
 | 2. Agentes paralelos e mapeamento | N/A | Existente | Pre-existente |
 | 3. Templates e formatos padrao | 1/1 | Completa | 2026-03-09 |
 | 4. References de auditoria | 3/3 | Completa | 2026-03-09 |
-| 5. Agentes auditores de dimensao | 0/? | Nao iniciado | - |
+| 5. Agentes auditores de dimensao | 1/3 | In Progress|  |
 | 6. Sintetizador de melhorias | 0/? | Nao iniciado | - |
 | 7. Comando /up:melhorias | 0/? | Nao iniciado | - |
 | 8. Agente idealizador | 0/? | Nao iniciado | - |
