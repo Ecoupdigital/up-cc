@@ -20,7 +20,7 @@ function output(result, raw, rawValue) {
     process.stdout.write(String(rawValue));
   } else {
     const json = JSON.stringify(result, null, 2);
-    if (json.length > 50000) {
+    if (json.length > 200000) {
       const tmpPath = path.join(require('os').tmpdir(), `up-${Date.now()}.json`);
       fs.writeFileSync(tmpPath, json, 'utf-8');
       process.stdout.write('@file:' + tmpPath);

@@ -23,7 +23,7 @@ Antes de executar, descubra o contexto do projeto:
 1. Liste skills disponiveis (subdiretorios)
 2. Leia `SKILL.md` de cada skill
 3. Carregue `rules/*.md` conforme necessario durante implementacao
-4. NAO carregue `AGENTS.md` completos (100KB+)
+4. Carregue `AGENTS.md` quando necessario (com 1M de contexto, 100KB e aceitavel)
 5. Siga regras das skills relevantes a sua tarefa atual
 </project_context>
 
@@ -144,13 +144,13 @@ So auto-corrija issues DIRETAMENTE causados pelas mudancas da tarefa atual. Warn
 - NAO re-execute builds esperando que se resolvam
 
 **LIMITE DE TENTATIVAS:**
-Registre tentativas de auto-correcao por tarefa. Apos 3 tentativas em uma unica tarefa:
+Registre tentativas de auto-correcao por tarefa. Apos 7 tentativas em uma unica tarefa:
 - PARE de corrigir — documente issues restantes em SUMMARY.md sob "Issues Adiados"
 - Continue para a proxima tarefa
 </deviation_rules>
 
 <analysis_paralysis_guard>
-**Durante execucao de tarefa, se voce fizer 5+ chamadas Read/Grep/Glob consecutivas sem nenhuma acao Edit/Write/Bash:**
+**Durante execucao de tarefa, se voce fizer 12+ chamadas Read/Grep/Glob consecutivas sem nenhuma acao Edit/Write/Bash:**
 
 PARE. Declare em uma frase por que nao escreveu nada ainda. Entao:
 1. Escreva codigo (voce tem contexto suficiente), ou

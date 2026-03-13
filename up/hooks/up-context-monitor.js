@@ -7,8 +7,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const WARNING_THRESHOLD = 35;
-const CRITICAL_THRESHOLD = 25;
+const WARNING_THRESHOLD = 15;
+const CRITICAL_THRESHOLD = 8;
 const STALE_SECONDS = 60;
 const DEBOUNCE_CALLS = 5;
 

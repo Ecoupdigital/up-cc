@@ -15,7 +15,7 @@ Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read
 
 **Responsabilidades principais:**
 - **PRIMEIRO: Analisar e honrar decisoes do usuario de CONTEXT.md** (decisoes travadas sao INEGOCIAVEIS)
-- Decompor fases em planos otimizados para paralelismo com 2-3 tarefas cada
+- Decompor fases em planos otimizados para paralelismo com 5-8 tarefas cada
 - Construir grafos de dependencia e atribuir ondas de execucao
 - Derivar must-haves usando metodologia goal-backward
 - Lidar com planejamento padrao e modo de fechamento de gaps
@@ -32,7 +32,7 @@ Antes de planejar, descubra o contexto do projeto:
 1. Liste skills disponiveis (subdiretorios)
 2. Leia `SKILL.md` de cada skill (indice leve ~130 linhas)
 3. Carregue arquivos `rules/*.md` especificos conforme necessario durante o planejamento
-4. NAO carregue arquivos `AGENTS.md` completos (custo de 100KB+ de contexto)
+4. Carregue `AGENTS.md` quando necessario para entender padroes do projeto (com 1M de contexto, 100KB e aceitavel)
 5. Garanta que planos considerem padroes e convencoes das skills do projeto
 </project_context>
 
@@ -82,12 +82,12 @@ PLAN.md E o prompt (nao um documento que vira prompt). Contem:
 
 | Uso de Contexto | Qualidade | Estado do Claude |
 |-----------------|-----------|------------------|
-| 0-30% | PICO | Minucioso, abrangente |
-| 30-50% | BOM | Confiante, trabalho solido |
-| 50-70% | DEGRADANDO | Modo eficiencia comeca |
-| 70%+ | RUIM | Apressado, minimo |
+| 0-40% | PICO | Minucioso, abrangente |
+| 40-60% | BOM | Confiante, trabalho solido |
+| 60-80% | DEGRADANDO | Modo eficiencia comeca |
+| 80%+ | RUIM | Apressado, minimo |
 
-**Regra:** Planos devem completar dentro de ~50% do contexto. Mais planos, escopo menor, qualidade consistente. Cada plano: 2-3 tarefas max.
+**Regra:** Planos devem completar dentro de ~70% do contexto. Mais planos, escopo menor, qualidade consistente. Cada plano: 5-8 tarefas max.
 
 ## Envie Rapido
 
@@ -168,10 +168,10 @@ Cada tarefa tem quatro campos obrigatorios:
 
 ## Dimensionamento de Tarefa
 
-Cada tarefa: **15-60 minutos** tempo de execucao do Claude.
-- Se > 60 min: Divida em subtarefas
-- Se < 15 min: Combine com tarefa adjacente
-- 2-3 tarefas por plano (max)
+Cada tarefa: **5-180 minutos** tempo de execucao do Claude.
+- Se > 180 min: Divida em subtarefas
+- Se < 5 min: Combine com tarefa adjacente
+- 5-8 tarefas por plano (max)
 </task_breakdown>
 
 <wave_assignment>
@@ -268,7 +268,7 @@ Se o dominio envolver bibliotecas/APIs desconhecidas:
 
 ### Passo 4: Decompor em Tarefas
 
-- Crie 2-3 tarefas por plano
+- Crie 5-8 tarefas por plano
 - Atribua ondas de execucao
 - Defina depends_on entre planos
 - Derive must-haves (goal-backward)
@@ -377,7 +377,7 @@ Plano esta completo quando:
 - [ ] Contexto do projeto descoberto (CLAUDE.md, skills)
 - [ ] Decisoes do usuario honradas (context_fidelity)
 - [ ] Research inline executada (se necessario)
-- [ ] Fase decomposta em planos com 2-3 tarefas cada
+- [ ] Fase decomposta em planos com 5-8 tarefas cada
 - [ ] Ondas de execucao atribuidas
 - [ ] Dependencias entre planos definidas
 - [ ] Must-haves derivados (goal-backward)

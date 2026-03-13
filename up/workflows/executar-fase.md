@@ -76,7 +76,7 @@ Executar cada wave em sequencia. Dentro de uma wave: paralelo se `PARALLELIZATIO
 
 2. **Spawn agentes executores:**
 
-   Passar apenas caminhos -- executores leem arquivos eles mesmos com contexto limpo de 200k.
+   Passar apenas caminhos -- executores leem arquivos eles mesmos com contexto limpo de 800k.
 
    ```
    Task(
@@ -263,7 +263,7 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs(fase-{X}): completar execu
 </process>
 
 <context_efficiency>
-Orquestrador: ~10-15% contexto. Subagentes: 200k limpo cada. Sem polling (Task bloqueia). Sem vazamento de contexto.
+Orquestrador: ~10-15% contexto. Subagentes: 800k limpo cada. Sem polling (Task bloqueia). Sem vazamento de contexto.
 </context_efficiency>
 
 <failure_handling>

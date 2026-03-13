@@ -14,7 +14,7 @@ Depurar problemas usando metodo cientifico com isolamento em subagente.
 
 **Papel do orquestrador:** Coletar sintomas, spawnar agente up-depurador, lidar com checkpoints, spawnar continuacoes.
 
-**Por que subagente:** Investigacao consome contexto rapidamente (lendo arquivos, formando hipoteses, testando). Contexto fresco de 200k por investigacao. Contexto principal permanece enxuto para interacao com usuario.
+**Por que subagente:** Investigacao consome contexto rapidamente (lendo arquivos, formando hipoteses, testando). Contexto fresco de 800k por investigacao. Contexto principal permanece enxuto para interacao com usuario.
 </objective>
 
 <context>

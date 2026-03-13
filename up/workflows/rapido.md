@@ -81,7 +81,7 @@ Task(
 - Criar UM UNICO plano com 1-3 tarefas focadas
 - Tarefas rapidas devem ser atomicas e autocontidas
 - Sem fase de pesquisa
-- Alvo ~30% uso de contexto (simples, focado)
+- Alvo ~10% uso de contexto (simples, focado)
 </constraints>
 
 <output>

@@ -119,10 +119,10 @@ Enables instant resumption:
 
 <size_constraint>
 
-Keep STATE.md under 60 lines.
+Keep STATE.md under 150 lines.
 
 It's a DIGEST, not an archive. If accumulated context grows too large:
-- Keep only 3-5 recent decisions in summary (full log in PROJECT.md)
+- Keep only 10-15 recent decisions in summary (full log in PROJECT.md)
 - Keep only active blockers, remove resolved ones
 
 The goal is "read once, know where we are" -- if it's too long, that fails.
