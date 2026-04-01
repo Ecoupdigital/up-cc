@@ -4,9 +4,15 @@ Modo Builder: construir projeto completo de forma autonoma. Funciona em dois mod
 **Greenfield:** Projeto do zero. Usuario descreve o que quer, sistema cria tudo.
 **Brownfield:** Projeto existente. Usuario descreve a feature/mudanca, sistema mapeia o codigo, planeja e implementa.
 
-5 estagios: Intake (interativo) → Arquitetura (autonomo) → Build (autonomo) → Polish (autonomo) → Entrega (autonomo)
+**Dois niveis:**
+- **Full (padrao):** 5 estagios completos — Intake → Arquitetura → Build → Polish → Entrega
+- **Light (`--light`):** Pipeline enxuto — Intake rapido → Mini-scan → Build + E2E → Fim
 
 A partir do Estagio 2, ZERO interacao com usuario. Todas as decisoes sao tomadas autonomamente.
+
+**IMPORTANTE: Verificar flag `--light` no $ARGUMENTS antes de iniciar.**
+Se `--light` presente: pular direto para `<light_process>` no final deste workflow.
+Se ausente: seguir o `<process>` normal (full).
 </purpose>
 
 <core_principle>
@@ -1370,6 +1376,259 @@ Como rodar:
 ```
 
 </process>
+
+<light_process>
+## MODO LIGHT — Pipeline Enxuto
+
+**Ativado quando `--light` esta nos $ARGUMENTS.**
+Extrair `--light` dos argumentos. O restante e o briefing.
+
+### L1. Intake Rapido
+
+#### L1.1 Detectar Modo
+
+Mesmo processo do full: verificar codigo existente para determinar greenfield/brownfield.
+
+```bash
+ls package.json go.mod Cargo.toml requirements.txt pyproject.toml 2>/dev/null
+ls -d src/ app/ lib/ pages/ components/ 2>/dev/null | head -10
+```
+
+#### L1.2 Receber Briefing
+
+Se briefing veio nos $ARGUMENTS: usar direto.
+Se vazio: pedir freeform (mesma logica do full).
+
+#### L1.3 Perguntas Criticas
+
+Mesma logica do full — perguntar APENAS o essencial (credenciais, APIs, ambiguidades criticas).
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ UP > BUILDER LIGHT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Feature:** [resumo em 1-2 frases]
+**Modo:** [greenfield/brownfield]
+**Stack:** [detectada ou inferida]
+
+Pipeline enxuto: planejar → executar → testar.
+Iniciando...
+```
+
+═══════════════════════════════════════════════════════
+ FIM DA INTERACAO COM USUARIO
+═══════════════════════════════════════════════════════
+
+---
+
+### L2. Estrutura Inline (Sem Agente Separado)
+
+**NAO spawnar up-arquiteto.** Fazer tudo inline para economizar tokens.
+
+#### L2.1 Entender o Codebase (Brownfield)
+
+**Se `.plano/codebase/` existe e recente (< 7 dias):** Ler STACK.md e CONVENTIONS.md apenas. Pular mapeamento.
+
+**Se nao existe:** Mini-scan inline:
+```bash
+# Stack
+cat package.json 2>/dev/null | head -50
+ls tsconfig.json next.config.* vite.config.* 2>/dev/null
+
+# Estrutura
+find . -type d -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.plano/*' -maxdepth 3 | head -30
+
+# Arquivos principais
+find . -name "*.ts" -o -name "*.tsx" | grep -v node_modules | head -30
+```
+
+**Greenfield:** Pular. Inferir stack do briefing ou defaults.
+
+#### L2.2 Criar/Atualizar Documentos
+
+```bash
+mkdir -p .plano
+git init 2>/dev/null
+```
+
+**PROJECT.md** — Criar ou atualizar inline (sem template elaborado):
+```markdown
+# [Nome do Projeto/Feature]
+
+## O que e
+[Briefing do usuario em 2-3 frases]
+
+## Stack
+[Stack detectada ou inferida]
+
+## Requisitos
+- [ ] [REQ-01]: [requisito 1]
+- [ ] [REQ-02]: [requisito 2]
+...
+```
+
+**ROADMAP.md** — Criar ou atualizar com 1-3 fases:
+- Se feature simples: 1 fase
+- Se feature media: 2-3 fases
+- Cada fase com objetivo e criterios de sucesso
+
+**STATE.md** — Inicializar ou atualizar.
+
+**config.json:**
+```json
+{
+  "mode": "yolo",
+  "granularity": "coarse",
+  "parallelization": true,
+  "commit_docs": true,
+  "builder_mode": true,
+  "builder_type": "light"
+}
+```
+
+Commit:
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: estruturar feature (builder light)" --files .plano/PROJECT.md .plano/ROADMAP.md .plano/STATE.md .plano/config.json
+```
+
+Se REQUIREMENTS.md foi criado/atualizado:
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: requisitos (builder light)" --files .plano/REQUIREMENTS.md
+```
+
+---
+
+### L3. Build + E2E
+
+Mesmo loop do full (3.1.1 → 3.1.5), mas:
+- **Sem LOCK.md** (sessao curta)
+- **Sem reassessment** (poucas fases)
+- **Sem captures** (sessao curta)
+- **COM E2E Playwright** (se tem UI)
+
+Para cada fase no ROADMAP:
+
+#### L3.1 Planejar Fase
+
+Spawnar up-planejador (mesmo do full):
+
+```
+Task(prompt="
+<planning_context>
+**Fase:** {phase_number}
+**Modo:** builder light (autonomo -- NAO use AskUserQuestion)
+
+<files_to_read>
+- .plano/STATE.md
+- .plano/ROADMAP.md
+- .plano/REQUIREMENTS.md (se existir)
+- ./CLAUDE.md (se existir)
+</files_to_read>
+
+**IDs de requisitos da fase:** {phase_req_ids}
+
+<builder_mode>
+Modo builder light. Regras:
+1. NAO use AskUserQuestion
+2. Se ha ambiguidade, tome a decisao mais razoavel
+3. Pesquisa inline: nivel 1 apenas (verificacao rapida, nao pesquisa profunda)
+4. Planos devem ser CONCISOS — minimo de tarefas necessarias
+</builder_mode>
+
+<output>
+Escrever PLAN.md em: .plano/fases/{phase_dir}/
+Retornar: ## PLANNING COMPLETE
+</output>
+", subagent_type="up-planejador", description="Planejar Fase {phase_number} (light)")
+```
+
+#### L3.2 Executar Fase
+
+Mesmo processo do full — spawnar up-executor por wave.
+
+#### L3.3 Verificar Fase (Quick Check)
+
+**NAO spawnar up-verificador.** Verificacao inline rapida:
+
+1. Checar que SUMMARYs existem para todos os planos
+2. Checar que commits existem: `git log --oneline --grep="fase-{X}"`
+3. Se ha testes automatizados no projeto: rodar
+```bash
+# Detectar e rodar testes
+npm test 2>/dev/null || pnpm test 2>/dev/null || echo "sem testes"
+```
+4. Se tudo OK: marcar fase completa
+
+Se falha: tentar gap closure (1 ciclo max), mesmo do full.
+
+#### L3.4 Teste E2E (Playwright)
+
+**Mesmo processo do full** (referencia: builder-e2e.md Passo 3).
+Executar APENAS se a fase tem UI.
+
+- Subir dev server (se nao esta rodando)
+- Traduzir must_haves em testes E2E
+- Navegar, interagir, verificar, screenshot
+- Bugs: corrigir (max 5 tentativas por bug)
+- Criar E2E-RESULTS.md
+
+#### L3.5 Marcar Fase Completa
+
+```bash
+COMPLETION=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase complete "${PHASE_NUMBER}")
+node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs(fase-{X}): completar (light)" --files .plano/ROADMAP.md .plano/STATE.md
+```
+
+Avancar para proxima fase. Sem reassessment.
+
+---
+
+### L4. Resumo Final
+
+Apos todas as fases:
+
+```bash
+# Matar dev server se rodando
+kill $DEV_PID 2>/dev/null
+```
+
+`browser_close()` (se Playwright aberto)
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ UP > BUILDER LIGHT — COMPLETO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Feature:** [resumo do briefing]
+
+## O que foi Feito
+
+| Fase | O que Construiu | Status |
+|------|----------------|--------|
+| [N] | [resumo] | Completo |
+| [N+1] | [resumo] | Completo |
+
+## Metricas
+
+| Metrica | Valor |
+|---------|-------|
+| Fases | [N] |
+| Commits | [N] |
+| E2E testes | [X] passaram de [Y] |
+| Bugs corrigidos | [N] |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Quer polir? /up:ux-tester ou /up:melhorias
+Quer mais? /up:modo-builder "proxima feature"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**NAO gerar DELIVERY.md. NAO rodar polish. NAO rodar ideias.**
+
+</light_process>
 
 <failure_handling>
 

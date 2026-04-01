@@ -292,9 +292,14 @@ Construa um projeto inteiro autonomamente. Voce da o briefing, responde pergunta
 
 ```
 /up:modo-builder "Sistema financeiro pessoal com Supabase, auth, dashboard de gastos e metas"
+/up:modo-builder --light "Adicionar factory de usuarios com roles"
 ```
 
-O builder passa por **5 estagios** automaticamente:
+**Dois niveis:**
+- **Full (padrao):** Pipeline completo — pesquisa, polish, UX review, delivery
+- **Light (`--light`):** Pipeline enxuto — planeja, constroi, testa. ~50% menos tokens.
+
+O builder full passa por **5 estagios** automaticamente:
 
 1. **Intake** — Analisa briefing, pergunta so o critico (credenciais, APIs)
 2. **Arquitetura** — Pesquisa ecossistema, gera PROJECT.md + REQUIREMENTS.md + ROADMAP.md
@@ -312,6 +317,13 @@ O builder passa por **5 estagios** automaticamente:
 - **Capture de insights** — Agentes salvam descobertas durante o build para triagem no final
 - **Testes E2E** — Playwright testa cada fase e faz smoke test final (rotas + fluxos + responsividade)
 - **UX review** — Navega como usuario real, avalia 6 dimensoes, implementa melhorias
+
+**Modo Light (`--light`):**
+- Pula pesquisa, polish, UX tester, ideias, delivery, reassessment, captures
+- Mantém: planejar, executar, verificar, teste E2E com Playwright
+- Mini-scan do codebase (inline, sem agentes mapeadores)
+- Estrutura inline (sem agente arquiteto)
+- Ideal para features medias em projetos existentes
 
 **Defaults personalizaveis:**
 
@@ -377,6 +389,9 @@ O UX tester abre o browser via Playwright e:
 ### Flags
 
 ```
+# modo-builder
+--light           Pipeline enxuto (~50% menos tokens). Planeja, constroi, testa.
+
 # planejar-fase
 --pesquisar       Forcar re-pesquisa mesmo com RESEARCH.md existente
 --sem-pesquisa    Pular pesquisa, ir direto ao planejamento
@@ -385,6 +400,9 @@ O UX tester abre o browser via Playwright e:
 
 # executar-fase
 --gaps-only       Executar apenas planos de fechamento de gaps
+
+# ux-tester
+--no-fix          Apenas relatorio, nao implementar melhorias
 ```
 
 ### Pipelines
