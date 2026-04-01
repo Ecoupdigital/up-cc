@@ -33,6 +33,8 @@ Sem UP, voce pede algo ao assistente e torce pra dar certo. Com UP:
 - **Agentes especializados** rodam em paralelo para pesquisa, planejamento, execucao e verificacao
 - **Tarefas rapidas** tem o mesmo rigor sem a cerimonia completa
 - **Detecta projetos existentes** e adapta o fluxo automaticamente (brownfield)
+- **Modo builder** constroi projetos inteiros autonomamente (briefing → sistema pronto + testado)
+- **UX tester** navega o sistema como usuario real e implementa melhorias automaticamente
 
 ## Instalacao
 
@@ -284,7 +286,58 @@ O UP:
 | Commit Docs | sim | Commitar documentos de planejamento automaticamente |
 | Auto-Advance | nao | Encadear estagios automaticamente |
 
-### 8. Manutencao
+### 8. Modo Builder
+
+Construa um projeto inteiro autonomamente. Voce da o briefing, responde perguntas criticas, e o UP faz tudo sozinho.
+
+```
+/up:modo-builder "Sistema financeiro pessoal com Supabase, auth, dashboard de gastos e metas"
+```
+
+O builder passa por **5 estagios** automaticamente:
+
+1. **Intake** — Analisa briefing, pergunta so o critico (credenciais, APIs)
+2. **Arquitetura** — Pesquisa ecossistema, gera PROJECT.md + REQUIREMENTS.md + ROADMAP.md
+3. **Build** — Para cada fase: planejar → executar → verificar → testar E2E (Playwright)
+4. **Polish** — Auditoria de melhorias (codigo) + UX tester (navegacao real) + geracao de ideias
+5. **Entrega** — DELIVERY.md com tudo que foi feito, metricas, screenshots e proximos passos
+
+**Funciona em dois modos (deteccao automatica):**
+- **Greenfield** (sem codigo): cria tudo do zero
+- **Brownfield** (codigo existente): mapeia codebase, adiciona fases ao roadmap existente
+
+**Features adicionais do builder:**
+- **Crash recovery** — Se a sessao morrer, re-execute o comando e ele retoma de onde parou (via LOCK.md)
+- **Reassessment** — Apos cada fase, re-avalia se o roadmap ainda faz sentido
+- **Capture de insights** — Agentes salvam descobertas durante o build para triagem no final
+- **Testes E2E** — Playwright testa cada fase e faz smoke test final (rotas + fluxos + responsividade)
+- **UX review** — Navega como usuario real, avalia 6 dimensoes, implementa melhorias
+
+**Defaults personalizaveis:**
+
+Crie `~/.claude/up/builder-defaults.md` com suas preferencias de stack, design e padroes. O builder usa como base para decisoes nao especificadas no briefing.
+
+### 9. UX Tester
+
+Navega o sistema como usuario real, avalia a experiencia e implementa melhorias automaticamente.
+
+```
+/up:ux-tester               # Navegar, avaliar e implementar melhorias
+/up:ux-tester --no-fix      # Apenas relatorio, sem implementar
+/up:ux-tester 3000          # Especificar porta
+```
+
+O UX tester abre o browser via Playwright e:
+1. Define **3 personas** (usuario novo, frequente, apressado/mobile)
+2. Navega cada fluxo como cada persona
+3. Avalia **6 dimensoes**: clareza, eficiencia, feedback, consistencia, acessibilidade, performance
+4. Gera relatorio com score por dimensao e issues priorizadas
+5. **Implementa melhorias automaticamente** — desde ajustes de texto ate componentes novos e reestruturacao de fluxo
+6. Verifica cada mudanca via Playwright e reverte se quebrar
+
+**Funciona standalone** em qualquer projeto, sem precisar de `/up:novo-projeto`. Tambem roda automaticamente dentro do modo builder.
+
+### 10. Manutencao
 
 ```
 /up:saude              # Diagnostica integridade do .plano/
@@ -300,6 +353,8 @@ O UP:
 
 | Comando | Descricao |
 |---------|-----------|
+| `/up:modo-builder` | Construir projeto completo autonomamente (greenfield ou brownfield) |
+| `/up:ux-tester` | Navegar sistema como usuario real, avaliar UX e implementar melhorias |
 | `/up:novo-projeto` | Inicializar projeto (detecta greenfield/brownfield) |
 | `/up:mapear-codigo` | Analisar codebase existente com agentes paralelos |
 | `/up:retomar` | Restaurar contexto da sessao anterior |
@@ -332,14 +387,22 @@ O UP:
 --gaps-only       Executar apenas planos de fechamento de gaps
 ```
 
-### Pipeline
+### Pipelines
 
+**Manual (fase a fase):**
 ```
 /up:novo-projeto → /up:discutir-fase N → /up:planejar-fase N → /up:executar-fase N → /up:verificar-trabalho N
                                                                                               │
                                                                                        Gaps? ─┤
                                                                                        Sim  → /up:planejar-fase N --gaps
                                                                                        Nao  → Proxima fase
+```
+
+**Modo Builder (totalmente autonomo):**
+```
+/up:modo-builder "briefing" → Perguntas criticas → Pesquisa/Mapeamento → Arquitetura
+    → [Loop: Planejar → Executar → Verificar → E2E → Reassessment] por fase
+    → Melhorias (codigo) → UX Tester (navegacao) → Ideias → DELIVERY.md
 ```
 
 ## Estrutura do `.plano/`
@@ -366,19 +429,36 @@ O UP:
 │   └── ...
 ├── rapido/
 │   └── TASK-001.md         # Tarefa rapida executada
-└── debug/
-    ├── bug-login.md        # Sessao de debug ativa
-    └── resolved/           # Sessoes resolvidas
+├── debug/
+│   ├── bug-login.md        # Sessao de debug ativa
+│   └── resolved/           # Sessoes resolvidas
+├── melhorias/              # Auditoria de codigo (UX, performance, modernidade)
+│   └── RELATORIO.md
+├── ideias/                 # Sugestoes de features com ICE scoring
+│   └── RELATORIO.md
+├── ux-review/              # UX tester (navegacao real via Playwright)
+│   ├── UX-REPORT.md
+│   └── screenshots/
+├── e2e/                    # Testes E2E finais (modo builder)
+│   ├── E2E-REPORT.md
+│   ├── smoke/
+│   └── responsive/
+├── captures/               # Insights capturados durante build
+│   └── TRIAGE.md
+├── LOCK.md                 # Crash recovery (modo builder)
+├── BRIEFING.md             # Briefing do usuario (modo builder)
+└── DELIVERY.md             # Relatorio de entrega (modo builder)
 ```
 
 Todos esses arquivos sao texto puro (Markdown/JSON) e podem ser commitados no repositorio.
 
 ## Agentes
 
-O UP usa 8 agentes especializados que rodam como subprocessos:
+O UP usa agentes especializados que rodam como subprocessos:
 
 | Agente | Funcao |
 |--------|--------|
+| **up-arquiteto** | Transforma briefing em projeto estruturado (modo builder) |
 | **up-pesquisador-projeto** | Pesquisa de dominio e tecnologia para novos projetos |
 | **up-roteirista** | Cria ROADMAP.md com fases e criterios de sucesso |
 | **up-planejador** | Planeja fases com pesquisa inline e self-check |
