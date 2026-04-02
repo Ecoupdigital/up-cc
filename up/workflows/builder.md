@@ -1103,7 +1103,39 @@ UX Review: score [N]/10 | [X] issues | [Y] implementadas (incluindo componentes 
 **Se nao tem UI:** Pular silenciosamente.
 **Se dev server falha:** Registrar e pular.
 
-### 4.4 Rodar Ideias
+### 4.4 Mobile First (Responsividade)
+
+**Executar APENAS se o projeto tem UI web.** Pular para CLIs, APIs puras, bibliotecas.
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ BUILDER > POLIMENTO — RESPONSIVIDADE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Referencia:** `@~/.claude/up/workflows/mobile-first.md`
+
+Executar o workflow completo do Mobile First:
+
+1. Detectar stack CSS (Tailwind, CSS Modules, etc.)
+2. Scan: capturar todas as paginas em mobile (390px), tablet (768px), desktop (1920px)
+3. Detectar problemas: overflow, texto pequeno, alvos de toque, grid quebrado
+4. Para cada problema:
+   - Capturar referencia desktop
+   - Corrigir com classes responsivas / media queries
+   - Verificar mobile melhorou
+   - Verificar desktop INTACTO (se mudou: reverter, tentar outra abordagem)
+   - Commit atomico
+5. Gerar `.plano/mobile-review/MOBILE-REPORT.md`
+
+```
+Mobile First: score [N]/10 | [X] problemas | [Y] corrigidos | desktop intacto
+```
+
+**Se nao tem UI:** Pular silenciosamente.
+**Se dev server falha:** Registrar e pular.
+
+### 4.5 Rodar Ideias
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1699,6 +1731,8 @@ Com 1M de contexto, a maioria dos projetos cabe sem /clear. Mas monitore:
 - [ ] Estagio 4: UX Review executado (navegar como usuario, 6 dimensoes)
 - [ ] Estagio 4: Melhorias UX implementadas automaticamente
 - [ ] Estagio 4: UX-REPORT.md gerado com scores e screenshots
+- [ ] Estagio 4: Mobile First executado (responsividade verificada em 3 viewports)
+- [ ] Estagio 4: MOBILE-REPORT.md gerado com score e screenshots comparativos
 - [ ] Estagio 4: Ideias geradas com ICE scoring
 - [ ] Estagio 5: Teste E2E final (smoke + fluxos + responsividade)
 - [ ] Estagio 5: E2E-REPORT.md gerado com screenshots

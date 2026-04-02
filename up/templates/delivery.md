@@ -110,6 +110,29 @@ Screenshots: `.plano/e2e/`
 Relatorio completo: `.plano/ux-review/UX-REPORT.md`
 Screenshots: `.plano/ux-review/screenshots/`
 
+## Responsividade Mobile (Mobile First)
+
+[Resultados do Mobile First — de .plano/mobile-review/MOBILE-REPORT.md]
+
+**Score de Responsividade:** [N]/10
+
+| Viewport | Paginas OK | Problemas | Corrigidos |
+|----------|-----------|-----------|-----------|
+| Mobile (390px) | [N] | [N] | [N] |
+| Tablet (768px) | [N] | [N] | [N] |
+| Desktop (1920px) | [N] (referencia) | -- | -- |
+
+### Correcoes Implementadas
+
+| ID | Problema | Pagina | Fix |
+|----|---------|--------|-----|
+| MOB-001 | [desc] | [rota] | [o que foi feito] |
+
+**Desktop intacto:** Verificado apos cada correcao
+
+Relatorio completo: `.plano/mobile-review/MOBILE-REPORT.md`
+Screenshots: `.plano/mobile-review/screenshots/`
+
 ## Insights Capturados Durante o Build
 
 [Insights descobertos pelos agentes durante a execucao — de .plano/captures/TRIAGE.md]
@@ -191,6 +214,8 @@ Relatorio completo: `.plano/ideias/RELATORIO.md`
 | Bugs E2E encontrados | [N] ([M] corrigidos) |
 | UX Score | [N]/10 |
 | Melhorias UX implementadas | [N] |
+| Responsividade Score | [N]/10 |
+| Problemas mobile corrigidos | [N] |
 | Insights capturados | [N] |
 | Reassessments | [N] ajustes no roadmap |
 | Melhorias codigo aplicadas | [N] |

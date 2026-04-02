@@ -42,6 +42,7 @@ O usuario fornece um briefing, responde perguntas criticas (apenas sobre credenc
 @~/.claude/up/workflows/builder.md
 @~/.claude/up/workflows/builder-e2e.md
 @~/.claude/up/workflows/ux-tester.md
+@~/.claude/up/workflows/mobile-first.md
 @~/.claude/up/references/ui-brand.md
 </execution_context>
 

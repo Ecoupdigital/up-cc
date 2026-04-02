@@ -349,7 +349,26 @@ O UX tester abre o browser via Playwright e:
 
 **Funciona standalone** em qualquer projeto, sem precisar de `/up:novo-projeto`. Tambem roda automaticamente dentro do modo builder.
 
-### 10. Manutencao
+### 10. Mobile First
+
+Detecta o que quebra no mobile/tablet e corrige automaticamente sem mexer no desktop.
+
+```
+/up:mobile-first                          # Escanear e corrigir tudo
+/up:mobile-first --no-fix                 # Apenas relatorio
+/up:mobile-first --page /dashboard        # Apenas uma pagina
+```
+
+O agente:
+1. Abre cada pagina em **7 viewports** (de iPhone SE a monitor full HD)
+2. Detecta problemas: overflow, texto ilegivel, alvos de toque pequenos, grid quebrado, imagens distorcidas, navegacao que nao cabe
+3. Corrige com classes Tailwind responsivas, media queries ou componentes novos (hamburger, drawer)
+4. **Verifica desktop apos cada correcao** — se desktop mudou, reverte e tenta outra abordagem
+5. Gera relatorio com score de responsividade e screenshots comparativos
+
+**Funciona standalone** em qualquer projeto. Tambem roda automaticamente dentro do modo builder (Estagio 4).
+
+### 11. Manutencao
 
 ```
 /up:saude              # Diagnostica integridade do .plano/
@@ -367,6 +386,7 @@ O UX tester abre o browser via Playwright e:
 |---------|-----------|
 | `/up:modo-builder` | Construir projeto completo autonomamente (greenfield ou brownfield) |
 | `/up:ux-tester` | Navegar sistema como usuario real, avaliar UX e implementar melhorias |
+| `/up:mobile-first` | Tornar sistema responsivo para mobile/tablet sem quebrar desktop |
 | `/up:novo-projeto` | Inicializar projeto (detecta greenfield/brownfield) |
 | `/up:mapear-codigo` | Analisar codebase existente com agentes paralelos |
 | `/up:retomar` | Restaurar contexto da sessao anterior |
@@ -403,6 +423,10 @@ O UX tester abre o browser via Playwright e:
 
 # ux-tester
 --no-fix          Apenas relatorio, nao implementar melhorias
+
+# mobile-first
+--no-fix          Apenas relatorio, nao corrigir
+--page /rota      Testar apenas uma pagina especifica
 ```
 
 ### Pipelines
