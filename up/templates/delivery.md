@@ -11,6 +11,22 @@ Template para `.plano/DELIVERY.md` -- relatorio de entrega final gerado pelo mod
 
 [O que foi construido em 2-3 frases. Descrever o produto, nao o processo.]
 
+## Quality Score
+
+**Score Final: [N]/10** (apos [X] ciclos de refinamento)
+
+| Dimensao | Score | Peso |
+|----------|-------|------|
+| Funcionalidade | [N]/10 | 25% |
+| E2E | [N]/10 | 20% |
+| UX | [N]/10 | 15% |
+| Responsividade | [N]/10 | 15% |
+| Codigo | [N]/10 | 15% |
+| Completude | [N]/10 | 10% |
+
+**Ciclos de refinamento:** [N]
+**Score inicial:** [N]/10 → **Score final:** [N]/10
+
 ## Stack Utilizada
 
 | Camada | Tecnologia | Versao |

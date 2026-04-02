@@ -216,9 +216,12 @@ mkdir -p .plano .plano/captures
 git init 2>/dev/null
 ```
 
-### 2.2 Mapeamento e Pesquisa
+### 2.2 Pipeline de Arquitetura (3 Agentes em Sequencia)
 
-**O que acontece aqui depende do modo:**
+**Pipeline:** Product Analyst → System Designer → Architect
+Cada agente produz um documento que alimenta o proximo.
+
+**O que acontece ANTES do pipeline depende do modo:**
 
 #### MODO GREENFIELD — Pesquisa de Ecossistema
 
@@ -420,143 +423,159 @@ Se NAO ha tecnologias novas: pular pesquisa.
 
 ### 2.3 Salvar Briefing
 
-Use a ferramenta Write para criar `.plano/BRIEFING.md`:
+Use a ferramenta Write para criar `.plano/BRIEFING.md` com:
+- Modo (greenfield/brownfield)
+- Briefing completo do usuario
+- Respostas das perguntas criticas (se houve)
+- Credenciais/APIs fornecidas
+- **BROWNFIELD extra:** resumo do codebase (de .plano/codebase/), o que NAO mudar
 
-**GREENFIELD:**
-```markdown
-# Briefing do Usuario
+### 2.4 Agente 1: Product Analyst
 
-## Modo
-Greenfield (projeto do zero)
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ BUILDER > ANALISANDO PRODUTO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-## Descricao Original
-[Briefing completo do usuario]
-
-## Respostas das Perguntas Criticas
-[Respostas, se houve perguntas]
-
-## Credenciais/APIs Fornecidas
-[Lista de credenciais fornecidas com nomes de env vars]
+Pesquisando concorrentes e features do mercado...
 ```
 
-**BROWNFIELD:**
-```markdown
-# Briefing do Usuario
-
-## Modo
-Brownfield (feature nova em projeto existente)
-
-## Descricao da Feature/Mudanca
-[Briefing completo do usuario]
-
-## Respostas das Perguntas Criticas
-[Respostas, se houve perguntas]
-
-## Credenciais/APIs Fornecidas
-[Lista de credenciais fornecidas com nomes de env vars]
-
-## Codebase Existente
-Mapeamento completo em .plano/codebase/
-- Stack: [resumo de STACK.md]
-- Arquitetura: [resumo de ARCHITECTURE.md]
-- Convencoes: Ver .plano/codebase/CONVENTIONS.md
-- Divida tecnica: [resumo de CONCERNS.md]
-
-## O que NAO mudar
-[Funcionalidades existentes que devem ser preservadas — inferidas do briefing e do mapeamento]
-```
-
-### 2.4 Spawn Arquiteto
-
-Spawnar up-arquiteto com contexto adaptado ao modo:
-
-**GREENFIELD:**
 ```
 Task(prompt="
 <objective>
-Transformar briefing do usuario em projeto estruturado completo: PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md, config.json.
-Modo autonomo -- NAO pergunte nada. Tome todas as decisoes necessarias.
+Analisar o mercado e produto: pesquisar concorrentes, definir personas, listar features obrigatorias e esperadas, mapear modulos do sistema.
+Modo autonomo — NAO pergunte nada.
 </objective>
 
-<mode>greenfield</mode>
-
 <files_to_read>
-- .plano/BRIEFING.md (Briefing do usuario e respostas)
-- .plano/pesquisa/SUMMARY.md (Pesquisa de ecossistema)
-- $HOME/.claude/up/builder-defaults.md (Defaults do usuario, se existir)
-- $HOME/.claude/up/templates/project.md (Template PROJECT.md)
+- .plano/BRIEFING.md (Briefing do usuario)
+- .plano/pesquisa/SUMMARY.md (Pesquisa de ecossistema, se existir)
 </files_to_read>
 
-<constraints>
-- Modo builder: builder_mode=true no config.json
-- mode=yolo (sem aprovacoes)
-- parallelization=true
-- Gerar fases suficientes para cobrir 100% dos requisitos
-- Registrar TODAS decisoes tomadas por inferencia
-- Commit todos arquivos ao final
-</constraints>
-", subagent_type="up-arquiteto", description="Estruturar projeto completo")
+<output>
+Escrever .plano/PRODUCT-ANALYSIS.md
+Commit apos escrever.
+Retornar: ## PRODUCT ANALYSIS COMPLETE
+</output>
+", subagent_type="up-product-analyst", description="Analisar produto e mercado")
 ```
 
-**BROWNFIELD:**
+Verificar retorno `## PRODUCT ANALYSIS COMPLETE`. Se falhou: registrar e continuar (System Designer usara blueprints como fallback).
+
+```
+Produto: [N] concorrentes | [X] features obrigatorias | [Y] personas | [Z] modulos
+```
+
+### 2.5 Agente 2: System Designer
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ BUILDER > PROJETANDO SISTEMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Definindo modulos, roles, schema, rotas e requisitos de producao...
+```
+
 ```
 Task(prompt="
 <objective>
-Estruturar implementacao de feature/mudanca em projeto existente.
-Gerar/atualizar: PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md, config.json.
-Modo autonomo -- NAO pergunte nada. Tome todas as decisoes necessarias.
+Projetar o sistema tecnico completo: modulos, roles, permissoes, schema de banco, rotas, integracoes.
+Aplicar blueprints de producao e requisitos universais. Compilar requisitos das 5 camadas.
+Modo autonomo — NAO pergunte nada.
 </objective>
 
-<mode>brownfield</mode>
+<mode>{greenfield|brownfield}</mode>
 
 <files_to_read>
-- .plano/BRIEFING.md (Briefing do usuario com contexto do codebase)
+- .plano/BRIEFING.md (Briefing e stack)
+- .plano/PRODUCT-ANALYSIS.md (Analise de produto — features, personas, modulos)
+- .plano/pesquisa/SUMMARY.md (Pesquisa, se existir)
+- $HOME/.claude/up/references/production-requirements.md (Requisitos universais)
+- $HOME/.claude/up/references/blueprints/ (Blueprints — ler os relevantes ao dominio)
+{BROWNFIELD EXTRA:}
 - .plano/codebase/STACK.md (Stack existente)
 - .plano/codebase/ARCHITECTURE.md (Arquitetura existente)
 - .plano/codebase/CONVENTIONS.md (Convencoes a seguir)
-- .plano/codebase/CONCERNS.md (Divida tecnica existente)
-- .plano/codebase/STRUCTURE.md (Onde colocar novos arquivos)
-- .plano/codebase/INTEGRATIONS.md (APIs e servicos existentes)
-- .plano/codebase/TESTING.md (Padroes de teste a seguir)
-- .plano/pesquisa/NOVAS-TECNOLOGIAS.md (Pesquisa de novas tecnologias, se existir)
-- .plano/PROJECT.md (Projeto existente, se existir -- ATUALIZAR ao inves de criar)
-- .plano/ROADMAP.md (Roadmap existente, se existir -- ADICIONAR fases ao inves de criar)
-- .plano/REQUIREMENTS.md (Requisitos existentes, se existir -- ADICIONAR ao inves de criar)
-- $HOME/.claude/up/builder-defaults.md (Defaults do usuario, se existir)
-- $HOME/.claude/up/templates/project.md (Template PROJECT.md)
-- ./CLAUDE.md (Instrucoes do projeto, se existir)
+- .plano/codebase/STRUCTURE.md (Estrutura existente)
+- .plano/codebase/CONCERNS.md (Divida tecnica)
+- .plano/codebase/INTEGRATIONS.md (Integracoes existentes)
 </files_to_read>
 
+<output>
+Escrever .plano/SYSTEM-DESIGN.md
+Commit apos escrever.
+Retornar: ## SYSTEM DESIGN COMPLETE
+</output>
+", subagent_type="up-system-designer", description="Projetar sistema completo")
+```
+
+```
+Sistema: [N] modulos | [X] roles | [Y] tabelas | [Z] requisitos compilados (5 camadas)
+```
+
+### 2.6 Agente 3: Architect
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ BUILDER > ESTRUTURANDO PROJETO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Gerando PROJECT.md, REQUIREMENTS.md, ROADMAP.md...
+```
+
+```
+Task(prompt="
+<objective>
+Transformar analise de produto e design de sistema em documentos executaveis do UP:
+PROJECT.md, REQUIREMENTS.md (com TODOS os requisitos das 5 camadas), ROADMAP.md, STATE.md, config.json.
+Modo autonomo — NAO pergunte nada.
+</objective>
+
+<mode>{greenfield|brownfield}</mode>
+
+<files_to_read>
+- .plano/BRIEFING.md (Briefing original)
+- .plano/PRODUCT-ANALYSIS.md (Analise de produto — features, personas)
+- .plano/SYSTEM-DESIGN.md (Design tecnico — modulos, roles, schema, requisitos compilados)
+- $HOME/.claude/up/builder-defaults.md (Defaults do usuario, se existir)
+- $HOME/.claude/up/templates/project.md (Template PROJECT.md)
+{BROWNFIELD EXTRA:}
+- .plano/PROJECT.md (Existente — ATUALIZAR)
+- .plano/ROADMAP.md (Existente — ADICIONAR fases)
+- .plano/REQUIREMENTS.md (Existente — ADICIONAR requisitos)
+- .plano/codebase/CONVENTIONS.md (Convencoes)
+- ./CLAUDE.md (Instrucoes do projeto)
+</files_to_read>
+
+<critical>
+O SYSTEM-DESIGN.md contem requisitos COMPILADOS das 5 camadas (explicitos + blueprints + universais + stack + mercado).
+TODOS esses requisitos devem aparecer no REQUIREMENTS.md com REQ-IDs.
+TODAS as features devem ter fases no ROADMAP.md.
+O resultado deve ser um sistema COMPLETO pronto para producao, nao um MVP basico.
+</critical>
+
 <brownfield_rules>
-1. RESPEITAR stack existente -- NAO trocar framework, ORM, ou dependencias core
-2. SEGUIR convencoes de CONVENTIONS.md -- nomes, padroes, estilo
-3. SEGUIR estrutura de STRUCTURE.md -- colocar novos arquivos onde faz sentido
-4. SEGUIR padroes de teste de TESTING.md -- mesma ferramenta, mesmo estilo
-5. Se PROJECT.md existe: ATUALIZAR secao Requirements com novos requisitos (manter existentes)
-6. Se ROADMAP.md existe: ADICIONAR novas fases APOS as existentes (manter fases completas)
-7. Se REQUIREMENTS.md existe: ADICIONAR novos requisitos com IDs que continuam a numeracao
-8. Requisitos existentes (ja implementados) ficam como Validados
-9. Novos requisitos ficam como Ativos
-10. Considerar CONCERNS.md ao planejar -- nao agravar divida tecnica existente
-11. Registrar decisoes com outcome "Decisao do arquiteto (brownfield)"
+Se brownfield:
+1. RESPEITAR stack existente
+2. SEGUIR convencoes existentes
+3. ATUALIZAR documentos existentes (nao criar do zero)
+4. ADICIONAR fases apos as existentes
+5. ADICIONAR requisitos continuando numeracao
 </brownfield_rules>
 
 <constraints>
-- Modo builder: builder_mode=true, builder_type=brownfield no config.json
-- mode=yolo (sem aprovacoes)
+- builder_mode=true no config.json
+- mode=yolo
 - parallelization=true
-- Gerar fases suficientes para cobrir 100% dos novos requisitos
-- Registrar TODAS decisoes tomadas por inferencia
 - Commit todos arquivos ao final
 </constraints>
-", subagent_type="up-arquiteto", description="Estruturar feature em projeto existente")
+", subagent_type="up-arquiteto", description="Estruturar projeto executavel")
 ```
 
-### 2.5 Reportar Arquitetura
+### 2.7 Reportar Arquitetura
 
 Ler ROADMAP.md e exibir resumo:
 
-**GREENFIELD:**
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  UP > ARQUITETURA DEFINIDA
@@ -564,7 +583,10 @@ Ler ROADMAP.md e exibir resumo:
 
 **[Nome do Projeto]**
 
-[N] fases | [X] requisitos | Stack: [resumo]
+[N] fases | [X] requisitos (5 camadas) | [Y] modulos | [Z] roles
+Stack: [resumo]
+
+Pipeline: Product Analyst → System Designer → Architect
 
 | # | Fase | Objetivo |
 |---|------|----------|
@@ -572,28 +594,6 @@ Ler ROADMAP.md e exibir resumo:
 | 2 | [Nome] | [Objetivo] |
 ...
 
-Iniciando build...
-```
-
-**BROWNFIELD:**
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- UP > FEATURE ESTRUTURADA
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-**Feature:** [Nome/resumo da feature]
-**Projeto:** [Nome do projeto existente]
-**Stack:** [stack existente preservada]
-
-[N] novas fases | [X] novos requisitos | [Y] requisitos existentes preservados
-
-| # | Fase | Objetivo |
-|---|------|----------|
-| [N+1] | [Nome] | [Objetivo] |
-| [N+2] | [Nome] | [Objetivo] |
-...
-
-Convencoes existentes serao seguidas.
 Iniciando build...
 ```
 
@@ -941,9 +941,43 @@ Voltar para 3.1.1 com a proxima fase. Sem /clear — continuar no mesmo contexto
 
 ---
 
-## Estagio 4: POLISH (Autonomo)
+## Estagio 4: QUALITY GATE LOOP (Autonomo)
 
 Executado APOS todas as fases do build completarem.
+Ciclo de avaliacao → correcao → re-avaliacao ate atingir score >= 9.0/10.
+
+**Score Composto (6 dimensoes):**
+
+| Dimensao | Peso | Como mede |
+|----------|------|-----------|
+| Funcionalidade | 25% | Requisitos atendidos / total (REQUIREMENTS.md) |
+| E2E | 20% | Testes passando / total (Playwright) |
+| UX | 15% | Score do UX tester (6 sub-dimensoes) |
+| Responsividade | 15% | Score do mobile-first |
+| Codigo | 15% | Score do melhorias (UX+perf+modernidade) |
+| Completude | 10% | Paginas sem erro / total (smoke test) |
+
+**Limites de seguranca:**
+- Max 5 ciclos de refinamento
+- Se ciclo melhorou < 0.3 pontos: parar (diminishing returns)
+- Nunca entregar abaixo de 7.0 (se ta abaixo, tem bug grave)
+- Meta: score >= 9.0
+
+### 4.0 Iniciar Quality Gate
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ BUILDER > QUALITY GATE — CICLO 1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Definir `$CYCLE = 1`, `$PREVIOUS_SCORE = 0`.
+
+### 4.1 Rodar Avaliadores (Todos em Paralelo)
+
+**4.1a Melhorias de Codigo** (3 auditores paralelos → sintetizador)
+
+Mesmo processo existente: spawnar up-auditor-ux, up-auditor-performance, up-auditor-modernidade em paralelo, depois up-sintetizador-melhorias.
 
 ### 4.1 Rodar Melhorias
 
@@ -1194,6 +1228,89 @@ Salvar em .plano/ideias/RELATORIO.md
 Ideias: [N] sugestoes geradas com ICE scoring
 Relatorio em .plano/ideias/RELATORIO.md
 ```
+
+### 4.6 Calcular Score Composto
+
+Agregar scores de todos os avaliadores:
+
+```
+Funcionalidade (25%): requisitos [x] / total no REQUIREMENTS.md → 0-10
+E2E (20%):            testes passaram / total no E2E mais recente → 0-10
+UX (15%):             score do UX-REPORT.md → 0-10
+Responsividade (15%): score do MOBILE-REPORT.md → 0-10
+Codigo (15%):         (10 - problemas_criticos) do RELATORIO.md melhorias → 0-10
+Completude (10%):     rotas sem erro / total no smoke test → 0-10
+
+Score = (func × 0.25) + (e2e × 0.20) + (ux × 0.15) + (resp × 0.15) + (cod × 0.15) + (comp × 0.10)
+```
+
+**Se algum avaliador nao rodou** (ex: sem UI, sem E2E): redistribuir peso proporcionalmente entre os que rodaram.
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ QUALITY GATE — CICLO {CYCLE} — SCORE: {SCORE}/10
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+| Dimensao | Score | Peso | Contribuicao |
+|----------|-------|------|-------------|
+| Funcionalidade | [N]/10 | 25% | [X] |
+| E2E | [N]/10 | 20% | [X] |
+| UX | [N]/10 | 15% | [X] |
+| Responsividade | [N]/10 | 15% | [X] |
+| Codigo | [N]/10 | 15% | [X] |
+| Completude | [N]/10 | 10% | [X] |
+| **TOTAL** | **[SCORE]/10** | | |
+```
+
+### 4.7 Decidir: Continuar ou Entregar
+
+**Se score >= 9.0:** Ir para Estagio 5 (Entrega). Sistema pronto.
+
+**Se score < 9.0 E cycle < 5 E (score - previous_score) >= 0.3:**
+
+```
+Score {SCORE} < 9.0 — identificando gaps para correcao...
+```
+
+Identificar top gaps (dimensoes com menor score):
+1. Ordenar dimensoes por score (menor primeiro)
+2. Para cada dimensao abaixo de 9.0:
+   - Ler relatorio correspondente
+   - Extrair issues nao corrigidas / requisitos pendentes
+   - Priorizar por impacto no score
+
+**Implementar correcoes:**
+- Issues de codigo: planejar mini-fase → executar → commit
+- Issues de UX: aplicar fixes (mesmo processo do UX tester)
+- Issues de responsividade: aplicar fixes (mesmo processo do mobile-first)
+- Requisitos pendentes: planejar mini-fase → executar
+- Issues de E2E: corrigir bugs (max 5 tentativas)
+
+Apos implementar:
+
+```
+$PREVIOUS_SCORE = $SCORE
+$CYCLE += 1
+```
+
+**Voltar para 4.1** (re-rodar avaliadores no proximo ciclo).
+
+**Se cycle >= 5:** Entregar com score atual.
+```
+Quality Gate: max ciclos atingido. Entregando com score {SCORE}/10.
+```
+
+**Se (score - previous_score) < 0.3:** Diminishing returns. Entregar.
+```
+Quality Gate: melhoria < 0.3 pontos. Entregando com score {SCORE}/10.
+```
+
+### 4.8 Rodar Ideias (Uma Vez, Apos Quality Gate)
+
+**Rodar ideias apenas UMA VEZ, apos o loop de qualidade terminar (nao a cada ciclo).**
+
+Mesmo processo de ideias existente (2 agentes paralelos + consolidador).
+NAO implementar ideias — apenas salvar relatorio para proximos passos.
 
 ---
 
@@ -1715,8 +1832,10 @@ Com 1M de contexto, a maioria dos projetos cabe sem /clear. Mas monitore:
 ## Criterios de Sucesso do Builder
 
 - [ ] Estagio 1: Briefing coletado, perguntas criticas respondidas
-- [ ] Estagio 2: PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md, config.json criados
-- [ ] Estagio 2: Pesquisa de ecossistema completa (greenfield) ou codebase mapeado (brownfield)
+- [ ] Estagio 2: Product Analyst executado (concorrentes, features, personas)
+- [ ] Estagio 2: System Designer executado (modulos, roles, schema, blueprints, 5 camadas)
+- [ ] Estagio 2: Architect executou (PROJECT.md, REQUIREMENTS.md, ROADMAP.md criados)
+- [ ] Estagio 2: Requisitos completos (50-100 requisitos, 5 camadas)
 - [ ] Estagio 3: Todas as fases planejadas
 - [ ] Estagio 3: Todas as fases executadas
 - [ ] Estagio 3: Todas as fases verificadas
@@ -1733,7 +1852,9 @@ Com 1M de contexto, a maioria dos projetos cabe sem /clear. Mas monitore:
 - [ ] Estagio 4: UX-REPORT.md gerado com scores e screenshots
 - [ ] Estagio 4: Mobile First executado (responsividade verificada em 3 viewports)
 - [ ] Estagio 4: MOBILE-REPORT.md gerado com score e screenshots comparativos
-- [ ] Estagio 4: Ideias geradas com ICE scoring
+- [ ] Estagio 4: Score composto calculado (6 dimensoes)
+- [ ] Estagio 4: Quality gate loop executado (ate score >= 9.0 ou max 5 ciclos)
+- [ ] Estagio 4: Ideias geradas com ICE scoring (apos quality gate)
 - [ ] Estagio 5: Teste E2E final (smoke + fluxos + responsividade)
 - [ ] Estagio 5: E2E-REPORT.md gerado com screenshots
 - [ ] Estagio 5: Captures triados em TRIAGE.md

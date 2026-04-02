@@ -302,10 +302,13 @@ Construa um projeto inteiro autonomamente. Voce da o briefing, responde pergunta
 O builder full passa por **5 estagios** automaticamente:
 
 1. **Intake** — Analisa briefing, pergunta so o critico (credenciais, APIs)
-2. **Arquitetura** — Pesquisa ecossistema, gera PROJECT.md + REQUIREMENTS.md + ROADMAP.md
+2. **Arquitetura** — Pipeline de 3 agentes especializados:
+   - **Product Analyst** — Pesquisa concorrentes reais, define personas, lista features obrigatorias do mercado
+   - **System Designer** — Define modulos, roles, permissoes, schema de banco, rotas. Aplica blueprints de producao (auth, dashboard, booking, etc.) + requisitos universais (loading states, error handling, performance, a11y)
+   - **Architect** — Gera PROJECT.md, REQUIREMENTS.md (50-100 requisitos, 5 camadas), ROADMAP.md
 3. **Build** — Para cada fase: planejar → executar → verificar → testar E2E (Playwright)
-4. **Polish** — Auditoria de melhorias (codigo) + UX tester (navegacao real) + geracao de ideias
-5. **Entrega** — DELIVERY.md com tudo que foi feito, metricas, screenshots e proximos passos
+4. **Quality Gate Loop** — Ciclo de avaliacao em 6 dimensoes (funcionalidade, E2E, UX, responsividade, codigo, completude). Corrige e re-avalia ate score >= 9.0/10 (max 5 ciclos)
+5. **Entrega** — DELIVERY.md com quality score, metricas, screenshots e proximos passos
 
 **Funciona em dois modos (deteccao automatica):**
 - **Greenfield** (sem codigo): cria tudo do zero
@@ -500,7 +503,9 @@ O UP usa agentes especializados que rodam como subprocessos:
 
 | Agente | Funcao |
 |--------|--------|
-| **up-arquiteto** | Transforma briefing em projeto estruturado (modo builder) |
+| **up-product-analyst** | Pesquisa concorrentes, define personas, lista features do mercado |
+| **up-system-designer** | Define modulos, roles, schema, permissoes, aplica blueprints |
+| **up-arquiteto** | Transforma analise + design em documentos executaveis do UP |
 | **up-pesquisador-projeto** | Pesquisa de dominio e tecnologia para novos projetos |
 | **up-roteirista** | Cria ROADMAP.md com fases e criterios de sucesso |
 | **up-planejador** | Planeja fases com pesquisa inline e self-check |
