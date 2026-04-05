@@ -720,7 +720,7 @@ Verificar retorno:
 Fase {X}: Planejada — {N} planos em {M} waves
 ```
 
-#### 3.1.2 Executar Fase
+#### 3.1.2 Executar Fase (com Specialist Routing)
 
 Usar o mesmo processo do workflow executar-fase.md:
 
@@ -737,13 +737,30 @@ PLAN_INDEX=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index "${PHASE_
 
 Parse para obter waves e planos.
 
+**Specialist Routing — escolher o agente certo por plano:**
+
+Para cada plano, ler o frontmatter e detectar o dominio:
+
+| Se o plano envolve... | Usar agente |
+|----------------------|-------------|
+| Componentes React, paginas, UI, CSS, Tailwind | `up-frontend-specialist` |
+| API routes, endpoints, middleware, validacao | `up-backend-specialist` |
+| Schema, migrations, seeds, RLS, queries | `up-database-specialist` |
+| Misto ou infra | `up-executor` (generico) |
+
+**Deteccao:** Ler campo `type` do frontmatter do PLAN.md. Se nao existir, inferir dos `<files>` das tasks:
+- Arquivos em `app/`, `components/`, `*.tsx` com JSX → frontend
+- Arquivos em `api/`, `server/`, `middleware/`, `route.ts` → backend
+- Arquivos `.sql`, `migrations/`, `schema/`, `seed` → database
+- Misto → usar executor generico
+
 **Executar waves:**
 
-Para cada wave, spawnar executores em paralelo (se parallelization=true):
+Para cada wave, spawnar agentes especializados em paralelo (se parallelization=true):
 
 ```
 Task(
-  subagent_type="up-executor",
+  subagent_type="{up-frontend-specialist | up-backend-specialist | up-database-specialist | up-executor}",
   prompt="
     <objective>
     Executar plano {plan_number} da fase {phase_number}-{phase_name}.
@@ -793,7 +810,55 @@ Task(
 Wave {N}: {count} planos executados
 ```
 
-#### 3.1.3 Verificar Fase
+#### 3.1.3 Reflect (Code Review)
+
+**O passo "Reflect" do ciclo RARV — revisa codigo ANTES da verificacao formal.**
+
+```
+Fase {X}: Revisando codigo...
+```
+
+Spawnar code reviewer:
+
+```
+Task(
+  subagent_type="up-code-reviewer",
+  prompt="
+    <objective>
+    Revisar codigo da fase {phase_number} contra production-requirements e padroes de qualidade.
+    Identificar problemas com localizacao exata e sugestao de fix.
+    </objective>
+
+    <files_to_read>
+    - {phase_dir}/*-SUMMARY.md (O que foi implementado)
+    - $HOME/.claude/up/references/production-requirements.md (Checklist de producao)
+    - ./CLAUDE.md (Convencoes do projeto, se existir)
+    </files_to_read>
+
+    <constraints>
+    - Revisar TODOS os arquivos modificados na fase (via git log --grep)
+    - Verificar 6 dimensoes: production requirements, code quality, security, performance, edge cases, consistency
+    - Gerar CODE-REVIEW.md com issues priorizadas e fixes sugeridos
+    </constraints>
+  ",
+  description="Code Review da Fase {phase_number}"
+)
+```
+
+Ler resultado do code review:
+
+**Se ha issues CRITICAS (score < 7):**
+- Spawnar executor para corrigir issues criticas
+- Re-rodar code review (max 2 ciclos de correcao)
+
+**Se score >= 7:**
+- Registrar score e prosseguir
+
+```
+Reflect: score {N}/10 | {criticas} criticas | {importantes} importantes | {menores} menores
+```
+
+#### 3.1.4 Verificar Fase
 
 Spawnar verificador autonomo:
 
@@ -829,7 +894,7 @@ grep "^status:" "$PHASE_DIR"/*-VERIFICATION.md | cut -d: -f2 | tr -d ' '
 | `gaps_found` | Tentar corrigir (planejar gaps + executar, max 1 ciclo) |
 | `human_needed` | Registrar para revisao final, avancar |
 
-#### 3.1.4 Teste E2E da Fase (Playwright)
+#### 3.1.5 Teste E2E da Fase (Playwright)
 
 **Executar APENAS se a fase tem UI/rotas** (pular para fases de infra, schema, config).
 
@@ -874,7 +939,7 @@ Fase {X}: E2E — {passed}/{total} testes passaram [{bugs} bugs, {fixed} corrigi
 **Se nao tem UI:** Pular silenciosamente.
 **Se dev server falha:** Registrar e pular E2E (nao bloqueia).
 
-#### 3.1.5 Marcar Fase Completa
+#### 3.1.6 Marcar Fase Completa
 
 ```bash
 COMPLETION=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase complete "${PHASE_NUMBER}")
@@ -890,7 +955,7 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs(fase-{X}): completar execu
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-#### 3.1.6 Reassessment (Re-avaliacao do Roadmap)
+#### 3.1.7 Reassessment (Re-avaliacao do Roadmap)
 
 Apos cada fase completa, verificar se o roadmap ainda faz sentido ANTES de planejar a proxima.
 
@@ -930,7 +995,7 @@ Reassessment: [sem mudancas | X fases ajustadas | Y fases removidas | Z fases ad
 
 **Se NAO houve mudancas:** Seguir silenciosamente (1 linha de log apenas).
 
-#### 3.1.7 Avancar para Proxima Fase
+#### 3.1.8 Avancar para Proxima Fase
 
 Voltar para 3.1.1 com a proxima fase. Sem /clear — continuar no mesmo contexto.
 
@@ -1305,7 +1370,160 @@ Quality Gate: max ciclos atingido. Entregando com score {SCORE}/10.
 Quality Gate: melhoria < 0.3 pontos. Entregando com score {SCORE}/10.
 ```
 
-### 4.8 Rodar Ideias (Uma Vez, Apos Quality Gate)
+### 4.8 DevOps — Artefatos de Producao
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ BUILDER > PRODUCTION ARTIFACTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Spawnar devops agent:
+
+```
+Task(
+  subagent_type="up-devops-agent",
+  prompt="
+    <objective>
+    Gerar artefatos de producao para o projeto: Dockerfile, docker-compose, CI/CD, .env.example, seed data, scripts.
+    </objective>
+
+    <files_to_read>
+    - .plano/PROJECT.md
+    - .plano/SYSTEM-DESIGN.md (schema, integracoes)
+    - ./package.json
+    - ./CLAUDE.md (se existir)
+    </files_to_read>
+
+    <builder_mode>
+    Modo builder. NAO pergunte nada. Gere tudo autonomamente.
+    Adapte ao stack real do projeto.
+    </builder_mode>
+  ",
+  description="Gerar artefatos de producao"
+)
+```
+
+```
+DevOps: Dockerfile + docker-compose + CI/CD + .env.example + seed data
+```
+
+### 4.9 Technical Writer — Documentacao
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ BUILDER > DOCUMENTACAO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Spawnar technical writer:
+
+```
+Task(
+  subagent_type="up-technical-writer",
+  prompt="
+    <objective>
+    Gerar documentacao completa: README.md, API docs, CHANGELOG.md, setup guide.
+    Documentacao com conteudo REAL do projeto (nao placeholders).
+    </objective>
+
+    <files_to_read>
+    - .plano/PROJECT.md
+    - .plano/REQUIREMENTS.md
+    - .plano/SYSTEM-DESIGN.md
+    - .plano/PRODUCT-ANALYSIS.md
+    - ./package.json
+    - ./CLAUDE.md (se existir)
+    </files_to_read>
+
+    <builder_mode>
+    Modo builder. NAO pergunte nada. Gere documentacao autonomamente.
+    README deve ter instrucoes de setup que FUNCIONAM.
+    </builder_mode>
+  ",
+  description="Gerar documentacao completa"
+)
+```
+
+```
+Docs: README.md + CHANGELOG.md + API docs
+```
+
+### 4.10 Security Review
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ BUILDER > SECURITY AUDIT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Spawnar security reviewer:
+
+```
+Task(
+  subagent_type="up-security-reviewer",
+  prompt="
+    <objective>
+    Auditar codigo para vulnerabilidades de seguranca (OWASP Top 10, auth, injection, data exposure).
+    </objective>
+
+    <files_to_read>
+    - ./CLAUDE.md (se existir)
+    - .plano/SYSTEM-DESIGN.md (roles, auth design)
+    </files_to_read>
+
+    <builder_mode>
+    Modo builder. Gere SECURITY-REVIEW.md com vulnerabilidades encontradas.
+    </builder_mode>
+  ",
+  description="Auditoria de seguranca"
+)
+```
+
+Se ha vulnerabilidades CRITICAS: corrigir automaticamente (spawnar executor com fix sugerido).
+
+```
+Security: score {N}/10 | {criticas} criticas | {altas} altas
+```
+
+### 4.11 QA — Testes Automatizados
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ BUILDER > QA — TESTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Spawnar QA agent:
+
+```
+Task(
+  subagent_type="up-qa-agent",
+  prompt="
+    <objective>
+    Identificar gaps de cobertura de testes, escrever testes que faltam, executar todos.
+    </objective>
+
+    <files_to_read>
+    - .plano/PROJECT.md
+    - ./package.json
+    - ./CLAUDE.md (se existir)
+    </files_to_read>
+
+    <builder_mode>
+    Modo builder. Escreva testes e rode autonomamente.
+    Foco: API routes (90%+), logica de negocio (80%+), componentes com logica (70%+).
+    </builder_mode>
+  ",
+  description="QA — escrever e rodar testes"
+)
+```
+
+```
+QA: {N} testes escritos | {X} passando | cobertura estimada {%}
+```
+
+### 4.12 Rodar Ideias (Uma Vez, Apos Quality Gate)
 
 **Rodar ideias apenas UMA VEZ, apos o loop de qualidade terminar (nao a cada ciclo).**
 
@@ -1837,7 +2055,8 @@ Com 1M de contexto, a maioria dos projetos cabe sem /clear. Mas monitore:
 - [ ] Estagio 2: Architect executou (PROJECT.md, REQUIREMENTS.md, ROADMAP.md criados)
 - [ ] Estagio 2: Requisitos completos (50-100 requisitos, 5 camadas)
 - [ ] Estagio 3: Todas as fases planejadas
-- [ ] Estagio 3: Todas as fases executadas
+- [ ] Estagio 3: Todas as fases executadas (com specialist routing)
+- [ ] Estagio 3: Reflect (code review) apos cada fase
 - [ ] Estagio 3: Todas as fases verificadas
 - [ ] Estagio 3: Fases com UI testadas via Playwright (E2E-RESULTS.md)
 - [ ] Estagio 3: Bugs E2E corrigidos (quando possivel)
@@ -1854,6 +2073,10 @@ Com 1M de contexto, a maioria dos projetos cabe sem /clear. Mas monitore:
 - [ ] Estagio 4: MOBILE-REPORT.md gerado com score e screenshots comparativos
 - [ ] Estagio 4: Score composto calculado (6 dimensoes)
 - [ ] Estagio 4: Quality gate loop executado (ate score >= 9.0 ou max 5 ciclos)
+- [ ] Estagio 4: DevOps artifacts gerados (Dockerfile, CI/CD, .env.example, seed)
+- [ ] Estagio 4: Documentacao gerada (README, CHANGELOG, API docs)
+- [ ] Estagio 4: Security review executado
+- [ ] Estagio 4: QA — testes escritos e rodados
 - [ ] Estagio 4: Ideias geradas com ICE scoring (apos quality gate)
 - [ ] Estagio 5: Teste E2E final (smoke + fluxos + responsividade)
 - [ ] Estagio 5: E2E-REPORT.md gerado com screenshots

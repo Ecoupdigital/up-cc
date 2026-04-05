@@ -371,7 +371,18 @@ O agente:
 
 **Funciona standalone** em qualquer projeto. Tambem roda automaticamente dentro do modo builder (Estagio 4).
 
-### 11. Manutencao
+### 11. Dashboard
+
+Monitorar o builder em tempo real no browser:
+
+```
+/up:dashboard           # Abre em http://localhost:4040
+/up:dashboard 8080      # Porta customizada
+```
+
+Mostra: progresso, fases, status atual, commits, reports gerados. Atualiza a cada 3 segundos. Servidor leve (Node.js puro, zero deps).
+
+### 12. Manutencao
 
 ```
 /up:saude              # Diagnostica integridade do .plano/
@@ -390,6 +401,7 @@ O agente:
 | `/up:modo-builder` | Construir projeto completo autonomamente (greenfield ou brownfield) |
 | `/up:ux-tester` | Navegar sistema como usuario real, avaliar UX e implementar melhorias |
 | `/up:mobile-first` | Tornar sistema responsivo para mobile/tablet sem quebrar desktop |
+| `/up:dashboard` | Dashboard visual de monitoramento do builder em tempo real |
 | `/up:novo-projeto` | Inicializar projeto (detecta greenfield/brownfield) |
 | `/up:mapear-codigo` | Analisar codebase existente com agentes paralelos |
 | `/up:retomar` | Restaurar contexto da sessao anterior |
@@ -506,6 +518,14 @@ O UP usa agentes especializados que rodam como subprocessos:
 | **up-product-analyst** | Pesquisa concorrentes, define personas, lista features do mercado |
 | **up-system-designer** | Define modulos, roles, schema, permissoes, aplica blueprints |
 | **up-arquiteto** | Transforma analise + design em documentos executaveis do UP |
+| **up-frontend-specialist** | Executor especializado: componentes, estados de UI, responsividade, a11y |
+| **up-backend-specialist** | Executor especializado: API design, validacao, auth, rate limiting |
+| **up-database-specialist** | Executor especializado: schema, migrations, RLS, seed data |
+| **up-code-reviewer** | Reflect step: revisa codigo contra production-requirements |
+| **up-security-reviewer** | Audita vulnerabilidades (OWASP Top 10, auth, injection) |
+| **up-qa-agent** | Escreve e roda testes unitarios, integracao, E2E |
+| **up-devops-agent** | Gera Dockerfile, CI/CD, .env.example, seed data |
+| **up-technical-writer** | Gera README, API docs, CHANGELOG, setup guide |
 | **up-pesquisador-projeto** | Pesquisa de dominio e tecnologia para novos projetos |
 | **up-roteirista** | Cria ROADMAP.md com fases e criterios de sucesso |
 | **up-planejador** | Planeja fases com pesquisa inline e self-check |
