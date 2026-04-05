@@ -216,6 +216,18 @@ mkdir -p .plano .plano/captures
 git init 2>/dev/null
 ```
 
+**Iniciar Dashboard automaticamente:**
+```bash
+node "$HOME/.claude/up/dashboard/server.js" 4040 "$(pwd)/.plano" &
+DASH_PID=$!
+echo "Dashboard: http://localhost:4040 (PID: $DASH_PID)"
+```
+
+Informar ao usuario:
+```
+Dashboard: http://localhost:4040 — acompanhe o progresso em tempo real
+```
+
 ### 2.2 Pipeline de Arquitetura (3 Agentes em Sequencia)
 
 **Pipeline:** Product Analyst → System Designer → Architect
@@ -1688,6 +1700,11 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: relatorio de entrega (mod
 **Remover LOCK.md (sessao concluida com sucesso):**
 ```bash
 rm -f .plano/LOCK.md
+```
+
+**Fechar Dashboard:**
+```bash
+kill $DASH_PID 2>/dev/null
 ```
 
 ### 5.6 Apresentar Resultado
