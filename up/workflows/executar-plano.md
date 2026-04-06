@@ -205,6 +205,33 @@ curl -s http://localhost:$DEV_PORT/api/[recurso] | head -5
 - Task de testes (escrita de testes): pular (testes sao a verificacao)
 - `$DEV_SERVER_ACTIVE = false`: pular runtime, usar verificacao estatica
 
+### Quando Precisa de Credencial/Acesso Externo
+
+Se a verificacao requer algo que o executor NAO tem:
+- Cookies de sessao do usuario (Instagram, WhatsApp, etc.)
+- Login em servico externo (dashboard de terceiro, admin panel externo)
+- Token OAuth com permissoes especificas
+- Acesso fisico (camera, microfone, GPS)
+- Pagamento real (testar checkout com cartao)
+
+**NAO perguntar ao usuario. NAO parar o builder.**
+
+Em vez disso:
+1. Testar o maximo possivel SEM a credencial (mock, dados locais, dry-run)
+2. Registrar no SUMMARY.md como `[PRECISA-CREDENCIAL]`:
+
+```markdown
+## Verificacoes Pendentes (Credenciais Necessarias)
+
+| Task | O que testar | Credencial necessaria | Como obter |
+|------|-------------|----------------------|-----------|
+| 3 | Integração Instagram | Cookie de sessão Instagram | Login manual no Playwright |
+| 5 | Webhook WhatsApp | Token UazAPI configurado | Configurar em .env |
+| 7 | Checkout Stripe | Chave de teste Stripe | Dashboard Stripe > API Keys |
+```
+
+Estas verificacoes serao agregadas no DELIVERY.md na secao "Testes Pendentes de Credenciais".
+
 ### Verificacao Estatica (Fallback)
 
 Se dev server nao esta ativo:

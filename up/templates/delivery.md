@@ -92,6 +92,16 @@ Template para `.plano/DELIVERY.md` -- relatorio de entrega final gerado pelo mod
 
 **Total:** [N] bugs encontrados, [M] corrigidos automaticamente
 
+### Testes Pendentes de Credenciais
+
+[Testes que o builder nao conseguiu executar por precisar de credenciais/acesso do usuario]
+
+| O que testar | Credencial necessaria | Como obter | Prioridade |
+|-------------|----------------------|-----------|-----------|
+| [ex: Integração Instagram] | [Cookie de sessão] | [Login manual no Playwright] | [Alta/Media] |
+
+**Instrucoes:** Para testar manualmente, rode `/up:ux-tester` ou `/up:verificar-trabalho` apos configurar as credenciais acima.
+
 Relatorio completo: `.plano/e2e/E2E-REPORT.md`
 Screenshots: `.plano/e2e/`
 
