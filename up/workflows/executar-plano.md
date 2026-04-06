@@ -28,6 +28,77 @@ Extrair do init JSON: `commit_docs`, `phase_dir`, `phase_number`, `plans`, `summ
 Se `.plano/` faltando: erro.
 </step>
 
+<step name="setup_test_data">
+## CRITICO: Criar Dados de Teste ANTES de Executar Tasks
+
+Se o projeto tem banco de dados (Supabase, Postgres, SQLite, etc.), criar dados de teste para poder verificar funcionalidades.
+
+**Detectar banco:**
+```bash
+# Supabase
+grep -r "SUPABASE_URL\|supabase" .env* package.json 2>/dev/null | head -3
+
+# Prisma
+ls prisma/schema.prisma 2>/dev/null
+
+# Drizzle
+ls drizzle.config.* 2>/dev/null
+
+# SQLite
+find . -name "*.db" -o -name "*.sqlite" 2>/dev/null | head -3
+```
+
+**Se banco disponivel e vazio (projeto novo/greenfield):**
+
+1. Rodar migrations pendentes:
+```bash
+npx prisma migrate dev 2>/dev/null || npx supabase db push 2>/dev/null || npx drizzle-kit push 2>/dev/null
+```
+
+2. Criar usuario de teste (se sistema tem auth):
+```bash
+# Via Supabase CLI
+npx supabase functions invoke create-test-user 2>/dev/null
+
+# Ou via API do proprio app (se signup endpoint existe)
+curl -s -X POST http://localhost:$DEV_PORT/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"teste@teste.com","password":"Teste123!","name":"Usuario Teste"}'
+
+# Ou via SQL direto (Supabase)
+# INSERT INTO auth.users ...
+```
+
+**Dados de teste padrao:**
+
+| Tipo | Dados |
+|------|-------|
+| **Admin** | admin@teste.com / Admin123! / role: admin |
+| **Usuario** | user@teste.com / User123! / role: user |
+| **Nomes** | Usar nomes realistas (Maria Silva, Joao Santos) |
+| **Valores** | Numeros redondos (100, 250, 1000) |
+| **Datas** | Data atual ou proxima semana |
+| **Textos** | "Teste automatico - [dominio]" |
+
+3. Criar seed data do dominio (se seed script existe):
+```bash
+npm run db:seed 2>/dev/null || npx prisma db seed 2>/dev/null || npx tsx prisma/seed.ts 2>/dev/null
+```
+
+4. Se NAO existe seed script: criar dados via API apos endpoints estarem prontos (durante execucao das tasks)
+
+**Salvar credenciais de teste para uso durante verificacao:**
+```
+$TEST_ADMIN_EMAIL = "admin@teste.com"
+$TEST_ADMIN_PASSWORD = "Admin123!"
+$TEST_USER_EMAIL = "user@teste.com"
+$TEST_USER_PASSWORD = "User123!"
+```
+
+**Se banco NAO disponivel ou sem acesso:** Pular. Registrar como `[PRECISA-CREDENCIAL]`.
+
+</step>
+
 <step name="start_dev_server">
 ## CRITICO: Subir Dev Server ANTES de Executar Qualquer Task
 
@@ -113,17 +184,28 @@ Desvios sao normais -- tratar via regras abaixo.
 # 1. Verificar que o servidor recarregou (hot reload)
 sleep 2
 
-# 2. Testar o endpoint criado/modificado
-# Exemplo: POST /api/messages
+# 2. Se endpoint requer auth, fazer login primeiro com usuario de teste
+# Usar credenciais criadas no step setup_test_data
+AUTH_TOKEN=""
+if [endpoint requer auth]; then
+  AUTH_RESPONSE=$(curl -s -X POST http://localhost:$DEV_PORT/api/auth/login \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"$TEST_ADMIN_EMAIL\",\"password\":\"$TEST_ADMIN_PASSWORD\"}")
+  AUTH_TOKEN=$(echo $AUTH_RESPONSE | node -e "process.stdin.on('data',d=>{try{console.log(JSON.parse(d).token||JSON.parse(d).data?.token||'')}catch{console.log('')}})")
+fi
+
+# 3. Testar o endpoint criado/modificado
 curl -s -X POST http://localhost:$DEV_PORT/api/messages \
   -H "Content-Type: application/json" \
-  -d '{"content":"teste"}' \
+  -H "Authorization: Bearer $AUTH_TOKEN" \
+  -d '{"content":"teste automatico"}' \
   -w "\n%{http_code}"
 
-# 3. Verificar response
+# 4. Verificar response
 # - Status code correto (200, 201, etc.)?
 # - Response body tem a estrutura esperada?
 # - Nao retornou 500 ou erro?
+# - Se 401: credencial de teste invalida ou auth middleware errado
 ```
 
 **Se resposta inesperada:**
@@ -161,6 +243,18 @@ curl -s http://localhost:$DEV_PORT/[rota] | head -20
 ### Task de Integracao (frontend chamando backend)
 
 ```
+# 0. Se pagina requer auth, fazer login primeiro via Playwright
+if [rota protegida]:
+  browser_navigate(url: "http://localhost:$DEV_PORT/login")
+  browser_snapshot()
+  browser_fill_form(fields: [
+    {ref: "[email-input]", value: "$TEST_ADMIN_EMAIL"},
+    {ref: "[password-input]", value: "$TEST_ADMIN_PASSWORD"}
+  ])
+  browser_click(ref: "[submit-button]")
+  # Esperar redirect pos-login
+  browser_snapshot()  # deve estar na pagina protegida agora
+
 # 1. Navegar para a pagina
 browser_navigate(url: "http://localhost:$DEV_PORT/[rota]")
 
