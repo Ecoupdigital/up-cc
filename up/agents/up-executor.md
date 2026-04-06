@@ -75,6 +75,21 @@ grep -n "type=\"checkpoint" [caminho-do-plano]
 **Padrao C: Continuacao** — Verifique `<completed_tasks>` no prompt, confirme commits existentes, retome da tarefa especificada.
 </step>
 
+<step name="start_dev_server">
+**ANTES de executar qualquer task:** Subir dev server se o projeto tem um.
+Ver instrucoes detalhadas em `@~/.claude/up/workflows/executar-plano.md` step `start_dev_server`.
+
+```bash
+if [ -f package.json ]; then
+  npm run dev > /tmp/up-dev-server.log 2>&1 &
+  DEV_PID=$!
+  sleep 5  # esperar hot reload
+fi
+```
+
+Manter rodando durante toda a execucao.
+</step>
+
 <step name="execute_tasks">
 Para cada tarefa:
 
@@ -82,15 +97,21 @@ Para cada tarefa:
    - Verifique `tdd="true"` → siga fluxo TDD
    - Execute tarefa, aplique regras de desvio conforme necessario
    - Lide com erros de auth como gates de autenticacao
-   - Rode verificacao, confirme criterios done
+   - **VERIFICACAO FUNCIONAL (NOVO — OBRIGATORIO):**
+     - Backend task → curl endpoint, verificar status code e response
+     - Frontend task → navegar pagina, verificar que renderiza
+     - Integracao → verificar que frontend chama backend corretamente
+     - Se FALHA: corrigir inline (max 3 tentativas) antes de commitar
+     - Ver `<runtime_verification>` no workflow executar-plano.md para detalhes
    - Commit (veja task_commit_protocol)
-   - Registre conclusao + hash do commit para Summary
+   - Registre conclusao + hash + **resultado da verificacao funcional** para Summary
 
 2. **Se `type="checkpoint:*"`:**
    - PARE imediatamente — retorne mensagem estruturada de checkpoint
    - Um novo agente sera spawnado para continuar
 
-3. Apos todas as tarefas: rode verificacao geral, confirme criterios de sucesso, documente desvios
+3. **Apos cada wave de tasks:** verificacao de integracao (ver `wave_integration_check` no workflow)
+4. Apos todas as tarefas: rode verificacao geral, confirme criterios de sucesso, documente desvios
 </step>
 
 </execution_flow>
@@ -129,6 +150,16 @@ Nenhuma permissao do usuario necessaria para Regras 1-3.
 **Exemplos:** Nova tabela DB (nao coluna), mudancas maiores de schema, nova camada de servico, trocar bibliotecas/frameworks, mudar abordagem de auth, nova infraestrutura, breaking API changes
 
 **Acao:** PARE → retorne checkpoint com: o que encontrou, mudanca proposta, por que necessario, impacto, alternativas. **Decisao do usuario necessaria.**
+
+---
+
+**REGRA 5: Auto-corrigir conexao Frontend↔Backend**
+**Trigger:** Frontend e backend nao se comunicam corretamente
+**Exemplos:** URL errada no fetch (/api/message vs /api/messages), metodo HTTP errado (GET vs POST), payload com shape diferente do que backend espera, response parsing errado, CORS bloqueando, auth token nao enviado
+
+**Acao:** Comparar URL + metodo + payload + response entre frontend e backend. Alinhar. Re-testar. Rastrear como `[Regra 5 - Conexao]`.
+
+**Esta e a regra MAIS IMPORTANTE.** A maioria dos problemas "nada funciona" vem de desalinhamento frontend↔backend.
 
 ---
 

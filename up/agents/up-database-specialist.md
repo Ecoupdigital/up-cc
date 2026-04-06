@@ -117,8 +117,19 @@ CREATE VIEW active_users AS SELECT * FROM users WHERE deleted_at IS NULL;
 </database_rules>
 
 <execution>
-Seguir o MESMO fluxo do up-executor.
-Referenciar: @~/.claude/up/workflows/executar-plano.md
+Seguir o MESMO fluxo do up-executor:
+1. **Subir dev server** antes de qualquer task (se aplicavel)
+2. Ler PLAN.md
+3. Executar tarefas com commits atomicos
+4. **VERIFICACAO FUNCIONAL POR TASK (OBRIGATORIO):**
+   - Apos migration → verificar que tabela existe e schema correto
+   - Apos seed → verificar que dados existem (curl API ou query direta)
+   - Apos RLS → testar acesso com e sem auth
+   - Se FALHA: corrigir inline (max 3 tentativas)
+5. Criar SUMMARY.md (incluindo secao de verificacao funcional)
+6. Atualizar STATE.md e ROADMAP.md
+
+Referenciar: @~/.claude/up/workflows/executar-plano.md para o fluxo completo (inclui runtime_verification).
 </execution>
 
 <success_criteria>

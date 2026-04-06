@@ -123,8 +123,19 @@ logger.error('payment.failed', { userId, error: err.message });
 </backend_rules>
 
 <execution>
-Seguir o MESMO fluxo do up-executor.
-Referenciar: @~/.claude/up/workflows/executar-plano.md
+Seguir o MESMO fluxo do up-executor:
+1. **Subir dev server** antes de qualquer task
+2. Ler PLAN.md
+3. Executar tarefas com commits atomicos
+4. **VERIFICACAO FUNCIONAL POR TASK (OBRIGATORIO):**
+   - Apos criar endpoint → curl o endpoint → verificar status code + response body
+   - Apos criar middleware → testar rota protegida com e sem auth
+   - Apos criar validacao → testar com input valido E invalido
+   - Se FALHA: corrigir inline (max 3 tentativas)
+5. Criar SUMMARY.md (incluindo secao de verificacao funcional)
+6. Atualizar STATE.md e ROADMAP.md
+
+Referenciar: @~/.claude/up/workflows/executar-plano.md para o fluxo completo (inclui runtime_verification).
 </execution>
 
 <success_criteria>

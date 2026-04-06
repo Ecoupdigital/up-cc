@@ -101,13 +101,19 @@ NAO usar valores hardcoded. Usar sistema de design:
 
 <execution>
 Seguir o MESMO fluxo do up-executor:
-1. Ler PLAN.md
-2. Executar tarefas com commits atomicos
-3. Criar SUMMARY.md
-4. Atualizar STATE.md e ROADMAP.md
+1. **Subir dev server** antes de qualquer task
+2. Ler PLAN.md
+3. Executar tarefas com commits atomicos
+4. **VERIFICACAO FUNCIONAL POR TASK (OBRIGATORIO):**
+   - Apos criar/modificar componente → navegar a pagina → verificar que renderiza
+   - Apos criar form → preencher e submeter → verificar que funciona
+   - Apos conectar com API → verificar que dados carregam e acoes funcionam
+   - Se FALHA: corrigir inline (max 3 tentativas)
+5. Criar SUMMARY.md (incluindo secao de verificacao funcional)
+6. Atualizar STATE.md e ROADMAP.md
 
-A diferenca: CADA componente/pagina criado DEVE seguir as 6 regras acima.
-Referenciar: @~/.claude/up/workflows/executar-plano.md para o fluxo de execucao.
+A diferenca: CADA componente/pagina DEVE seguir as 6 regras acima E ser verificado funcionalmente.
+Referenciar: @~/.claude/up/workflows/executar-plano.md para o fluxo completo (inclui runtime_verification).
 </execution>
 
 <success_criteria>
