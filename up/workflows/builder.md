@@ -584,7 +584,69 @@ Se brownfield:
 ", subagent_type="up-arquiteto", description="Estruturar projeto executavel")
 ```
 
-### 2.7 Reportar Arquitetura
+### 2.7 Validar Requisitos (Quality Gate de Planejamento)
+
+**ANTES de iniciar o build, validar que os requisitos sao completos e testaveis.**
+
+```
+Validando requisitos (13 checks)...
+```
+
+```
+Task(
+  subagent_type="up-requirements-validator",
+  prompt="
+    <objective>
+    Validar REQUIREMENTS.md com 13 checks automaticos.
+    Calcular score e determinar se esta pronto para build.
+    </objective>
+
+    <files_to_read>
+    - .plano/REQUIREMENTS.md
+    - .plano/PROJECT.md
+    </files_to_read>
+  ",
+  description="Validar requisitos (13 checks)"
+)
+```
+
+Ler resultado:
+
+**Se score >= 75% (ACCEPTABLE ou melhor):** Prosseguir.
+```
+Requisitos: {score}% — {GRADE} ({passed}/13 checks)
+```
+
+**Se score < 75% (NEEDS_WORK):** Re-spawnar arquiteto com feedback.
+
+```
+Requisitos insuficientes ({score}%). Refinando...
+```
+
+```
+Task(
+  subagent_type="up-arquiteto",
+  prompt="
+    <objective>
+    Refinar REQUIREMENTS.md. A validacao encontrou problemas.
+    Ler REQUIREMENTS-VALIDATION.md para saber o que falta.
+    Adicionar requisitos que faltam SEM remover os existentes.
+    </objective>
+
+    <files_to_read>
+    - .plano/REQUIREMENTS-VALIDATION.md (feedback do validador)
+    - .plano/REQUIREMENTS.md (requisitos atuais)
+    - .plano/PROJECT.md
+    - .plano/SYSTEM-DESIGN.md
+    </files_to_read>
+  ",
+  description="Refinar requisitos apos validacao"
+)
+```
+
+Re-validar (max 2 ciclos). Se apos 2 ciclos ainda < 75%: prosseguir com advertencia.
+
+### 2.8 Reportar Arquitetura
 
 Ler ROADMAP.md e exibir resumo:
 
@@ -1306,19 +1368,59 @@ Ideias: [N] sugestoes geradas com ICE scoring
 Relatorio em .plano/ideias/RELATORIO.md
 ```
 
-### 4.6 Calcular Score Composto
+### 4.6 Blind Validation (Testar como Usuario Final)
+
+**Validar requisitos SEM ler codigo — apenas navegando o app.**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ QUALITY GATE — BLIND VALIDATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+```
+Task(
+  subagent_type="up-blind-validator",
+  prompt="
+    <objective>
+    Validar requisitos SEM ler codigo. Apenas navegar o app via Playwright e curl.
+    Testar cada requisito como usuario final: renderiza? funciona? feedback existe?
+    </objective>
+
+    <files_to_read>
+    - .plano/REQUIREMENTS.md (UNICO doc de especificacao)
+    - .plano/PROJECT.md (contexto do produto)
+    </files_to_read>
+
+    <constraints>
+    - NAO ler arquivos de codigo (.ts, .tsx, .py, .css)
+    - NAO ler SUMMARYs, PLANs, ARCHITECTURE
+    - APENAS navegar o app e testar como usuario
+    - Gerar BLIND-VALIDATION.md com screenshots
+    </constraints>
+  ",
+  description="Blind Validation — testar como usuario final"
+)
+```
+
+```
+Blind Validation: {score}% | {passed} PASS | {failed} FAIL | {partial} PARTIAL
+```
+
+### 4.7 Calcular Score Composto
 
 Agregar scores de todos os avaliadores:
 
 ```
-Funcionalidade (25%): requisitos [x] / total no REQUIREMENTS.md → 0-10
-E2E (20%):            testes passaram / total no E2E mais recente → 0-10
-UX (15%):             score do UX-REPORT.md → 0-10
-Responsividade (15%): score do MOBILE-REPORT.md → 0-10
+Funcionalidade (20%): requisitos [x] / total no REQUIREMENTS.md → 0-10
+Blind Valid. (20%):   score do BLIND-VALIDATION.md → 0-10
+E2E (15%):            testes passaram / total no E2E mais recente → 0-10
+UX (10%):             score do UX-REPORT.md → 0-10
+Responsividade (10%): score do MOBILE-REPORT.md → 0-10
 Codigo (15%):         (10 - problemas_criticos) do RELATORIO.md melhorias → 0-10
 Completude (10%):     rotas sem erro / total no smoke test → 0-10
 
-Score = (func × 0.25) + (e2e × 0.20) + (ux × 0.15) + (resp × 0.15) + (cod × 0.15) + (comp × 0.10)
+Score = (func × 0.20) + (blind × 0.20) + (e2e × 0.15) + (ux × 0.10) + (resp × 0.10) + (cod × 0.15) + (comp × 0.10)
 ```
 
 **Se algum avaliador nao rodou** (ex: sem UI, sem E2E): redistribuir peso proporcionalmente entre os que rodaram.
@@ -1339,7 +1441,7 @@ Score = (func × 0.25) + (e2e × 0.20) + (ux × 0.15) + (resp × 0.15) + (cod ×
 | **TOTAL** | **[SCORE]/10** | | |
 ```
 
-### 4.7 Decidir: Continuar ou Entregar
+### 4.8 Decidir: Continuar ou Entregar
 
 **Se score >= 9.0:** Ir para Estagio 5 (Entrega). Sistema pronto.
 
@@ -1382,7 +1484,7 @@ Quality Gate: max ciclos atingido. Entregando com score {SCORE}/10.
 Quality Gate: melhoria < 0.3 pontos. Entregando com score {SCORE}/10.
 ```
 
-### 4.8 DevOps — Artefatos de Producao
+### 4.9 DevOps — Artefatos de Producao
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1420,7 +1522,7 @@ Task(
 DevOps: Dockerfile + docker-compose + CI/CD + .env.example + seed data
 ```
 
-### 4.9 Technical Writer — Documentacao
+### 4.10 Technical Writer — Documentacao
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1461,7 +1563,7 @@ Task(
 Docs: README.md + CHANGELOG.md + API docs
 ```
 
-### 4.10 Security Review
+### 4.11 Security Review
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1498,7 +1600,7 @@ Se ha vulnerabilidades CRITICAS: corrigir automaticamente (spawnar executor com 
 Security: score {N}/10 | {criticas} criticas | {altas} altas
 ```
 
-### 4.11 QA — Testes Automatizados
+### 4.12 QA — Testes Automatizados
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1535,7 +1637,7 @@ Task(
 QA: {N} testes escritos | {X} passando | cobertura estimada {%}
 ```
 
-### 4.12 Rodar Ideias (Uma Vez, Apos Quality Gate)
+### 4.13 Rodar Ideias (Uma Vez, Apos Quality Gate)
 
 **Rodar ideias apenas UMA VEZ, apos o loop de qualidade terminar (nao a cada ciclo).**
 
