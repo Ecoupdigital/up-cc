@@ -301,25 +301,42 @@ Construa um projeto inteiro autonomamente. Voce da o briefing, responde pergunta
 
 O builder full passa por **5 estagios** automaticamente:
 
-1. **Intake** — Analisa briefing, pergunta so o critico (credenciais, APIs)
-2. **Arquitetura** — Pipeline de 3 agentes especializados:
+1. **Intake** — Analisa briefing, pergunta so o critico (credenciais, APIs). Dashboard inicia em http://localhost:4040.
+2. **Arquitetura** — Pipeline de 3 agentes especializados + validacao:
    - **Product Analyst** — Pesquisa concorrentes reais, define personas, lista features obrigatorias do mercado
-   - **System Designer** — Define modulos, roles, permissoes, schema de banco, rotas. Aplica blueprints de producao (auth, dashboard, booking, etc.) + requisitos universais (loading states, error handling, performance, a11y)
+   - **System Designer** — Define modulos, roles, permissoes, schema de banco, rotas. Aplica 10 blueprints de producao + requisitos universais (70+ checks)
    - **Architect** — Gera PROJECT.md, REQUIREMENTS.md (50-100 requisitos, 5 camadas), ROADMAP.md
-3. **Build** — Para cada fase: planejar → executar → verificar → testar E2E (Playwright)
-4. **Quality Gate Loop** — Ciclo de avaliacao em 6 dimensoes (funcionalidade, E2E, UX, responsividade, codigo, completude). Corrige e re-avalia ate score >= 9.0/10 (max 5 ciclos)
-5. **Entrega** — DELIVERY.md com quality score, metricas, screenshots e proximos passos
+   - **Requirements Validator** — 13 checks automaticos. Se score < 75%: arquiteto refaz antes do build
+3. **Build** — Para cada fase com ciclo RARV (Reason → Act → Reflect → Verify):
+   - **Planejar** (Reason) — planejador cria planos executaveis
+   - **Executar** (Act) — executores especialistas (frontend/backend/database) com verificacao funcional por task (curl endpoints, Playwright em paginas). Cria dados de teste automaticamente.
+   - **Reflect** — Code Reviewer revisa contra production-requirements ANTES da verificacao
+   - **Verificar** (Verify) — verificador + teste E2E com Playwright
+   - **Regra 5** — Auto-corrige desalinhamento frontend↔backend (URL, payload, response shape)
+4. **Quality Gate Loop** — Score composto de 7 dimensoes (funcionalidade, blind validation, E2E, UX, responsividade, codigo, completude). Inclui:
+   - **Blind Validator** — testa como usuario final SEM ler codigo (20% do score)
+   - Melhorias de codigo (3 auditores)
+   - UX Tester (navegacao real, 6 dimensoes)
+   - Mobile First (responsividade sem quebrar desktop)
+   - Security Review (OWASP Top 10)
+   - QA Agent (testes automatizados)
+   - DevOps (Dockerfile, CI/CD, .env.example, seed data)
+   - Technical Writer (README, API docs, CHANGELOG)
+   - Corrige e re-avalia ate score >= 9.0/10 (max 5 ciclos)
+5. **Entrega** — DELIVERY.md com quality score, metricas, screenshots, testes pendentes de credenciais
 
 **Funciona em dois modos (deteccao automatica):**
 - **Greenfield** (sem codigo): cria tudo do zero
 - **Brownfield** (codigo existente): mapeia codebase, adiciona fases ao roadmap existente
 
-**Features adicionais do builder:**
-- **Crash recovery** — Se a sessao morrer, re-execute o comando e ele retoma de onde parou (via LOCK.md)
-- **Reassessment** — Apos cada fase, re-avalia se o roadmap ainda faz sentido
-- **Capture de insights** — Agentes salvam descobertas durante o build para triagem no final
-- **Testes E2E** — Playwright testa cada fase e faz smoke test final (rotas + fluxos + responsividade)
-- **UX review** — Navega como usuario real, avalia 6 dimensoes, implementa melhorias
+**Features do builder:**
+- **28 agentes especializados** trabalhando em pipeline
+- **Verificacao funcional por task** — cada task e testada em runtime (curl/Playwright) antes de commitar
+- **Crash recovery** — LOCK.md permite retomar de onde parou
+- **Reassessment** — re-avalia roadmap apos cada fase
+- **Capture de insights** — agentes salvam descobertas para triagem no final
+- **Dados de teste automaticos** — cria usuarios e seed data no banco
+- **Dashboard** — acompanhe em tempo real em http://localhost:4040
 
 **Modo Light (`--light`):**
 - Pula pesquisa, polish, UX tester, ideias, delivery, reassessment, captures
@@ -511,22 +528,49 @@ Todos esses arquivos sao texto puro (Markdown/JSON) e podem ser commitados no re
 
 ## Agentes
 
-O UP usa agentes especializados que rodam como subprocessos:
+O UP usa 28 agentes especializados organizados por funcao:
+
+**Arquitetura (planejamento):**
 
 | Agente | Funcao |
 |--------|--------|
 | **up-product-analyst** | Pesquisa concorrentes, define personas, lista features do mercado |
-| **up-system-designer** | Define modulos, roles, schema, permissoes, aplica blueprints |
-| **up-arquiteto** | Transforma analise + design em documentos executaveis do UP |
-| **up-frontend-specialist** | Executor especializado: componentes, estados de UI, responsividade, a11y |
-| **up-backend-specialist** | Executor especializado: API design, validacao, auth, rate limiting |
-| **up-database-specialist** | Executor especializado: schema, migrations, RLS, seed data |
-| **up-code-reviewer** | Reflect step: revisa codigo contra production-requirements |
-| **up-security-reviewer** | Audita vulnerabilidades (OWASP Top 10, auth, injection) |
-| **up-qa-agent** | Escreve e roda testes unitarios, integracao, E2E |
-| **up-devops-agent** | Gera Dockerfile, CI/CD, .env.example, seed data |
-| **up-technical-writer** | Gera README, API docs, CHANGELOG, setup guide |
-| **up-pesquisador-projeto** | Pesquisa de dominio e tecnologia para novos projetos |
+| **up-system-designer** | Define modulos, roles, schema, permissoes, aplica 10 blueprints |
+| **up-arquiteto** | Transforma analise + design em documentos executaveis |
+| **up-requirements-validator** | 13 checks automaticos nos requisitos antes do build |
+
+**Execucao (build):**
+
+| Agente | Funcao |
+|--------|--------|
+| **up-frontend-specialist** | Componentes com todos estados de UI, responsivo, a11y |
+| **up-backend-specialist** | API design, validacao, auth, rate limiting, paginacao |
+| **up-database-specialist** | Schema, migrations, RLS, indices, seed data, soft delete |
+| **up-executor** | Executor generico (quando plano e misto) |
+| **up-planejador** | Cria planos executaveis com pesquisa inline |
+
+**Qualidade (review + test):**
+
+| Agente | Funcao |
+|--------|--------|
+| **up-code-reviewer** | Reflect step: revisa contra production-requirements |
+| **up-blind-validator** | Testa como usuario final SEM ler codigo |
+| **up-security-reviewer** | OWASP Top 10, auth bypass, injection, secrets |
+| **up-qa-agent** | Escreve e roda testes, identifica gaps de cobertura |
+| **up-verificador** | Verificacao goal-backward de trabalho completado |
+
+**Producao (finalizacao):**
+
+| Agente | Funcao |
+|--------|--------|
+| **up-devops-agent** | Dockerfile, CI/CD, .env.example, seed data |
+| **up-technical-writer** | README, API docs, CHANGELOG, setup guide |
+
+**Pipeline e suporte:**
+
+| Agente | Funcao |
+|--------|--------|
+| **up-pesquisador-projeto** | Pesquisa de dominio e tecnologia |
 | **up-roteirista** | Cria ROADMAP.md com fases e criterios de sucesso |
 | **up-planejador** | Planeja fases com pesquisa inline e self-check |
 | **up-executor** | Executa planos com commits atomicos |
