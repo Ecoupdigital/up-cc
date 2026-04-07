@@ -330,7 +330,7 @@ O builder full passa por **5 estagios** automaticamente:
 - **Brownfield** (codigo existente): mapeia codebase, adiciona fases ao roadmap existente
 
 **Features do builder:**
-- **28 agentes especializados** trabalhando em pipeline
+- **33 agentes especializados** trabalhando em pipeline
 - **Verificacao funcional por task** — cada task e testada em runtime (curl/Playwright) antes de commitar
 - **Crash recovery** — LOCK.md permite retomar de onde parou
 - **Reassessment** — re-avalia roadmap apos cada fase
@@ -422,7 +422,7 @@ Monitorar o builder em tempo real no browser:
 
 Mostra: progresso, fases, status atual, commits, reports gerados. Atualiza a cada 3 segundos. Servidor leve (Node.js puro, zero deps).
 
-### 12. Manutencao
+### 13. Manutencao
 
 ```
 /up:saude              # Diagnostica integridade do .plano/
@@ -552,7 +552,7 @@ Todos esses arquivos sao texto puro (Markdown/JSON) e podem ser commitados no re
 
 ## Agentes
 
-O UP usa 28 agentes especializados organizados por funcao:
+O UP usa 33 agentes especializados organizados por funcao:
 
 **Arquitetura (planejamento):**
 
@@ -589,6 +589,16 @@ O UP usa 28 agentes especializados organizados por funcao:
 |--------|--------|
 | **up-devops-agent** | Dockerfile, CI/CD, .env.example, seed data |
 | **up-technical-writer** | README, API docs, CHANGELOG, setup guide |
+
+**Clone:**
+
+| Agente | Funcao |
+|--------|--------|
+| **up-clone-crawler** | Navega app via Playwright, screenshots, intercepta APIs, extrai forms |
+| **up-clone-design-extractor** | Extrai design system: cores, fontes, espacamento, componentes |
+| **up-clone-feature-mapper** | Mapeia modulos, features, roles, data model, fluxos |
+| **up-clone-prd-writer** | Sintetiza analise em PRD completo para modo-builder |
+| **up-clone-verifier** | Verifica fidelidade funcional + visual contra original |
 
 **Pipeline e suporte:**
 
