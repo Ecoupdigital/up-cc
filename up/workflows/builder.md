@@ -25,6 +25,17 @@ Onde o UP normal espera /clear entre fases, o modo builder continua automaticame
 - Codigo existente detectado (package.json, src/, app/, etc.) → BROWNFIELD
 - Sem codigo → GREENFIELD
 - `.plano/` existente com ROADMAP.md → BROWNFIELD (adiciona fases ao roadmap existente)
+
+**Modo Clone (builder_type: "clone" no config.json):**
+Quando o builder e invocado pelo clone-builder, config.json tem `builder_type: "clone"`.
+Neste modo, TODOS os agentes devem:
+1. **Ler .plano/clone/DESIGN-SYSTEM.md** e seguir cores, fontes, espacamento
+2. **Ler .plano/clone/FEATURE-MAP.md** e garantir que TODAS features CLONE-* sao implementadas
+3. **Ler .plano/clone/screenshots/** como referencia visual
+4. **Product Analyst:** Se clone_mode=exact: NAO sugerir mudancas. Se improve: sugerir apenas adicoes.
+5. **Frontend Specialist:** Replicar layout e design das screenshots.
+6. **Code Reviewer:** Verificar fidelidade visual alem de production-requirements.
+7. **Quality Gate:** Incluir clone-verifier como dimensao "Fidelidade" (20% do score).
 </core_principle>
 
 <process>
@@ -1420,7 +1431,13 @@ Responsividade (10%): score do MOBILE-REPORT.md → 0-10
 Codigo (15%):         (10 - problemas_criticos) do RELATORIO.md melhorias → 0-10
 Completude (10%):     rotas sem erro / total no smoke test → 0-10
 
+**Modo normal:**
 Score = (func × 0.20) + (blind × 0.20) + (e2e × 0.15) + (ux × 0.10) + (resp × 0.10) + (cod × 0.15) + (comp × 0.10)
+
+**Modo clone (builder_type: "clone"):**
+Score = (func × 0.15) + (fidelidade × 0.20) + (blind × 0.15) + (e2e × 0.10) + (ux × 0.10) + (resp × 0.10) + (cod × 0.10) + (comp × 0.10)
+
+A dimensao "Fidelidade" usa o up-clone-verifier: compara features (funcional) + visual contra original.
 ```
 
 **Se algum avaliador nao rodou** (ex: sem UI, sem E2E): redistribuir peso proporcionalmente entre os que rodaram.

@@ -388,7 +388,30 @@ O agente:
 
 **Funciona standalone** em qualquer projeto. Tambem roda automaticamente dentro do modo builder (Estagio 4).
 
-### 11. Dashboard
+### 11. Clone Builder
+
+Clonar um app existente via Playwright — analisa, extrai PRD e recria com sua stack.
+
+```
+/up:clone-builder https://app.exemplo.com               # Clonar exatamente
+/up:clone-builder https://app.exemplo.com --improve      # Clonar e melhorar
+/up:clone-builder https://app.exemplo.com --inspiration  # Usar como referencia
+```
+
+O clone-builder:
+1. **Crawl** — Playwright navega todas paginas, screenshots, intercepta APIs, extrai forms
+2. **Design Extractor** — extrai cores, fontes, espacamento, componentes, layout
+3. **Feature Mapper** — mapeia modulos, features, roles, data model, fluxos
+4. **PRD Writer** — sintetiza em PRD completo e detalhado
+5. **Modo Builder** — recria com sua stack (o builder sabe que e clone e segue design/features do original)
+6. **Clone Verifier** — verifica fidelidade funcional + visual contra o original
+
+**3 modos:**
+- `--exact`: reproduzir o mais fiel possivel (default)
+- `--improve`: reproduzir + aplicar blueprints + melhorias
+- `--inspiration`: usar como referencia, builder tem liberdade
+
+### 12. Dashboard
 
 Monitorar o builder em tempo real no browser:
 
@@ -418,6 +441,7 @@ Mostra: progresso, fases, status atual, commits, reports gerados. Atualiza a cad
 | `/up:modo-builder` | Construir projeto completo autonomamente (greenfield ou brownfield) |
 | `/up:ux-tester` | Navegar sistema como usuario real, avaliar UX e implementar melhorias |
 | `/up:mobile-first` | Tornar sistema responsivo para mobile/tablet sem quebrar desktop |
+| `/up:clone-builder` | Clonar app existente via Playwright e recriar com sua stack |
 | `/up:dashboard` | Dashboard visual de monitoramento do builder em tempo real |
 | `/up:novo-projeto` | Inicializar projeto (detecta greenfield/brownfield) |
 | `/up:mapear-codigo` | Analisar codebase existente com agentes paralelos |
