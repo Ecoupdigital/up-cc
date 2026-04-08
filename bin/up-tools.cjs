@@ -8,10 +8,10 @@
  * Usage: node up-tools.cjs <command> [args] [--raw] [--cwd <path>]
  *
  * Commands:
- *   init planejar-fase|executar-fase|novo-projeto|rapido|retomar|operacao-fase|progresso|verificar-trabalho
- *   state load|get|update|advance-plan|update-progress|add-decision|record-session|record-metric|snapshot
+ *   init planejar-fase|executar-fase|novo-projeto|rapido|retomar|operacao-fase|progresso|verificar-trabalho|melhorias|ideias|iniciar
+ *   state load|get|update|advance-plan|update-progress|add-decision|record-session|record-metric|snapshot|save-session
  *   roadmap get-phase|analyze|update-plan-progress
- *   phase add|remove|find|complete
+ *   phase add|remove|find|complete|generate-from-report
  *   config get|set
  *   requirements mark-complete
  *   commit <msg> --files
@@ -200,8 +200,17 @@ function main() {
         case 'verificar-trabalho':
           cmdInitVerificarTrabalho(cwd, args[2], raw);
           break;
+        case 'melhorias':
+          cmdInitMelhorias(cwd, raw);
+          break;
+        case 'ideias':
+          cmdInitIdeias(cwd, raw);
+          break;
+        case 'iniciar':
+          cmdInitIniciar(cwd, raw);
+          break;
         default:
-          error(`Unknown init workflow: ${workflow}\nAvailable: planejar-fase, executar-fase, novo-projeto, rapido, retomar, operacao-fase, progresso, verificar-trabalho`);
+          error(`Unknown init workflow: ${workflow}\nAvailable: planejar-fase, executar-fase, novo-projeto, rapido, retomar, operacao-fase, progresso, verificar-trabalho, melhorias, ideias, iniciar`);
       }
       break;
     }
@@ -246,8 +255,19 @@ function main() {
         }, raw);
       } else if (sub === 'snapshot') {
         cmdStateSnapshot(cwd, raw);
+      } else if (sub === 'save-session') {
+        const summaryIdx = args.indexOf('--summary');
+        const decisionIdx = args.indexOf('--decision');
+        const phaseIdx = args.indexOf('--phase');
+        const noCommitIdx = args.indexOf('--no-commit');
+        cmdStateSaveSession(cwd, {
+          summary: summaryIdx !== -1 ? args[summaryIdx + 1] : null,
+          decision: decisionIdx !== -1 ? args[decisionIdx + 1] : null,
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          no_commit: noCommitIdx !== -1,
+        }, raw);
       } else {
-        error('Unknown state subcommand. Available: load, get, update, advance-plan, update-progress, add-decision, record-session, record-metric, snapshot');
+        error('Unknown state subcommand. Available: load, get, update, advance-plan, update-progress, add-decision, record-session, record-metric, snapshot, save-session');
       }
       break;
     }
@@ -279,8 +299,10 @@ function main() {
         cmdPhaseRemove(cwd, args[2], { force: forceFlag }, raw);
       } else if (sub === 'complete') {
         cmdPhaseComplete(cwd, args[2], raw);
+      } else if (sub === 'generate-from-report') {
+        cmdPhaseGenerateFromReport(cwd, args.slice(2), raw);
       } else {
-        error('Unknown phase subcommand. Available: find, add, remove, complete');
+        error('Unknown phase subcommand. Available: find, add, remove, complete, generate-from-report');
       }
       break;
     }
@@ -473,6 +495,66 @@ function cmdInitNovoProjeto(cwd, raw) {
     has_codebase_map: hasCodebaseMap,
     codebase_files: codebaseFiles,
     has_git: pathExistsInternal(cwd, '.git'),
+    project_path: '.plano/PROJECT.md',
+  };
+
+  output(result, raw);
+}
+
+function cmdInitIniciar(cwd, raw) {
+  const config = loadConfig(cwd);
+  const { execSync } = require('child_process');
+
+  let hasCode = false;
+  try {
+    const files = execSync('find . -maxdepth 3 \\( -name "*.ts" -o -name "*.js" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.swift" -o -name "*.java" \\) 2>/dev/null | grep -v node_modules | grep -v .git | head -5', {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    hasCode = files.trim().length > 0;
+  } catch {}
+
+  const hasCodebaseMap = pathExistsInternal(cwd, '.plano/codebase');
+  let codebaseFiles = [];
+  if (hasCodebaseMap) {
+    try {
+      codebaseFiles = fs.readdirSync(path.join(cwd, '.plano/codebase'))
+        .filter(f => f.endsWith('.md'))
+        .map(f => `.plano/codebase/${f}`);
+    } catch {}
+  }
+
+  // Stack hints from package.json
+  const pkgPath = path.join(cwd, 'package.json');
+  let stackHints = {};
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    const allDeps = Object.assign({}, pkg.dependencies || {}, pkg.devDependencies || {});
+    stackHints = {
+      has_react: !!allDeps.react,
+      has_next: !!allDeps.next,
+      has_vue: !!allDeps.vue,
+      has_nuxt: !!allDeps.nuxt,
+      has_svelte: !!allDeps.svelte,
+      has_tailwind: !!allDeps.tailwindcss,
+      has_prisma: !!(allDeps['@prisma/client'] || allDeps.prisma),
+      has_typescript: !!(allDeps.typescript || pathExistsInternal(cwd, 'tsconfig.json')),
+      type_module: pkg.type === 'module',
+    };
+  } catch {}
+
+  const result = {
+    commit_docs: config.commit_docs,
+    project_exists: pathExistsInternal(cwd, '.plano/PROJECT.md'),
+    planning_exists: pathExistsInternal(cwd, '.plano'),
+    has_existing_code: hasCode,
+    has_codebase_map: hasCodebaseMap,
+    codebase_files: codebaseFiles,
+    has_git: pathExistsInternal(cwd, '.git'),
+    has_package_json: pathExistsInternal(cwd, 'package.json'),
+    has_readme: pathExistsInternal(cwd, 'README.md') || pathExistsInternal(cwd, 'readme.md'),
+    stack_hints: stackHints,
     project_path: '.plano/PROJECT.md',
   };
 
@@ -688,6 +770,82 @@ function cmdInitVerificarTrabalho(cwd, phase, raw) {
     phase_number: phaseInfo?.phase_number || null,
     phase_name: phaseInfo?.phase_name || null,
     has_verification: hasVerification,
+  };
+
+  output(result, raw);
+}
+
+function cmdInitMelhorias(cwd, raw) {
+  const config = loadConfig(cwd);
+  const now = new Date();
+
+  // Detectar stack hints do projeto para ajustar auditoria
+  const pkgPath = path.join(cwd, 'package.json');
+  let stackHints = {};
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    const allDeps = Object.assign({}, pkg.dependencies || {}, pkg.devDependencies || {});
+    stackHints = {
+      has_react: !!allDeps.react,
+      has_next: !!allDeps.next,
+      has_vue: !!allDeps.vue,
+      has_nuxt: !!allDeps.nuxt,
+      has_svelte: !!allDeps.svelte,
+      has_tailwind: !!allDeps.tailwindcss,
+      has_prisma: !!(allDeps['@prisma/client'] || allDeps.prisma),
+      has_typescript: !!(allDeps.typescript || pathExistsInternal(cwd, 'tsconfig.json')),
+      type_module: pkg.type === 'module',
+    };
+  } catch {}
+
+  const result = {
+    planning_exists: pathExistsInternal(cwd, '.plano'),
+    melhorias_dir: '.plano/melhorias',
+    melhorias_exists: pathExistsInternal(cwd, '.plano/melhorias'),
+    has_claude_md: pathExistsInternal(cwd, 'CLAUDE.md'),
+    has_package_json: pathExistsInternal(cwd, 'package.json'),
+    date: now.toISOString().split('T')[0],
+    timestamp: now.toISOString(),
+    commit_docs: config.commit_docs,
+    stack_hints: stackHints,
+  };
+
+  output(result, raw);
+}
+
+function cmdInitIdeias(cwd, raw) {
+  const config = loadConfig(cwd);
+  const now = new Date();
+
+  // Detectar stack hints do projeto para contextualizar analise
+  const pkgPath = path.join(cwd, 'package.json');
+  let stackHints = {};
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    const allDeps = Object.assign({}, pkg.dependencies || {}, pkg.devDependencies || {});
+    stackHints = {
+      has_react: !!allDeps.react,
+      has_next: !!allDeps.next,
+      has_vue: !!allDeps.vue,
+      has_nuxt: !!allDeps.nuxt,
+      has_svelte: !!allDeps.svelte,
+      has_tailwind: !!allDeps.tailwindcss,
+      has_prisma: !!(allDeps['@prisma/client'] || allDeps.prisma),
+      has_typescript: !!(allDeps.typescript || pathExistsInternal(cwd, 'tsconfig.json')),
+      type_module: pkg.type === 'module',
+    };
+  } catch {}
+
+  const result = {
+    planning_exists: pathExistsInternal(cwd, '.plano'),
+    ideias_dir: '.plano/ideias',
+    ideias_exists: pathExistsInternal(cwd, '.plano/ideias'),
+    has_claude_md: pathExistsInternal(cwd, 'CLAUDE.md'),
+    has_package_json: pathExistsInternal(cwd, 'package.json'),
+    date: now.toISOString().split('T')[0],
+    timestamp: now.toISOString(),
+    commit_docs: config.commit_docs,
+    stack_hints: stackHints,
   };
 
   output(result, raw);
@@ -1003,6 +1161,77 @@ function cmdStateSnapshot(cwd, raw) {
   }, raw);
 }
 
+function cmdStateSaveSession(cwd, options, raw) {
+  const statePath = path.join(cwd, '.plano', 'STATE.md');
+  if (!fs.existsSync(statePath)) { output({ error: 'STATE.md not found — project not initialized with UP' }, raw); return; }
+
+  const { summary, decision, phase, no_commit } = options;
+  if (!summary) { output({ error: '--summary required: describe what was done in this session' }, raw); return; }
+
+  let content = fs.readFileSync(statePath, 'utf-8');
+  const now = new Date().toISOString();
+  const actions = [];
+
+  // 1. Update session timestamp (try both PT and EN field names)
+  const sessionFields = ['Ultima sessao', 'Last session', 'Last Date'];
+  for (const field of sessionFields) {
+    let result = stateReplaceField(content, field, now);
+    if (result) { content = result; if (!actions.includes('timestamp')) actions.push('timestamp'); }
+  }
+
+  // 2. Update stopped-at with summary (try both PT and EN)
+  const stoppedFields = ['Parou em', 'Stopped At', 'Stopped at'];
+  for (const field of stoppedFields) {
+    let result = stateReplaceField(content, field, summary);
+    if (result) { content = result; if (!actions.includes('stopped_at')) actions.push('stopped_at'); break; }
+  }
+
+  // 3. Update last activity (try both PT and EN)
+  const shortDate = now.split('T')[0];
+  const shortSummary = summary.length > 80 ? summary.substring(0, 77) + '...' : summary;
+  const activityFields = ['Ultima atividade', 'Last activity'];
+  for (const field of activityFields) {
+    let result = stateReplaceField(content, field, `${shortDate} -- ${shortSummary}`);
+    if (result) { content = result; if (!actions.includes('last_activity')) actions.push('last_activity'); break; }
+  }
+
+  // 4. Add decision if provided
+  if (decision) {
+    const phaseLabel = phase || '?';
+    const entry = `- [Phase ${phaseLabel}]: ${decision}`;
+    const sectionPattern = /(###?\s*(?:Decisoes|Decisions|Decisions Made|Accumulated.*Decisions)\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
+    const match = content.match(sectionPattern);
+    if (match) {
+      let sectionBody = match[2];
+      sectionBody = sectionBody.replace(/None yet\.?\s*\n?/gi, '').replace(/No decisions yet\.?\s*\n?/gi, '').replace(/Nenhuma ainda\.?\s*\n?/gi, '');
+      sectionBody = sectionBody.trimEnd() + '\n' + entry + '\n';
+      content = content.replace(sectionPattern, (_match, header) => `${header}${sectionBody}`);
+      actions.push('decision');
+    }
+  }
+
+  // 5. Write STATE.md
+  fs.writeFileSync(statePath, content, 'utf-8');
+
+  // 6. Auto-commit unless --no-commit
+  let committed = false;
+  if (!no_commit) {
+    try {
+      execGit(cwd, ['add', statePath]);
+      const diffResult = execGit(cwd, ['diff', '--cached', '--name-only']);
+      const hasChanges = (diffResult.stdout || '').trim();
+      if (hasChanges) {
+        execGit(cwd, ['commit', '-m', `docs(state): ${shortSummary}`]);
+        committed = true;
+      }
+    } catch (e) {
+      // commit failed — not critical, state was still saved to disk
+    }
+  }
+
+  output({ saved: true, actions, committed, summary: shortSummary }, raw, 'true');
+}
+
 // =====================================================================
 // ROADMAP COMMANDS
 // =====================================================================
@@ -1019,7 +1248,7 @@ function cmdRoadmapGetPhase(cwd, phaseNum, raw) {
     const content = fs.readFileSync(roadmapPath, 'utf-8');
     const escapedPhase = escapeRegex(phaseNum);
 
-    const phasePattern = new RegExp(`#{2,4}\\s*Phase\\s+${escapedPhase}:\\s*([^\\n]+)`, 'i');
+    const phasePattern = new RegExp(`#{2,4}\\s*(?:Phase|Fase)\\s+${escapedPhase}:\\s*([^\\n]+)`, 'i');
     const headerMatch = content.match(phasePattern);
 
     if (!headerMatch) {
@@ -1030,11 +1259,11 @@ function cmdRoadmapGetPhase(cwd, phaseNum, raw) {
     const phaseName = headerMatch[1].trim();
     const headerIndex = headerMatch.index;
     const restOfContent = content.slice(headerIndex);
-    const nextHeaderMatch = restOfContent.match(/\n#{2,4}\s+Phase\s+\d/i);
+    const nextHeaderMatch = restOfContent.match(/\n#{2,4}\s+(?:Phase|Fase)\s+\d/i);
     const sectionEnd = nextHeaderMatch ? headerIndex + nextHeaderMatch.index : content.length;
     const section = content.slice(headerIndex, sectionEnd).trim();
 
-    const goalMatch = section.match(/\*\*Goal:\*\*\s*([^\n]+)/i);
+    const goalMatch = section.match(/\*\*(?:Goal|Objetivo):\*\*\s*([^\n]+)/i);
     const goal = goalMatch ? goalMatch[1].trim() : null;
 
     output({ found: true, phase_number: phaseNum, phase_name: phaseName, goal, section }, raw, section);
@@ -1054,7 +1283,7 @@ function cmdRoadmapAnalyze(cwd, raw) {
   const content = fs.readFileSync(roadmapPath, 'utf-8');
   const phasesDir = path.join(cwd, '.plano', 'fases');
 
-  const phasePattern = /#{2,4}\s*Phase\s+(\d+[A-Z]?(?:\.\d+)*)\s*:\s*([^\n]+)/gi;
+  const phasePattern = /#{2,4}\s*(?:Phase|Fase)\s+(\d+[A-Z]?(?:\.\d+)*)\s*:\s*([^\n]+)/gi;
   const phases = [];
   let match;
 
@@ -1064,11 +1293,11 @@ function cmdRoadmapAnalyze(cwd, raw) {
 
     const sectionStart = match.index;
     const restOfContent = content.slice(sectionStart);
-    const nextHeader = restOfContent.match(/\n#{2,4}\s+Phase\s+\d/i);
+    const nextHeader = restOfContent.match(/\n#{2,4}\s+(?:Phase|Fase)\s+\d/i);
     const sectionEnd = nextHeader ? sectionStart + nextHeader.index : content.length;
     const section = content.slice(sectionStart, sectionEnd);
 
-    const goalMatch = section.match(/\*\*Goal:\*\*\s*([^\n]+)/i);
+    const goalMatch = section.match(/\*\*(?:Goal|Objetivo):\*\*\s*([^\n]+)/i);
     const goal = goalMatch ? goalMatch[1].trim() : null;
 
     const normalized = normalizePhaseName(phaseNum);
@@ -1093,7 +1322,7 @@ function cmdRoadmapAnalyze(cwd, raw) {
       }
     } catch {}
 
-    const checkboxPattern = new RegExp(`-\\s*\\[(x| )\\]\\s*.*Phase\\s+${escapeRegex(phaseNum)}`, 'i');
+    const checkboxPattern = new RegExp(`-\\s*\\[(x| )\\]\\s*.*(?:Phase|Fase)\\s+${escapeRegex(phaseNum)}`, 'i');
     const checkboxMatch = content.match(checkboxPattern);
     const roadmapComplete = checkboxMatch ? checkboxMatch[1] === 'x' : false;
 
@@ -1167,7 +1396,7 @@ function cmdRoadmapUpdatePlanProgress(cwd, phaseNum, raw) {
 
   // Update plan count in phase detail section
   const planCountPattern = new RegExp(
-    `(#{2,4}\\s*Phase\\s+${phaseEscaped}[\\s\\S]*?\\*\\*Plans:\\*\\*\\s*)[^\\n]+`,
+    `(#{2,4}\\s*(?:Phase|Fase)\\s+${phaseEscaped}[\\s\\S]*?\\*\\*(?:Plans|Planos):\\*\\*\\s*)[^\\n]+`,
     'i'
   );
   const planCountText = isComplete
@@ -1177,7 +1406,7 @@ function cmdRoadmapUpdatePlanProgress(cwd, phaseNum, raw) {
 
   if (isComplete) {
     const checkboxPattern = new RegExp(
-      `(-\\s*\\[)[ ](\\]\\s*.*Phase\\s+${phaseEscaped}[:\\s][^\\n]*)`,
+      `(-\\s*\\[)[ ](\\]\\s*.*(?:Phase|Fase)\\s+${phaseEscaped}[:\\s][^\\n]*)`,
       'i'
     );
     roadmapContent = roadmapContent.replace(checkboxPattern, `$1x$2 (completed ${today})`);
@@ -1243,7 +1472,7 @@ function cmdPhaseAdd(cwd, description, raw) {
   const content = fs.readFileSync(roadmapPath, 'utf-8');
   const slug = generateSlugInternal(description);
 
-  const phasePattern = /#{2,4}\s*Phase\s+(\d+)[A-Z]?(?:\.\d+)*:/gi;
+  const phasePattern = /#{2,4}\s*(?:Phase|Fase)\s+(\d+)[A-Z]?(?:\.\d+)*:/gi;
   let maxPhase = 0;
   let m;
   while ((m = phasePattern.exec(content)) !== null) {
@@ -1259,7 +1488,11 @@ function cmdPhaseAdd(cwd, description, raw) {
   fs.mkdirSync(dirPath, { recursive: true });
   fs.writeFileSync(path.join(dirPath, '.gitkeep'), '');
 
-  const phaseEntry = `\n### Phase ${newPhaseNum}: ${description}\n\n**Goal:** [To be planned]\n**Requirements**: TBD\n**Depends on:** Phase ${maxPhase}\n**Plans:** 0 plans\n`;
+  // Detect ROADMAP language: if it contains '### Fase ' use Portuguese, otherwise English
+  const usePt = /###\s*Fase\s+\d/.test(content);
+  const phaseEntry = usePt
+    ? `\n### Fase ${newPhaseNum}: ${description}\n\n**Objetivo:** [A ser planejado]\n**Requisitos**: TBD\n**Depende de:** Fase ${maxPhase}\n**Planos:** 0 planos\n`
+    : `\n### Phase ${newPhaseNum}: ${description}\n\n**Goal:** [To be planned]\n**Requirements**: TBD\n**Depends on:** Phase ${maxPhase}\n**Plans:** 0 plans\n`;
 
   let updatedContent;
   const lastSeparator = content.lastIndexOf('\n---');
@@ -1357,12 +1590,12 @@ function cmdPhaseRemove(cwd, targetPhase, options, raw) {
 
   const targetEscaped = escapeRegex(targetPhase);
   const sectionPattern = new RegExp(
-    `\\n?#{2,4}\\s*Phase\\s+${targetEscaped}\\s*:[\\s\\S]*?(?=\\n#{2,4}\\s+Phase\\s+\\d|$)`,
+    `\\n?#{2,4}\\s*(?:Phase|Fase)\\s+${targetEscaped}\\s*:[\\s\\S]*?(?=\\n#{2,4}\\s+(?:Phase|Fase)\\s+\\d|$)`,
     'i'
   );
   roadmapContent = roadmapContent.replace(sectionPattern, '');
 
-  const checkboxPattern = new RegExp(`\\n?-\\s*\\[[ x]\\]\\s*.*Phase\\s+${targetEscaped}[:\\s][^\\n]*`, 'gi');
+  const checkboxPattern = new RegExp(`\\n?-\\s*\\[[ x]\\]\\s*.*(?:Phase|Fase)\\s+${targetEscaped}[:\\s][^\\n]*`, 'gi');
   roadmapContent = roadmapContent.replace(checkboxPattern, '');
 
   if (!isDecimal) {
@@ -1373,11 +1606,11 @@ function cmdPhaseRemove(cwd, targetPhase, options, raw) {
       const newStr = String(newNum);
 
       roadmapContent = roadmapContent.replace(
-        new RegExp(`(#{2,4}\\s*Phase\\s+)${oldStr}(\\s*:)`, 'gi'),
+        new RegExp(`(#{2,4}\\s*(?:Phase|Fase)\\s+)${oldStr}(\\s*:)`, 'gi'),
         `$1${newStr}$2`
       );
       roadmapContent = roadmapContent.replace(
-        new RegExp(`(Phase\\s+)${oldStr}([:\\s])`, 'g'),
+        new RegExp(`((?:Phase|Fase)\\s+)${oldStr}([:\\s])`, 'g'),
         `$1${newStr}$2`
       );
     }
@@ -1426,13 +1659,13 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
     const phaseEscaped = escapeRegex(phaseNum);
 
     const checkboxPattern = new RegExp(
-      `(-\\s*\\[)[ ](\\]\\s*.*Phase\\s+${phaseEscaped}[:\\s][^\\n]*)`,
+      `(-\\s*\\[)[ ](\\]\\s*.*(?:Phase|Fase)\\s+${phaseEscaped}[:\\s][^\\n]*)`,
       'i'
     );
     roadmapContent = roadmapContent.replace(checkboxPattern, `$1x$2 (completed ${today})`);
 
     const planCountPattern = new RegExp(
-      `(#{2,4}\\s*Phase\\s+${phaseEscaped}[\\s\\S]*?\\*\\*Plans:\\*\\*\\s*)[^\\n]+`,
+      `(#{2,4}\\s*(?:Phase|Fase)\\s+${phaseEscaped}[\\s\\S]*?\\*\\*(?:Plans|Planos):\\*\\*\\s*)[^\\n]+`,
       'i'
     );
     roadmapContent = roadmapContent.replace(planCountPattern, `$1${summaryCount}/${planCount} plans complete`);
@@ -1443,7 +1676,7 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
     const reqPath = path.join(cwd, '.plano', 'REQUIREMENTS.md');
     if (fs.existsSync(reqPath)) {
       const reqMatch = roadmapContent.match(
-        new RegExp(`Phase\\s+${escapeRegex(phaseNum)}[\\s\\S]*?\\*\\*Requirements:\\*\\*\\s*([^\\n]+)`, 'i')
+        new RegExp(`(?:Phase|Fase)\\s+${escapeRegex(phaseNum)}[\\s\\S]*?\\*\\*(?:Requirements|Requisitos):\\*\\*\\s*([^\\n]+)`, 'i')
       );
       if (reqMatch) {
         const reqIds = reqMatch[1].replace(/[\[\]]/g, '').split(/[,\s]+/).map(r => r.trim()).filter(Boolean);
@@ -1485,7 +1718,7 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
   if (isLastPhase && fs.existsSync(roadmapPath)) {
     try {
       const roadmapForPhases = fs.readFileSync(roadmapPath, 'utf-8');
-      const phasePattern = /#{2,4}\s*Phase\s+(\d+[A-Z]?(?:\.\d+)*)\s*:\s*([^\n]+)/gi;
+      const phasePattern = /#{2,4}\s*(?:Phase|Fase)\s+(\d+[A-Z]?(?:\.\d+)*)\s*:\s*([^\n]+)/gi;
       let pm;
       while ((pm = phasePattern.exec(roadmapForPhases)) !== null) {
         if (comparePhaseNum(pm[1], phaseNum) > 0) {
@@ -1524,6 +1757,385 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
     roadmap_updated: fs.existsSync(roadmapPath),
     state_updated: fs.existsSync(statePath),
   }, raw);
+}
+
+// --- Phase Generate From Report ---
+
+function cmdPhaseGenerateFromReport(cwd, args, raw) {
+  // Parse input: try stdin JSON first, fall back to args
+  let source = null;
+  let reportPath = null;
+  let approvedIds = [];
+  let grouping = 'auto';
+
+  let stdinData = null;
+  try {
+    const stdinRaw = fs.readFileSync('/dev/stdin', 'utf-8').trim();
+    if (stdinRaw) {
+      stdinData = JSON.parse(stdinRaw);
+    }
+  } catch {
+    // stdin not available or not JSON -- use args
+  }
+
+  if (stdinData) {
+    source = stdinData.source || null;
+    reportPath = stdinData.report_path || null;
+    approvedIds = stdinData.approved_ids || [];
+    grouping = stdinData.grouping || 'auto';
+  } else {
+    source = args[0] || null;
+    reportPath = args[1] || null;
+    const idsArg = args.slice(2).join(',');
+    approvedIds = idsArg ? idsArg.split(',').map(s => s.trim()).filter(Boolean) : [];
+    // Check for --grouping flag
+    const groupIdx = args.indexOf('--grouping');
+    if (groupIdx !== -1 && args[groupIdx + 1]) {
+      grouping = args[groupIdx + 1];
+    }
+  }
+
+  if (!source) error('source required (melhorias or ideias)');
+  if (!reportPath) error('report_path required');
+  if (approvedIds.length === 0) error('approved_ids required (at least one ID)');
+
+  // Read the report file
+  const fullReportPath = path.join(cwd, reportPath);
+  if (!fs.existsSync(fullReportPath)) {
+    error(`Report file not found: ${reportPath}`);
+  }
+  const reportContent = fs.readFileSync(fullReportPath, 'utf-8');
+
+  // Parse suggestions from report
+  const suggestions = parseSuggestionsFromReport(reportContent, approvedIds);
+
+  if (suggestions.length === 0) {
+    error(`No approved suggestions found in report. IDs requested: ${approvedIds.join(', ')}`);
+  }
+
+  // Group suggestions into phases
+  const groups = grouping === 'single'
+    ? [{ name: buildGroupName(source, suggestions), suggestions }]
+    : groupSuggestionsByDimension(suggestions, source);
+
+  // Read ROADMAP to detect language and max phase
+  const roadmapPath = path.join(cwd, '.plano', 'ROADMAP.md');
+  if (!fs.existsSync(roadmapPath)) error('ROADMAP.md not found');
+  let roadmapContent = fs.readFileSync(roadmapPath, 'utf-8');
+
+  const usePt = /###\s*Fase\s+\d/.test(roadmapContent);
+
+  // Find max phase number
+  const phaseNumPattern = /#{2,4}\s*(?:Phase|Fase)\s+(\d+)[A-Z]?(?:\.\d+)*:/gi;
+  let maxPhase = 0;
+  let pm;
+  while ((pm = phaseNumPattern.exec(roadmapContent)) !== null) {
+    const num = parseInt(pm[1], 10);
+    if (num > maxPhase) maxPhase = num;
+  }
+
+  const phasesCreated = [];
+
+  for (const group of groups) {
+    const newPhaseNum = maxPhase + 1;
+    maxPhase = newPhaseNum;
+    const paddedNum = String(newPhaseNum).padStart(2, '0');
+    const slug = generateSlugInternal(group.name).substring(0, 50);
+    const dirName = `${paddedNum}-${slug}`;
+    const dirPath = path.join(cwd, '.plano', 'fases', dirName);
+
+    // Create phase directory
+    fs.mkdirSync(dirPath, { recursive: true });
+    fs.writeFileSync(path.join(dirPath, '.gitkeep'), '');
+
+    // Build criteria
+    const criteria = buildCriteria(group.suggestions, source, usePt);
+
+    // Build suggestion list
+    const suggestionList = group.suggestions.map(s => {
+      const effortLabel = usePt ? 'Esforco' : 'Effort';
+      const impactLabel = usePt ? 'Impacto' : 'Impact';
+      return `- ${s.id}: ${s.title} (${effortLabel}: ${s.effort}, ${impactLabel}: ${s.impact})`;
+    }).join('\n');
+
+    // Build the phase entry
+    let phaseEntry;
+    if (usePt) {
+      const criteriaText = criteria.map((c, i) => `  ${i + 1}. ${c}`).join('\n');
+      phaseEntry = `\n### Fase ${newPhaseNum}: ${group.name}\n` +
+        `**Objetivo**: Implementar ${group.suggestions.length} ${source === 'ideias' ? 'ideias' : 'melhorias'} de ${group.dimension || 'multiplas dimensoes'} identificadas pela auditoria\n` +
+        `**Depende de**: Fase ${newPhaseNum - 1}\n` +
+        `**Criterios de Sucesso** (o que deve ser VERDADE):\n${criteriaText}\n` +
+        `**Planos**: TBD\n\n` +
+        `Sugestoes incluidas:\n${suggestionList}\n`;
+    } else {
+      const criteriaText = criteria.map((c, i) => `  ${i + 1}. ${c}`).join('\n');
+      phaseEntry = `\n### Phase ${newPhaseNum}: ${group.name}\n` +
+        `**Goal**: Implement ${group.suggestions.length} ${source === 'ideias' ? 'ideas' : 'improvements'} for ${group.dimension || 'multiple dimensions'} identified by audit\n` +
+        `**Depends on**: Phase ${newPhaseNum - 1}\n` +
+        `**Success Criteria** (what must be TRUE):\n${criteriaText}\n` +
+        `**Plans**: TBD\n\n` +
+        `Included suggestions:\n${suggestionList}\n`;
+    }
+
+    // Insert phase entry before progress table or at end
+    const tableHeaderPattern = /\n##\s*(?:Tabela de Progresso|Progress Table)/i;
+    const tableMatch = roadmapContent.match(tableHeaderPattern);
+    if (tableMatch) {
+      roadmapContent = roadmapContent.slice(0, tableMatch.index) + phaseEntry + roadmapContent.slice(tableMatch.index);
+    } else {
+      roadmapContent += phaseEntry;
+    }
+
+    // Add checkbox in Fases/Phases section
+    const checkboxSectionPattern = /\n(##\s*(?:Fases|Phases)\s*\n)/i;
+    const checkboxSection = roadmapContent.match(checkboxSectionPattern);
+    if (checkboxSection) {
+      // Find the last checkbox line in the section
+      const sectionStart = checkboxSection.index + checkboxSection[0].length;
+      const sectionRest = roadmapContent.slice(sectionStart);
+      const lastCheckboxEnd = findLastCheckboxEnd(sectionRest);
+      const insertPos = sectionStart + lastCheckboxEnd;
+      const label = usePt ? 'Fase' : 'Phase';
+      const shortDesc = group.suggestions.length + (usePt ? ' sugestoes de ' : ' suggestions for ') + (group.dimension || source);
+      const checkboxLine = `\n- [ ] **${label} ${newPhaseNum}: ${group.name}** - ${shortDesc}`;
+      roadmapContent = roadmapContent.slice(0, insertPos) + checkboxLine + roadmapContent.slice(insertPos);
+    }
+
+    // Add row in progress table
+    const progressTablePattern = /(\|\s*(?:Fase|Phase)\s*\|[^\n]*\n\|[-|\s]+\n)([\s\S]*?)(?=\n##|\n$|$)/i;
+    const progressMatch = roadmapContent.match(progressTablePattern);
+    if (progressMatch) {
+      const tableBody = progressMatch[2].trimEnd();
+      const statusLabel = usePt ? 'Nao iniciado' : 'Not started';
+      const newRow = `| ${newPhaseNum}. ${group.name} | 0/? | ${statusLabel} | - |`;
+      const newTableBody = tableBody + '\n' + newRow;
+      roadmapContent = roadmapContent.replace(progressTablePattern,
+        (_match, header) => `${header}${newTableBody}\n`
+      );
+    }
+
+    phasesCreated.push({
+      phase_number: newPhaseNum,
+      name: group.name,
+      suggestion_count: group.suggestions.length,
+      suggestion_ids: group.suggestions.map(s => s.id),
+      directory: `.plano/fases/${dirName}/`,
+    });
+  }
+
+  // Write updated ROADMAP
+  fs.writeFileSync(roadmapPath, roadmapContent, 'utf-8');
+
+  output({
+    phases_created: phasesCreated,
+    total_phases: phasesCreated.length,
+    total_suggestions: suggestions.length,
+    roadmap_updated: true,
+  }, raw);
+}
+
+// --- Helper: Parse suggestions from RELATORIO.md ---
+
+function parseSuggestionsFromReport(content, approvedIds) {
+  const suggestions = [];
+  const idSet = new Set(approvedIds.map(id => id.toUpperCase()));
+
+  // Match suggestion blocks: ### ID: title
+  const suggestionPattern = /###\s+([\w-]+):\s*([^\n]+)/g;
+  let match;
+
+  while ((match = suggestionPattern.exec(content)) !== null) {
+    const id = match[1].trim().toUpperCase();
+    if (!idSet.has(id)) continue;
+
+    const title = match[2].trim();
+    const blockStart = match.index;
+
+    // Find the end of this suggestion block (next ### or end)
+    const restContent = content.slice(blockStart + match[0].length);
+    const nextSuggestion = restContent.match(/\n###\s+[\w-]+:/);
+    const blockEnd = nextSuggestion
+      ? blockStart + match[0].length + nextSuggestion.index
+      : content.length;
+    const block = content.slice(blockStart, blockEnd);
+
+    // Parse table fields
+    const arquivo = extractTableField(block, 'Arquivo');
+    const dimensao = extractTableField(block, 'Dimensao') || extractTableField(block, 'Dimension');
+    const esforco = extractTableField(block, 'Esforco') || extractTableField(block, 'Effort');
+    const impacto = extractTableField(block, 'Impacto') || extractTableField(block, 'Impact');
+
+    // Parse Problema/Sugestao
+    const problemaMatch = block.match(/\*\*(?:Problema|Problem):\*\*\s*([\s\S]*?)(?=\*\*(?:Sugestao|Suggestion|Referencia|Reference):\*\*|$)/i);
+    const sugestaoMatch = block.match(/\*\*(?:Sugestao|Suggestion):\*\*\s*([\s\S]*?)(?=\*\*(?:Referencia|Reference):\*\*|$)/i);
+
+    suggestions.push({
+      id: match[1].trim(), // preserve original case
+      title,
+      file: arquivo ? arquivo.replace(/`/g, '') : null,
+      dimension: dimensao ? dimensao.split(/\s*\(/)[0].trim() : null,
+      effort: esforco || '?',
+      impact: impacto || '?',
+      problem: problemaMatch ? problemaMatch[1].trim() : null,
+      suggestion: sugestaoMatch ? sugestaoMatch[1].trim() : null,
+    });
+  }
+
+  return suggestions;
+}
+
+function extractTableField(block, fieldName) {
+  const pattern = new RegExp(`\\|\\s*${fieldName}\\s*\\|\\s*([^|]+)\\|`, 'i');
+  const match = block.match(pattern);
+  return match ? match[1].trim() : null;
+}
+
+// --- Helper: Group suggestions by dimension ---
+
+function groupSuggestionsByDimension(suggestions, source) {
+  // Group by primary dimension
+  const dimensionMap = {};
+  for (const s of suggestions) {
+    const dim = s.dimension || 'Geral';
+    if (!dimensionMap[dim]) dimensionMap[dim] = [];
+    dimensionMap[dim].push(s);
+  }
+
+  const groups = [];
+
+  for (const [dim, items] of Object.entries(dimensionMap)) {
+    // If 5+ suggestions in a dimension, try to subdivide by directory
+    if (items.length >= 5) {
+      const dirMap = {};
+      for (const item of items) {
+        const dir = item.file ? path.dirname(item.file) : '_root';
+        if (!dirMap[dir]) dirMap[dir] = [];
+        dirMap[dir].push(item);
+      }
+
+      const dirKeys = Object.keys(dirMap);
+      if (dirKeys.length > 1) {
+        for (const [dir, dirItems] of Object.entries(dirMap)) {
+          const dirLabel = dir === '_root' ? 'raiz' : dir.replace(/\//g, '/');
+          groups.push({
+            name: `${dim}: ${buildSubgroupName(dirItems, source)} (${dirLabel})`,
+            dimension: dim,
+            suggestions: dirItems,
+          });
+        }
+        continue;
+      }
+    }
+
+    groups.push({
+      name: `${dim}: ${buildSubgroupName(items, source)}`,
+      dimension: dim,
+      suggestions: items,
+    });
+  }
+
+  // Merge small groups: if a group has only 1 suggestion with small effort, try to merge
+  const mergedGroups = [];
+  const pendingMerge = [];
+
+  for (const group of groups) {
+    if (group.suggestions.length === 1 && group.suggestions[0].effort === 'P') {
+      pendingMerge.push(group);
+    } else {
+      mergedGroups.push(group);
+    }
+  }
+
+  // Try to merge pending into adjacent groups of same dimension
+  for (const pending of pendingMerge) {
+    const target = mergedGroups.find(g => g.dimension === pending.dimension);
+    if (target) {
+      target.suggestions.push(...pending.suggestions);
+      // Update name if needed
+      target.name = `${target.dimension}: ${buildSubgroupName(target.suggestions, source)}`;
+    } else {
+      mergedGroups.push(pending);
+    }
+  }
+
+  return mergedGroups;
+}
+
+function buildSubgroupName(suggestions, source) {
+  if (suggestions.length === 1) {
+    return suggestions[0].title;
+  }
+  // Synthesize a short name from titles
+  const uniqueWords = new Set();
+  for (const s of suggestions) {
+    const words = s.title.split(/\s+/).slice(0, 3);
+    for (const w of words) {
+      if (w.length > 3) uniqueWords.add(w.toLowerCase());
+    }
+  }
+  const wordList = [...uniqueWords].slice(0, 4).join(', ');
+  const prefix = source === 'ideias' ? 'Ideias sobre' : 'Melhorias em';
+  return `${prefix} ${wordList}`;
+}
+
+function buildGroupName(source, suggestions) {
+  const prefix = source === 'ideias' ? 'Ideias' : 'Melhorias';
+  return `${prefix}: ${suggestions.length} sugestoes aprovadas`;
+}
+
+// --- Helper: Build success criteria ---
+
+function buildCriteria(suggestions, source, usePt) {
+  if (suggestions.length <= 5) {
+    return suggestions.map(s => {
+      if (usePt) {
+        const prefix = source === 'ideias' ? 'Feature' : 'Sugestao';
+        return `${prefix} ${s.id} implementada: ${s.title}`;
+      } else {
+        const prefix = source === 'ideias' ? 'Feature' : 'Suggestion';
+        return `${prefix} ${s.id} implemented: ${s.title}`;
+      }
+    });
+  }
+
+  // More than 5 suggestions: summarize
+  const dimCounts = {};
+  for (const s of suggestions) {
+    const dim = s.dimension || 'Geral';
+    dimCounts[dim] = (dimCounts[dim] || 0) + 1;
+  }
+
+  const criteria = [];
+  for (const [dim, count] of Object.entries(dimCounts)) {
+    if (usePt) {
+      criteria.push(`${count} sugestoes de ${dim} implementadas conforme RELATORIO.md`);
+    } else {
+      criteria.push(`${count} ${dim} suggestions implemented per RELATORIO.md`);
+    }
+  }
+
+  if (criteria.length > 5) {
+    if (usePt) {
+      return [`${suggestions.length} sugestoes implementadas conforme RELATORIO.md`];
+    } else {
+      return [`${suggestions.length} suggestions implemented per RELATORIO.md`];
+    }
+  }
+
+  return criteria;
+}
+
+// --- Helper: Find end of last checkbox line ---
+
+function findLastCheckboxEnd(text) {
+  let lastEnd = 0;
+  const checkboxRegex = /^-\s*\[[ x]\]\s*\*\*.*\n/gm;
+  let m;
+  while ((m = checkboxRegex.exec(text)) !== null) {
+    lastEnd = m.index + m[0].length;
+  }
+  return lastEnd;
 }
 
 function cmdPhasePlanIndex(cwd, phase, raw) {

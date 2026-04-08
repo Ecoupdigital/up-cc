@@ -27,7 +27,8 @@ Sistema de desenvolvimento orientado a fases para projetos de software.
 
 | Comando | Descricao | Uso |
 |---------|-----------|-----|
-| `/up:novo-projeto` | Inicializar novo projeto com coleta de contexto | `/up:novo-projeto` |
+| `/up:iniciar` | Registrar projeto existente (leve, sem questionario) | `/up:iniciar` |
+| `/up:novo-projeto` | Inicializar projeto completo (questionario + requisitos + roadmap) | `/up:novo-projeto` |
 | `/up:mapear-codigo` | Analisar codebase existente com agentes paralelos | `/up:mapear-codigo` |
 | `/up:retomar` | Restaurar contexto da sessao anterior | `/up:retomar` |
 
@@ -49,6 +50,13 @@ Sistema de desenvolvimento orientado a fases para projetos de software.
 | `/up:adicionar-fase` | Adicionar fase ao roadmap | `/up:adicionar-fase "Deploy em producao"` |
 | `/up:remover-fase` | Remover fase futura e renumerar | `/up:remover-fase 5` |
 | `/up:resetar` | Resetar projeto (limpar .plano/) | `/up:resetar` |
+
+### Auditoria
+
+| Comando | Descricao | Uso |
+|---------|-----------|-----|
+| `/up:melhorias` | Auditoria completa do codebase (UX, performance, modernidade) | `/up:melhorias` |
+| `/up:ideias` | Sugestoes de features novas com pesquisa de mercado | `/up:ideias` |
 
 ### Utilitarios
 
@@ -89,10 +97,21 @@ Sistema de desenvolvimento orientado a fases para projetos de software.
 
 ## Fluxos de Trabalho Comuns
 
-### Projeto com Codigo Existente (mais comum)
+### Projeto Existente — Adocao Leve (recomendado)
+```
+/up:iniciar                    # Registra projeto, cria PROJECT.md automaticamente
+/up:mapear-codigo              # Analise profunda do codebase (opcional)
+/up:planejar-fase 1            # Quando tiver algo para implementar
+/up:executar-fase 1
+/up:verificar-trabalho 1
+```
+Dica: /up:iniciar nao faz perguntas — documenta o que existe e para.
+Use /up:melhorias ou /up:ideias para descobrir o que fazer.
+
+### Projeto Existente — Pipeline Completo
 ```
 /up:mapear-codigo              # Analisa codebase (stack, arquitetura, concerns)
-/up:novo-projeto               # Detecta brownfield automaticamente
+/up:novo-projeto               # Questionario completo + requisitos + roadmap
 /up:discutir-fase 1            # Discute no contexto do codigo existente
 /up:planejar-fase 1            # Planos respeitam convencoes do codebase
 /up:executar-fase 1
@@ -115,6 +134,18 @@ O mapeamento do codebase alimenta todo o pipeline automaticamente.
 /up:retomar
 /up:progresso
 ```
+
+### Auditoria de Codebase
+```
+/up:melhorias   # Auditoria completa (standalone, nao requer /up:novo-projeto)
+```
+Resultado em .plano/melhorias/RELATORIO.md com sugestoes priorizadas.
+
+### Ideacao de Features
+```
+/up:ideias      # Sugestoes de features novas (standalone, nao requer /up:novo-projeto)
+```
+Resultado em .plano/ideias/RELATORIO.md com ranking ICE e anti-features.
 
 ### Correcao Rapida
 ```

@@ -20,7 +20,7 @@ function output(result, raw, rawValue) {
     process.stdout.write(String(rawValue));
   } else {
     const json = JSON.stringify(result, null, 2);
-    if (json.length > 50000) {
+    if (json.length > 200000) {
       const tmpPath = path.join(require('os').tmpdir(), `up-${Date.now()}.json`);
       fs.writeFileSync(tmpPath, json, 'utf-8');
       process.stdout.write('@file:' + tmpPath);
@@ -208,18 +208,18 @@ function getRoadmapPhaseInternal(cwd, phaseNum) {
   try {
     const content = fs.readFileSync(roadmapPath, 'utf-8');
     const escapedPhase = escapeRegex(phaseNum.toString());
-    const phasePattern = new RegExp(`#{2,4}\\s*Phase\\s+${escapedPhase}:\\s*([^\\n]+)`, 'i');
+    const phasePattern = new RegExp(`#{2,4}\\s*(?:Phase|Fase)\\s+${escapedPhase}:\\s*([^\\n]+)`, 'i');
     const headerMatch = content.match(phasePattern);
     if (!headerMatch) return null;
 
     const phaseName = headerMatch[1].trim();
     const headerIndex = headerMatch.index;
     const restOfContent = content.slice(headerIndex);
-    const nextHeaderMatch = restOfContent.match(/\n#{2,4}\s+Phase\s+\d/i);
+    const nextHeaderMatch = restOfContent.match(/\n#{2,4}\s+(?:Phase|Fase)\s+\d/i);
     const sectionEnd = nextHeaderMatch ? headerIndex + nextHeaderMatch.index : content.length;
     const section = content.slice(headerIndex, sectionEnd).trim();
 
-    const goalMatch = section.match(/\*\*Goal:\*\*\s*([^\n]+)/i);
+    const goalMatch = section.match(/\*\*(?:Goal|Objetivo):\*\*\s*([^\n]+)/i);
     const goal = goalMatch ? goalMatch[1].trim() : null;
 
     return {
