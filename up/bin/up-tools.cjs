@@ -9,7 +9,7 @@
  *
  * Commands:
  *   init planejar-fase|executar-fase|novo-projeto|rapido|retomar|operacao-fase|progresso|verificar-trabalho|melhorias|ideias|iniciar
- *   state load|get|update|advance-plan|update-progress|add-decision|record-session|record-metric|snapshot
+ *   state load|get|update|advance-plan|update-progress|add-decision|record-session|record-metric|snapshot|save-session
  *   roadmap get-phase|analyze|update-plan-progress
  *   phase add|remove|find|complete|generate-from-report
  *   config get|set
@@ -255,8 +255,19 @@ function main() {
         }, raw);
       } else if (sub === 'snapshot') {
         cmdStateSnapshot(cwd, raw);
+      } else if (sub === 'save-session') {
+        const summaryIdx = args.indexOf('--summary');
+        const decisionIdx = args.indexOf('--decision');
+        const phaseIdx = args.indexOf('--phase');
+        const noCommitIdx = args.indexOf('--no-commit');
+        cmdStateSaveSession(cwd, {
+          summary: summaryIdx !== -1 ? args[summaryIdx + 1] : null,
+          decision: decisionIdx !== -1 ? args[decisionIdx + 1] : null,
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          no_commit: noCommitIdx !== -1,
+        }, raw);
       } else {
-        error('Unknown state subcommand. Available: load, get, update, advance-plan, update-progress, add-decision, record-session, record-metric, snapshot');
+        error('Unknown state subcommand. Available: load, get, update, advance-plan, update-progress, add-decision, record-session, record-metric, snapshot, save-session');
       }
       break;
     }
@@ -1148,6 +1159,77 @@ function cmdStateSnapshot(cwd, raw) {
     paused_at: pausedAt,
     session,
   }, raw);
+}
+
+function cmdStateSaveSession(cwd, options, raw) {
+  const statePath = path.join(cwd, '.plano', 'STATE.md');
+  if (!fs.existsSync(statePath)) { output({ error: 'STATE.md not found — project not initialized with UP' }, raw); return; }
+
+  const { summary, decision, phase, no_commit } = options;
+  if (!summary) { output({ error: '--summary required: describe what was done in this session' }, raw); return; }
+
+  let content = fs.readFileSync(statePath, 'utf-8');
+  const now = new Date().toISOString();
+  const actions = [];
+
+  // 1. Update session timestamp (try both PT and EN field names)
+  const sessionFields = ['Ultima sessao', 'Last session', 'Last Date'];
+  for (const field of sessionFields) {
+    let result = stateReplaceField(content, field, now);
+    if (result) { content = result; if (!actions.includes('timestamp')) actions.push('timestamp'); }
+  }
+
+  // 2. Update stopped-at with summary (try both PT and EN)
+  const stoppedFields = ['Parou em', 'Stopped At', 'Stopped at'];
+  for (const field of stoppedFields) {
+    let result = stateReplaceField(content, field, summary);
+    if (result) { content = result; if (!actions.includes('stopped_at')) actions.push('stopped_at'); break; }
+  }
+
+  // 3. Update last activity (try both PT and EN)
+  const shortDate = now.split('T')[0];
+  const shortSummary = summary.length > 80 ? summary.substring(0, 77) + '...' : summary;
+  const activityFields = ['Ultima atividade', 'Last activity'];
+  for (const field of activityFields) {
+    let result = stateReplaceField(content, field, `${shortDate} -- ${shortSummary}`);
+    if (result) { content = result; if (!actions.includes('last_activity')) actions.push('last_activity'); break; }
+  }
+
+  // 4. Add decision if provided
+  if (decision) {
+    const phaseLabel = phase || '?';
+    const entry = `- [Phase ${phaseLabel}]: ${decision}`;
+    const sectionPattern = /(###?\s*(?:Decisoes|Decisions|Decisions Made|Accumulated.*Decisions)\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
+    const match = content.match(sectionPattern);
+    if (match) {
+      let sectionBody = match[2];
+      sectionBody = sectionBody.replace(/None yet\.?\s*\n?/gi, '').replace(/No decisions yet\.?\s*\n?/gi, '').replace(/Nenhuma ainda\.?\s*\n?/gi, '');
+      sectionBody = sectionBody.trimEnd() + '\n' + entry + '\n';
+      content = content.replace(sectionPattern, (_match, header) => `${header}${sectionBody}`);
+      actions.push('decision');
+    }
+  }
+
+  // 5. Write STATE.md
+  fs.writeFileSync(statePath, content, 'utf-8');
+
+  // 6. Auto-commit unless --no-commit
+  let committed = false;
+  if (!no_commit) {
+    try {
+      execGit(cwd, ['add', statePath]);
+      const diffResult = execGit(cwd, ['diff', '--cached', '--name-only']);
+      const hasChanges = (diffResult.stdout || '').trim();
+      if (hasChanges) {
+        execGit(cwd, ['commit', '-m', `docs(state): ${shortSummary}`]);
+        committed = true;
+      }
+    } catch (e) {
+      // commit failed — not critical, state was still saved to disk
+    }
+  }
+
+  output({ saved: true, actions, committed, summary: shortSummary }, raw, 'true');
 }
 
 // =====================================================================

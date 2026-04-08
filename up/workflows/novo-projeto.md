@@ -672,6 +672,28 @@ Use AskUserQuestion:
 node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: criar roteiro ([N] fases)" --files .plano/ROADMAP.md .plano/STATE.md .plano/REQUIREMENTS.md
 ```
 
+## 7.5. Injetar persistência no CLAUDE.md do projeto
+
+Verificar se `./CLAUDE.md` existe. Se existir, verificar se já contém a seção "UP: Persistência de Estado". Se não contém, adicionar ao final:
+
+```markdown
+
+## UP: Persistência de Estado
+
+Este projeto usa o sistema UP. Se `.plano/STATE.md` existir:
+- Ao final de trabalho significativo, salvar estado: `node "$HOME/.claude/up/bin/up-tools.cjs" state save-session --summary "o que foi feito"`
+- Se houve decisão importante, adicionar: `--decision "decisão" --phase N`
+- Isso garante continuidade entre sessões mesmo sem usar comandos /up:
+```
+
+Se `./CLAUDE.md` não existe, criar com o conteúdo acima.
+
+Commitar:
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: adicionar persistência de estado ao CLAUDE.md" --files CLAUDE.md
+```
+
 ## 8. Finalizado
 
 ```
