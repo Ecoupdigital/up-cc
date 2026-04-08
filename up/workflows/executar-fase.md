@@ -22,6 +22,18 @@ Parse JSON: `executor_model`, `verifier_model`, `commit_docs`, `parallelization`
 **Se `plan_count` = 0:** Erro -- sem planos encontrados na fase.
 
 Quando `parallelization` = false, planos dentro de uma wave executam sequencialmente.
+
+**Detectar modo de execucao:**
+
+```bash
+BUILDER_MODE=$(node -e "try{const c=JSON.parse(require('fs').readFileSync('.plano/config.json','utf8'));console.log(c.builder_mode===true?'true':'false')}catch{console.log('false')}" 2>/dev/null)
+```
+
+**Quando `$BUILDER_MODE = true`:**
+- NAO mostrar menus de "Proximo" ou sugerir comandos
+- NAO perguntar "Tentar novamente?" em spot-check (auto-retry 1x)
+- Se `human_needed` na verificacao: considerar PASSED
+- Retornar resultado silenciosamente para o orquestrador do builder
 </step>
 
 <step name="validate_phase">
@@ -120,7 +132,9 @@ Executar cada wave em sequencia. Dentro de uma wave: paralelo se `PARALLELIZATIO
    - Verificar `git log --oneline --all --grep="{phase}-{plan}"` retorna >= 1 commit
    - Verificar marcador `## Self-Check: FAILED`
 
-   Se algum spot-check falhar: reportar qual plano falhou, perguntar "Tentar novamente?" ou "Continuar com waves restantes?"
+   Se algum spot-check falhar:
+   - **Se $BUILDER_MODE:** Auto-retry 1x. Se ainda falha: registrar e continuar com waves restantes (sem perguntar).
+   - **Se modo normal:** Reportar qual plano falhou, perguntar "Tentar novamente?" ou "Continuar com waves restantes?"
 
    Se passar:
    ```
@@ -186,7 +200,7 @@ grep "^status:" "$PHASE_DIR"/*-VERIFICATION.md | cut -d: -f2 | tr -d ' '
 | Status | Acao |
 |--------|------|
 | `passed` | -> update_roadmap |
-| `human_needed` | Apresentar itens para teste humano, obter aprovacao |
+| `human_needed` | **Se $BUILDER_MODE:** Considerar PASSED, registrar para revisao final no DELIVERY.md. **Se modo normal:** Apresentar itens para teste humano, obter aprovacao. |
 | `gaps_found` | Apresentar resumo de lacunas, oferecer `/up:planejar-fase {fase} --gaps` |
 </step>
 
@@ -211,6 +225,18 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs(fase-{X}): completar execu
 </step>
 
 <step name="offer_next">
+
+**Se $BUILDER_MODE = true:**
+NAO mostrar menus. Retornar resultado silenciosamente:
+```markdown
+## FASE {X} COMPLETA
+
+**Planos:** {M}/{total} completos
+**Verificacao:** {status}
+```
+O orquestrador do builder controla o proximo passo. FIM.
+
+**Se modo normal (interativo):**
 
 **Se verificacao passou:**
 

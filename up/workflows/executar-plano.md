@@ -26,6 +26,20 @@ if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 Extrair do init JSON: `commit_docs`, `phase_dir`, `phase_number`, `plans`, `summaries`, `incomplete_plans`, `state_path`, `config_path`.
 
 Se `.plano/` faltando: erro.
+
+**Detectar modo de execucao:**
+
+```bash
+BUILDER_MODE=$(node -e "try{const c=JSON.parse(require('fs').readFileSync('.plano/config.json','utf8'));console.log(c.builder_mode===true?'true':'false')}catch{console.log('false')}" 2>/dev/null)
+```
+
+Tambem verificar se o prompt contem `<builder_mode>`. Se sim: `$BUILDER_MODE = true`.
+
+**Quando `$BUILDER_MODE = true`:**
+- NAO usar AskUserQuestion em nenhum momento
+- NAO mostrar menus de "Proximo" ou sugerir comandos
+- NAO parar pra pedir confirmacao (Regra 4 → decidir autonomamente)
+- Retornar resultado silenciosamente para o orquestrador
 </step>
 
 <step name="setup_test_data">
@@ -371,7 +385,7 @@ Voce VAI descobrir trabalho nao planejado. Aplicar automaticamente, rastrear tod
 | **1: Bug** | Comportamento quebrado, erros, queries erradas, erros de tipo, vulns de seguranca | Corrigir -> testar -> verificar -> rastrear `[Regra 1 - Bug]` | Auto |
 | **2: Critico Faltante** | Essenciais faltando: tratamento de erro, validacao, auth, CSRF/CORS | Adicionar -> testar -> verificar -> rastrear `[Regra 2 - Critico Faltante]` | Auto |
 | **3: Bloqueante** | Impede conclusao: deps faltando, tipos errados, imports quebrados | Corrigir bloqueio -> verificar que prossegue -> rastrear `[Regra 3 - Bloqueante]` | Auto |
-| **4: Arquitetural** | Mudanca estrutural: nova tabela DB, mudanca de schema, novo servico | PARAR -> apresentar decisao -> rastrear `[Regra 4 - Arquitetural]` | Perguntar usuario |
+| **4: Arquitetural** | Mudanca estrutural: nova tabela DB, mudanca de schema, novo servico | **Se $BUILDER_MODE:** decidir autonomamente → rastrear `[Regra 4 - Arquitetural (auto)]`. **Se modo normal:** PARAR → apresentar decisao → rastrear. | Perguntar (normal) / Auto (builder) |
 | **5: Conexao Frontend↔Backend** | Frontend chama URL errada, payload errado, response shape diferente | Corrigir URL/payload/parsing -> re-testar -> rastrear `[Regra 5 - Conexao]` | Auto |
 
 **Regra 5 e NOVA e CRITICA.** A maioria dos problemas "nada funciona" vem de:
@@ -537,6 +551,20 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs({fase}-{plano}): completar
 </step>
 
 <step name="offer_next">
+
+**Se $BUILDER_MODE = true:**
+NAO mostrar menus ou sugerir proximos passos. Retornar resultado silenciosamente:
+```markdown
+## PLANO COMPLETO
+
+**Plano:** {fase}-{plano}
+**Tarefas:** {completadas}/{total}
+**Verificacao funcional:** {passed}/{total}
+```
+O orquestrador do builder controla o que vem depois. FIM.
+
+**Se modo normal (interativo):**
+
 ```bash
 ls -1 .plano/fases/[dir-fase-atual]/*-PLAN.md 2>/dev/null | wc -l
 ls -1 .plano/fases/[dir-fase-atual]/*-SUMMARY.md 2>/dev/null | wc -l

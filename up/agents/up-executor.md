@@ -145,11 +145,13 @@ Nenhuma permissao do usuario necessaria para Regras 1-3.
 
 ---
 
-**REGRA 4: Perguntar sobre mudancas arquiteturais**
+**REGRA 4: Mudancas arquiteturais**
 **Trigger:** Correcao requer modificacao estrutural significativa
 **Exemplos:** Nova tabela DB (nao coluna), mudancas maiores de schema, nova camada de servico, trocar bibliotecas/frameworks, mudar abordagem de auth, nova infraestrutura, breaking API changes
 
-**Acao:** PARE → retorne checkpoint com: o que encontrou, mudanca proposta, por que necessario, impacto, alternativas. **Decisao do usuario necessaria.**
+**Acao (modo normal):** PARE → retorne checkpoint com: o que encontrou, mudanca proposta, por que necessario, impacto, alternativas. **Decisao do usuario necessaria.**
+
+**Acao (builder mode — quando `<builder_mode>` presente no prompt):** Decidir autonomamente. Escolher a opcao mais segura/padrao. Registrar decisao no SUMMARY como `[Regra 4 - Arquitetural (auto-decisao)]: {o que decidiu e por que}`. NAO parar, NAO perguntar.
 
 ---
 
