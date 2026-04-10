@@ -87,6 +87,44 @@ Task(subagent_type="up-executor", model="sonnet", prompt="...")
 3. Se a variavel nao foi definida (sem builder-defaults), usar o default da tabela
 </model_routing>
 
+<governance>
+## Camada de Governanca (v0.5.0+)
+
+**O builder usa hierarquia corporativa de agentes:**
+
+```
+CEO (up-project-ceo) — conduz intake, aprova delivery, canal com dono
+  ↓
+CHIEFS (5) — revisam consolidado de cada area
+  ↓
+SUPERVISORS (8) — revisam cada agente operacional
+  ↓
+OPERATIONAL AGENTS (36) — fazem o trabalho
+```
+
+**Referencia obrigatoria:** `@~/.claude/up/workflows/governance.md`
+
+**Regras gerais:**
+1. Todo output de agente operacional passa por supervisor
+2. Toda area tem chief que consolida
+3. CEO aprova delivery final
+4. Max 3 ciclos de rework (operacional ← supervisor)
+5. Max 2 ciclos (supervisor ← chief)
+6. Max 1 ciclo (chief ← CEO)
+
+**Pre-requisito:**
+```bash
+# Verificar owner-profile
+if [ ! -f ~/.claude/up/owner-profile.md ]; then
+  echo "Owner profile nao existe. Rodando /up:onboard primeiro..."
+  # Delegar pro onboarding workflow
+  # Referencia: @~/.claude/up/workflows/onboarding.md
+fi
+```
+
+**Sem owner-profile, o CEO nao sabe quem e o dono — impossivel conduzir intake.**
+</governance>
+
 <process>
 
 ## Estagio 1: INTAKE (Interativo)
@@ -139,7 +177,27 @@ NAO fazer intake novamente. Ler BRIEFING.md e PROJECT.md para contexto.
 Deletar LOCK.md e iniciar normalmente (sessao anterior terminou com sucesso).
 
 **Se LOCK.md NAO existe:**
-Continuar normalmente para 1.1.
+Continuar normalmente para 1.05.
+
+### 1.05 Verificar Owner Profile (GATE OBRIGATORIO)
+
+```bash
+if [ ! -f ~/.claude/up/owner-profile.md ]; then
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  UP > PRIMEIRO USO DETECTADO"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+  echo "  Voce nunca usou o UP antes. Antes de comecar o builder,"
+  echo "  preciso te conhecer."
+  echo ""
+  echo "  Rodando /up:onboard primeiro..."
+  echo ""
+fi
+```
+
+Se owner-profile nao existe:
+1. Delegar para o workflow de onboarding (`@~/.claude/up/workflows/onboarding.md`)
+2. Apos completar onboarding, voltar para o builder
 
 ### 1.1 Carregar Defaults e Detectar Modo
 
@@ -184,17 +242,47 @@ ls .plano/ROADMAP.md .plano/PROJECT.md 2>/dev/null
 
 Definir `$MODE` = `greenfield` ou `brownfield`.
 
-### 1.2 Receber Briefing
+### 1.2 Delegar Intake ao CEO
 
-O briefing vem como $ARGUMENTS do comando. Se vazio, pedir freeform adaptado ao modo:
+**NOVO (v0.5.0):** O intake agora e conduzido pelo CEO (up-project-ceo).
 
-**GREENFIELD:**
-"Descreva o que voce quer construir. Inclua: objetivo, publico, features principais, stack (se tiver preferencia), e qualquer contexto relevante."
+Spawnar CEO com contexto:
 
-**BROWNFIELD:**
-"Codigo existente detectado. O que voce quer implementar? Descreva a feature, mudanca ou refatoracao. Inclua: o que deve fazer, como se integra com o existente, e qualquer contexto relevante."
+```python
+Agent(
+  subagent_type="up-project-ceo",
+  model="opus",
+  prompt=f"""
+    Conduza intake para novo projeto UP.
+    
+    Modo detectado: {MODE}
+    Briefing inicial: {ARGUMENTS ou "vazio, pedir ao dono"}
+    
+    <files_to_read>
+    - ~/.claude/up/owner-profile.md (OBRIGATORIO — seu perfil do dono)
+    - $HOME/.claude/up/workflows/ceo-intake.md (seu workflow de intake)
+    - $HOME/.claude/up/workflows/onboarding.md (caso owner-profile nao exista)
+    </files_to_read>
+    
+    Executar workflow de intake ate completar:
+    1. Conduzir 5 blocos de intake (briefing, design, credenciais, referencias, restricoes)
+    2. Gerar .plano/BRIEFING.md, .plano/OWNER.md, .plano/PENDING.md, .plano/DESIGN-TOKENS.md
+    3. Apresentar resumo ao dono antes de iniciar
+    
+    Retornar apos intake com: briefing consolidado, modo confirmado, credenciais coletadas, pendencias.
+  """
+)
+```
 
-Esperar resposta.
+**Receber retorno do CEO:**
+- BRIEFING completo
+- OWNER.md criado
+- PENDING.md criado
+- DESIGN-TOKENS.md criado (custom ou defaults)
+
+**Se CEO rejeitou briefing:** usuario ja foi alertado, retornar e esperar nova tentativa.
+
+**Se CEO aprovou:** continuar para 1.3.
 
 ### 1.3 Analisar e Classificar Gaps
 
@@ -1924,6 +2012,79 @@ NAO implementar ideias — apenas salvar relatorio para proximos passos.
 
 ---
 
+## Estagio 4.5: DELIVERY AUDIT (NOVO v0.5.0)
+
+Antes do Delivery, o `up-delivery-auditor` valida que o processo inteiro foi completo e consistente.
+
+### 4.5.1 Rodar Delivery Auditor
+
+```python
+Agent(
+  subagent_type="up-delivery-auditor",
+  model="opus",
+  prompt="""
+    Auditar processo de entrega do projeto.
+    
+    <files_to_read>
+    - .plano/CHECKLIST.md
+    - .plano/BRIEFING.md
+    - .plano/PENDING.md
+    - .plano/governance/approvals.log (se existe)
+    - Todos os reviews (supervisores + chiefs)
+    - Todos os relatorios (VERIFICATION, DCRV, E2E, etc.)
+    - $HOME/.claude/up/templates/audit-report.md (template)
+    </files_to_read>
+    
+    Calcular Confidence Score (0-100).
+    Detectar inconsistencias cross-report.
+    Validar aprovacoes.
+    Comparar delivery com briefing original.
+    
+    Gerar .plano/AUDIT-REPORT.md com recomendacao.
+    
+    Retornar: READY_FOR_DELIVERY | APPROVED_WITH_WARNINGS | NEEDS_REWORK | BLOCKED
+  """
+)
+```
+
+### 4.5.2 Processar Resultado do Auditor
+
+**Se READY_FOR_DELIVERY (confidence >= 95%):**
+- Prosseguir direto pro Estagio 5
+
+**Se APPROVED_WITH_WARNINGS (confidence 85-94%):**
+- Delegar pro CEO decidir
+- CEO pode perguntar ao dono se aceita entregar com warnings
+
+**Se NEEDS_REWORK (confidence 70-84%):**
+- Executar rework plan do auditor
+- Re-rodar estagios problematicos
+- Voltar pro auditor (max 3 ciclos)
+
+**Se BLOCKED (confidence < 70% ou problema critico):**
+- Escalar pro CEO
+- CEO alerta dono obrigatoriamente
+- Projeto nao pode ser entregue sem decisao do dono
+
+### 4.5.3 Loop de Rework (se necessario)
+
+```
+Ciclo 1: rodar auditor
+  Se NEEDS_REWORK:
+    Executar rework plan
+    Ciclo 2: rodar auditor
+      Se NEEDS_REWORK:
+        Executar rework plan
+        Ciclo 3: rodar auditor
+          Se NEEDS_REWORK:
+            Forca APPROVED_WITH_WARNINGS
+            CEO decide o que fazer
+```
+
+Max 3 ciclos. Depois: forcar aprovacao ou escalar CEO.
+
+---
+
 ## Estagio 5: ENTREGA (Autonomo)
 
 ### 5.1 Teste E2E Final Completo (Playwright)
@@ -2087,7 +2248,33 @@ rm -f .plano/LOCK.md
 kill $DASH_PID 2>/dev/null
 ```
 
-### 5.6 Apresentar Resultado
+### 5.6 CEO Apresenta Resultado (NOVO v0.5.0)
+
+Delegar apresentacao final ao CEO:
+
+```python
+Agent(
+  subagent_type="up-project-ceo",
+  model="opus",
+  prompt="""
+    Apresentar resultado final do projeto ao dono.
+    
+    <files_to_read>
+    - ~/.claude/up/owner-profile.md (seu perfil do dono)
+    - .plano/OWNER.md (contexto do projeto)
+    - .plano/DELIVERY.md (relatorio de entrega)
+    - .plano/AUDIT-REPORT.md (auditoria)
+    - .plano/PENDING.md (pendencias)
+    </files_to_read>
+    
+    Apresentar no tom e estilo definidos no owner-profile.
+    Incluir: resumo, scores, pendencias agrupadas por severidade.
+    Perguntar se dono quer resolver alguma pendencia agora.
+  """
+)
+```
+
+**Template antigo (fallback se CEO nao disponivel):**
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

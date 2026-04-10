@@ -76,6 +76,11 @@ Em brownfield, convencoes do codebase existente tem prioridade sobre defaults.
 </context>
 
 <process>
+**GATE OBRIGATORIO — Owner Profile:**
+Antes de qualquer coisa, verificar se `~/.claude/up/owner-profile.md` existe.
+Se NAO existir: rodar `/up:onboard` primeiro (workflow onboarding.md) pra criar profile.
+Sem profile, o CEO nao pode conduzir intake.
+
 **Parsear flags primeiro:** Extrair `--light` dos $ARGUMENTS se presente. O restante e o briefing.
 
 **GUARD: Light mode SOMENTE se `--light` esta presente LITERALMENTE nos argumentos.**
