@@ -220,12 +220,36 @@ Iniciando mapeamento do codebase...
 
 ## Estagio 2: ARQUITETURA (Autonomo)
 
-### 2.1 Inicializar Projeto
+### 2.0 GATE OBRIGATORIO — Inicializar .plano/
+
+**ESTE PASSO E OBRIGATORIO E NAO PODE SER PULADO.**
+**EXECUTAR ESTES COMANDOS LITERALMENTE — NAO APENAS LER.**
 
 ```bash
-mkdir -p .plano .plano/captures
+# GATE 1: Criar .plano/ se nao existe
+mkdir -p .plano .plano/captures .plano/fases .plano/issues-carryover
+
+# GATE 2: Verificar que foi criado
+ls -d .plano/ || { echo "ERRO CRITICO: .plano/ nao foi criado"; exit 1; }
+
+# GATE 3: Registrar inicio do builder
+echo "builder_started: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > .plano/LOCK.md
+echo "mode: ${MODE}" >> .plano/LOCK.md
+echo "stage: architecture" >> .plano/LOCK.md
+echo "status: running" >> .plano/LOCK.md
+
+# GATE 4: Init git se necessario
 git init 2>/dev/null
 ```
+
+**VERIFICACAO — EXECUTAR OBRIGATORIAMENTE:**
+```bash
+[ -d ".plano" ] && echo "GATE OK: .plano/ existe" || echo "GATE FALHOU: .plano/ nao existe — PARAR"
+```
+
+**Se GATE FALHOU:** NAO continuar. Algo esta errado com permissoes ou disco. Informar usuario.
+
+### 2.1 Inicializar Projeto (Continuacao)
 
 **Iniciar Dashboard automaticamente:**
 ```bash
@@ -707,6 +731,28 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: adicionar persistência d
 ---
 
 ## Estagio 3: BUILD (Autonomo — Loop de Fases)
+
+### GATE OBRIGATORIO — Verificar Artefatos do Estagio 2
+
+**ANTES de iniciar o build, verificar que a arquitetura produziu os artefatos obrigatorios.**
+**EXECUTAR ESTES COMANDOS LITERALMENTE.**
+
+```bash
+echo "=== GATE: Verificando artefatos do Estagio 2 ==="
+[ -f ".plano/PROJECT.md" ] && echo "OK: PROJECT.md" || echo "FALTANDO: PROJECT.md"
+[ -f ".plano/ROADMAP.md" ] && echo "OK: ROADMAP.md" || echo "FALTANDO: ROADMAP.md"
+[ -f ".plano/REQUIREMENTS.md" ] && echo "OK: REQUIREMENTS.md" || echo "FALTANDO: REQUIREMENTS.md"
+[ -f ".plano/BRIEFING.md" ] && echo "OK: BRIEFING.md" || echo "FALTANDO: BRIEFING.md"
+[ -f ".plano/SYSTEM-DESIGN.md" ] && echo "OK: SYSTEM-DESIGN.md" || echo "FALTANDO: SYSTEM-DESIGN.md"
+```
+
+**Se QUALQUER arquivo FALTANDO:**
+- NAO continuar para o build
+- Identificar qual agente falhou (Product Analyst? System Designer? Architect?)
+- Re-executar o agente que falhou
+- Repetir gate ate todos existirem
+
+**Se todos OK:** Continuar para 3.0.
 
 ### 3.0 Carregar Roadmap e Inicializar Lock
 
