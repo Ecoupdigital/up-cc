@@ -16,6 +16,13 @@ Voce faz TUDO que o up-executor faz PLUS:
 - Seed data realista
 - Queries otimizadas
 
+**CRITICO: Engineering Principles**
+Antes de executar qualquer tarefa, carregue e internalize:
+```bash
+cat $HOME/.claude/up/references/engineering-principles.md
+```
+Estes 6 principios governam TODA decisao de implementacao. Em especial: Principio 2 (schema correto desde o inicio — tipos adequados, constraints, NOT NULL), Principio 5 (seed data real, nao placeholder), Principio 6 (indices e otimizacoes pensando em 10x crescimento). Violar um principio e pior que atrasar uma tarefa.
+
 **CRITICO: Leitura Inicial Obrigatoria**
 Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read` para carregar cada arquivo listado antes de qualquer outra acao.
 </role>

@@ -83,6 +83,46 @@ Para cada violacao: anotar arquivo, linha, requisito violado, e sugestao de fix.
 - Componentes seguem mesmo pattern (todos forms iguais, todas tabelas iguais)?
 - Terminologia consistente (nao mistura "Salvar" e "Confirmar" pro mesmo conceito)?
 
+## 7. Engineering Principles Compliance
+
+Carregar `$HOME/.claude/up/references/engineering-principles.md` e verificar:
+
+**Principio 1 — Implementacao real:**
+- [ ] Nenhum handler vazio: `onClick={() => {}}`
+- [ ] Nenhum componente placeholder: `return <div>Component</div>`
+- [ ] Nenhum API fake: `return Response.json({ ok: true })`
+- [ ] Nenhum estado nunca populado: `useState([])` sem setter
+- [ ] Nenhum import nao usado
+
+**Principio 2 — Implementacao correta:**
+- [ ] Sem `any` em TypeScript (exceto tipos de lib externa)
+- [ ] Sem catch vazio: `catch(e) {}`
+- [ ] Sem concatenacao SQL: `WHERE id = ${id}`
+- [ ] Sem validacao fraca: `.includes('@')` para email
+
+**Principio 3 — Conectado ponta a ponta:**
+- [ ] Todo componente criado esta importado e roteado
+- [ ] Todo endpoint criado e chamado pelo frontend
+- [ ] Todo schema/migration foi executado
+- [ ] Todo form submete dados reais
+
+**Principio 4 — Consistencia:**
+- [ ] Segue patterns existentes do codebase (nao inventa novos)
+- [ ] Usa bibliotecas ja presentes (nao duplica funcionalidade)
+
+**Principio 5 — Dados reais:**
+- [ ] Sem arrays hardcoded como fonte de dados permanente
+- [ ] Sem mock data em componentes (apenas em testes)
+- [ ] Se banco existe, esta conectado
+
+**Principio 6 — Custo futuro:**
+- [ ] Codigo modularizado (nao tudo num arquivo)
+- [ ] Tipagem completa (sem deferred `any`)
+- [ ] Pagination em listas que podem crescer
+
+Para cada violacao: anotar arquivo, linha, principio violado, e sugestao de fix.
+Violacoes de principios tem severidade CRITICA — sao piores que issues de estilo.
+
 </review_dimensions>
 
 <process>
@@ -105,7 +145,7 @@ Ler CADA arquivo modificado.
 
 ## Passo 3: Revisar por Dimensao
 
-Para cada arquivo, verificar as 6 dimensoes. Anotar problemas com:
+Para cada arquivo, verificar as 7 dimensoes. Anotar problemas com:
 - Arquivo e linha exata
 - Dimensao violada
 - Severidade (critico/importante/menor)
@@ -177,7 +217,7 @@ Arquivo: .plano/fases/{fase}/CODE-REVIEW.md
 
 <success_criteria>
 - [ ] Todos arquivos modificados na fase lidos
-- [ ] 6 dimensoes verificadas
+- [ ] 7 dimensoes verificadas (incluindo Engineering Principles)
 - [ ] Production requirements checado item a item
 - [ ] Issues com arquivo, linha, dimensao, severidade e fix sugerido
 - [ ] CODE-REVIEW.md gerado

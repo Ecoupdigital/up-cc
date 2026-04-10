@@ -264,10 +264,39 @@ Escrever `.plano/SYSTEM-DESIGN.md`:
 [Lista completa com IDs sugeridos por categoria]
 ```
 
-Commit:
+Commit SYSTEM-DESIGN.md:
 ```bash
 node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: system design" --files .plano/SYSTEM-DESIGN.md
 ```
+
+## Passo 8.5: Gerar Design Tokens
+
+**Se o projeto tem UI web:** Gerar `.plano/DESIGN-TOKENS.md` baseado no template:
+
+```bash
+cat $HOME/.claude/up/templates/design-tokens.md
+```
+
+Preencher os tokens baseado em:
+1. **Stack detectada:** Se Tailwind, usar escala padrao Tailwind. Se shadcn/ui, usar tokens do shadcn.
+2. **BRIEFING.md:** Se usuario mencionou marca, cores, estilo visual → usar como base.
+3. **Blueprint:** Inferir estilo do dominio (dashboard=neutro+azul, e-commerce=vibrante, saas=clean).
+
+**Decisoes a tomar:**
+- Cor primaria (CTA, links, botoes de acao)
+- Cor de fundo e texto (claro vs escuro)
+- Font family (sans-serif moderna: Inter, Geist; ou classica: system-ui)
+- Escala de spacing (base 4px padrao, ajustar se necessario)
+- Border radius (sharp=2-4px, medium=6-8px, rounded=12-16px)
+
+Escrever `.plano/DESIGN-TOKENS.md` com valores concretos (nao placeholders).
+
+Commit:
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: design tokens" --files .plano/DESIGN-TOKENS.md
+```
+
+**Se o projeto NAO tem UI web (API-only, CLI):** Pular este passo.
 
 ## Passo 9: Retornar
 
@@ -280,8 +309,10 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: system design" --files .p
 **Modulos:** [N]
 **Blueprints aplicados:** [lista]
 **Requisitos compilados:** [N] (5 camadas)
+**Design Tokens:** Sim/Nao (se projeto com UI)
 
 Arquivo: .plano/SYSTEM-DESIGN.md
+Tokens: .plano/DESIGN-TOKENS.md (se UI)
 ```
 </process>
 
@@ -296,5 +327,6 @@ Arquivo: .plano/SYSTEM-DESIGN.md
 - [ ] Integracoes mapeadas
 - [ ] Requisitos das 5 camadas compilados e deduplicados
 - [ ] SYSTEM-DESIGN.md escrito e commitado
+- [ ] DESIGN-TOKENS.md gerado e commitado (se projeto com UI)
 - [ ] Resultado estruturado retornado
 </success_criteria>
