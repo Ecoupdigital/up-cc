@@ -78,11 +78,14 @@ Em brownfield, convencoes do codebase existente tem prioridade sobre defaults.
 <process>
 **Parsear flags primeiro:** Extrair `--light` dos $ARGUMENTS se presente. O restante e o briefing.
 
-**Se `--light`:**
-Execute o builder workflow em modo light (ver secao `<light_mode>` no workflow).
-Estagios: 1 (Intake simplificado) → 2 (Mini-scan + estrutura inline) → 3 (Build + E2E) → Fim.
+**GUARD: Light mode SOMENTE se `--light` esta presente LITERALMENTE nos argumentos.**
+NAO inferir light baseado no tamanho do briefing. Briefing curto = FULL com poucas fases.
 
-**Se modo full (padrao):**
+**Se `--light` PRESENTE nos argumentos:**
+Execute o builder workflow em modo light (ver secao `<light_process>` no workflow).
+Light ainda verifica (up-verificador), testa (E2E + DCRV 1 ciclo), mas sem polish/delivery.
+
+**Se `--light` AUSENTE (default = FULL):**
 Execute the builder workflow from @~/.claude/up/workflows/builder.md end-to-end.
 
 **CRITICO:** A partir do Estagio 2, ZERO interacao com usuario. NAO use AskUserQuestion apos coletar o briefing e respostas criticas. Toda decisao e tomada autonomamente.

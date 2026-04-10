@@ -11,8 +11,25 @@ Modo Builder: construir projeto completo de forma autonoma. Funciona em dois mod
 A partir do Estagio 2, ZERO interacao com usuario. Todas as decisoes sao tomadas autonomamente.
 
 **IMPORTANTE: Verificar flag `--light` no $ARGUMENTS antes de iniciar.**
-Se `--light` presente: pular direto para `<light_process>` no final deste workflow.
+Se `--light` presente LITERALMENTE nos argumentos: pular direto para `<light_process>`.
 Se ausente: seguir o `<process>` normal (full).
+
+**GUARD CONTRA ATIVACAO ACIDENTAL DO LIGHT:**
+- O modo light so e ativado se o usuario escreveu `--light` explicitamente.
+- NAO inferir light baseado no tamanho do briefing ou complexidade.
+- NAO ativar light porque "parece uma feature simples".
+- Briefing curto = modo FULL com poucas fases, NAO modo light.
+- Se em duvida: FULL. Sempre FULL como default.
+
+**LOG OBRIGATORIO no inicio (EXECUTAR SEMPRE):**
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ UP > MODO BUILDER — {FULL | LIGHT}
+ Versao: $(cat $HOME/.claude/up/VERSION 2>/dev/null || echo "dev")
+ Argumentos: $ARGUMENTS
+ Flag --light: {SIM | NAO}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
 </purpose>
 
 <core_principle>
@@ -2294,31 +2311,58 @@ Retornar: ## PLANNING COMPLETE
 
 Mesmo processo do full — spawnar up-executor por wave.
 
-#### L3.3 Verificar Fase (Quick Check)
+#### L3.3 Verificar Fase
 
-**NAO spawnar up-verificador.** Verificacao inline rapida:
+Spawnar up-verificador (mesmo do full — verificacao real, nao shortcut):
 
-1. Checar que SUMMARYs existem para todos os planos
-2. Checar que commits existem: `git log --oneline --grep="fase-{X}"`
-3. Se ha testes automatizados no projeto: rodar
-```bash
-# Detectar e rodar testes
-npm test 2>/dev/null || pnpm test 2>/dev/null || echo "sem testes"
 ```
-4. Se tudo OK: marcar fase completa
+Task(
+  subagent_type="up-verificador",
+  model="$MODEL_VERIFICATION",
+  prompt="Verificar fase {phase_number}. Diretorio: {phase_dir}. Objetivo: {goal}."
+)
+```
 
-Se falha: tentar gap closure (1 ciclo max), mesmo do full.
+| Status | Acao |
+|--------|------|
+| `passed` | → L3.4 |
+| `gaps_found` | Tentar gap closure (1 ciclo max) |
+| `human_needed` | Registrar, avancar |
 
 #### L3.4 Teste E2E (Playwright)
 
-**Mesmo processo do full** (referencia: builder-e2e.md Passo 3).
-Executar APENAS se a fase tem UI.
+**Referencia:** `@~/.claude/up/workflows/builder-e2e.md` — Passo 3 (Teste por Fase)
 
-- Subir dev server (se nao esta rodando)
-- Traduzir must_haves em testes E2E
-- Navegar, interagir, verificar, screenshot
-- Bugs: corrigir (max 5 tentativas por bug)
-- Criar E2E-RESULTS.md
+**EXECUTAR OBRIGATORIAMENTE se a fase tem UI.** Nao pular.
+
+1. Subir dev server (se nao esta rodando)
+2. Traduzir must_haves em testes E2E
+3. Navegar, interagir, verificar, screenshot
+4. Bugs: corrigir (max 5 tentativas por bug)
+5. Criar E2E-RESULTS.md
+
+**Se dev server falha:** Registrar e continuar (nao bloqueia).
+
+#### L3.4.1 DCRV Light (1 ciclo)
+
+**Apos E2E**, rodar DCRV em modo light (1 ciclo, sem loop):
+
+**Referencia:** `@~/.claude/up/workflows/dcrv.md`
+
+```
+SCOPE=light
+PHASE_DIR={phase_dir}
+PHASE_NUMBER={phase_number}
+MAX_CYCLES=1
+MAX_ISSUES_PER_CYCLE=10
+AUTO_FIX=true
+```
+
+Isso roda os 3 detectores (visual, API, exhaustive), corrige o que puder em 1 ciclo, e segue.
+
+```
+Fase {X} (light): DCRV — {resolved}/{total} issues corrigidas
+```
 
 #### L3.5 Marcar Fase Completa
 
@@ -2373,7 +2417,15 @@ Quer mais? /up:modo-builder "proxima feature"
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-**NAO gerar DELIVERY.md. NAO rodar polish. NAO rodar ideias.**
+**NAO gerar DELIVERY.md. NAO rodar polish completo. NAO rodar ideias.**
+
+**Light mode success criteria:**
+- [ ] .plano/ criado com PROJECT.md, ROADMAP.md, REQUIREMENTS.md
+- [ ] Todas fases executadas com commits atomicos
+- [ ] Verificador rodou em cada fase (NAO quick check)
+- [ ] E2E Playwright rodou em fases com UI
+- [ ] DCRV light (1 ciclo) rodou em cada fase com UI/API
+- [ ] Resumo final exibido com metricas
 
 </light_process>
 
