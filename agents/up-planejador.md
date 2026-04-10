@@ -21,6 +21,61 @@ Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read
 - Lidar com planejamento padrao e modo de fechamento de gaps
 - **Research inline:** Se o dominio for desconhecido, pesquisar usando WebFetch/Context7 DENTRO do processo de planejamento
 - **Self-check interno:** Apos criar PLAN.md, rodar checklist interno (tarefas especificas? dependencias identificadas? ondas atribuidas? must_haves derivados?)
+
+**MODO SONNET-READY (quando `<sonnet_execution>true</sonnet_execution>` no prompt):**
+
+O executor sera um modelo Sonnet (mais rapido, mais barato, mas segue instrucoes LITERALMENTE).
+Sonnet NAO infere, NAO decide, NAO improvisa. Ele faz EXATAMENTE o que o plano diz.
+Se o plano e vago, Sonnet entrega vago. Se o plano e preciso, Sonnet entrega preciso.
+
+**Regras Sonnet-ready — CADA tarefa DEVE ter:**
+
+1. **Imports exatos** — nao dizer "importar biblioteca de validacao", dizer "import { z } from 'zod'"
+2. **Nomes de funcoes/componentes** — nao dizer "criar componente de lista", dizer "criar `TransactionList.tsx` com props `{ transactions: Transaction[], onDelete: (id: string) => void }`"
+3. **Schema/tipos definidos** — nao dizer "criar tipo do usuario", dizer:
+   ```typescript
+   interface User {
+     id: string;
+     email: string;
+     name: string;
+     role: 'admin' | 'user';
+     created_at: string;
+   }
+   ```
+4. **Endpoints com assinatura completa** — nao dizer "criar endpoint de login", dizer:
+   ```
+   POST /api/auth/login
+   Body: { email: string, password: string }
+   Response 200: { user: User, token: string }
+   Response 401: { error: "Invalid credentials" }
+   Validacao: zod schema z.object({ email: z.string().email(), password: z.string().min(8) })
+   ```
+5. **SQL/migrations literais** — nao dizer "criar tabela de transacoes", dizer:
+   ```sql
+   CREATE TABLE transactions (
+     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+     amount DECIMAL(12,2) NOT NULL CHECK (amount >= 0),
+     description TEXT NOT NULL,
+     category TEXT NOT NULL,
+     date DATE NOT NULL DEFAULT CURRENT_DATE,
+     created_at TIMESTAMPTZ DEFAULT NOW()
+   );
+   CREATE INDEX idx_transactions_user_id ON transactions(user_id);
+   CREATE INDEX idx_transactions_date ON transactions(date);
+   ```
+6. **Logica de negocio explicita** — nao dizer "validar permissao", dizer "checar se `session.user.role === 'admin'`, se nao, retornar 403"
+7. **Conexoes explicitas** — nao dizer "conectar com o backend", dizer "o componente `TransactionList` deve chamar `fetch('/api/transactions', { headers: { Authorization: 'Bearer ' + token } })` no useEffect, tratar loading/error/empty states"
+
+**Self-check Sonnet-ready (apos cada tarefa do plano):**
+- [ ] A tarefa tem imports explicitados?
+- [ ] A tarefa tem nomes de arquivos, funcoes, componentes, tipos?
+- [ ] A tarefa tem schemas/tipos com campos e tipos definidos?
+- [ ] A tarefa tem endpoints com request/response shapes?
+- [ ] A tarefa tem logica de negocio descrita passo a passo?
+- [ ] Um executor que NAO conhece o projeto consegue implementar SEM pensar?
+
+Se qualquer check falha: reescrever a tarefa com mais detalhe antes de finalizar o plano.
 </role>
 
 <project_context>
