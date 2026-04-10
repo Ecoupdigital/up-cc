@@ -1046,6 +1046,67 @@ Fase {X}: E2E — {passed}/{total} testes passaram [{bugs} bugs, {fixed} corrigi
 **Se nao tem UI:** Pular silenciosamente.
 **Se dev server falha:** Registrar e pular E2E (nao bloqueia).
 
+#### 3.1.5.1 Loop DCRV — Detectar, Classificar, Resolver, Verificar (Por Fase)
+
+**Apos o E2E da fase**, rodar o workflow DCRV completo.
+
+**Referencia:** `@~/.claude/up/workflows/dcrv.md`
+
+Executar com parametros:
+```
+SCOPE=phase
+PHASE_DIR={phase_dir}
+PHASE_NUMBER={phase_number}
+PORT={porta do dev server}
+MAX_CYCLES=3
+MAX_ISSUES_PER_CYCLE=15
+AUTO_FIX=true
+REGRESSION=false (smoke test e separado no passo 3.1.5.2)
+```
+
+O workflow DCRV cuida de:
+1. Detectar modo (UI, API, ambos, nenhum)
+2. Rodar detectores na ordem (Visual → API → Exhaustive)
+3. Consolidar issue board
+4. Dispatcher diagnostica e roteia para especialistas
+5. Especialistas corrigem com commits atomicos
+6. Re-verificacao das issues corrigidas
+7. Loop ate resolver ou max ciclos
+
+Issues pendentes sao salvas em `.plano/issues-carryover/` para o Quality Gate (Estagio 4).
+
+```
+Fase {X}: DCRV — {resolved}/{total} issues resolvidas [{pending} pendentes → Quality Gate]
+```
+
+#### 3.1.5.2 Smoke Test de Regressao (A partir da Fase 3)
+
+**A partir da terceira fase**, fazer smoke test rapido das paginas de fases ANTERIORES.
+Objetivo: detectar regressoes causadas por mudancas em componentes compartilhados.
+
+**NAO e exaustivo** — apenas:
+1. Navegar cada rota de fases anteriores
+2. Verificar que renderiza (nao tela branca, nao 404)
+3. Screenshot rapido
+4. Checar console por erros novos
+
+```
+Para cada fase anterior com UI:
+  Para cada rota da fase:
+    browser_navigate(url)
+    browser_console_messages(level: "error")
+    Se erro novo detectado → registrar como regressao
+```
+
+Se regressao encontrada:
+- Severidade: HIGH (algo que funcionava quebrou)
+- Corrigir imediatamente (nao carregar para Quality Gate)
+- Commit: `fix(fase-{X}): regressao em [pagina] causada por fase {Y}`
+
+```
+Smoke test regressao: {N} rotas anteriores | {OK} ok | {REGRESS} regressoes [{FIXED} corrigidas]
+```
+
 #### 3.1.6 Marcar Fase Completa
 
 ```bash
@@ -1118,16 +1179,22 @@ Voltar para 3.1.1 com a proxima fase. Sem /clear — continuar no mesmo contexto
 Executado APOS todas as fases do build completarem.
 Ciclo de avaliacao → correcao → re-avaliacao ate atingir score >= 9.0/10.
 
-**Score Composto (6 dimensoes):**
+**Score Composto (9 dimensoes):**
 
 | Dimensao | Peso | Como mede |
 |----------|------|-----------|
-| Funcionalidade | 25% | Requisitos atendidos / total (REQUIREMENTS.md) |
-| E2E | 20% | Testes passando / total (Playwright) |
-| UX | 15% | Score do UX tester (6 sub-dimensoes) |
-| Responsividade | 15% | Score do mobile-first |
-| Codigo | 15% | Score do melhorias (UX+perf+modernidade) |
-| Completude | 10% | Paginas sem erro / total (smoke test) |
+| Funcionalidade | 15% | Requisitos atendidos / total (REQUIREMENTS.md) |
+| Blind Validation | 15% | Score do BLIND-VALIDATION.md |
+| Visual Quality | 12% | Score do up-visual-critic (VISUAL-REPORT.md) |
+| Exhaustive | 10% | Pass rate do up-exhaustive-tester (EXHAUSTIVE-REPORT.md) |
+| API Robustez | 8% | Pass rate do up-api-tester (API-REPORT.md) |
+| E2E | 10% | Testes passando / total (Playwright) |
+| UX | 10% | Score do UX tester (6 sub-dimensoes) |
+| Responsividade | 10% | Score do mobile-first |
+| Codigo | 10% | Score do code reviewer + melhorias |
+
+**Nota:** Se projeto nao tem UI, redistribuir pesos de Visual/Exhaustive/UX/Responsividade para API/Funcionalidade/Codigo.
+**Nota:** Se projeto nao tem API, redistribuir peso de API para outros.
 
 **Limites de seguranca:**
 - Max 5 ciclos de refinamento
@@ -1445,24 +1512,35 @@ Blind Validation: {score}% | {passed} PASS | {failed} FAIL | {partial} PARTIAL
 Agregar scores de todos os avaliadores:
 
 ```
-Funcionalidade (20%): requisitos [x] / total no REQUIREMENTS.md → 0-10
-Blind Valid. (20%):   score do BLIND-VALIDATION.md → 0-10
-E2E (15%):            testes passaram / total no E2E mais recente → 0-10
+Funcionalidade (15%): requisitos [x] / total no REQUIREMENTS.md → 0-10
+Blind Valid. (15%):   score do BLIND-VALIDATION.md → 0-10
+Visual (12%):         score do VISUAL-REPORT.md → 0-10
+Exhaustive (10%):     pass rate do EXHAUSTIVE-REPORT.md → 0-10
+API (8%):             pass rate do API-REPORT.md → 0-10
+E2E (10%):            testes passaram / total no E2E mais recente → 0-10
 UX (10%):             score do UX-REPORT.md → 0-10
 Responsividade (10%): score do MOBILE-REPORT.md → 0-10
-Codigo (15%):         (10 - problemas_criticos) do RELATORIO.md melhorias → 0-10
-Completude (10%):     rotas sem erro / total no smoke test → 0-10
+Codigo (10%):         score do CODE-REVIEW + melhorias → 0-10
 
 **Modo normal:**
-Score = (func × 0.20) + (blind × 0.20) + (e2e × 0.15) + (ux × 0.10) + (resp × 0.10) + (cod × 0.15) + (comp × 0.10)
+Score = (func × 0.15) + (blind × 0.15) + (visual × 0.12) + (exhaustive × 0.10) + (api × 0.08) + (e2e × 0.10) + (ux × 0.10) + (resp × 0.10) + (cod × 0.10)
 
 **Modo clone (builder_type: "clone"):**
-Score = (func × 0.15) + (fidelidade × 0.20) + (blind × 0.15) + (e2e × 0.10) + (ux × 0.10) + (resp × 0.10) + (cod × 0.10) + (comp × 0.10)
+Score = (func × 0.10) + (fidelidade × 0.15) + (blind × 0.10) + (visual × 0.15) + (exhaustive × 0.10) + (api × 0.05) + (e2e × 0.10) + (ux × 0.05) + (resp × 0.10) + (cod × 0.10)
 
 A dimensao "Fidelidade" usa o up-clone-verifier: compara features (funcional) + visual contra original.
 ```
 
-**Se algum avaliador nao rodou** (ex: sem UI, sem E2E): redistribuir peso proporcionalmente entre os que rodaram.
+**Se algum avaliador nao rodou** (ex: sem UI, sem E2E, sem API): redistribuir peso proporcionalmente entre os que rodaram.
+
+**Issues Carryover das Fases:**
+
+Antes de iniciar o Quality Gate, carregar issues pendentes do loop DCRV por fase:
+```bash
+ls .plano/issues-carryover/*.json 2>/dev/null
+```
+Estas issues ja foram detectadas e tentadas — se ainda existem, sao as mais dificeis.
+Incluir no board de issues do Quality Gate com flag `carryover: true`.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1471,12 +1549,15 @@ A dimensao "Fidelidade" usa o up-clone-verifier: compara features (funcional) + 
 
 | Dimensao | Score | Peso | Contribuicao |
 |----------|-------|------|-------------|
-| Funcionalidade | [N]/10 | 25% | [X] |
-| E2E | [N]/10 | 20% | [X] |
-| UX | [N]/10 | 15% | [X] |
-| Responsividade | [N]/10 | 15% | [X] |
-| Codigo | [N]/10 | 15% | [X] |
-| Completude | [N]/10 | 10% | [X] |
+| Funcionalidade | [N]/10 | 15% | [X] |
+| Blind Validation | [N]/10 | 15% | [X] |
+| Visual Quality | [N]/10 | 12% | [X] |
+| Exhaustive | [N]/10 | 10% | [X] |
+| API Robustez | [N]/10 | 8% | [X] |
+| E2E | [N]/10 | 10% | [X] |
+| UX | [N]/10 | 10% | [X] |
+| Responsividade | [N]/10 | 10% | [X] |
+| Codigo | [N]/10 | 10% | [X] |
 | **TOTAL** | **[SCORE]/10** | | |
 ```
 
@@ -1497,12 +1578,27 @@ Identificar top gaps (dimensoes com menor score):
    - Extrair issues nao corrigidas / requisitos pendentes
    - Priorizar por impacto no score
 
-**Implementar correcoes:**
+**Rodar 3 detectores no projeto INTEIRO (nao apenas por fase):**
+
+Ordem: Visual Critic → API Tester → Exhaustive Tester
+
+Cada detector roda em TODAS as paginas/rotas, detectando:
+- Issues novas (nao encontradas no DCRV por fase)
+- Regressoes cross-fase (inconsistencia entre paginas de fases diferentes)
+- Issues carryover (pendentes das fases) — re-verificar se ainda existem
+
+**Implementar correcoes via Dispatcher (mesmo protocolo do DCRV por fase):**
+- Issues visuais (VIS-*): diagnosticar → up-frontend-specialist
+- Issues de interacao (INT-*): diagnosticar → up-frontend-specialist ou up-backend-specialist
+- Issues de API (API-*): diagnosticar → up-backend-specialist ou up-database-specialist
 - Issues de codigo: planejar mini-fase → executar → commit
 - Issues de UX: aplicar fixes (mesmo processo do UX tester)
 - Issues de responsividade: aplicar fixes (mesmo processo do mobile-first)
 - Requisitos pendentes: planejar mini-fase → executar
 - Issues de E2E: corrigir bugs (max 5 tentativas)
+
+**Cap de issues por ciclo: max 20** (mais generoso que o DCRV por fase).
+Prioridade: critical > high > medium. Low nunca entra.
 
 Apos implementar:
 
@@ -2218,6 +2314,9 @@ Com 1M de contexto, a maioria dos projetos cabe sem /clear. Mas monitore:
 - [ ] Estagio 3: Todas as fases verificadas
 - [ ] Estagio 3: Fases com UI testadas via Playwright (E2E-RESULTS.md)
 - [ ] Estagio 3: Bugs E2E corrigidos (quando possivel)
+- [ ] Estagio 3: DCRV por fase executado (Visual Critic + Exhaustive Tester + API Tester)
+- [ ] Estagio 3: Issues DCRV corrigidas via dispatcher (max 3 ciclos por fase)
+- [ ] Estagio 3: Smoke test de regressao em fases anteriores (a partir da fase 3)
 - [ ] Estagio 3: Reassessment apos cada fase (roadmap re-avaliado)
 - [ ] Estagio 3: Commits atomicos por tarefa
 - [ ] Estagio 3: LOCK.md atualizado a cada transicao de estado
@@ -2229,7 +2328,11 @@ Com 1M de contexto, a maioria dos projetos cabe sem /clear. Mas monitore:
 - [ ] Estagio 4: UX-REPORT.md gerado com scores e screenshots
 - [ ] Estagio 4: Mobile First executado (responsividade verificada em 3 viewports)
 - [ ] Estagio 4: MOBILE-REPORT.md gerado com score e screenshots comparativos
-- [ ] Estagio 4: Score composto calculado (6 dimensoes)
+- [ ] Estagio 4: Visual Critic global executado (VISUAL-REPORT.md)
+- [ ] Estagio 4: Exhaustive Tester global executado (EXHAUSTIVE-REPORT.md)
+- [ ] Estagio 4: API Tester global executado (API-REPORT.md)
+- [ ] Estagio 4: Issues carryover das fases processadas
+- [ ] Estagio 4: Score composto calculado (9 dimensoes)
 - [ ] Estagio 4: Quality gate loop executado (ate score >= 9.0 ou max 5 ciclos)
 - [ ] Estagio 4: DevOps artifacts gerados (Dockerfile, CI/CD, .env.example, seed)
 - [ ] Estagio 4: Documentacao gerada (README, CHANGELOG, API docs)

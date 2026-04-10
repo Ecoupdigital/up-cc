@@ -131,6 +131,34 @@ Apos executor retornar:
 
 ---
 
+**Passo 5.5: DCRV Light (se criou UI ou API)**
+
+Detectar se tarefa criou/modificou UI ou API:
+```bash
+# Checar SUMMARY por arquivos de UI/API
+UI_MATCH=$(grep -c "page.tsx\|component\|\.css\|\.tsx" "${QUICK_DIR}/${next_num}-SUMMARY.md" 2>/dev/null)
+API_MATCH=$(grep -c "route.ts\|api/\|endpoint\|handler" "${QUICK_DIR}/${next_num}-SUMMARY.md" 2>/dev/null)
+```
+
+**Se UI_MATCH > 0 ou API_MATCH > 0:**
+
+Rodar DCRV light (1 ciclo, apenas relatorio + correcao rapida):
+
+```
+Referencia: @~/.claude/up/workflows/dcrv.md
+SCOPE=light, MAX_CYCLES=1, MAX_ISSUES_PER_CYCLE=10, AUTO_FIX=true
+DCRV_DIR=${QUICK_DIR}/dcrv
+```
+
+Reportar resultado brevemente:
+```
+DCRV Light: {resolved}/{total} issues corrigidas
+```
+
+**Se nenhum match:** Pular silenciosamente (tarefa nao tem UI/API).
+
+---
+
 **Passo 6: Atualizar STATE.md**
 
 **6a. Verificar se secao "Tarefas Rapidas Completadas" existe:**

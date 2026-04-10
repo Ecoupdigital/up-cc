@@ -65,6 +65,53 @@ ls "$phase_dir"/*-SUMMARY.md 2>/dev/null
 Ler cada SUMMARY.md para extrair entregaveis testaveis.
 </step>
 
+<step name="auto_detect_issues">
+**Pre-validacao automatica antes do teste humano**
+
+Antes de pedir ao usuario para testar, rodar detectores automaticos para corrigir issues obvias.
+O humano testa um sistema ja pre-validado — nao perde tempo com botoes quebrados ou erros de console.
+
+Detectar se fase tem UI ou API:
+```bash
+UI_FILES=$(find app pages src -name "page.tsx" -o -name "*.component.tsx" 2>/dev/null | head -1)
+API_FILES=$(find app/api pages/api -name "route.ts" -o -name "*.ts" 2>/dev/null | head -1)
+```
+
+**Se tem UI ou API:**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ UP > PRE-VALIDACAO AUTOMATICA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Rodando detectores automaticos antes do teste manual...
+```
+
+Rodar DCRV light:
+```
+Referencia: @~/.claude/up/workflows/dcrv.md
+SCOPE=phase, PHASE_DIR={phase_dir}, PHASE_NUMBER={phase_number}
+MAX_CYCLES=1, AUTO_FIX=true
+```
+
+Reportar resultado:
+```
+Pre-validacao: {resolved}/{total} issues automaticas corrigidas
+Pronto para teste manual.
+```
+
+**Se DCRV encontrou issues criticas nao corrigidas:**
+Avisar o usuario antes de iniciar UAT:
+```
+Aviso: {N} issues criticas detectadas e NAO corrigidas automaticamente.
+O teste manual pode encontrar esses problemas. Considere rodar /up:planejar-fase {fase} --gaps primeiro.
+
+Continuar com teste manual mesmo assim? (sim/nao)
+```
+
+**Se nao tem UI/API:** Pular silenciosamente.
+</step>
+
 <step name="extract_tests">
 **Extrair entregaveis testaveis do SUMMARY.md:**
 

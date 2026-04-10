@@ -199,9 +199,64 @@ grep "^status:" "$PHASE_DIR"/*-VERIFICATION.md | cut -d: -f2 | tr -d ' '
 
 | Status | Acao |
 |--------|------|
-| `passed` | -> update_roadmap |
-| `human_needed` | **Se $BUILDER_MODE:** Considerar PASSED, registrar para revisao final no DELIVERY.md. **Se modo normal:** Apresentar itens para teste humano, obter aprovacao. |
+| `passed` | -> deep_quality_check |
+| `human_needed` | **Se $BUILDER_MODE:** Considerar PASSED, registrar para revisao final no DELIVERY.md. **Se modo normal:** Apresentar itens para teste humano, obter aprovacao. Depois -> deep_quality_check |
 | `gaps_found` | Apresentar resumo de lacunas, oferecer `/up:planejar-fase {fase} --gaps` |
+</step>
+
+<step name="deep_quality_check">
+**Verificacao profunda via DCRV (Detectar → Classificar → Resolver → Verificar)**
+
+**Se $BUILDER_MODE = true:**
+Rodar DCRV automaticamente (o builder controla isso via builder.md). Pular para update_roadmap.
+
+**Se modo normal (interativo):**
+
+Detectar se fase tem UI ou API:
+```bash
+# Checar se fase criou/modificou UI
+UI_FILES=$(grep -l "page.tsx\|component\|\.css\|\.tsx" "$PHASE_DIR"/*-SUMMARY.md 2>/dev/null | wc -l)
+# Checar se fase criou/modificou API
+API_FILES=$(grep -l "route.ts\|api/\|endpoint\|handler" "$PHASE_DIR"/*-SUMMARY.md 2>/dev/null | wc -l)
+```
+
+Se fase tem UI ou API:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ UP > VERIFICACAO PROFUNDA DISPONIVEL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+A fase passou na verificacao de codigo. Quer rodar verificacao profunda?
+
+Isso testa:
+- Visual: alinhamento, consistencia, design tokens
+- Interacao: clica em CADA botao/link/elemento
+- API: testa cada endpoint com payloads validos e invalidos
+
+Opcoes:
+1. Rodar verificacao profunda (recomendado)
+2. Rodar apenas relatorio (sem corrigir)
+3. Pular e continuar
+```
+
+**Se usuario escolhe 1:**
+Executar workflow DCRV com scope=phase, auto_fix=true:
+```
+Referencia: @~/.claude/up/workflows/dcrv.md
+SCOPE=phase, PHASE_DIR={phase_dir}, PHASE_NUMBER={phase_number}, MAX_CYCLES=3, AUTO_FIX=true
+```
+
+**Se usuario escolhe 2:**
+Executar workflow DCRV com scope=light, auto_fix=false:
+```
+SCOPE=light, AUTO_FIX=false
+```
+
+**Se usuario escolhe 3:**
+Pular silenciosamente.
+
+Apos DCRV (se rodou): -> update_roadmap
 </step>
 
 <step name="update_roadmap">

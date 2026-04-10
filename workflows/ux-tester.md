@@ -306,9 +306,35 @@ improvements: [N]
 | Foco invisivel | [N] | [lista] |
 ```
 
+## Passo 3.5: DCRV — Detectores Automaticos
+
+Apos o relatorio UX (que avalia experiencia e percepcao), rodar detectores automaticos que pegam issues objetivas que o UX tester pode nao ver.
+
+**Referencia:** `@~/.claude/up/workflows/dcrv.md`
+
+Rodar com:
+```
+SCOPE=global (testar tudo)
+AUTO_FIX=false (apenas detectar — implementacao sera no Passo 4)
+MAX_CYCLES=1 (apenas 1 ciclo de deteccao)
+PORT={porta do dev server ja rodando}
+```
+
+Apos DCRV retornar:
+1. Ler DCRV-REPORT.md
+2. Mesclar issues do DCRV com issues do UX Review:
+   - Issues VIS-* do visual critic → adicionar na dimensao "Consistencia" do UX-REPORT
+   - Issues INT-* do exhaustive tester → adicionar na dimensao "Feedback" do UX-REPORT
+   - Issues API-* do api tester → adicionar como secao "Robustez API" do UX-REPORT
+3. Deduplicar: se UX review e DCRV encontraram o mesmo problema, manter a versao mais detalhada
+4. Atualizar scores do UX-REPORT com base nas issues adicionais
+
+Isso garante que o relatorio UX e COMPLETO — experiencia (do UX tester) + objetividade (dos detectores).
+
 ## Passo 4: Implementar Melhorias
 
 **NAO perguntar ao usuario.** Implementar TODAS as melhorias que sao seguras de aplicar.
+Isso inclui tanto issues do UX Review quanto issues do DCRV mescladas no passo anterior.
 
 ### 4.1 Classificar Issues por Implementabilidade
 

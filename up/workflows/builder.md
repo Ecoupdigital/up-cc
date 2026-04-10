@@ -1048,160 +1048,32 @@ Fase {X}: E2E — {passed}/{total} testes passaram [{bugs} bugs, {fixed} corrigi
 
 #### 3.1.5.1 Loop DCRV — Detectar, Classificar, Resolver, Verificar (Por Fase)
 
-**Apos o E2E da fase**, rodar os 3 detectores de qualidade em SEQUENCIA (para evitar poluicao de estado entre agentes):
+**Apos o E2E da fase**, rodar o workflow DCRV completo.
 
+**Referencia:** `@~/.claude/up/workflows/dcrv.md`
+
+Executar com parametros:
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- BUILDER > FASE {X} — DCRV CICLO {CYCLE}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-**Deteccao de modo:**
-- Fase tem UI? → Rodar Visual Critic + Exhaustive Tester + API Tester
-- Fase so tem API (sem paginas)? → Rodar apenas API Tester (com profundidade extra)
-- Fase so tem infra/schema? → Pular DCRV
-
-**Ordem obrigatoria: Visual → API → Exhaustive**
-(Visual so observa, API usa curl, Exhaustive clica em tudo — minimiza interferencia)
-
-**Detector 1: Visual Critic (se tem UI)**
-
-```python
-Agent(
-  subagent_type="up-visual-critic",
-  prompt="""
-    Avaliar qualidade visual da fase {phase_number}.
-    
-    <files_to_read>
-    - .plano/DESIGN-TOKENS.md (referencia visual)
-    - .plano/fases/{phase_dir}/{phase_num}-SUMMARY.md (o que foi criado)
-    </files_to_read>
-    
-    Testar APENAS paginas desta fase: {rotas_da_fase}
-    Dev server: http://localhost:{PORT}
-    
-    Salvar relatorio em: .plano/fases/{phase_dir}/VISUAL-REPORT.md
-    Salvar issues em: .plano/fases/{phase_dir}/VISUAL-ISSUES.json
-  """
-)
+SCOPE=phase
+PHASE_DIR={phase_dir}
+PHASE_NUMBER={phase_number}
+PORT={porta do dev server}
+MAX_CYCLES=3
+MAX_ISSUES_PER_CYCLE=15
+AUTO_FIX=true
+REGRESSION=false (smoke test e separado no passo 3.1.5.2)
 ```
 
-**Detector 2: API Tester (se fase tem endpoints)**
+O workflow DCRV cuida de:
+1. Detectar modo (UI, API, ambos, nenhum)
+2. Rodar detectores na ordem (Visual → API → Exhaustive)
+3. Consolidar issue board
+4. Dispatcher diagnostica e roteia para especialistas
+5. Especialistas corrigem com commits atomicos
+6. Re-verificacao das issues corrigidas
+7. Loop ate resolver ou max ciclos
 
-```python
-Agent(
-  subagent_type="up-api-tester",
-  prompt="""
-    Testar robustez das rotas API da fase {phase_number}.
-    
-    <files_to_read>
-    - .plano/fases/{phase_dir}/{phase_num}-SUMMARY.md (rotas criadas)
-    </files_to_read>
-    
-    Testar APENAS rotas desta fase.
-    Dev server: http://localhost:{PORT}
-    
-    Salvar relatorio em: .plano/fases/{phase_dir}/API-REPORT.md
-    Salvar issues em: .plano/fases/{phase_dir}/API-ISSUES.json
-  """
-)
-```
-
-**Detector 3: Exhaustive Tester (se tem UI)**
-
-```python
-Agent(
-  subagent_type="up-exhaustive-tester",
-  prompt="""
-    Testar CADA elemento interativo das paginas da fase {phase_number}.
-    
-    <files_to_read>
-    - .plano/fases/{phase_dir}/{phase_num}-SUMMARY.md (paginas criadas)
-    </files_to_read>
-    
-    Testar APENAS paginas desta fase: {rotas_da_fase}
-    Dev server: http://localhost:{PORT}
-    Sem limite de elementos — testar TODOS.
-    
-    Salvar relatorio em: .plano/fases/{phase_dir}/EXHAUSTIVE-REPORT.md
-    Salvar issues em: .plano/fases/{phase_dir}/EXHAUSTIVE-ISSUES.json
-  """
-)
-```
-
-**Consolidar Issues (Issue Board da Fase)**
-
-Apos os 3 detectores rodarem, consolidar todas issues num unico board:
-
-```bash
-mkdir -p .plano/fases/{phase_dir}/issues
-```
-
-Ler os 3 JSONs de issues (VISUAL-ISSUES, API-ISSUES, EXHAUSTIVE-ISSUES).
-Deduplicar: se visual e exhaustive reportaram o mesmo botao/elemento, manter a mais detalhada.
-Classificar por severidade: critical > high > medium > low.
-
-**Cap por ciclo: max 15 issues para correcao.** Prioridade:
-1. Critical (todas)
-2. High (ate completar 15)
-3. Medium (se sobrar budget)
-4. Low (NUNCA — vai para Quality Gate)
-
-**Dispatcher — Diagnosticar e Rotear**
-
-Para cada issue a corrigir, o orquestrador FAZ um diagnostico rapido antes de rotear:
-
-```
-Para issue tipo "visual" (VIS-*):
-  → Grep pelo componente/pagina mencionado
-  → Rotear para up-frontend-specialist
-
-Para issue tipo "interaction" (INT-*):
-  → Grep pelo handler/componente
-  → Se handler existe mas chama API: grep pela rota API
-    → Se API nao existe/falha: up-backend-specialist
-    → Se API OK: up-frontend-specialist
-  → Se handler nao existe: up-frontend-specialist
-
-Para issue tipo "api" (API-*):
-  → Rotear para up-backend-specialist
-  → Se issue e de schema/validacao de dados: up-database-specialist
-```
-
-Spawnar especialista com contexto:
-
-```python
-Agent(
-  subagent_type="up-{specialist}",
-  prompt="""
-    Corrigir issue {issue_id}: {issue_title}
-    
-    Pagina/Rota: {page}
-    Descricao: {description}
-    Evidencia: {evidence}
-    Fix sugerido: {suggested_fix}
-    
-    Corrigir e commitar: fix(fase-{X}): {issue_id} — {title}
-  """
-)
-```
-
-**Re-verificar (Apenas Issues Corrigidas)**
-
-Apos correcoes, re-rodar APENAS o detector relevante nas issues corrigidas:
-- Issues VIS-* corrigidas → re-rodar visual critic na pagina afetada
-- Issues INT-* corrigidas → re-rodar exhaustive tester no elemento afetado
-- Issues API-* corrigidas → re-rodar api tester na rota afetada
-
-**Criterio de saida do loop DCRV por fase:**
-- Todas issues critical/high corrigidas → proximo passo
-- Max 3 ciclos DCRV por fase atingido → log issues pendentes, proximo passo
-- Issues pendentes (nao corrigidas) → carry para Quality Gate (Estagio 4)
-
-```bash
-# Salvar issues pendentes para carryover
-cp .plano/fases/{phase_dir}/issues/pending.json .plano/issues-carryover/ 2>/dev/null
-```
+Issues pendentes sao salvas em `.plano/issues-carryover/` para o Quality Gate (Estagio 4).
 
 ```
 Fase {X}: DCRV — {resolved}/{total} issues resolvidas [{pending} pendentes → Quality Gate]
