@@ -269,6 +269,7 @@ function convertAgentToGemini(content) {
 const colorNameToHex = {
   cyan: '#00FFFF', red: '#FF0000', green: '#00FF00', blue: '#0000FF',
   yellow: '#FFFF00', magenta: '#FF00FF', orange: '#FFA500', purple: '#800080',
+  gold: '#FFD700', pink: '#FFC0CB', brown: '#8B4513',
 };
 
 function convertAgentToOpencode(content) {
