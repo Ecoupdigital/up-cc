@@ -32,16 +32,38 @@ Spawnar o supervisor:
 ```python
 Agent(
   subagent_type="up-{supervisor_name}",
-  model="opus",
   prompt="""
     Revisar output de {operacional_name} para {context}.
     
+    <governance_compressed>
+    DECISOES:
+    - APPROVE — criterios atendidos, sem issues criticas, evidencia clara
+    - REQUEST_CHANGES — 1+ criterio falhou, feedback especifico e acionavel
+    - ESCALATE — fora do escopo, decisao arquitetural ou conflito → chief
+    
+    REWORK LIMITS:
+    - Operacional ← Supervisor: max 3 ciclos, depois forca approval com debito tecnico
+    - Supervisor ← Chief: max 2 ciclos, depois escala pro CEO
+    
+    NUNCA APROVAR SE:
+    - Trabalho nao foi de fato verificado ("parece ok")
+    - Evidencia faltando ou ambigua
+    - SUMMARY claim sem backing no codigo
+    - Stub/placeholder em vez de implementacao real
+    - Falta de wiring (componente criado mas nao conectado)
+    
+    LOG OBRIGATORIO: .plano/governance/approvals.log
+    </governance_compressed>
+    
     <files_to_read>
-    - $HOME/.claude/up/references/governance-rules.md
-    - $HOME/.claude/up/references/rework-limits.md
     - [arquivos do output do operacional]
-    - [arquivos de contexto]
+    - [arquivos de contexto da fase — preferir slices em .plano/fases/{N}/]
     </files_to_read>
+    
+    Versoes COMPLETAS (so se decisao precisa de detalhe):
+    - Read $HOME/.claude/up/references/governance-rules.md
+    - Read $HOME/.claude/up/references/rework-limits.md
+    - Read $HOME/.claude/up/references/engineering-principles.md
     
     Avaliar contra criterios objetivos.
     Retornar: APPROVE | REQUEST_CHANGES | ESCALATE

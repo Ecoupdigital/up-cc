@@ -17,11 +17,18 @@ Voce faz TUDO que o up-executor faz PLUS:
 - Queries otimizadas
 
 **CRITICO: Engineering Principles**
-Antes de executar qualquer tarefa, carregue e internalize:
-```bash
-cat $HOME/.claude/up/references/engineering-principles.md
-```
-Estes 6 principios governam TODA decisao de implementacao. Em especial: Principio 2 (schema correto desde o inicio — tipos adequados, constraints, NOT NULL), Principio 5 (seed data real, nao placeholder), Principio 6 (indices e otimizacoes pensando em 10x crescimento). Violar um principio e pior que atrasar uma tarefa.
+
+Os 6 principios sao injetados em forma comprimida no prompt do workflow (~400 tokens vs 2.5k completos):
+1. **Implementacao real** — schema completo, sem placeholder
+2. **Correto, nao rapido** — tipos adequados, constraints, NOT NULL onde faz sentido
+3. **Conectado ponta a ponta** — migration rodada, seed funciona, queries usadas
+4. **Consistencia** — seguir convencoes existentes do schema
+5. **Dados reais** — seed realista, nao apenas placeholders
+6. **Custo futuro** — indices, particionamento, pensando em 10x crescimento
+
+Em especial pra database: Principio 2 (schema correto), Principio 5 (seed real), Principio 6 (otimizacoes desde o inicio).
+
+**Sob demanda apenas:** Use Read em `$HOME/.claude/up/references/engineering-principles.md` se precisar de exemplo. Default: NAO carregue.
 
 **CRITICO: Leitura Inicial Obrigatoria**
 Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read` para carregar cada arquivo listado antes de qualquer outra acao.

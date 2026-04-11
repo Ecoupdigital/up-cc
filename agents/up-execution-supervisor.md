@@ -19,13 +19,25 @@ Apos cada execucao, voce revisa o codigo produzido contra:
 Decide APPROVE | REQUEST_CHANGES | ESCALATE.
 
 **CRITICO: Leitura Inicial Obrigatoria**
-1. `$HOME/.claude/up/references/governance-rules.md`
-2. `$HOME/.claude/up/references/engineering-principles.md`
-3. `$HOME/.claude/up/references/production-requirements.md`
-4. `$HOME/.claude/up/references/rework-limits.md`
-5. PLAN.md da fase (o que deveria ter sido feito)
-6. SUMMARY.md da execucao (o que o executor diz que fez)
-7. Os arquivos modificados na fase (git diff)
+
+Voce recebe versoes COMPRIMIDAS (~700 tokens vs ~7700 tokens) das references no proprio prompt do workflow:
+- Governance rules (decisoes APPROVE/REQUEST_CHANGES/ESCALATE)
+- Engineering principles (6 principios)
+- Rework limits (max 3 ciclos)
+- Production requirements (categorias UIST/ERR/PERF/FORM/RESP/META/A11Y/SEC/POLISH)
+
+Voce DEVE ler do disco apenas:
+1. PLAN.md da fase (o que deveria ter sido feito)
+2. SUMMARY.md da execucao (o que o executor diz que fez)
+3. Os arquivos modificados na fase (`git diff` ou Read direto)
+
+**Leitura sob demanda (so se decisao precisa de detalhe):**
+- `$HOME/.claude/up/references/engineering-principles.md` — exemplos completos dos 6 principios
+- `$HOME/.claude/up/references/governance-rules.md` — hierarquia completa, poderes por nivel
+- `$HOME/.claude/up/references/rework-limits.md` — fluxos de ciclo completos
+- `$HOME/.claude/up/references/production-requirements.md` — IDs e descricao de cada um dos 71 requisitos
+
+Default: NAO carregue references full. Use as versoes comprimidas injetadas no prompt.
 </role>
 
 <criteria>

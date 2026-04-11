@@ -181,12 +181,47 @@ Agent(
   prompt=f"""
     Executar Plano da Fase {phase_number}.
     
+    <engineering_principles_compressed>
+    1. Implementacao real, nao simulacao (zero placeholder, zero stub)
+    2. Correto, nao rapido (sem `any`, validacao com lib, queries parametrizadas)
+    3. Conectado ponta a ponta (componente → API → DB com dados fluindo)
+    4. Consistencia (grep por pattern existente antes de inventar)
+    5. Dados reais desde o primeiro momento (sem hardcode)
+    6. Cada decisao tem custo futuro (escolher solucao escalavel)
+    
+    Em duvida entre rapido e correto: sempre o correto.
+    Sob demanda: Read references/engineering-principles.md para exemplos.
+    </engineering_principles_compressed>
+    
+    <production_requirements_compressed>
+    Categorias a respeitar (71 requisitos no total):
+    - UIST (UI States): loading/error/empty/success em TODA operacao async
+    - ERR (Error handling): boundaries, try/catch, sessao expirada, 404
+    - PERF: lazy loading, code split, debounce, pagination > 20 items, cache
+    - FORM: validacao inline, mensagens especificas, autofocus, mascaras
+    - RESP: 375px funcional, touch 44x44, hamburger mobile
+    - A11Y: alt, labels, focus visible, keyboard, contraste 4.5:1
+    - SEC: rotas protegidas, CSRF, XSS, rate limit, env vars, RLS
+    - POLISH: hover, transicoes 150-300ms, design tokens
+    
+    Sob demanda: Read references/production-requirements.md para IDs especificos.
+    </production_requirements_compressed>
+    
     <files_to_read>
+    TIER 1 — Sempre:
     - {PLAN}
-    - .plano/PROJECT.md
-    - .plano/SYSTEM-DESIGN.md
-    - $HOME/.claude/up/references/engineering-principles.md
-    - $HOME/.claude/up/references/production-requirements.md
+    - .plano/STATE.md
+    - ./CLAUDE.md (se existir)
+    
+    TIER 2 — Se a slice da fase existe (v0.7.0+):
+    - .plano/fases/{phase_number}/PHASE.md (objetivo da fase)
+    - .plano/fases/{phase_number}/REQUIREMENTS-SLICE.md (REQs APENAS desta fase)
+    - .plano/DESIGN-TOKENS.md (se for frontend e existir)
+    
+    TIER 3 — Sob demanda apenas:
+    - .plano/PROJECT.md (so se precisar visao geral)
+    - .plano/SYSTEM-DESIGN.md (so se decisao de arquitetura aparecer)
+    - .plano/REQUIREMENTS.md (so se a slice nao tiver info suficiente)
     </files_to_read>
     
     Implementar todas as tarefas. Commitar atomicamente.
@@ -203,10 +238,33 @@ Agent(
   prompt=f"""
     Revisar execucao da Fase {phase_number}.
     
+    <governance_compressed>
+    DECISOES: APPROVE | REQUEST_CHANGES | REQUEST_REPLAN | ESCALATE
+    REWORK: max 3 ciclos antes de forcar approval com debito
+    NUNCA APROVAR: trabalho nao verificado, evidencia ambigua, claim sem backing,
+                   stub/placeholder, falta de wiring
+    </governance_compressed>
+    
+    <engineering_principles_compressed>
+    1. Implementacao real (zero placeholder)
+    2. Correto, nao rapido
+    3. Conectado ponta a ponta
+    4. Consistencia (seguir patterns existentes)
+    5. Dados reais
+    6. Custo futuro
+    </engineering_principles_compressed>
+    
     <files_to_read>
     - {PLAN}
     - {PHASE_DIR}/*-SUMMARY.md
-    - git diff
+    - git diff (use Bash)
+    - .plano/fases/{phase_number}/REQUIREMENTS-SLICE.md (se existir)
+    
+    Sob demanda apenas:
+    - $HOME/.claude/up/references/engineering-principles.md (exemplos)
+    - $HOME/.claude/up/references/governance-rules.md (hierarquia)
+    - $HOME/.claude/up/references/rework-limits.md (fluxos)
+    - $HOME/.claude/up/references/production-requirements.md (IDs especificos)
     </files_to_read>
     
     Decisao: APPROVE | REQUEST_CHANGES | REQUEST_REPLAN | ESCALATE

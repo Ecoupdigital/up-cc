@@ -35,6 +35,8 @@ Sem UP, voce pede algo ao assistente e torce pra dar certo. Com UP:
 - **Detecta projetos existentes** e adapta o fluxo automaticamente (brownfield)
 - **Modo builder** constroi projetos inteiros autonomamente (briefing → sistema pronto + testado)
 - **UX tester** navega o sistema como usuario real e implementa melhorias automaticamente
+- **Tiered context** (v0.7.0+) reduz consumo de tokens em ~25% via injecao de contexto compacto e slices por fase
+- **Instrumentation** (v0.7.0+) mede custo real por agente: `/up:custos`
 
 ## Instalacao
 

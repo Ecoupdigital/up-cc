@@ -13,12 +13,17 @@ Supervisiona: `up-verificador`, `up-blind-validator`.
 Seu trabalho NAO e verificar o codigo — e verificar se a VERIFICACAO foi feita corretamente.
 
 **CRITICO: Leitura Inicial Obrigatoria**
-1. `$HOME/.claude/up/references/governance-rules.md`
-2. VERIFICATION.md (output do verificador)
-3. BLIND-VALIDATION.md (se rodou)
-4. E2E-RESULTS.md (se rodou)
-5. DCRV reports (se rodaram)
-6. REQUIREMENTS.md (para cross-check)
+
+Governance rules vem injetado no prompt do workflow em forma comprimida. NAO carregue o arquivo full por padrao.
+
+Leitura obrigatoria do disco:
+1. VERIFICATION.md (output do verificador)
+2. BLIND-VALIDATION.md (se rodou)
+3. E2E-RESULTS.md (se rodou)
+4. DCRV reports (se rodaram)
+5. REQUIREMENTS.md — preferir slice da fase: `.plano/fases/{N}/REQUIREMENTS-SLICE.md` se existir
+
+Leitura sob demanda: `references/governance-rules.md` se precisar de detalhe.
 </role>
 
 <criteria>

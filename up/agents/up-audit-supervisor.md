@@ -13,9 +13,19 @@ Supervisiona: `up-auditor-ux`, `up-auditor-performance`, `up-auditor-modernidade
 Garante que auditorias sao completas, criterios corretos, sugestoes acionaveis.
 
 **CRITICO: Leitura Inicial Obrigatoria**
-1. `$HOME/.claude/up/references/governance-rules.md`
-2. Relatorio do auditor em avaliacao
-3. References correspondentes (audit-ux.md, audit-performance.md, audit-modernidade.md, production-requirements.md)
+
+Governance rules vem injetado no prompt do workflow em forma comprimida. NAO carregue full por padrao.
+
+Leitura obrigatoria do disco:
+1. Relatorio do auditor em avaliacao
+
+Leitura sob demanda (so se for necessario validar coverage real do auditor):
+- `references/audit-ux.md` (1544 linhas)
+- `references/audit-performance.md` (478 linhas)
+- `references/audit-modernidade.md` (1617 linhas)
+- `references/production-requirements.md`
+
+Estas references SAO grandes — so carregue se precisar fazer cross-check rigoroso. Para validacao normal, basta o relatorio do auditor.
 </role>
 
 <criteria>

@@ -13,12 +13,17 @@ Supervisiona: `up-visual-critic`, `up-exhaustive-tester`, `up-api-tester`, `up-q
 Seu trabalho: consolidar os relatorios dos detectores, validar severidade das issues, e aprovar ou pedir re-deteccao.
 
 **CRITICO: Leitura Inicial Obrigatoria**
-1. `$HOME/.claude/up/references/governance-rules.md`
-2. VISUAL-REPORT.md
-3. EXHAUSTIVE-REPORT.md
-4. API-REPORT.md
-5. QA-REPORT.md (se rodou)
-6. `.plano/DESIGN-TOKENS.md`
+
+Governance rules vem injetado no prompt do workflow em forma comprimida. NAO carregue o arquivo full por padrao.
+
+Leitura obrigatoria do disco:
+1. VISUAL-REPORT.md
+2. EXHAUSTIVE-REPORT.md
+3. API-REPORT.md
+4. QA-REPORT.md (se rodou)
+5. `.plano/DESIGN-TOKENS.md`
+
+Leitura sob demanda: `references/governance-rules.md` se precisar de detalhe.
 </role>
 
 <criteria>

@@ -155,12 +155,24 @@ Agent(
     Sonnet-ready: SEMPRE (default v0.6.0+)
     
     <files_to_read>
+    TIER 1 — Sempre:
     - .plano/STATE.md
-    - .plano/ROADMAP.md
-    - .plano/REQUIREMENTS.md
-    - .plano/SYSTEM-DESIGN.md
-    - .plano/PROJECT.md
-    - .plano/codebase/* (se brownfield)
+    - .plano/fases/{phase_number}/PHASE.md (slice do ROADMAP — v0.7.0+)
+    - .plano/fases/{phase_number}/REQUIREMENTS-SLICE.md (REQs APENAS desta fase — v0.7.0+)
+    
+    TIER 2 — Se brownfield apenas:
+    - .plano/codebase/CONVENTIONS.md
+    - .plano/codebase/CONCERNS.md
+    - .plano/codebase/ARCHITECTURE.md
+    
+    TIER 3 — Sob demanda apenas:
+    - .plano/SYSTEM-DESIGN.md (so se decisao arquitetural especifica)
+    - .plano/PROJECT.md (so se precisar visao geral)
+    - .plano/ROADMAP.md (so se precisar entender fases adjacentes)
+    - .plano/REQUIREMENTS.md (so se a slice nao tiver info suficiente)
+    
+    FALLBACK: Se as slices nao existem (projeto pre-v0.7.0), carregar
+    .plano/ROADMAP.md e .plano/REQUIREMENTS.md completos.
     </files_to_read>
     
     REQs da fase: {phase_req_ids}

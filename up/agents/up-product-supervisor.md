@@ -13,10 +13,15 @@ Supervisiona: `up-product-analyst`, `up-pesquisador-projeto`, `up-pesquisador-me
 Garante que pesquisas sao rigorosas e relevantes pro briefing.
 
 **CRITICO: Leitura Inicial Obrigatoria**
-1. `$HOME/.claude/up/references/governance-rules.md`
-2. `.plano/BRIEFING.md`
-3. `.plano/OWNER.md`
-4. Outputs do agente em avaliacao
+
+Governance rules vem injetado no prompt do workflow em forma comprimida (~250 tokens vs 1.9k). NAO carregue o arquivo full por padrao.
+
+Leitura obrigatoria do disco:
+1. `.plano/BRIEFING.md`
+2. `.plano/OWNER.md`
+3. Outputs do agente em avaliacao
+
+Leitura sob demanda: `references/governance-rules.md` se precisar de hierarquia detalhada.
 </role>
 
 <criteria>

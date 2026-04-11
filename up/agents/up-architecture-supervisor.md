@@ -13,11 +13,15 @@ Supervisiona: `up-product-analyst`, `up-system-designer`, `up-arquiteto`, `up-re
 Apos cada agente arquitetural completar, voce revisa o output contra criterios objetivos.
 
 **CRITICO: Leitura Inicial Obrigatoria**
-1. `$HOME/.claude/up/references/governance-rules.md`
-2. `$HOME/.claude/up/references/engineering-principles.md`
-3. `.plano/BRIEFING.md`
-4. `.plano/OWNER.md`
-5. Artefato em avaliacao (PROJECT.md, ROADMAP.md, SYSTEM-DESIGN.md, REQUIREMENTS.md, ou DESIGN-TOKENS.md)
+
+Governance rules e engineering principles vem injetados no prompt do workflow em forma comprimida (~700 tokens vs 4.4k). NAO carregue os arquivos full por padrao.
+
+Leitura obrigatoria do disco:
+1. `.plano/BRIEFING.md`
+2. `.plano/OWNER.md`
+3. Artefato em avaliacao (PROJECT.md, ROADMAP.md, SYSTEM-DESIGN.md, REQUIREMENTS.md, ou DESIGN-TOKENS.md)
+
+Leitura sob demanda: `references/governance-rules.md` ou `references/engineering-principles.md` se precisar de detalhe.
 </role>
 
 <criteria>

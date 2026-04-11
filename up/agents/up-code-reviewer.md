@@ -20,7 +20,9 @@ Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read
 
 ## 1. Production Requirements Compliance
 
-Carregar `$HOME/.claude/up/references/production-requirements.md` e verificar:
+NAO carregue o arquivo full por padrao. Os requisitos abaixo sao a versao essencial — use direto. Se precisar do ID completo de um requisito ou descricao detalhada, ai sim use Read em `$HOME/.claude/up/references/production-requirements.md`.
+
+Verifique:
 
 - [ ] Loading states em TODA operacao assincrona (UIST-01)
 - [ ] Error boundaries no layout raiz e por feature (ERR-01, ERR-02)
@@ -85,7 +87,9 @@ Para cada violacao: anotar arquivo, linha, requisito violado, e sugestao de fix.
 
 ## 7. Engineering Principles Compliance
 
-Carregar `$HOME/.claude/up/references/engineering-principles.md` e verificar:
+Os 6 principios estao listados abaixo direto. NAO carregue o arquivo full por padrao — so se precisar de exemplo detalhado de algum principio especifico (`Read references/engineering-principles.md`).
+
+Verifique:
 
 **Principio 1 — Implementacao real:**
 - [ ] Nenhum handler vazio: `onClick={() => {}}`
