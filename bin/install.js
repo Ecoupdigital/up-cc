@@ -280,6 +280,11 @@ function convertAgentToOpencode(content) {
   converted = converted.replace(/\bTodoWrite\b/g, 'todowrite');
   converted = converted.replace(/\/up:/g, '/up-'); // OpenCode flat command structure
 
+  // Replace Task tool calls with OpenCode format
+  // Claude Code: Task(subagent_type="up-xxx", ...) / Agent(subagent_type="up-xxx", ...)
+  // OpenCode: @up-xxx or task tool with agent name
+  converted = converted.replace(/subagent_type="up-/g, 'agent="up-');
+
   const { frontmatter, body } = extractFrontmatterAndBody(converted);
   if (!frontmatter) return converted;
 
@@ -287,11 +292,17 @@ function convertAgentToOpencode(content) {
   const newLines = [];
   const tools = [];
   let inTools = false;
+  let hasMode = false;
 
   for (const line of lines) {
     const trimmed = line.trim();
 
     if (trimmed.startsWith('name:')) continue; // OpenCode uses filename
+    if (trimmed.startsWith('mode:')) {
+      hasMode = true;
+      newLines.push(line);
+      continue;
+    }
     if (trimmed.startsWith('tools:')) {
       const toolsValue = trimmed.substring(6).trim();
       if (toolsValue) {
@@ -316,6 +327,13 @@ function convertAgentToOpencode(content) {
       }
     }
     if (!inTools) newLines.push(line);
+  }
+
+  // CRITICAL: OpenCode requires mode: subagent for agents to be invokable via Task tool
+  // Without this, agents are treated as "primary" and isolated — primary agents cannot
+  // invoke each other. All UP agents are subagents (only user-facing primary is OpenCode itself).
+  if (!hasMode) {
+    newLines.push('mode: subagent');
   }
 
   if (tools.length > 0) {
@@ -364,6 +382,12 @@ function replacePaths(content, pathPrefix, runtime) {
   if (runtime === 'opencode') {
     content = content.replace(/\/up:/g, '/up-');
     content = content.replace(/subagent_type="general-purpose"/g, 'subagent_type="general"');
+    // OpenCode invokes subagents via Task tool with agent name (not subagent_type)
+    // Keep subagent_type for compatibility but ensure agents have mode:subagent
+    // Replace AskUserQuestion with question (OpenCode native)
+    content = content.replace(/\bAskUserQuestion\b/g, 'question');
+    content = content.replace(/\bSlashCommand\b/g, 'skill');
+    content = content.replace(/\bTodoWrite\b/g, 'todowrite');
   }
 
   return content;
