@@ -8,7 +8,7 @@
    ╚═════╝ ╚═╝</pre>
 </p>
 
-<h3 align="center">Desenvolvimento orientado a especificacao para Claude Code, Gemini CLI e OpenCode</h3>
+<h3 align="center">Desenvolvimento orientado a especificacao para Claude Code, Codex CLI, OpenCode e Gemini CLI</h3>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/up-cc"><img src="https://img.shields.io/npm/v/up-cc.svg" alt="npm version"></a>
@@ -20,7 +20,9 @@
 
 **UP** e um sistema de meta-prompting que transforma seu assistente de IA em um desenvolvedor estruturado. Em vez de pedir "faz X", voce descreve o projeto e o UP cuida do planejamento, execucao, verificacao e rastreamento — tudo via slash commands.
 
-Funciona com **Claude Code**, **Gemini CLI** e **OpenCode**.
+Funciona com **Claude Code**, **OpenAI Codex CLI**, **OpenCode** e **Gemini CLI**.
+
+> **Codex CLI (v0.8.0+)**: Comandos viram skills (invocadas via `$up-plan` em vez de `/up:plan`). Agentes viram TOML em `~/.codex/agents/`. Hierarquia governance suportada via `[agents] max_depth = 4` no `~/.codex/config.toml`.
 
 ## Por que UP?
 
