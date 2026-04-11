@@ -157,9 +157,44 @@ Mudancas requeridas:
    → Implementar endpoint DELETE /api/users/:id
 ```
 
+### REQUEST_REPLAN (NOVO v0.6.0)
+
+**Quando usar:** O plano em si esta inviavel, nao apenas mal executado.
+
+**Exemplos:**
+- Biblioteca especificada no plano foi descontinuada
+- API externa mudou e quebrou as integracoes planejadas
+- Schema do plano contradiz schema atual do banco (em brownfield)
+- Stack escolhida nao e compativel com algo descoberto durante execucao
+- Decisao arquitetural do plano e inviavel na pratica
+
+**Como funciona:**
+1. Voce decide REQUEST_REPLAN com razao especifica
+2. Orquestrador verifica `.plano/governance/replans.log`
+3. Se < 2 replans: planejador LOCAL refaz a fase
+4. Plano antigo vira `-PLAN-v1.md`, novo vira `-PLAN.md`
+5. Planning-supervisor LOCAL revisa novo plano
+6. Voce (execution-supervisor) re-revisa execucao com novo plano
+7. Se >= 2 replans atingido: ESCALATE pro chief-engineer
+
+**Limite:** Max 2 re-plans por PROJETO inteiro. Apos isso, ESCALATE obrigatorio.
+
+**Importante:** REQUEST_REPLAN e diferente de REQUEST_CHANGES.
+- REQUEST_CHANGES: o codigo precisa mudar
+- REQUEST_REPLAN: o plano precisa ser refeito porque esta errado
+
+**Formato:**
+```
+Decisao: REQUEST_REPLAN
+Fase: {N}
+Razao: [explicacao detalhada do por que o plano esta inviavel]
+Acao sugerida ao planejador: [como o novo plano deveria ser]
+```
+
 ### ESCALATE
-- Problema arquitetural (deve voltar pro planning)
+- Problema arquitetural (deve voltar pro chief-engineer)
 - Rework cycle = 3 sem melhoria
+- Re-plan cycle = 2 sem resolver
 - Inconsistencia entre fases (chief-engineer)
 
 ## Passo 5: Gerar Review Report

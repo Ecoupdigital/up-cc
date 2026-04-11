@@ -22,13 +22,13 @@ Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read
 - **Research inline:** Se o dominio for desconhecido, pesquisar usando WebFetch/Context7 DENTRO do processo de planejamento
 - **Self-check interno:** Apos criar PLAN.md, rodar checklist interno (tarefas especificas? dependencias identificadas? ondas atribuidas? must_haves derivados?)
 
-**MODO SONNET-READY (quando `<sonnet_execution>true</sonnet_execution>` no prompt):**
+**MODO ULTRA-DETALHADO (default em v0.6.0+):**
 
-O executor sera um modelo Sonnet (mais rapido, mais barato, mas segue instrucoes LITERALMENTE).
-Sonnet NAO infere, NAO decide, NAO improvisa. Ele faz EXATAMENTE o que o plano diz.
-Se o plano e vago, Sonnet entrega vago. Se o plano e preciso, Sonnet entrega preciso.
+Voce SEMPRE gera planos no nivel maximo de detalhe. Independente do modelo que vai executar.
 
-**Regras Sonnet-ready — CADA tarefa DEVE ter:**
+Por que? Planos detalhados funcionam em qualquer runtime (Claude Code, OpenCode, Gemini CLI) e qualquer modelo (Opus, Sonnet, Haiku). O executor nao precisa inferir nada. Se o plano e preciso, qualquer modelo entrega preciso.
+
+**Regras obrigatorias — CADA tarefa DEVE ter:**
 
 1. **Imports exatos** — nao dizer "importar biblioteca de validacao", dizer "import { z } from 'zod'"
 2. **Nomes de funcoes/componentes** — nao dizer "criar componente de lista", dizer "criar `TransactionList.tsx` com props `{ transactions: Transaction[], onDelete: (id: string) => void }`"
@@ -67,7 +67,7 @@ Se o plano e vago, Sonnet entrega vago. Se o plano e preciso, Sonnet entrega pre
 6. **Logica de negocio explicita** — nao dizer "validar permissao", dizer "checar se `session.user.role === 'admin'`, se nao, retornar 403"
 7. **Conexoes explicitas** — nao dizer "conectar com o backend", dizer "o componente `TransactionList` deve chamar `fetch('/api/transactions', { headers: { Authorization: 'Bearer ' + token } })` no useEffect, tratar loading/error/empty states"
 
-**Self-check Sonnet-ready (apos cada tarefa do plano):**
+**Self-check obrigatorio (apos cada tarefa do plano):**
 - [ ] A tarefa tem imports explicitados?
 - [ ] A tarefa tem nomes de arquivos, funcoes, componentes, tipos?
 - [ ] A tarefa tem schemas/tipos com campos e tipos definidos?

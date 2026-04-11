@@ -55,37 +55,25 @@ Neste modo, TODOS os agentes devem:
 7. **Quality Gate:** Incluir clone-verifier como dimensao "Fidelidade" (20% do score).
 </core_principle>
 
-<model_routing>
-## Roteamento de Modelos por Papel
+<model_handling>
+## Modelos (v0.6.0+)
 
-**REGRA OBRIGATORIA:** Ao spawnar QUALQUER agente via Task() ou Agent(), incluir o parametro `model` baseado nesta tabela. Usar os valores de $MODEL_* extraidos do builder-defaults.md (Estagio 1.1).
+**O runtime decide o modelo.** O UP nao especifica `model=opus/sonnet/haiku` em nenhum spawn de agente.
 
-| Papel | Variavel | Agentes | Default |
-|-------|----------|---------|---------|
-| **Planning** | $MODEL_PLANNING | up-arquiteto, up-product-analyst, up-system-designer, up-planejador, up-roteirista | opus |
-| **Execution** | $MODEL_EXECUTION | up-executor, up-frontend-specialist, up-backend-specialist, up-database-specialist | sonnet |
-| **Verification** | $MODEL_VERIFICATION | up-verificador, up-code-reviewer, up-blind-validator, up-requirements-validator | opus |
-| **Detection** | $MODEL_DETECTION | up-visual-critic, up-exhaustive-tester, up-api-tester | sonnet |
-| **Research** | $MODEL_RESEARCH | up-pesquisador-projeto, up-pesquisador-mercado, up-mapeador-codigo, up-sintetizador | sonnet |
-| **Quality** | $MODEL_QUALITY | up-qa-agent, up-security-reviewer, up-auditor-ux, up-auditor-performance, up-auditor-modernidade, up-sintetizador-melhorias, up-consolidador-ideias, up-devops-agent, up-technical-writer | opus |
+- Em Claude Code, os agentes usam o modelo default (Opus 4.6) ou o que o usuario configurou via `/model`.
+- Em OpenCode, cada agente usa o modelo configurado no `opencode.json`.
+- Em Gemini CLI, usa o modelo do runtime.
 
-**Exemplo de aplicacao:**
+Antes v0.5.x tinha routing por papel (planning=opus, execution=sonnet). Isso foi removido em v0.6.0 para simplicidade e portabilidade entre runtimes.
+
+**Planos sao sempre gerados em nivel detalhado (Sonnet-ready)** independente do modelo que vai executar. Assim funcionam em qualquer runtime.
+
+**Ao spawnar qualquer agente:**
 ```python
-# ANTES (sem model routing):
 Task(subagent_type="up-executor", prompt="...")
-
-# DEPOIS (com model routing):
-Task(subagent_type="up-executor", model="$MODEL_EXECUTION", prompt="...")
-
-# Equivale a (com defaults):
-Task(subagent_type="up-executor", model="sonnet", prompt="...")
 ```
-
-**Ao spawnar qualquer agente, SEMPRE:**
-1. Identificar o papel do agente na tabela acima
-2. Usar a variavel $MODEL_* correspondente como parametro model
-3. Se a variavel nao foi definida (sem builder-defaults), usar o default da tabela
-</model_routing>
+Sem parametro `model`.
+</model_handling>
 
 <governance>
 ## Camada de Governanca (v0.5.0+)
@@ -207,23 +195,7 @@ DEFAULTS_PATH="$HOME/.claude/up/builder-defaults.md"
 
 Ler `$DEFAULTS_PATH` se existir. Se nao existir, informar: "Sem builder-defaults.md. Usando inferencia inteligente para decisoes nao especificadas. Crie ~/.claude/up/builder-defaults.md para personalizar."
 
-**Extrair configuracao de modelos:**
-
-Se builder-defaults.md existe, procurar secao "## Modelos por Papel" e extrair mapeamento:
-```
-$MODEL_PLANNING = modelo para planning (default: opus)
-$MODEL_EXECUTION = modelo para execution (default: sonnet)
-$MODEL_VERIFICATION = modelo para verification (default: opus)
-$MODEL_DETECTION = modelo para detection (default: sonnet)
-$MODEL_RESEARCH = modelo para research (default: sonnet)
-$MODEL_QUALITY = modelo para quality (default: opus)
-```
-
-Se secao nao existe: usar defaults acima (opus planeja, sonnet executa, opus verifica).
-
-**IMPORTANTE — Sonnet-ready planning:**
-Se `$MODEL_EXECUTION = sonnet`, setar flag `$SONNET_EXECUTION = true`.
-Isso ativa nivel extra de detalhe nos planos (ver planejador Sonnet-ready mode).
+**v0.6.0+: Sem extracao de modelos.** O runtime decide o modelo. Planos sao sempre Sonnet-ready (detalhe maximo).
 
 **Detectar modo automaticamente:**
 
@@ -659,7 +631,7 @@ Escrever .plano/PRODUCT-ANALYSIS.md
 Commit apos escrever.
 Retornar: ## PRODUCT ANALYSIS COMPLETE
 </output>
-", subagent_type="up-product-analyst", model="$MODEL_PLANNING", description="Analisar produto e mercado")
+", subagent_type="up-product-analyst", description="Analisar produto e mercado")
 ```
 
 Verificar retorno `## PRODUCT ANALYSIS COMPLETE`. Se falhou: registrar e continuar (System Designer usara blueprints como fallback).
@@ -708,7 +680,7 @@ Escrever .plano/SYSTEM-DESIGN.md
 Commit apos escrever.
 Retornar: ## SYSTEM DESIGN COMPLETE
 </output>
-", subagent_type="up-system-designer", model="$MODEL_PLANNING", description="Projetar sistema completo")
+", subagent_type="up-system-designer", description="Projetar sistema completo")
 ```
 
 ```
@@ -771,7 +743,7 @@ Se brownfield:
 - parallelization=true
 - Commit todos arquivos ao final
 </constraints>
-", subagent_type="up-arquiteto", model="$MODEL_PLANNING", description="Estruturar projeto executavel")
+", subagent_type="up-arquiteto", description="Estruturar projeto executavel")
 ```
 
 ### 2.7 Validar Requisitos (Quality Gate de Planejamento)
@@ -785,7 +757,7 @@ Validando requisitos (13 checks)...
 ```
 Task(
   subagent_type="up-requirements-validator",
-  model="$MODEL_VERIFICATION",
+ ,
   prompt="
     <objective>
     Validar REQUIREMENTS.md com 13 checks automaticos.
@@ -977,7 +949,7 @@ Task(prompt="
 <planning_context>
 **Fase:** {phase_number}
 **Modo:** builder (autonomo -- NAO use AskUserQuestion)
-<sonnet_execution>{$SONNET_EXECUTION}</sonnet_execution>
+**Sonnet-ready:** sempre (default em v0.6.0+)
 
 <files_to_read>
 - .plano/STATE.md (Estado do Projeto)
@@ -1019,14 +991,14 @@ Se algo falhar, corrija antes de retornar.
 Escrever PLAN.md em: .plano/fases/{phase_dir}/
 Retornar: ## PLANNING COMPLETE com resumo dos planos
 </output>
-", subagent_type="up-planejador", model="$MODEL_PLANNING", description="Planejar Fase {phase_number}")
+", subagent_type="up-planejador", description="Planejar Fase {phase_number}")
 ```
 
 Verificar retorno:
 - `## PLANNING COMPLETE` → prosseguir para quality gate do plano
 - `## PLANNING INCONCLUSIVE` → tentar novamente com mais contexto (max 2 tentativas)
 
-**Quality Gate do Plano (se $SONNET_EXECUTION = true):**
+**Quality Gate do Plano (sempre):**
 
 Antes de passar pro executor, verificar qualidade do plano rapidamente:
 ```bash
@@ -1043,7 +1015,7 @@ done
 ```
 
 Se algum plano tem detail_score < 2 e a fase tem mais de 3 tarefas:
-- Re-spawnar planejador com instrucao extra: "Plano insuficientemente detalhado para executor Sonnet. Reescrever com imports, tipos, schemas e endpoints explicitos. Ver self-check Sonnet-ready."
+- Re-spawnar planejador com instrucao extra: "Plano insuficientemente detalhado. Reescrever com imports, tipos, schemas e endpoints explicitos. Ver self-check Sonnet-ready."
 - Max 1 re-tentativa de enriquecimento
 
 ```
@@ -1091,7 +1063,7 @@ Para cada wave, spawnar agentes especializados em paralelo (se parallelization=t
 ```
 Task(
   subagent_type="{up-frontend-specialist | up-backend-specialist | up-database-specialist | up-executor}",
-  model="$MODEL_EXECUTION",
+ ,
   prompt="
     <objective>
     Executar plano {plan_number} da fase {phase_number}-{phase_name}.
@@ -1154,7 +1126,7 @@ Spawnar code reviewer:
 ```
 Task(
   subagent_type="up-code-reviewer",
-  model="$MODEL_VERIFICATION",
+ ,
   prompt="
     <objective>
     Revisar codigo da fase {phase_number} contra production-requirements e padroes de qualidade.
@@ -1211,7 +1183,7 @@ Modo builder. NAO use AskUserQuestion.
 </builder_mode>
 ",
   subagent_type="up-verificador",
-  model="$MODEL_VERIFICATION"
+ 
 )
 ```
 
@@ -1707,7 +1679,7 @@ Relatorio em .plano/ideias/RELATORIO.md
 ```
 Task(
   subagent_type="up-blind-validator",
-  model="$MODEL_VERIFICATION",
+ ,
   prompt="
     <objective>
     Validar requisitos SEM ler codigo. Apenas navegar o app via Playwright e curl.
@@ -1859,7 +1831,7 @@ Spawnar devops agent:
 ```
 Task(
   subagent_type="up-devops-agent",
-  model="$MODEL_QUALITY",
+ ,
   prompt="
     <objective>
     Gerar artefatos de producao para o projeto: Dockerfile, docker-compose, CI/CD, .env.example, seed data, scripts.
@@ -1898,7 +1870,7 @@ Spawnar technical writer:
 ```
 Task(
   subagent_type="up-technical-writer",
-  model="$MODEL_QUALITY",
+ ,
   prompt="
     <objective>
     Gerar documentacao completa: README.md, API docs, CHANGELOG.md, setup guide.
@@ -1940,7 +1912,7 @@ Spawnar security reviewer:
 ```
 Task(
   subagent_type="up-security-reviewer",
-  model="$MODEL_QUALITY",
+ ,
   prompt="
     <objective>
     Auditar codigo para vulnerabilidades de seguranca (OWASP Top 10, auth, injection, data exposure).
@@ -1978,7 +1950,7 @@ Spawnar QA agent:
 ```
 Task(
   subagent_type="up-qa-agent",
-  model="$MODEL_QUALITY",
+ ,
   prompt="
     <objective>
     Identificar gaps de cobertura de testes, escrever testes que faltam, executar todos.
@@ -2505,7 +2477,7 @@ Spawnar up-verificador (mesmo do full — verificacao real, nao shortcut):
 ```
 Task(
   subagent_type="up-verificador",
-  model="$MODEL_VERIFICATION",
+ ,
   prompt="Verificar fase {phase_number}. Diretorio: {phase_dir}. Objetivo: {goal}."
 )
 ```

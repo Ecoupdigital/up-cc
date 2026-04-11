@@ -35,26 +35,15 @@ O usuario customiza uma vez e vale para todos os projetos criados com `/up:modo-
 - Linter: ESLint + Prettier
 - Git: branch main, commits diretos
 
-## Modelos por Papel
+## Modelos
 
-Configurar qual modelo de IA usar para cada tipo de trabalho.
-Modelos disponiveis: opus, sonnet, haiku
+**v0.6.0+: Removido.** O runtime que voce usa decide o modelo.
 
-| Papel | Modelo | Agentes |
-|-------|--------|---------|
-| planning | opus | arquiteto, product-analyst, system-designer, planejador, roteirista |
-| execution | sonnet | executor, frontend-specialist, backend-specialist, database-specialist |
-| verification | opus | verificador, code-reviewer, blind-validator, requirements-validator |
-| detection | sonnet | visual-critic, exhaustive-tester, api-tester |
-| research | sonnet | pesquisador-projeto, pesquisador-mercado, mapeador-codigo |
-| quality | opus | qa-agent, security-reviewer, auditor-ux, auditor-performance |
+- Em Claude Code: usa o modelo selecionado via /model (default Opus 4.6)
+- Em OpenCode: usa o modelo do opencode.json
+- Em Gemini CLI: usa o modelo do runtime
 
-Notas:
-- Opus: raciocinio profundo, decisoes arquiteturais, verificacao critica. Mais lento, mais caro.
-- Sonnet: execucao rapida, seguir instrucoes, volume de codigo. Mais rapido, mais barato.
-- Haiku: tarefas simples. NAO recomendado para codigo de producao.
-- Opus e Sonnet ambos suportam 1M de contexto.
-- Se execution=sonnet, planos serao gerados com nivel extra de detalhe (Sonnet-ready).
+Planos sao sempre gerados em nivel detalhado (Sonnet-ready) independente do modelo executor.
 
 ## Nao usar
 - (liste aqui tecnologias que voce NAO quer em nenhum projeto)
