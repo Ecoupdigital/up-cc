@@ -362,6 +362,49 @@ Para cada decisao necessaria:
 **GREENFIELD:** Agrupar requisitos em fases, definir criterios de sucesso.
 **BROWNFIELD:** Adicionar novas fases apos as existentes, mapeando novos requisitos.
 
+### Passo 7.5: Gerar Slices por Fase (TIERED CONTEXT — v0.7.0)
+
+**OBRIGATORIO** apos gerar ROADMAP.md e REQUIREMENTS.md.
+
+Para CADA fase do ROADMAP, criar dois arquivos slice em `.plano/fases/{NN}/`:
+
+**1. `PHASE.md`** — slice do ROADMAP contendo APENAS esta fase
+```markdown
+# Fase {NN}: {Nome}
+
+**Objetivo:** {objetivo da fase}
+**Requisitos cobertos:** REQ-X, REQ-Y, REQ-Z
+**Criterios de sucesso:**
+- [ ] {criterio 1}
+- [ ] {criterio 2}
+
+**Dependencias:** Fases {anteriores}
+**Estimativa:** {planos esperados}
+```
+
+**2. `REQUIREMENTS-SLICE.md`** — slice do REQUIREMENTS contendo APENAS REQs desta fase
+```markdown
+# Requisitos da Fase {NN}
+
+> Slice gerado automaticamente. Versao completa em `.plano/REQUIREMENTS.md`.
+
+## REQ-X: {titulo}
+{descricao + criterios}
+
+## REQ-Y: {titulo}
+{descricao + criterios}
+```
+
+**Por que:** Agentes (planejador, executor, supervisores) carregam apenas a slice da fase atual em vez do REQUIREMENTS/ROADMAP inteiros. Reducao de ~70% no contexto carregado por invocacao.
+
+**Comando para criar:**
+```bash
+mkdir -p .plano/fases/{NN}
+# Escrever PHASE.md e REQUIREMENTS-SLICE.md
+```
+
+**Atualizacao em brownfield:** Se a slice ja existe, atualizar com novos REQs adicionados.
+
 ### Passo 8: Gerar/Atualizar STATE.md + config.json
 
 ### Passo 9: Inicializar Git (se necessario)
@@ -410,6 +453,8 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: estruturar feature (modo 
 - .plano/ROADMAP.md
 - .plano/STATE.md
 - .plano/config.json
+- .plano/fases/{NN}/PHASE.md (slice do ROADMAP por fase, v0.7.0+)
+- .plano/fases/{NN}/REQUIREMENTS-SLICE.md (slice do REQUIREMENTS por fase, v0.7.0+)
 
 ### Metricas
 - Requisitos: [N] (novos) [+ M existentes preservados, se brownfield]

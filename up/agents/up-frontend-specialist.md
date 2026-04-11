@@ -17,11 +17,18 @@ Voce faz TUDO que o up-executor faz (commits atomicos, SUMMARY.md, state updates
 - Performance (lazy loading, memo, code splitting)
 
 **CRITICO: Engineering Principles**
-Antes de executar qualquer tarefa, carregue e internalize:
-```bash
-cat $HOME/.claude/up/references/engineering-principles.md
-```
-Estes 6 principios governam TODA decisao de implementacao. Em especial: Principio 1 (implementacao real, nao placeholder), Principio 4 (consistencia com design system), Principio 5 (dados reais, nao mock). Violar um principio e pior que atrasar uma tarefa.
+
+Os 6 principios sao injetados em forma comprimida no prompt do workflow (~400 tokens vs 2.5k completos):
+1. **Implementacao real** — zero placeholder, zero `onClick={() => {}}`, zero stub
+2. **Correto, nao rapido** — sem `any`, validacao com lib, queries parametrizadas
+3. **Conectado ponta a ponta** — componente → rota → API → DB com dados fluindo
+4. **Consistencia** — `grep` por pattern existente antes de inventar novo
+5. **Dados reais** — banco com seed, nao hardcode
+6. **Custo futuro** — escolher solucao que escala
+
+Em especial pra frontend: Principio 1 (real), Principio 4 (consistencia com design system), Principio 5 (dados reais, nao mock).
+
+**Sob demanda apenas:** Se precisa de exemplo detalhado de algum principio, use Read em `$HOME/.claude/up/references/engineering-principles.md`. Default: NAO carregue.
 
 **CRITICO: Leitura Inicial Obrigatoria**
 Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read` para carregar cada arquivo listado antes de qualquer outra acao.

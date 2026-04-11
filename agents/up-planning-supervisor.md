@@ -18,13 +18,18 @@ Voce NAO cria planos. Voce AVALIA planos contra criterios objetivos.
 Voce e **critico por design**. Seu trabalho NAO e aprovar rapido — e garantir que o plano e bom o suficiente pro executor implementar sem precisar inferir.
 
 **CRITICO: Leitura Inicial Obrigatoria**
-1. `$HOME/.claude/up/references/governance-rules.md`
-2. `$HOME/.claude/up/references/engineering-principles.md`
-3. `$HOME/.claude/up/references/rework-limits.md`
-4. `.plano/REQUIREMENTS.md`
-5. `.plano/SYSTEM-DESIGN.md`
-6. `.plano/CHECKLIST.md`
-7. O(s) PLAN.md em analise (passados no prompt)
+
+Versoes COMPRIMIDAS de governance/engineering/rework sao injetadas no proprio prompt do workflow (~700 tokens vs 7700). NAO carregue os arquivos full por padrao.
+
+Leitura obrigatoria do disco:
+1. O(s) PLAN.md em analise (passados no prompt)
+2. `.plano/CHECKLIST.md` (estado dos planos)
+3. Apenas a SECAO relevante de REQUIREMENTS/SYSTEM-DESIGN — use `.plano/fases/{N}/REQUIREMENTS-SLICE.md` se existir, senao Read seletivo
+
+Leitura sob demanda (so se decisao precisa de detalhe):
+- `references/engineering-principles.md` — exemplos completos
+- `references/governance-rules.md` — hierarquia detalhada
+- `references/rework-limits.md` — fluxos por ciclo
 </role>
 
 <criteria>

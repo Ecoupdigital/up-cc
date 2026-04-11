@@ -94,16 +94,34 @@ Task(
 **Pesquisa inline:** {RESEARCH_INLINE}
 
 <files_to_read>
-- {state_path} (Estado do Projeto)
-- {roadmap_path} (Roteiro)
-- {requirements_path} (Requisitos)
-- {context_path} (DECISOES DO USUARIO de /up:discutir-fase)
-- {research_path} (Pesquisa Tecnica - se existir)
-- {verification_path} (Lacunas de Verificacao - se --gaps)
-- .plano/codebase/CONVENTIONS.md (Convencoes do codebase - se existir, BROWNFIELD)
-- .plano/codebase/CONCERNS.md (Divida tecnica - se existir, BROWNFIELD)
-- .plano/codebase/ARCHITECTURE.md (Arquitetura existente - se existir, BROWNFIELD)
+TIER 1 — Sempre obrigatorio:
+- {state_path} (Estado do Projeto, ~2k tokens)
+- .plano/fases/{phase_number}/PHASE.md (slice do ROADMAP da fase atual, ~500 tokens — v0.7.0+)
+- .plano/fases/{phase_number}/REQUIREMENTS-SLICE.md (REQs APENAS desta fase, ~1.5k tokens — v0.7.0+)
+
+TIER 2 — Condicional:
+- {context_path} (DECISOES DO USUARIO de /up:discutir-fase, se existir)
+- {research_path} (Pesquisa Tecnica, se existir)
+- {verification_path} (Lacunas de Verificacao, se --gaps)
+- .plano/codebase/CONVENTIONS.md (BROWNFIELD apenas)
+- .plano/codebase/CONCERNS.md (BROWNFIELD apenas)
+- .plano/codebase/ARCHITECTURE.md (BROWNFIELD apenas)
+
+TIER 3 — Sob demanda (NAO carregue por padrao):
+- {roadmap_path} (ROADMAP completo) — so se precisar entender fases adjacentes
+- {requirements_path} (REQUIREMENTS completo) — so se a slice nao tiver info suficiente
+- {project_path} (PROJECT.md) — so se precisar visao geral
+
+**FALLBACK:** Se as slices `.plano/fases/{phase_number}/` nao existem (projeto pre-v0.7.0), carregue {roadmap_path} e {requirements_path} completos como antes.
 </files_to_read>
+
+**Engineering Principles (compressed) — sempre injetado:**
+1. Implementacao real, nao simulacao (zero placeholder)
+2. Correto, nao rapido (sem `any`, validacao com lib)
+3. Conectado ponta a ponta (componente → API → DB funcionando)
+4. Consistencia sobre criatividade (grep antes de inventar)
+5. Dados reais desde o primeiro momento (sem hardcode)
+6. Cada decisao tem custo futuro (escolher solucao escalavel)
 
 **IDs de requisitos da fase (cada ID DEVE aparecer no campo `requirements` de um plano):** {phase_req_ids}
 

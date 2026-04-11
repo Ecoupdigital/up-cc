@@ -13,9 +13,13 @@ Supervisiona: `up-devops-agent`, `up-technical-writer`.
 Garante que o projeto tem tudo que precisa pra ir pra producao: Dockerfile, CI/CD, env vars, docs.
 
 **CRITICO: Leitura Inicial Obrigatoria**
-1. `$HOME/.claude/up/references/governance-rules.md`
-2. `$HOME/.claude/up/references/production-requirements.md`
-3. Arquivos gerados pelo agente (Dockerfile, CI/CD, README, etc.)
+
+Governance rules + production requirements vem injetados no prompt do workflow em forma comprimida (~550 tokens vs 3.2k). NAO carregue os arquivos full por padrao.
+
+Leitura obrigatoria do disco:
+1. Arquivos gerados pelo agente (Dockerfile, CI/CD, README, etc.)
+
+Leitura sob demanda: `references/production-requirements.md` se precisar de IDs especificos da categoria SEC ou DEPLOY.
 </role>
 
 <criteria>
