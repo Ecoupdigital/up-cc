@@ -56,23 +56,57 @@ Neste modo, TODOS os agentes devem:
 </core_principle>
 
 <model_handling>
-## Modelos (v0.6.0+)
+## Modelos (v0.9.0+)
 
-**O runtime decide o modelo.** O UP nao especifica `model=opus/sonnet/haiku` em nenhum spawn de agente.
+**Model routing configuravel via `config.json`.** O usuario escolhe um preset via `/up:configurar`.
 
-- Em Claude Code, os agentes usam o modelo default (Opus 4.6) ou o que o usuario configurou via `/model`.
-- Em OpenCode, cada agente usa o modelo configurado no `opencode.json`.
-- Em Gemini CLI, usa o modelo do runtime.
+### Como funciona
 
-Antes v0.5.x tinha routing por papel (planning=opus, execution=sonnet). Isso foi removido em v0.6.0 para simplicidade e portabilidade entre runtimes.
-
-**Planos sao sempre gerados em nivel detalhado (Sonnet-ready)** independente do modelo que vai executar. Assim funcionam em qualquer runtime.
-
-**Ao spawnar qualquer agente:**
-```python
-Task(subagent_type="up-executor", prompt="...")
+1. O workflow le o modelo do agente via:
+```bash
+MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config resolve-model {agent-name} --raw)
 ```
-Sem parametro `model`.
+
+2. Se retorna `default`: nao passar `model=` (runtime decide — comportamento v0.6.0).
+3. Se retorna `opus`, `sonnet` ou `haiku`: passar no spawn.
+
+### Presets disponiveis
+
+| Preset | Planning | Execution | Governance | Review |
+|--------|----------|-----------|------------|--------|
+| `runtime` | default | default | default | default |
+| `opus-completo` | opus | opus | opus | opus |
+| `hibrido` | opus | sonnet | opus | opus |
+| `sonnet-completo` | sonnet | sonnet | sonnet | sonnet |
+| `economico` | sonnet | sonnet | haiku | sonnet |
+| `custom` | manual | manual | manual | manual |
+
+### Papeis dos agentes
+
+- **Planning:** planejador, arquiteto, product-analyst, system-designer, pesquisador-projeto, sintetizador, mapeador-codigo, requirements-validator
+- **Execution:** executor, frontend/backend/database-specialist, devops-agent, technical-writer
+- **Governance:** todos supervisores, chiefs, CEO, delivery-auditor, planning-auditor
+- **Review:** verificador, blind-validator, code-reviewer, security-reviewer, visual-critic, exhaustive-tester, api-tester, qa-agent, auditores, sintetizador-melhorias
+
+### Default
+
+Sem `modelos` no config.json = `runtime` (nenhum override). Identico ao v0.6.0.
+
+**Planos sao sempre gerados em nivel detalhado (Sonnet-ready)** independente do modelo que vai executar.
+
+### Ao spawnar qualquer agente
+
+```bash
+MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config resolve-model up-executor --raw)
+```
+
+```python
+# Se MODEL != "default", passar model=
+Task(subagent_type="up-executor", model="{MODEL if MODEL != 'default' else omit}", prompt="...")
+```
+
+**IMPORTANTE:** Se model=default (ou nao configurado), NAO passar parametro model no spawn.
+Isso mantem compatibilidade total com v0.6.0 e com runtimes que nao suportam model routing.
 </model_handling>
 
 <governance>
@@ -91,6 +125,28 @@ OPERATIONAL AGENTS (36) — fazem o trabalho
 ```
 
 **Referencia obrigatoria:** `@~/.claude/up/workflows/governance.md`
+
+**REGRA INVIOLAVEL — GOVERNANCA OBRIGATORIA COM GATES VERIFICAVEIS:**
+
+A governanca NAO PODE ser pulada, otimizada, resumida ou ignorada.
+Para IMPEDIR que o LLM otimize colapsando passos, cada etapa critica tem um **GATE** —
+um check de arquivo executado via Bash que BLOQUEIA o avanço se a etapa anterior nao produziu evidencia.
+
+**Mecanismo anti-colapso:**
+1. Cada supervisor DEVE escrever no `approvals.log` ANTES de retornar
+2. Cada GATE verifica que o `approvals.log` tem a entry esperada
+3. Se o gate falha → o builder NAO avanca → spawna o agente faltante
+4. O GATE E (final) verifica TODOS os 5 checks de uma vez
+
+**Pipeline obrigatorio por fase no Estagio 3:**
+```
+Planejador → Specialist → [GATE A] → EXECUTION-SUPERVISOR → [GATE B] → Code Reviewer → Verificador → [GATE C] → VERIFICATION-SUPERVISOR → [GATE D] → E2E + DCRV → CHIEF-ENGINEER → [GATE E] → Marcar completa
+```
+
+Cada GATE e um `bash` check que le `.plano/governance/approvals.log`.
+Se a entry esperada nao existe, o builder PARA e spawna o agente faltante.
+
+**NUNCA combinar dois agentes em um spawn. NUNCA pular um GATE.**
 
 **Regras gerais:**
 1. Todo output de agente operacional passa por supervisor
@@ -223,7 +279,6 @@ Spawnar CEO com contexto:
 ```python
 Agent(
   subagent_type="up-project-ceo",
-  model="opus",
   prompt=f"""
     Conduza intake para novo projeto UP.
     
@@ -882,7 +937,15 @@ echo "=== GATE: Verificando artefatos do Estagio 2 ==="
 
 **Se todos OK:** Continuar para 3.0.
 
-### 3.0 Carregar Roadmap e Inicializar Lock
+### 3.0 Carregar Roadmap e Inicializar Lock + Governance
+
+**Inicializar diretorio de governanca (OBRIGATORIO):**
+```bash
+mkdir -p .plano/governance
+touch .plano/governance/approvals.log
+touch .plano/governance/technical-debt.log
+echo "# Governance initialized at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .plano/governance/approvals.log
+```
 
 ```bash
 ROADMAP=$(node "$HOME/.claude/up/bin/up-tools.cjs" roadmap analyze)
@@ -930,7 +993,56 @@ sed -i "s/^phase: .*/phase: ${PHASE_NUMBER}/" .plano/LOCK.md
 sed -i "s/^updated: .*/updated: $(date -u +%Y-%m-%dT%H:%M:%SZ)/" .plano/LOCK.md
 ```
 
-### 3.1 Loop Principal
+### 3.1 Loop Principal — SEPARACAO RIGIDA DE AGENTES
+
+**REGRA ANTI-COLAPSO (ler com atencao):**
+
+O LLM tende a otimizar colapsando passos — dar ao mesmo agente tarefas de planejar + executar,
+ou pular supervisores por parecer "overhead". Isso e PROIBIDO.
+
+**Cada passo abaixo DEVE ser um Agent() ou Task() SEPARADO.**
+**NUNCA combinar dois passos em um unico spawn.**
+**NUNCA instruir um agente a fazer o trabalho de outro.**
+
+Exemplo do que NAO fazer:
+```
+# ERRADO — combina planejamento + execucao no mesmo agente
+Task(subagent_type="up-planejador", prompt="Planejar E executar a fase...")
+
+# ERRADO — pula supervisor
+Task(subagent_type="up-executor", prompt="Executar e verificar...")
+```
+
+Exemplo correto:
+```
+# CERTO — cada agente faz UMA coisa
+Task(subagent_type="up-planejador", prompt="Planejar fase...")
+# Depois:
+Task(subagent_type="up-executor", prompt="Executar plano...")
+# Depois:
+Agent(subagent_type="up-execution-supervisor", prompt="Revisar execucao...")
+```
+
+**Pipeline por fase — 9 passos sequenciais, NENHUM pode ser pulado:**
+
+```
+PASSO 1: up-planejador         → gera PLAN.md
+PASSO 2: up-{specialist}       → gera SUMMARY.md
+--- GATE A: verificar SUMMARY.md existe ---
+PASSO 3: up-execution-supervisor → gera EXEC-REVIEW em approvals.log
+--- GATE B: verificar approvals.log tem entry pra fase ---
+PASSO 4: up-code-reviewer      → gera CODE-REVIEW.md
+PASSO 5: up-verificador        → gera VERIFICATION.md
+--- GATE C: verificar VERIFICATION.md existe ---
+PASSO 6: up-verification-supervisor → gera entry em approvals.log
+--- GATE D: verificar approvals.log tem 2 entries pra fase ---
+PASSO 7: E2E + DCRV            → gera E2E-RESULTS.md
+PASSO 8: up-chief-engineer     → gera entry em approvals.log
+--- GATE E: verificar approvals.log tem 3 entries pra fase (exec-sup + verif-sup + chief) ---
+PASSO 9: Marcar completa
+```
+
+**GATES sao checks de arquivo executados via Bash. Se o gate falha, NAO avance.**
 
 Para cada fase no ROADMAP (da primeira a ultima):
 
@@ -1113,7 +1225,180 @@ Task(
 Wave {N}: {count} planos executados
 ```
 
-#### 3.1.3 Reflect (Code Review)
+#### --- GATE A: Verificar que execucao produziu artefatos ---
+
+**EXECUTAR OBRIGATORIAMENTE antes de continuar:**
+
+```bash
+echo "=== GATE A: Verificando artefatos da execucao (Fase ${PHASE_NUMBER}) ==="
+SUMMARY_COUNT=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
+if [ "$SUMMARY_COUNT" -eq 0 ]; then
+  echo "GATE A FALHOU: Nenhum SUMMARY.md encontrado em ${PHASE_DIR}"
+  echo "A execucao NAO produziu artefatos. Re-executar."
+  exit 1
+else
+  echo "GATE A OK: ${SUMMARY_COUNT} SUMMARY(s) encontrados"
+fi
+```
+
+**Se GATE A falhou:** Re-executar o specialist (max 1 retry). NAO avançar para supervisor.
+
+#### 3.1.2.1 GOVERNANCE OBRIGATORIA — Execution Supervisor Revisa (PASSO 3)
+
+**ESTE PASSO E OBRIGATORIO E NAO PODE SER PULADO.**
+**Referencia:** `@~/.claude/up/workflows/governance.md`
+
+Apos CADA wave de execucao completar, o execution-supervisor DEVE revisar o trabalho.
+
+```python
+Agent(
+  subagent_type="up-execution-supervisor",
+  prompt=f"""
+    Revisar execucao da Fase {phase_number}.
+    
+    <governance_compressed>
+    DECISOES: APPROVE | REQUEST_CHANGES | REQUEST_REPLAN | ESCALATE
+    REWORK: max 3 ciclos antes de forcar approval com debito
+    NUNCA APROVAR: trabalho nao verificado, evidencia ambigua, claim sem backing,
+                   stub/placeholder, falta de wiring
+    LOG OBRIGATORIO: .plano/governance/approvals.log
+    </governance_compressed>
+    
+    <engineering_principles_compressed>
+    1. Implementacao real (zero placeholder)
+    2. Correto, nao rapido
+    3. Conectado ponta a ponta
+    4. Consistencia (seguir patterns existentes)
+    5. Dados reais
+    6. Custo futuro
+    </engineering_principles_compressed>
+    
+    <files_to_read>
+    - {PLAN}
+    - {PHASE_DIR}/*-SUMMARY.md
+    - git diff (use Bash)
+    - .plano/fases/{phase_number}/REQUIREMENTS-SLICE.md (se existir)
+    
+    Sob demanda apenas:
+    - $HOME/.claude/up/references/engineering-principles.md (exemplos)
+    - $HOME/.claude/up/references/governance-rules.md (hierarquia)
+    - $HOME/.claude/up/references/rework-limits.md (fluxos)
+    - $HOME/.claude/up/references/production-requirements.md (IDs especificos)
+    </files_to_read>
+    
+    Decisao: APPROVE | REQUEST_CHANGES | REQUEST_REPLAN | ESCALATE
+    
+    REQUEST_REPLAN: Se descobrir que o plano e fundamentalmente errado/inviavel.
+                    Max 2 re-plans por projeto.
+    
+    **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+    Escrever sua decisao no approvals.log:
+    ```bash
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | execution-supervisor | {DECISAO} | {motivo_resumido}" >> .plano/governance/approvals.log
+    ```
+    Sem este log, o GATE B vai bloquear o avanço do builder.
+  """
+)
+```
+
+#### 3.1.2.2 Processar Decisao do Execution Supervisor
+
+**Se APPROVE:** Verificar que approvals.log foi escrito (o supervisor deve ter feito). Prosseguir para 3.1.3.
+
+**Se REQUEST_CHANGES:** Re-spawn specialist com feedback (max 3 ciclos).
+
+```python
+# Re-spawn do specialist com review como contexto
+Agent(
+  subagent_type="{mesmo specialist da execucao}",
+  prompt=f"""
+    REWORK — Ciclo {{N}}/3
+    
+    Seu output anterior foi revisado pelo execution-supervisor e precisa de mudancas.
+    
+    Review: .plano/governance/{{review_file}}
+    
+    Mudancas requeridas:
+    {{lista_de_mudancas}}
+    
+    Refaca seu trabalho atendendo os criterios.
+  """
+)
+```
+
+Se apos 3 ciclos sem melhoria: FORCAR aprovacao com debito tecnico.
+
+```bash
+mkdir -p .plano/governance
+cat >> .plano/governance/technical-debt.log <<EOF
+$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | execution-supervisor | FORCED_APPROVAL
+  Reason: Max rework cycles (3) reached without improvement
+  Remaining issues: [lista]
+EOF
+```
+
+**Se REQUEST_REPLAN:**
+
+```bash
+REPLAN_COUNT=$(cat .plano/governance/replans.log 2>/dev/null | wc -l)
+```
+
+Se `REPLAN_COUNT >= 2`: ESCALATE pro chief-engineer.
+
+Se `REPLAN_COUNT < 2`:
+1. Spawnar up-planejador LOCAL para refazer plano da fase
+2. Salvar como PLAN-v2.md (preservar v1 para historico)
+3. Spawnar up-planning-supervisor para revisar novo plano
+4. Se APPROVE: voltar para 3.1.2 (re-executar com novo plano)
+5. Se REJECT: ESCALATE pro chief-engineer
+
+```bash
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-${PHASE_NUMBER} | execution-supervisor | REPLAN | cycle $((REPLAN_COUNT+1))/2" >> .plano/governance/replans.log
+```
+
+**Se ESCALATE:** Spawnar chief-engineer para decidir.
+
+```python
+Agent(
+  subagent_type="up-chief-engineer",
+  prompt=f"""
+    Escalacao recebida do execution-supervisor.
+    Fase: {phase_number}
+    Problema: {descricao_do_problema}
+    
+    <files_to_read>
+    - {PHASE_DIR}/*-SUMMARY.md
+    - {PLAN}
+    - .plano/governance/approvals.log
+    </files_to_read>
+    
+    Decidir: APPROVE | REQUEST_CHANGES | ESCALATE_CEO
+  """
+)
+```
+
+Se chief-engineer retorna ESCALATE_CEO: spawnar CEO para alertar o dono.
+
+#### --- GATE B: Verificar que execution-supervisor logou decisao ---
+
+**EXECUTAR OBRIGATORIAMENTE antes de continuar:**
+
+```bash
+echo "=== GATE B: Verificando governance da execucao (Fase ${PHASE_NUMBER}) ==="
+EXEC_ENTRY=$(grep "phase-${PHASE_NUMBER}.*execution-supervisor" .plano/governance/approvals.log 2>/dev/null | tail -1)
+if [ -z "$EXEC_ENTRY" ]; then
+  echo "GATE B FALHOU: execution-supervisor NAO logou decisao para fase ${PHASE_NUMBER}"
+  echo "O execution-supervisor DEVE rodar antes de continuar."
+  echo "NAO pular este passo. Spawnar up-execution-supervisor agora."
+  exit 1
+else
+  echo "GATE B OK: $EXEC_ENTRY"
+fi
+```
+
+**Se GATE B falhou:** Spawnar execution-supervisor. NAO avançar para code review.
+
+#### 3.1.3 Reflect (Code Review) (PASSO 4)
 
 **O passo "Reflect" do ciclo RARV — revisa codigo ANTES da verificacao formal.**
 
@@ -1187,6 +1472,78 @@ Modo builder. NAO use AskUserQuestion.
 )
 ```
 
+#### --- GATE C: Verificar que verificacao produziu artefatos ---
+
+**EXECUTAR OBRIGATORIAMENTE antes de continuar:**
+
+```bash
+echo "=== GATE C: Verificando artefatos da verificacao (Fase ${PHASE_NUMBER}) ==="
+VERIF_COUNT=$(ls ${PHASE_DIR}/*-VERIFICATION.md 2>/dev/null | wc -l)
+if [ "$VERIF_COUNT" -eq 0 ]; then
+  echo "GATE C FALHOU: Nenhum VERIFICATION.md encontrado em ${PHASE_DIR}"
+  echo "O verificador NAO rodou. Spawnar up-verificador agora."
+  exit 1
+else
+  echo "GATE C OK: ${VERIF_COUNT} VERIFICATION(s) encontrados"
+fi
+```
+
+**Se GATE C falhou:** Spawnar verificador. NAO avançar para verification-supervisor.
+
+#### 3.1.4.1 GOVERNANCE OBRIGATORIA — Verification Supervisor Revisa (PASSO 6)
+
+**ESTE PASSO E OBRIGATORIO E NAO PODE SER PULADO.**
+**Referencia:** `@~/.claude/up/workflows/governance.md`
+
+Apos o verificador retornar, o verification-supervisor DEVE revisar a verificacao.
+
+```python
+Agent(
+  subagent_type="up-verification-supervisor",
+  prompt=f"""
+    Revisar verificacao da Fase {phase_number}.
+    
+    <governance_compressed>
+    DECISOES: APPROVE | REQUEST_CHANGES | ESCALATE
+    REWORK: max 3 ciclos antes de forcar approval com debito
+    NUNCA APROVAR SE:
+    - Verificacao superficial ("parece ok")
+    - VERIFICATION.md claim sem evidencia no codigo
+    - must_haves nao testados de fato
+    - Testes rodaram mas com falhas ignoradas
+    LOG OBRIGATORIO: .plano/governance/approvals.log
+    </governance_compressed>
+    
+    <files_to_read>
+    - {PHASE_DIR}/*-VERIFICATION.md
+    - {PHASE_DIR}/*-SUMMARY.md
+    - {PLAN}
+    - .plano/REQUIREMENTS.md (requisitos da fase)
+    
+    Sob demanda apenas:
+    - $HOME/.claude/up/references/governance-rules.md
+    - $HOME/.claude/up/references/rework-limits.md
+    </files_to_read>
+    
+    Validar que a verificacao foi rigorosa e que os claims tem backing.
+    Decisao: APPROVE | REQUEST_CHANGES | ESCALATE
+    
+    **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+    Escrever sua decisao no approvals.log:
+    ```bash
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | verification-supervisor | {DECISAO} | {motivo_resumido}" >> .plano/governance/approvals.log
+    ```
+    Sem este log, o GATE D vai bloquear o avanço do builder.
+  """
+)
+```
+
+**Se APPROVE:** Verificar que approvals.log foi escrito. Prosseguir.
+
+**Se REQUEST_CHANGES:** Re-spawn verificador com feedback (max 3 ciclos).
+
+**Se ESCALATE:** Spawnar chief-engineer.
+
 Ler status da verificacao:
 
 ```bash
@@ -1195,11 +1552,34 @@ grep "^status:" "$PHASE_DIR"/*-VERIFICATION.md | cut -d: -f2 | tr -d ' '
 
 | Status | Acao no Builder |
 |--------|----------------|
-| `passed` | Marcar fase completa, avancar |
+| `passed` | Prosseguir para E2E |
 | `gaps_found` | Tentar corrigir (planejar gaps + executar, max 1 ciclo) |
 | `human_needed` | Registrar para revisao final, avancar |
 
-#### 3.1.5 Teste E2E da Fase (Playwright)
+#### --- GATE D: Verificar que AMBOS supervisores logaram decisao ---
+
+**EXECUTAR OBRIGATORIAMENTE antes de continuar:**
+
+```bash
+echo "=== GATE D: Verificando governance completa (Fase ${PHASE_NUMBER}) ==="
+EXEC_OK=$(grep -c "phase-${PHASE_NUMBER}.*execution-supervisor" .plano/governance/approvals.log 2>/dev/null)
+VERIF_OK=$(grep -c "phase-${PHASE_NUMBER}.*verification-supervisor" .plano/governance/approvals.log 2>/dev/null)
+
+if [ "$EXEC_OK" -eq 0 ] || [ "$VERIF_OK" -eq 0 ]; then
+  echo "GATE D FALHOU:"
+  [ "$EXEC_OK" -eq 0 ] && echo "  - execution-supervisor NAO logou decisao"
+  [ "$VERIF_OK" -eq 0 ] && echo "  - verification-supervisor NAO logou decisao"
+  echo "AMBOS supervisores DEVEM ter logado antes de continuar para E2E."
+  echo "Voltar e spawnar o supervisor faltante."
+  exit 1
+else
+  echo "GATE D OK: execution-supervisor (${EXEC_OK} entries) + verification-supervisor (${VERIF_OK} entries)"
+fi
+```
+
+**Se GATE D falhou:** Identificar qual supervisor faltou e spawnar. NAO avançar para E2E.
+
+#### 3.1.5 Teste E2E da Fase (Playwright) (PASSO 7)
 
 **Executar APENAS se a fase tem UI/rotas** (pular para fases de infra, schema, config).
 
@@ -1305,7 +1685,118 @@ Se regressao encontrada:
 Smoke test regressao: {N} rotas anteriores | {OK} ok | {REGRESS} regressoes [{FIXED} corrigidas]
 ```
 
-#### 3.1.6 Marcar Fase Completa
+#### 3.1.6 GOVERNANCE OBRIGATORIA — Chief-Engineer Aprova Fase
+
+**ESTE PASSO E OBRIGATORIO E NAO PODE SER PULADO.**
+**Referencia:** `@~/.claude/up/workflows/governance.md`
+
+Antes de marcar a fase como completa, o chief-engineer DEVE aprovar o trabalho consolidado da fase inteira.
+
+```python
+Agent(
+  subagent_type="up-chief-engineer",
+  prompt=f"""
+    Revisar Fase {phase_number} consolidada.
+    
+    <governance_compressed>
+    DECISOES: APPROVE | REQUEST_CHANGES | ESCALATE_CEO
+    REWORK (chief → supervisor): max 2 ciclos, depois escala pro CEO
+    
+    VERIFICAR:
+    1. Coerencia entre plano, execucao e verificacao
+    2. Drift arquitetural (decisoes que divergem do SYSTEM-DESIGN.md)
+    3. Debito tecnico acumulado (forced approvals)
+    4. Qualidade geral da fase (code review score + verificacao)
+    5. Requisitos da fase atendidos vs REQUIREMENTS.md
+    LOG OBRIGATORIO: .plano/governance/approvals.log
+    </governance_compressed>
+    
+    <files_to_read>
+    - {PHASE_DIR}/*-PLAN.md (planos)
+    - {PHASE_DIR}/*-SUMMARY.md (o que foi implementado)
+    - {PHASE_DIR}/*-VERIFICATION.md (resultado da verificacao)
+    - {PHASE_DIR}/CODE-REVIEW.md (se existir)
+    - .plano/governance/approvals.log (decisoes de supervisores)
+    - .plano/governance/technical-debt.log (se existir)
+    - .plano/SYSTEM-DESIGN.md (arquitetura original)
+    - .plano/REQUIREMENTS.md (requisitos)
+    
+    Sob demanda apenas:
+    - $HOME/.claude/up/references/governance-rules.md
+    - $HOME/.claude/up/references/rework-limits.md
+    </files_to_read>
+    
+    Consolidar tudo e decidir: APPROVE | REQUEST_CHANGES | ESCALATE_CEO
+    
+    **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+    Escrever sua decisao no approvals.log:
+    ```bash
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | chief-engineer | {DECISAO} | {motivo_resumido}" >> .plano/governance/approvals.log
+    ```
+    Sem este log, o GATE E vai bloquear o avanço do builder.
+  """
+)
+```
+
+**Se APPROVE:** Verificar que approvals.log foi escrito. Prosseguir para GATE E.
+
+**Se REQUEST_CHANGES:**
+- Chief identifica area problematica e supervisor responsavel
+- Re-spawn supervisor correspondente com feedback do chief (max 2 ciclos chief ← supervisor)
+- Supervisor coordena rework com operacional
+- Chief re-revisa e loga novamente em approvals.log
+
+**Se ESCALATE_CEO:**
+- Spawnar CEO para alertar dono
+- CEO usa severidade: CRITICO (sempre interrompe) ou IMPORTANTE (registra)
+
+#### --- GATE E: Verificar TODA governanca antes de marcar completa ---
+
+**EXECUTAR OBRIGATORIAMENTE — este e o gate FINAL da fase:**
+
+```bash
+echo "=== GATE E: Verificacao FINAL de governanca (Fase ${PHASE_NUMBER}) ==="
+echo ""
+
+# Verificar 3 entries obrigatorias no approvals.log
+EXEC_OK=$(grep -c "phase-${PHASE_NUMBER}.*execution-supervisor" .plano/governance/approvals.log 2>/dev/null)
+VERIF_OK=$(grep -c "phase-${PHASE_NUMBER}.*verification-supervisor" .plano/governance/approvals.log 2>/dev/null)
+CHIEF_OK=$(grep -c "phase-${PHASE_NUMBER}.*chief-engineer" .plano/governance/approvals.log 2>/dev/null)
+
+# Verificar artefatos obrigatorios
+SUMMARY_OK=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
+VERIF_FILE_OK=$(ls ${PHASE_DIR}/*-VERIFICATION.md 2>/dev/null | wc -l)
+
+PASS=true
+
+[ "$SUMMARY_OK" -eq 0 ] && echo "FALHA: Sem SUMMARY.md" && PASS=false
+[ "$VERIF_FILE_OK" -eq 0 ] && echo "FALHA: Sem VERIFICATION.md" && PASS=false
+[ "$EXEC_OK" -eq 0 ] && echo "FALHA: execution-supervisor NAO rodou" && PASS=false
+[ "$VERIF_OK" -eq 0 ] && echo "FALHA: verification-supervisor NAO rodou" && PASS=false
+[ "$CHIEF_OK" -eq 0 ] && echo "FALHA: chief-engineer NAO rodou" && PASS=false
+
+if [ "$PASS" = false ]; then
+  echo ""
+  echo "GATE E FALHOU: Fase ${PHASE_NUMBER} NAO pode ser marcada como completa."
+  echo "Voltar e executar os passos faltantes."
+  echo ""
+  echo "Checklist obrigatorio:"
+  echo "  [$([ $SUMMARY_OK -gt 0 ] && echo 'x' || echo ' ')] SUMMARY.md existe"
+  echo "  [$([ $EXEC_OK -gt 0 ] && echo 'x' || echo ' ')] execution-supervisor logou"
+  echo "  [$([ $VERIF_FILE_OK -gt 0 ] && echo 'x' || echo ' ')] VERIFICATION.md existe"
+  echo "  [$([ $VERIF_OK -gt 0 ] && echo 'x' || echo ' ')] verification-supervisor logou"
+  echo "  [$([ $CHIEF_OK -gt 0 ] && echo 'x' || echo ' ')] chief-engineer logou"
+  exit 1
+else
+  echo "GATE E OK: Todos 5 checks passaram. Fase pode ser marcada como completa."
+fi
+```
+
+**Se GATE E falhou:** PARAR. Ler o checklist e executar os passos faltantes. NAO marcar fase como completa sem todos os 5 checks.
+
+#### 3.1.6.1 Marcar Fase Completa (PASSO 9)
+
+**So atingir este passo apos GATE E passar (todos 5 checks OK).**
 
 ```bash
 COMPLETION=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase complete "${PHASE_NUMBER}")
@@ -1993,7 +2484,6 @@ Antes do Delivery, o `up-delivery-auditor` valida que o processo inteiro foi com
 ```python
 Agent(
   subagent_type="up-delivery-auditor",
-  model="opus",
   prompt="""
     Auditar processo de entrega do projeto.
     
@@ -2227,7 +2717,6 @@ Delegar apresentacao final ao CEO:
 ```python
 Agent(
   subagent_type="up-project-ceo",
-  model="opus",
   prompt="""
     Apresentar resultado final do projeto ao dono.
     
@@ -2429,6 +2918,7 @@ Mesmo loop do full (3.1.1 → 3.1.5), mas:
 - **Sem reassessment** (poucas fases)
 - **Sem captures** (sessao curta)
 - **COM E2E Playwright** (se tem UI)
+- **Governanca LIGHT:** execution-supervisor roda (max 1 ciclo rework). Chief-engineer NAO roda. Verification-supervisor NAO roda.
 
 Para cada fase no ROADMAP:
 
@@ -2469,6 +2959,58 @@ Retornar: ## PLANNING COMPLETE
 #### L3.2 Executar Fase
 
 Mesmo processo do full — spawnar up-executor por wave.
+
+**GATE LIGHT A — Verificar SUMMARY existe:**
+```bash
+SUMMARY_COUNT=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
+[ "$SUMMARY_COUNT" -eq 0 ] && echo "GATE FALHOU: Sem SUMMARY" && exit 1
+```
+
+#### L3.2.1 GOVERNANCE LIGHT — Execution Supervisor
+
+**OBRIGATORIO mesmo no modo light.** Roda com max 1 ciclo de rework (vs 3 no full).
+**Este passo NAO pode ser colapsado com a execucao. DEVE ser um Agent() SEPARADO.**
+
+```bash
+mkdir -p .plano/governance
+```
+
+```python
+Agent(
+  subagent_type="up-execution-supervisor",
+  prompt=f"""
+    Revisar execucao da Fase {phase_number} (modo light — 1 ciclo max).
+    
+    <governance_compressed>
+    DECISOES: APPROVE | REQUEST_CHANGES
+    REWORK: max 1 ciclo, depois forca approval com debito
+    NUNCA APROVAR: stub/placeholder, falta de wiring, claim sem backing
+    </governance_compressed>
+    
+    <files_to_read>
+    - {PHASE_DIR}/*-PLAN.md
+    - {PHASE_DIR}/*-SUMMARY.md
+    - git diff (use Bash)
+    </files_to_read>
+    
+    Decisao: APPROVE | REQUEST_CHANGES
+    
+    **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+    ```bash
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | execution-supervisor | {DECISAO} | {motivo}" >> .plano/governance/approvals.log
+    ```
+  """
+)
+```
+
+**GATE LIGHT B — Verificar supervisor logou:**
+```bash
+EXEC_OK=$(grep -c "phase-${PHASE_NUMBER}.*execution-supervisor" .plano/governance/approvals.log 2>/dev/null)
+[ "$EXEC_OK" -eq 0 ] && echo "GATE FALHOU: execution-supervisor NAO rodou. Spawnar agora." && exit 1
+```
+
+**Se APPROVE:** Prosseguir.
+**Se REQUEST_CHANGES:** Re-spawn specialist (1 ciclo). Se ainda falha: forced approval com debito.
 
 #### L3.3 Verificar Fase
 
@@ -2581,9 +3123,11 @@ Quer mais? /up:modo-builder "proxima feature"
 **Light mode success criteria:**
 - [ ] .plano/ criado com PROJECT.md, ROADMAP.md, REQUIREMENTS.md
 - [ ] Todas fases executadas com commits atomicos
+- [ ] Execution-supervisor revisou CADA fase (GOVERNANCE OBRIGATORIA — 1 ciclo max)
 - [ ] Verificador rodou em cada fase (NAO quick check)
 - [ ] E2E Playwright rodou em fases com UI
 - [ ] DCRV light (1 ciclo) rodou em cada fase com UI/API
+- [ ] Governance logs em .plano/governance/approvals.log
 - [ ] Resumo final exibido com metricas
 
 </light_process>
@@ -2647,8 +3191,12 @@ Com 1M de contexto, a maioria dos projetos cabe sem /clear. Mas monitore:
 - [ ] Estagio 2: Requisitos completos (50-100 requisitos, 5 camadas)
 - [ ] Estagio 3: Todas as fases planejadas
 - [ ] Estagio 3: Todas as fases executadas (com specialist routing)
+- [ ] Estagio 3: Execution-supervisor revisou CADA fase (GOVERNANCE OBRIGATORIA)
 - [ ] Estagio 3: Reflect (code review) apos cada fase
 - [ ] Estagio 3: Todas as fases verificadas
+- [ ] Estagio 3: Verification-supervisor revisou CADA verificacao (GOVERNANCE OBRIGATORIA)
+- [ ] Estagio 3: Chief-engineer aprovou CADA fase consolidada (GOVERNANCE OBRIGATORIA)
+- [ ] Estagio 3: Governance logs em .plano/governance/approvals.log
 - [ ] Estagio 3: Fases com UI testadas via Playwright (E2E-RESULTS.md)
 - [ ] Estagio 3: Bugs E2E corrigidos (quando possivel)
 - [ ] Estagio 3: DCRV por fase executado (Visual Critic + Exhaustive Tester + API Tester)
@@ -2684,5 +3232,6 @@ Com 1M de contexto, a maioria dos projetos cabe sem /clear. Mas monitore:
 - [ ] Estagio 5: Resumo apresentado ao usuario
 
 **Minimo viavel:** Estagios 1-3 + Estagio 5. Estagios 4 (Polish) e E2E sao bonus.
+**INEGOCIAVEL:** Governanca no Estagio 3 (execution-supervisor + verification-supervisor + chief-engineer) NUNCA e bonus — e obrigatoria.
 
 </success_criteria>

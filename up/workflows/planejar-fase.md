@@ -21,14 +21,21 @@ Parse JSON: `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_na
 
 ## 2. Parsear Argumentos
 
-Extrair do $ARGUMENTS: numero da fase, flags (`--pesquisar`, `--sem-pesquisa`, `--gaps`, `--auto`).
+Extrair do $ARGUMENTS: fase (numero OU descricao), flags (`--pesquisar`, `--sem-pesquisa`, `--gaps`, `--auto`).
 
-**Se sem numero da fase:** Detectar proxima fase nao planejada do roteiro.
+**Deteccao numero vs descricao:**
+- Se o argumento (sem flags) e um numero inteiro (ex: "3", "12"): tratar como numero de fase
+- Se o argumento contem letras (ex: "sistema de auth", "Adicionar pagamentos"): tratar como descricao de fase nova
+- Se vazio: detectar proxima fase nao planejada do roteiro
 
-**Se `phase_found` = false:** Validar fase existe no ROADMAP.md. Se valida, criar diretorio:
+**Se sem numero/descricao:** Detectar proxima fase nao planejada do roteiro.
+
+**Se `phase_found` = false E argumento e numero:** Validar fase existe no ROADMAP.md. Se valida, criar diretorio:
 ```bash
 mkdir -p ".plano/fases/${padded_phase}-${phase_slug}"
 ```
+
+**Se argumento e descricao:** Prosseguir para passo 3 (que tratara a criacao se necessario).
 
 ## 3. Validar Fase
 
@@ -36,8 +43,59 @@ mkdir -p ".plano/fases/${padded_phase}-${phase_slug}"
 PHASE_INFO=$(node "$HOME/.claude/up/bin/up-tools.cjs" roadmap get-phase "${PHASE}")
 ```
 
-**Se `found` = false:** Erro com fases disponiveis.
-**Se `found` = true:** Extrair `phase_number`, `phase_name`, `goal`.
+**Se `found` = true:** Extrair `phase_number`, `phase_name`, `goal`. Prosseguir para passo 4.
+
+**Se `found` = false:** A fase nao existe no ROADMAP. Duas situacoes:
+
+**3a. O argumento e um NUMERO (ex: `/up:planejar-fase 5`):**
+
+Erro --- fase numerica que nao existe no roadmap indica engano do usuario.
+
+```
+ERRO: Fase {N} nao existe no roadmap.
+Fases disponiveis: [listar]
+Para adicionar fase nova: /up:planejar-fase "descricao da fase"
+```
+
+**3b. O argumento e uma DESCRICAO (ex: `/up:planejar-fase "sistema de notificacoes"`):**
+
+Perguntar se quer adicionar ao roadmap:
+
+```
+AskUserQuestion(
+  header: "Fase nao existe no roadmap",
+  question: "A fase \"{descricao}\" nao existe no roadmap. Quer adicionar e ja planejar?",
+  options: [
+    { label: "Sim, adicionar e planejar", description: "Cria a fase no ROADMAP.md e ja gera os planos" },
+    { label: "Nao", description: "Cancelar" }
+  ]
+)
+```
+
+Se "Sim": criar a fase via up-tools e continuar:
+
+```bash
+RESULT=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase add "${descricao}")
+```
+
+Extrair `phase_number`, `phase_name`, `slug`, `directory` do resultado.
+Atualizar STATE.md (mesma logica do antigo adicionar-fase):
+
+```
+Em "## Contexto Acumulado" → "### Evolucao do Roadmap" adicionar:
+- Fase {N} adicionada: {descricao}
+```
+
+Re-rodar init para obter paths corretos:
+
+```bash
+INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init planejar-fase "${phase_number}")
+if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
+```
+
+Prosseguir para passo 4 com a fase recem-criada.
+
+Se "Nao": sair.
 
 ## 4. Carregar CONTEXT.md
 

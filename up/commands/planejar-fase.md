@@ -1,7 +1,7 @@
 ---
 name: up:planejar-fase
 description: Planejar fase com research inline e self-check
-argument-hint: "[fase] [--pesquisar] [--sem-pesquisa] [--auto] [--gaps]"
+argument-hint: "[fase|\"descricao\"] [--pesquisar] [--sem-pesquisa] [--auto] [--gaps]"
 allowed-tools:
   - Read
   - Write
@@ -26,7 +26,9 @@ Create executable phase plans (PLAN.md files) for a roadmap phase with integrate
 </execution_context>
 
 <context>
-Phase number: $ARGUMENTS (optional -- auto-detects next unplanned phase if omitted)
+Phase number OR description: $ARGUMENTS (optional -- auto-detects next unplanned phase if omitted)
+
+If a description is given instead of a number and the phase doesn't exist in the roadmap, offers to create it automatically (absorbs /up:adicionar-fase functionality).
 
 **Flags:**
 - `--pesquisar` -- Force re-research even if RESEARCH.md exists

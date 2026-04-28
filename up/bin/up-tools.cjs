@@ -12,7 +12,7 @@
  *   state load|get|update|advance-plan|update-progress|add-decision|record-session|record-metric|snapshot|save-session
  *   roadmap get-phase|analyze|update-plan-progress
  *   phase add|remove|find|complete|generate-from-report
- *   config get|set
+ *   config get|set|resolve-model|list-presets
  *   requirements mark-complete
  *   commit <msg> --files
  *   progress [json|table|bar]
@@ -26,7 +26,9 @@
 const fs = require('fs');
 const path = require('path');
 const {
-  output, error, loadConfig, isGitIgnored, execGit,
+  output, error, loadConfig, resolveAgentModel,
+  MODEL_PRESETS, AGENT_ROLE_MAP,
+  isGitIgnored, execGit,
   escapeRegex, normalizePhaseName, comparePhaseNum,
   findPhaseInternal, getRoadmapPhaseInternal,
   pathExistsInternal, generateSlugInternal, toPosixPath,
@@ -314,8 +316,12 @@ function main() {
         cmdConfigGet(cwd, args[2], raw);
       } else if (sub === 'set') {
         cmdConfigSet(cwd, args[2], args[3], raw);
+      } else if (sub === 'resolve-model') {
+        cmdConfigResolveModel(cwd, args[2], raw);
+      } else if (sub === 'list-presets') {
+        cmdConfigListPresets(raw);
       } else {
-        error('Unknown config subcommand. Available: get, set');
+        error('Unknown config subcommand. Available: get, set, resolve-model, list-presets');
       }
       break;
     }
@@ -2332,6 +2338,16 @@ function cmdConfigSet(cwd, keyPath, value, raw) {
   } catch (err) {
     error('Failed to write config.json: ' + err.message);
   }
+}
+
+function cmdConfigResolveModel(cwd, agentName, raw) {
+  if (!agentName) error('Usage: config resolve-model <agent-name>');
+  const model = resolveAgentModel(cwd, agentName);
+  output({ agent: agentName, model: model, role: AGENT_ROLE_MAP[agentName] || 'unknown' }, raw, model || 'default');
+}
+
+function cmdConfigListPresets(raw) {
+  output(MODEL_PRESETS, raw, JSON.stringify(MODEL_PRESETS, null, 2));
 }
 
 // =====================================================================

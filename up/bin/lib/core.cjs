@@ -46,6 +46,101 @@ function safeReadFile(filePath) {
   }
 }
 
+// --- Model presets ---
+
+const MODEL_PRESETS = {
+  'opus-completo': {
+    descricao: 'Opus em tudo (maximo qualidade, maximo custo)',
+    planning: 'opus',
+    execution: 'opus',
+    governance: 'opus',
+    review: 'opus',
+  },
+  'hibrido': {
+    descricao: 'Opus planeja e governa, Sonnet executa (melhor custo-beneficio)',
+    planning: 'opus',
+    execution: 'sonnet',
+    governance: 'opus',
+    review: 'opus',
+  },
+  'sonnet-completo': {
+    descricao: 'Sonnet em tudo (rapido e economico)',
+    planning: 'sonnet',
+    execution: 'sonnet',
+    governance: 'sonnet',
+    review: 'sonnet',
+  },
+  'economico': {
+    descricao: 'Sonnet planeja e executa, Haiku governa (maximo economia)',
+    planning: 'sonnet',
+    execution: 'sonnet',
+    governance: 'haiku',
+    review: 'sonnet',
+  },
+  'custom': {
+    descricao: 'Configuracao manual por papel',
+    planning: null,
+    execution: null,
+    governance: null,
+    review: null,
+  },
+};
+
+// Map agent names to their model role
+const AGENT_ROLE_MAP = {
+  // Planning
+  'up-planejador': 'planning',
+  'up-arquiteto': 'planning',
+  'up-product-analyst': 'planning',
+  'up-system-designer': 'planning',
+  'up-roteirista': 'planning',
+  'up-pesquisador-projeto': 'planning',
+  'up-sintetizador': 'planning',
+  'up-mapeador-codigo': 'planning',
+  'up-requirements-validator': 'planning',
+  // Execution
+  'up-executor': 'execution',
+  'up-frontend-specialist': 'execution',
+  'up-backend-specialist': 'execution',
+  'up-database-specialist': 'execution',
+  'up-devops-agent': 'execution',
+  'up-technical-writer': 'execution',
+  'up-depurador': 'execution',
+  // Governance (supervisors + chiefs + CEO)
+  'up-execution-supervisor': 'governance',
+  'up-verification-supervisor': 'governance',
+  'up-planning-supervisor': 'governance',
+  'up-quality-supervisor': 'governance',
+  'up-audit-supervisor': 'governance',
+  'up-product-supervisor': 'governance',
+  'up-architecture-supervisor': 'governance',
+  'up-operations-supervisor': 'governance',
+  'up-chief-engineer': 'governance',
+  'up-chief-architect': 'governance',
+  'up-chief-quality': 'governance',
+  'up-chief-operations': 'governance',
+  'up-chief-product': 'governance',
+  'up-project-ceo': 'governance',
+  'up-delivery-auditor': 'governance',
+  'up-planning-auditor': 'governance',
+  // Review & Testing
+  'up-verificador': 'review',
+  'up-blind-validator': 'review',
+  'up-code-reviewer': 'review',
+  'up-security-reviewer': 'review',
+  'up-visual-critic': 'review',
+  'up-exhaustive-tester': 'review',
+  'up-api-tester': 'review',
+  'up-qa-agent': 'review',
+  'up-auditor-ux': 'review',
+  'up-auditor-performance': 'review',
+  'up-auditor-modernidade': 'review',
+  'up-sintetizador-melhorias': 'review',
+  'up-analista-codigo': 'review',
+  'up-pesquisador-mercado': 'review',
+  'up-consolidador-ideias': 'review',
+};
+
 function loadConfig(cwd) {
   const configPath = path.join(cwd, '.plano', 'config.json');
   const defaults = {
@@ -64,10 +159,40 @@ function loadConfig(cwd) {
       paralelizacao: parsed.paralelizacao ?? defaults.paralelizacao,
       commit_docs: parsed.commit_docs ?? defaults.commit_docs,
       auto_advance: parsed.auto_advance ?? defaults.auto_advance,
+      modelos: parsed.modelos ?? null,
     };
   } catch {
     return defaults;
   }
+}
+
+/**
+ * Resolve the model for a given agent based on config.
+ * Returns model string (opus/sonnet/haiku) or null (use runtime default).
+ */
+function resolveAgentModel(cwd, agentName) {
+  const config = loadConfig(cwd);
+  const modelConfig = config.modelos;
+
+  // No model config = runtime decides (v0.6.0 default behavior)
+  if (!modelConfig) return null;
+
+  const preset = modelConfig.preset;
+  if (!preset || preset === 'runtime') return null;
+
+  // Custom: check per-role overrides
+  const role = AGENT_ROLE_MAP[agentName];
+  if (!role) return null;
+
+  if (preset === 'custom') {
+    return modelConfig[role] || null;
+  }
+
+  // Named preset
+  const presetConfig = MODEL_PRESETS[preset];
+  if (!presetConfig) return null;
+
+  return presetConfig[role] || null;
 }
 
 // --- Git utilities ---
@@ -256,6 +381,9 @@ module.exports = {
   error,
   safeReadFile,
   loadConfig,
+  resolveAgentModel,
+  MODEL_PRESETS,
+  AGENT_ROLE_MAP,
   isGitIgnored,
   execGit,
   escapeRegex,

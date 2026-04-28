@@ -1,6 +1,6 @@
 ---
 name: up:adicionar-fase
-description: Adicionar fase ao final do roadmap
+description: "[DEPRECADO] Use /up:planejar-fase \"descricao\" — adiciona e ja planeja"
 argument-hint: "<descricao>"
 allowed-tools:
   - Read
@@ -10,24 +10,38 @@ allowed-tools:
   - Glob
 ---
 <objective>
-Add a new phase to the end of the project roadmap.
+**DEPRECADO desde v0.9.0.** Este comando foi absorvido pelo `/up:planejar-fase`.
 
-**Flow:** Parse description -> Call `up-tools.cjs phase add` -> Update STATE.md -> Present result
+Use: `/up:planejar-fase "descricao da fase"` — ele adiciona ao roadmap E ja planeja.
+
+Se voce so quer adicionar ao roadmap SEM planejar, use diretamente:
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" phase add "descricao"
+```
 </objective>
 
-<execution_context>
-@~/.claude/up/workflows/adicionar-fase.md
-</execution_context>
-
-<context>
-Phase description: $ARGUMENTS
-
-Adds a new phase to ROADMAP.md at the end of the existing phase list.
-</context>
-
 <process>
-1. Parse the phase description from arguments.
-2. Call `up-tools.cjs phase add` with the description.
-3. Update STATE.md to reflect the new phase.
-4. Present the result showing the new roadmap state.
+1. Informar ao usuario que este comando foi absorvido:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ UP > COMANDO DEPRECADO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/up:adicionar-fase foi absorvido pelo /up:planejar-fase.
+
+Agora voce pode fazer tudo de uma vez:
+
+  /up:planejar-fase "descricao da fase"
+
+Isso adiciona a fase ao roadmap E ja gera os planos.
+
+Redirecionando...
+```
+
+2. Redirecionar para planejar-fase com os mesmos argumentos:
+
+```
+Skill(skill="up:planejar-fase", args="$ARGUMENTS")
+```
 </process>

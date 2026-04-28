@@ -15,12 +15,47 @@ Diferenca do builder:
 - Builder: planeja + executa em sequencia, no mesmo runtime
 - Build: SO executa, le PLAN-READY.md gerado anteriormente (mesmo runtime ou outro)
 
-**Sem model routing** — runtime decide o modelo.
+**Model routing configuravel (v0.9.0+):**
+Antes de spawnar qualquer agente, resolver o modelo:
+```bash
+MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config resolve-model {agent-name} --raw)
+```
+Se `default`: nao passar `model=`. Se `opus/sonnet/haiku`: passar `model="{MODEL}"` no spawn.
+Isso permite que o usuario configure via `/up:configurar` quais agentes usam qual modelo.
+Sem configuracao, todos usam o modelo do runtime (comportamento v0.6.0).
 
 **Re-plan local permitido (max 2):**
 Se durante execucao o execution-supervisor detectar que um plano esta inviavel,
 ele pode pedir REQUEST_REPLAN. O planejador local refaz o plano daquela fase.
 NUNCA volta pro runtime que planejou originalmente.
+
+**REGRA ANTI-COLAPSO — SEPARACAO RIGIDA DE AGENTES:**
+
+O LLM tende a otimizar colapsando passos — dar ao mesmo agente tarefas de executar + verificar,
+ou pular supervisores por parecer "overhead". Isso e PROIBIDO.
+
+**Cada passo do Stage 3 DEVE ser um Agent() SEPARADO.**
+**NUNCA combinar dois passos em um unico spawn.**
+**NUNCA instruir um agente a fazer o trabalho de outro.**
+
+Exemplo do que NAO fazer:
+```
+# ERRADO — combina execucao + verificacao
+Agent(subagent_type="up-executor", prompt="Executar E verificar a fase...")
+
+# ERRADO — pula supervisor
+# (executar e marcar completa sem passar por execution-supervisor)
+```
+
+**Mecanismo de enforcement: GATES verificaveis.**
+Cada supervisor DEVE escrever no `.plano/governance/approvals.log`.
+Cada GATE verifica que o log tem a entry esperada.
+Se o gate falha, NAO avance — spawne o agente faltante.
+
+**Pipeline obrigatorio por fase:**
+```
+Specialist → [GATE A] → EXECUTION-SUPERVISOR → [GATE B] → Verificador → [GATE C] → VERIFICATION-SUPERVISOR → [GATE D] → E2E + DCRV → CHIEF-ENGINEER → [GATE E] → Marcar completa
+```
 </core_principle>
 
 <process>
@@ -152,9 +187,14 @@ Agent(
 )
 ```
 
-## Estagio 3: BUILD (loop por fase)
+## Estagio 3: BUILD (loop por fase — com GATES verificaveis)
 
-**Mesmo processo do builder.md secao Estagio 3, mas SEM model routing.**
+**Inicializar governance:**
+```bash
+mkdir -p .plano/governance
+touch .plano/governance/approvals.log
+echo "# Build governance initialized at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .plano/governance/approvals.log
+```
 
 Para cada fase em ROADMAP.md (em ordem):
 
@@ -173,7 +213,7 @@ Ler o frontmatter do plano pra determinar qual specialist usar:
 - Database tasks → up-database-specialist
 - Misto → up-executor
 
-### 3.3 Spawnar Specialist
+### 3.3 Spawnar Specialist (PASSO 1 — Agent SEPARADO)
 
 ```python
 Agent(
@@ -230,7 +270,16 @@ Agent(
 )
 ```
 
-### 3.4 Execution Supervisor Revisa
+### --- GATE A: Verificar que execucao produziu artefatos ---
+
+```bash
+echo "=== GATE A: Verificando artefatos da execucao (Fase ${PHASE_NUMBER}) ==="
+SUMMARY_COUNT=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
+[ "$SUMMARY_COUNT" -eq 0 ] && echo "GATE A FALHOU: Nenhum SUMMARY.md. Re-executar specialist." && exit 1
+echo "GATE A OK: ${SUMMARY_COUNT} SUMMARY(s)"
+```
+
+### 3.4 Execution Supervisor Revisa (PASSO 2 — Agent SEPARADO)
 
 ```python
 Agent(
@@ -271,13 +320,28 @@ Agent(
     
     REQUEST_REPLAN: Se descobrir que o plano e fundamentalmente errado/inviavel.
                     Max 2 re-plans por projeto.
+    
+    **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+    ```bash
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | execution-supervisor | {{DECISAO}} | {{motivo}}" >> .plano/governance/approvals.log
+    ```
+    Sem este log, o GATE B vai bloquear o avanço.
   """
 )
 ```
 
+### --- GATE B: Verificar que execution-supervisor logou ---
+
+```bash
+echo "=== GATE B: Verificando governance da execucao (Fase ${PHASE_NUMBER}) ==="
+EXEC_ENTRY=$(grep "phase-${PHASE_NUMBER}.*execution-supervisor" .plano/governance/approvals.log 2>/dev/null | tail -1)
+[ -z "$EXEC_ENTRY" ] && echo "GATE B FALHOU: execution-supervisor NAO logou. Spawnar agora." && exit 1
+echo "GATE B OK: $EXEC_ENTRY"
+```
+
 ### 3.5 Processar Decisao do Supervisor
 
-**Se APPROVE:** prosseguir.
+**Se APPROVE:** prosseguir para verificacao.
 
 **Se REQUEST_CHANGES:** re-spawn specialist com feedback (max 3 ciclos).
 
@@ -292,7 +356,7 @@ else
   # Re-planejar fase localmente
   echo "REQUEST_REPLAN aprovado. Re-planejando fase {phase_number} localmente..."
   
-  # Spawnar planejador LOCAL
+  # Spawnar planejador LOCAL (Agent SEPARADO)
   Agent(
     subagent_type="up-planejador",
     prompt=f"""
@@ -307,13 +371,15 @@ else
   
   # Salvar como -PLAN-v2.md
   mv "$PLAN" "${PLAN%-PLAN.md}-PLAN-v1.md"
-  # novo plano vira PLAN principal
   
   # Registrar
   echo "$(date -u) | phase-{phase_number} | execution-supervisor | REPLAN | reason: {reason}" >> .plano/governance/replans.log
   
-  # Planning-supervisor revisa novo plano
-  Agent(subagent_type="up-planning-supervisor", ...)
+  # Planning-supervisor revisa novo plano (Agent SEPARADO)
+  Agent(subagent_type="up-planning-supervisor", prompt="""
+    Revisar re-plan da fase {phase_number}.
+    **OUTPUT OBRIGATORIO:** logar em .plano/governance/approvals.log
+  """)
   
   # Voltar pro 3.3 (re-spawn specialist)
 fi
@@ -321,27 +387,95 @@ fi
 
 **Se ESCALATE:** chief-engineer entra.
 
-### 3.6 Verificacao
+### 3.6 Verificacao (PASSO 3 — Agent SEPARADO)
 
 ```python
-Agent(subagent_type="up-verificador", ...)
-Agent(subagent_type="up-verification-supervisor", ...)
+Agent(subagent_type="up-verificador", prompt="Verificar fase {phase_number}...")
 ```
 
-### 3.7 E2E + DCRV
+### --- GATE C: Verificar que verificacao produziu artefatos ---
+
+```bash
+echo "=== GATE C: Verificando artefatos da verificacao (Fase ${PHASE_NUMBER}) ==="
+VERIF_COUNT=$(ls ${PHASE_DIR}/*-VERIFICATION.md 2>/dev/null | wc -l)
+[ "$VERIF_COUNT" -eq 0 ] && echo "GATE C FALHOU: Sem VERIFICATION.md. Spawnar verificador." && exit 1
+echo "GATE C OK: ${VERIF_COUNT} VERIFICATION(s)"
+```
+
+### 3.6.1 Verification Supervisor (PASSO 4 — Agent SEPARADO)
+
+```python
+Agent(subagent_type="up-verification-supervisor", prompt=f"""
+  Revisar verificacao da Fase {phase_number}.
+  Decisao: APPROVE | REQUEST_CHANGES | ESCALATE
+  
+  **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+  ```bash
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | verification-supervisor | {{DECISAO}} | {{motivo}}" >> .plano/governance/approvals.log
+  ```
+""")
+```
+
+### --- GATE D: Verificar que AMBOS supervisores logaram ---
+
+```bash
+echo "=== GATE D: Verificando governance completa (Fase ${PHASE_NUMBER}) ==="
+EXEC_OK=$(grep -c "phase-${PHASE_NUMBER}.*execution-supervisor" .plano/governance/approvals.log 2>/dev/null)
+VERIF_OK=$(grep -c "phase-${PHASE_NUMBER}.*verification-supervisor" .plano/governance/approvals.log 2>/dev/null)
+[ "$EXEC_OK" -eq 0 ] || [ "$VERIF_OK" -eq 0 ] && echo "GATE D FALHOU: supervisor faltante" && exit 1
+echo "GATE D OK: ambos supervisores logaram"
+```
+
+### 3.7 E2E + DCRV (PASSO 5)
 
 Ver builder.md secao 3.1.5 (E2E) e 3.1.5.1 (DCRV).
 
-### 3.8 Chief-engineer Aprova Fase
+### 3.8 Chief-engineer Aprova Fase (PASSO 6 — Agent SEPARADO)
 
 ```python
 Agent(
   subagent_type="up-chief-engineer",
-  prompt="Revisar Fase {phase_number} consolidada."
+  prompt=f"""
+    Revisar Fase {phase_number} consolidada.
+    Validar coerencia plano vs execucao vs verificacao.
+    Decidir: APPROVE | REQUEST_CHANGES | ESCALATE_CEO
+    
+    **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+    ```bash
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | chief-engineer | {{DECISAO}} | {{motivo}}" >> .plano/governance/approvals.log
+    ```
+  """
 )
 ```
 
+### --- GATE E: Verificar TODA governanca antes de marcar completa ---
+
+```bash
+echo "=== GATE E: Verificacao FINAL (Fase ${PHASE_NUMBER}) ==="
+SUMMARY_OK=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
+VERIF_FILE_OK=$(ls ${PHASE_DIR}/*-VERIFICATION.md 2>/dev/null | wc -l)
+EXEC_OK=$(grep -c "phase-${PHASE_NUMBER}.*execution-supervisor" .plano/governance/approvals.log 2>/dev/null)
+VERIF_OK=$(grep -c "phase-${PHASE_NUMBER}.*verification-supervisor" .plano/governance/approvals.log 2>/dev/null)
+CHIEF_OK=$(grep -c "phase-${PHASE_NUMBER}.*chief-engineer" .plano/governance/approvals.log 2>/dev/null)
+
+PASS=true
+[ "$SUMMARY_OK" -eq 0 ] && echo "FALHA: Sem SUMMARY.md" && PASS=false
+[ "$VERIF_FILE_OK" -eq 0 ] && echo "FALHA: Sem VERIFICATION.md" && PASS=false
+[ "$EXEC_OK" -eq 0 ] && echo "FALHA: execution-supervisor NAO rodou" && PASS=false
+[ "$VERIF_OK" -eq 0 ] && echo "FALHA: verification-supervisor NAO rodou" && PASS=false
+[ "$CHIEF_OK" -eq 0 ] && echo "FALHA: chief-engineer NAO rodou" && PASS=false
+
+if [ "$PASS" = false ]; then
+  echo "GATE E FALHOU: Voltar e executar passos faltantes."
+  exit 1
+else
+  echo "GATE E OK: Todos 5 checks passaram."
+fi
+```
+
 ### 3.9 Marcar Completa e Avancar
+
+**So apos GATE E passar.**
 
 ## Estagio 4: QUALITY GATE GLOBAL
 
@@ -422,10 +556,17 @@ Registro em `.plano/governance/replans.log`:
 - [ ] PLAN-READY.md existe e parseado
 - [ ] Validacao light passou (artefatos + planos existem)
 - [ ] CEO confirmou execucao
-- [ ] Todas fases executadas com supervisao
+- [ ] Governance inicializada (.plano/governance/approvals.log)
+- [ ] Todas fases executadas com SUMMARY.md (GATE A por fase)
+- [ ] Execution-supervisor revisou CADA fase (GATE B — logou em approvals.log)
+- [ ] Verificador produziu VERIFICATION.md por fase (GATE C)
+- [ ] Verification-supervisor revisou CADA verificacao (GATE D — logou em approvals.log)
+- [ ] Chief-engineer aprovou CADA fase (GATE E — logou em approvals.log)
+- [ ] GATE E passou para CADA fase (todos 5 checks OK)
 - [ ] Re-plans registrados (se houve)
 - [ ] Quality Gate global passou
 - [ ] Delivery audit aprovou
 - [ ] CEO apresentou resultado
 - [ ] PLAN-READY.md → PROJECT-COMPLETE.md
+- [ ] .plano/governance/approvals.log tem entries de TODOS supervisores e chiefs
 </success_criteria>

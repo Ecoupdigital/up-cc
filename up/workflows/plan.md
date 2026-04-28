@@ -17,8 +17,39 @@ Diferenca do builder:
 
 Por que? Para permitir que o build rode em outro runtime (ex: planeja em Claude Code, executa em OpenCode).
 
-**Sem model routing** — runtime decide o modelo.
+**Model routing configuravel (v0.9.0+):**
+Antes de spawnar qualquer agente, resolver o modelo:
+```bash
+MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config resolve-model {agent-name} --raw)
+```
+Se `default`: nao passar `model=`. Se `opus/sonnet/haiku`: passar `model="{MODEL}"` no spawn.
+Isso permite que o usuario configure via `/up:configurar` quais agentes usam qual modelo.
+Sem configuracao, todos usam o modelo do runtime (comportamento v0.6.0).
+
 **Sonnet-ready obrigatorio** — todos planos em nivel maximo de detalhe.
+
+**REGRA ANTI-COLAPSO — SEPARACAO RIGIDA DE AGENTES:**
+
+O LLM tende a otimizar colapsando passos — dar ao mesmo agente tarefas de analisar + projetar,
+ou pular supervisores por parecer "overhead". Isso e PROIBIDO.
+
+**Cada passo abaixo DEVE ser um Agent() SEPARADO.**
+**NUNCA combinar dois passos em um unico spawn.**
+**NUNCA instruir um agente a fazer o trabalho de outro.**
+
+Exemplo do que NAO fazer:
+```
+# ERRADO — combina product-analyst + system-designer
+Agent(subagent_type="up-product-analyst", prompt="Analisar produto E projetar sistema...")
+
+# ERRADO — pula supervisor
+Agent(subagent_type="up-arquiteto", prompt="Estruturar e validar...")
+```
+
+**Mecanismo de enforcement: GATES verificaveis.**
+Cada supervisor DEVE escrever no `.plano/governance/approvals.log`.
+Cada GATE verifica que o log tem a entry esperada.
+Se o gate falha, NAO avance — spawne o agente faltante.
 </core_principle>
 
 <process>
@@ -95,34 +126,112 @@ fi
 
 **Brownfield:** spawnar 4 mapeadores em paralelo (ver builder.md secao similar).
 
-### 2.3 Pipeline de Arquitetura
+### 2.3 Pipeline de Arquitetura (com GATES verificaveis)
 
-Spawnar em sequencia:
+**Inicializar governance:**
+```bash
+mkdir -p .plano/governance
+touch .plano/governance/approvals.log
+echo "# Governance initialized at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .plano/governance/approvals.log
+```
+
+Spawnar em sequencia — CADA UM e um Agent() SEPARADO:
 
 ```python
-# Product Analyst
+# PASSO 1: Product Analyst
 Agent(subagent_type="up-product-analyst", prompt="...")
+```
 
-# Product-supervisor revisa
-Agent(subagent_type="up-product-supervisor", prompt="...")
+```bash
+# GATE: PRODUCT-ANALYSIS.md existe?
+[ -f .plano/PRODUCT-ANALYSIS.md ] && echo "OK" || { echo "FALHOU: re-spawnar product-analyst"; exit 1; }
+```
 
-# System Designer
+```python
+# PASSO 2: Product-supervisor revisa
+Agent(subagent_type="up-product-supervisor", prompt="""
+  ...
+  **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+  ```bash
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | architecture | product-supervisor | {DECISAO} | {motivo}" >> .plano/governance/approvals.log
+  ```
+""")
+```
+
+```bash
+# GATE: product-supervisor logou?
+grep -q "product-supervisor" .plano/governance/approvals.log || { echo "FALHOU: spawnar product-supervisor"; exit 1; }
+```
+
+```python
+# PASSO 3: System Designer
 Agent(subagent_type="up-system-designer", prompt="...")
+```
 
-# Architecture-supervisor revisa
-Agent(subagent_type="up-architecture-supervisor", prompt="...")
+```bash
+# GATE: SYSTEM-DESIGN.md existe?
+[ -f .plano/SYSTEM-DESIGN.md ] && echo "OK" || { echo "FALHOU: re-spawnar system-designer"; exit 1; }
+```
 
-# Arquiteto
+```python
+# PASSO 4: Architecture-supervisor revisa system design
+Agent(subagent_type="up-architecture-supervisor", prompt="""
+  ...
+  **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+  ```bash
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | architecture | architecture-supervisor | {DECISAO} | system-design" >> .plano/governance/approvals.log
+  ```
+""")
+```
+
+```bash
+# GATE: architecture-supervisor logou para system-design?
+grep -q "architecture-supervisor.*system-design" .plano/governance/approvals.log || { echo "FALHOU: spawnar architecture-supervisor"; exit 1; }
+```
+
+```python
+# PASSO 5: Arquiteto
 Agent(subagent_type="up-arquiteto", prompt="...")
+```
 
-# Architecture-supervisor revisa
-Agent(subagent_type="up-architecture-supervisor", prompt="...")
+```bash
+# GATE: PROJECT.md + ROADMAP.md + REQUIREMENTS.md existem?
+[ -f .plano/PROJECT.md ] && [ -f .plano/ROADMAP.md ] && [ -f .plano/REQUIREMENTS.md ] && echo "OK" || { echo "FALHOU: re-spawnar arquiteto"; exit 1; }
+```
 
-# Requirements validator
+```python
+# PASSO 6: Architecture-supervisor revisa artefatos do arquiteto
+Agent(subagent_type="up-architecture-supervisor", prompt="""
+  ...
+  **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+  ```bash
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | architecture | architecture-supervisor | {DECISAO} | architect-artifacts" >> .plano/governance/approvals.log
+  ```
+""")
+```
+
+```bash
+# GATE: architecture-supervisor logou para architect-artifacts?
+grep -q "architecture-supervisor.*architect-artifacts" .plano/governance/approvals.log || { echo "FALHOU: spawnar architecture-supervisor"; exit 1; }
+```
+
+```python
+# PASSO 7: Requirements validator
 Agent(subagent_type="up-requirements-validator", prompt="...")
 
-# Chief-architect aprova arquitetura global
-Agent(subagent_type="up-chief-architect", prompt="...")
+# PASSO 8: Chief-architect aprova arquitetura global
+Agent(subagent_type="up-chief-architect", prompt="""
+  ...
+  **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+  ```bash
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | architecture | chief-architect | {DECISAO} | global-architecture" >> .plano/governance/approvals.log
+  ```
+""")
+```
+
+```bash
+# GATE FINAL DE ARQUITETURA: chief-architect logou?
+grep -q "chief-architect.*global-architecture" .plano/governance/approvals.log || { echo "FALHOU: spawnar chief-architect"; exit 1; }
 ```
 
 ### 2.4 Gate Pos-Arquitetura
@@ -142,10 +251,10 @@ Agent(subagent_type="up-chief-architect", prompt="...")
 PHASES=$(node "$HOME/.claude/up/bin/up-tools.cjs" roadmap list-phases)
 ```
 
-Para cada fase:
+Para cada fase — **planejador e supervisor sao SEMPRE agentes SEPARADOS:**
 
 ```python
-# Planejador (Sonnet-ready obrigatorio)
+# PASSO A: Planejador (Sonnet-ready obrigatorio)
 Agent(
   subagent_type="up-planejador",
   prompt=f"""
@@ -180,8 +289,17 @@ Agent(
     Gerar 5-8 planos com nivel maximo de detalhe.
   """
 )
+```
 
-# Planning-supervisor revisa
+```bash
+# GATE: Planos da fase existem?
+PLAN_COUNT=$(ls .plano/fases/${PHASE_DIR}/*-PLAN.md 2>/dev/null | wc -l)
+[ "$PLAN_COUNT" -eq 0 ] && echo "GATE FALHOU: Nenhum PLAN.md para fase ${phase_number}. Re-spawnar planejador." && exit 1
+echo "OK: ${PLAN_COUNT} planos gerados para fase ${phase_number}"
+```
+
+```python
+# PASSO B: Planning-supervisor revisa (SEPARADO do planejador)
 Agent(
   subagent_type="up-planning-supervisor",
   prompt=f"""
@@ -189,29 +307,87 @@ Agent(
     
     Decisao: APPROVE | REQUEST_CHANGES | ESCALATE
     Max 3 ciclos de rework.
+    
+    **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+    ```bash
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | planning-supervisor | {{DECISAO}} | {{motivo}}" >> .plano/governance/approvals.log
+    ```
   """
 )
-
-# Se REQUEST_CHANGES: re-spawn planejador com feedback
-# Se ESCALATE: chief-engineer entra
-# Se APPROVE: prosseguir pra proxima fase
 ```
 
-Apos todas fases planejadas:
+```bash
+# GATE: planning-supervisor logou para esta fase?
+grep -q "phase-${PHASE_NUMBER}.*planning-supervisor" .plano/governance/approvals.log || { echo "GATE FALHOU: planning-supervisor NAO rodou para fase ${PHASE_NUMBER}. Spawnar agora."; exit 1; }
+```
+
+Se REQUEST_CHANGES: re-spawn planejador com feedback (max 3 ciclos).
+Se ESCALATE: chief-engineer entra.
+Se APPROVE: prosseguir pra proxima fase.
+
+**Repetir para cada fase do ROADMAP.**
+
+Apos TODAS fases planejadas:
 
 ```python
-# Chief-engineer aprova consistencia cross-fase
+# PASSO FINAL: Chief-engineer aprova consistencia cross-fase
 Agent(
   subagent_type="up-chief-engineer",
   prompt="""
     Revisar TODOS os planos gerados.
     Validar coerencia cross-fase, dependencies, waves.
     Decisao: APPROVE | REQUEST_CHANGES
+    
+    **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+    ```bash
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | planning | chief-engineer | {DECISAO} | cross-phase-review" >> .plano/governance/approvals.log
+    ```
   """
 )
 ```
 
+```bash
+# GATE FINAL DE PLANEJAMENTO: chief-engineer logou cross-phase review?
+grep -q "chief-engineer.*cross-phase-review" .plano/governance/approvals.log || { echo "GATE FALHOU: chief-engineer NAO aprovou cross-fase. Spawnar agora."; exit 1; }
+```
+
 ## Estagio P: PLANNING AUDIT
+
+### GATE PRE-AUDIT: Verificar que TODA governanca do planejamento rodou
+
+```bash
+echo "=== GATE PRE-AUDIT: Verificando governanca completa ==="
+
+# Contar entries esperadas
+PHASES=$(node "$HOME/.claude/up/bin/up-tools.cjs" roadmap list-phases 2>/dev/null | grep -c "phase" || echo "0")
+PLAN_SUP_COUNT=$(grep -c "planning-supervisor" .plano/governance/approvals.log 2>/dev/null)
+CHIEF_ENG=$(grep -c "chief-engineer.*cross-phase" .plano/governance/approvals.log 2>/dev/null)
+CHIEF_ARCH=$(grep -c "chief-architect" .plano/governance/approvals.log 2>/dev/null)
+PROD_SUP=$(grep -c "product-supervisor" .plano/governance/approvals.log 2>/dev/null)
+ARCH_SUP=$(grep -c "architecture-supervisor" .plano/governance/approvals.log 2>/dev/null)
+
+echo "Planning-supervisor entries: ${PLAN_SUP_COUNT} (esperado: >= ${PHASES})"
+echo "Chief-engineer cross-phase: ${CHIEF_ENG} (esperado: >= 1)"
+echo "Chief-architect: ${CHIEF_ARCH} (esperado: >= 1)"
+echo "Product-supervisor: ${PROD_SUP} (esperado: >= 1)"
+echo "Architecture-supervisor: ${ARCH_SUP} (esperado: >= 1)"
+
+FAIL=false
+[ "$CHIEF_ENG" -eq 0 ] && echo "FALHA: chief-engineer NAO aprovou cross-fase" && FAIL=true
+[ "$CHIEF_ARCH" -eq 0 ] && echo "FALHA: chief-architect NAO aprovou arquitetura" && FAIL=true
+[ "$PROD_SUP" -eq 0 ] && echo "FALHA: product-supervisor NAO revisou" && FAIL=true
+[ "$ARCH_SUP" -eq 0 ] && echo "FALHA: architecture-supervisor NAO revisou" && FAIL=true
+
+if [ "$FAIL" = true ]; then
+  echo ""
+  echo "GATE PRE-AUDIT FALHOU: Voltar e spawnar os agentes faltantes."
+  exit 1
+else
+  echo "GATE PRE-AUDIT OK: Toda governanca logada."
+fi
+```
+
+### Rodar Auditor
 
 ```python
 Agent(
@@ -228,12 +404,19 @@ Agent(
     - .plano/SYSTEM-DESIGN.md
     - .plano/PENDING.md
     - .plano/fases/*/*.md
-    - .plano/governance/approvals.log
+    - .plano/governance/approvals.log (VERIFICAR que supervisores e chiefs logaram)
     - $HOME/.claude/up/templates/audit-plan.md
     </files_to_read>
     
     Calcular Planning Confidence Score (0-100).
     Validar artefatos, planos, cobertura REQs, Sonnet-readiness, aprovacoes.
+    
+    **VERIFICAR no approvals.log:**
+    - product-supervisor logou? Se nao: penalizar score
+    - architecture-supervisor logou 2x (system-design + architect-artifacts)? Se nao: penalizar
+    - planning-supervisor logou para CADA fase? Se nao: penalizar
+    - chief-architect logou? Se nao: penalizar
+    - chief-engineer logou cross-phase? Se nao: penalizar
     
     Gerar .plano/AUDIT-PLAN.md.
     
@@ -376,15 +559,17 @@ NAO RECOMENDADO em producao.
 - [ ] CEO conduziu intake
 - [ ] BRIEFING, OWNER, PENDING, DESIGN-TOKENS gerados
 - [ ] Pipeline de arquitetura completo (product-analyst → system-designer → arquiteto)
-- [ ] Architecture supervisor aprovou cada artefato
-- [ ] Chief-architect aprovou arquitetura global
+- [ ] Architecture supervisor aprovou cada artefato (LOGOU em approvals.log)
+- [ ] Chief-architect aprovou arquitetura global (LOGOU em approvals.log)
 - [ ] Chief-product aprovou fit
-- [ ] TODAS fases do ROADMAP foram planejadas
-- [ ] Planning-supervisor aprovou cada plano
-- [ ] Chief-engineer aprovou cross-fase
+- [ ] TODAS fases do ROADMAP foram planejadas (PLAN.md por fase)
+- [ ] Planning-supervisor aprovou cada plano (LOGOU em approvals.log POR FASE)
+- [ ] Chief-engineer aprovou cross-fase (LOGOU em approvals.log)
+- [ ] GATE PRE-AUDIT passou (todos 5+ governance entries verificados)
 - [ ] Planning-auditor rodou e gerou AUDIT-PLAN.md
 - [ ] Planning Confidence Score calculado
 - [ ] PLAN-READY.md gerado
 - [ ] CEO apresentou resumo ao dono
 - [ ] Commit final feito
+- [ ] .plano/governance/approvals.log tem entries de TODOS supervisores e chiefs
 </success_criteria>
