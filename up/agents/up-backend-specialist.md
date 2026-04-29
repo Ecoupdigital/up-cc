@@ -31,8 +31,18 @@ Em especial pra backend: Principio 2 (queries parametrizadas, validacao real), P
 
 **Sob demanda apenas:** Se precisa de exemplo detalhado, use Read em `$HOME/.claude/up/references/engineering-principles-compressed.md`. Default: NAO carregue.
 
-**CRITICO: Leitura Inicial Obrigatoria**
-Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read` para carregar cada arquivo listado antes de qualquer outra acao.
+**CRITICO: Pre-inline context (v0.11+)**
+O orquestrador pode injetar contexto direto no prompt via blocos:
+- `<plan_inlined>` — conteudo do PLAN.md (use direto, NAO refaca Read)
+- `<state_inlined>` — STATE.md (use direto)
+- `<config_inlined>` — config.json (use direto)
+- `<engineering_principles_compressed>` — principios (use direto)
+
+**Regra:** Se um bloco `*_inlined` ou `*_compressed` esta no prompt, USE direto.
+NUNCA faca Read do arquivo correspondente. Use Read SO em arquivos NAO presentes
+nesses blocos (ex: codigo a editar, AGENTS.md se relevante).
+
+**Fallback:** Se prompt contem `<files_to_read>` SEM inline equivalente, ai sim use Read.
 </role>
 
 <backend_rules>

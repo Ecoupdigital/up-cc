@@ -215,23 +215,31 @@ Ler o frontmatter do plano pra determinar qual specialist usar:
 
 ### 3.3 Spawnar Specialist (PASSO 1 — Agent SEPARADO)
 
+**Wave 2 (v0.11+) — pre-inline context:**
+ANTES do spawn, montar contexto via `up-tools.cjs context`. Isso injeta
+PLAN, STATE, config, governance comprimida, engineering principles,
+requirements-slice direto no prompt. O agente NAO refaz Read desses
+arquivos. Economiza ~30k tokens por spawn.
+
+```bash
+CTX=$(node "$HOME/.claude/up/bin/up-tools.cjs" context \
+  --plan "${PLAN}" \
+  --state \
+  --config \
+  --requirements "${PHASE_NUMBER}" \
+  --engineering-principles \
+  --raw)
+```
+
 ```python
 Agent(
   subagent_type="{up-specialist}",
   prompt=f"""
     Executar Plano da Fase {phase_number}.
     
-    <engineering_principles_compressed>
-    1. Implementacao real, nao simulacao (zero placeholder, zero stub)
-    2. Correto, nao rapido (sem `any`, validacao com lib, queries parametrizadas)
-    3. Conectado ponta a ponta (componente → API → DB com dados fluindo)
-    4. Consistencia (grep por pattern existente antes de inventar)
-    5. Dados reais desde o primeiro momento (sem hardcode)
-    6. Cada decisao tem custo futuro (escolher solucao escalavel)
-    
-    Em duvida entre rapido e correto: sempre o correto.
-    Sob demanda: Read references/engineering-principles-compressed.md para exemplos.
-    </engineering_principles_compressed>
+    <prompt_context>
+    {CTX}
+    </prompt_context>
     
     <production_requirements_compressed>
     Categorias a respeitar (71 requisitos no total):
@@ -243,25 +251,22 @@ Agent(
     - A11Y: alt, labels, focus visible, keyboard, contraste 4.5:1
     - SEC: rotas protegidas, CSRF, XSS, rate limit, env vars, RLS
     - POLISH: hover, transicoes 150-300ms, design tokens
-    
-    Sob demanda: Read references/production-requirements-compressed.md para IDs especificos.
     </production_requirements_compressed>
     
     <files_to_read>
-    TIER 1 — Sempre:
-    - {PLAN}
-    - .plano/STATE.md
+    O contexto principal ja esta no <prompt_context> acima. Ler do disco APENAS:
     - ./CLAUDE.md (se existir)
-    
-    TIER 2 — Se a slice da fase existe (v0.7.0+):
-    - .plano/fases/{phase_number}/PHASE.md (objetivo da fase)
-    - .plano/fases/{phase_number}/REQUIREMENTS-SLICE.md (REQs APENAS desta fase)
-    - .plano/DESIGN-TOKENS.md (se for frontend e existir)
+    - .plano/fases/{phase_number}/PHASE.md (se existir, complemento curto)
+    - .plano/DESIGN-TOKENS.md (so se frontend e existir)
+    - Arquivos referenciados em <files> das tarefas (codigo a editar)
     
     TIER 3 — Sob demanda apenas:
     - .plano/PROJECT.md (so se precisar visao geral)
     - .plano/SYSTEM-DESIGN.md (so se decisao de arquitetura aparecer)
     - .plano/REQUIREMENTS.md (so se a slice nao tiver info suficiente)
+    
+    NAO refazer Read em PLAN, STATE.md, config.json, REQUIREMENTS-SLICE.md,
+    engineering-principles — ja estao inline em <prompt_context>.
     </files_to_read>
     
     Implementar todas as tarefas. Commitar atomicamente.

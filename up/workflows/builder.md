@@ -1172,15 +1172,36 @@ Para cada plano, ler o frontmatter e detectar o dominio:
 
 Para cada wave, spawnar agentes especializados em paralelo (se parallelization=true):
 
+**Wave 2 (v0.11+) — pre-inline context:**
+ANTES do spawn, montar o bloco de contexto via `up-tools.cjs context`.
+Isso injeta PLAN, STATE, config, governance comprimida e engineering
+principles direto no prompt. O agente NAO precisa fazer Read desses
+arquivos — economiza ~30k tokens por spawn.
+
+```bash
+PLAN_FILE="{phase_dir}/{plan_file}"
+CTX=$(node "$HOME/.claude/up/bin/up-tools.cjs" context \
+  --plan "${PLAN_FILE}" \
+  --state \
+  --config \
+  --engineering-principles \
+  --raw)
+```
+
+Spawn:
+
 ```
 Task(
   subagent_type="{up-frontend-specialist | up-backend-specialist | up-database-specialist | up-executor}",
- ,
-  prompt="
+  prompt=f"""
     <objective>
     Executar plano {plan_number} da fase {phase_number}-{phase_name}.
     Commitar cada tarefa atomicamente. Criar SUMMARY.md. Atualizar STATE.md e ROADMAP.md.
     </objective>
+
+    <prompt_context>
+    {CTX}
+    </prompt_context>
 
     <execution_context>
     @~/.claude/up/workflows/executar-plano.md
@@ -1194,15 +1215,15 @@ Task(
     3. Checkpoints tipo checkpoint:decision → tomar a decisao mais razoavel
     4. Checkpoints tipo checkpoint:human-action → se possivel automatizar, faca; se nao, registrar como pendente
     5. Deviation Rule 4 (architectural changes) → decidir autonomamente e registrar no SUMMARY
-    6. CAPTURES: Se durante a execucao voce descobrir algo importante (padrao no codigo, problema potencial, oportunidade de melhoria, decisao arquitetural nao-obvia), registre em .plano/captures/ como arquivo markdown curto. Formato: `capture-{timestamp}-{slug}.md` com frontmatter: type (pattern|problem|opportunity|decision), severity (info|warning|critical), phase (numero). Corpo: 2-5 frases descrevendo o insight.
+    6. CAPTURES: Se durante a execucao voce descobrir algo importante (padrao no codigo, problema potencial, oportunidade de melhoria, decisao arquitetural nao-obvia), registre em .plano/captures/ como arquivo markdown curto. Formato: `capture-{{timestamp}}-{{slug}}.md` com frontmatter: type (pattern|problem|opportunity|decision), severity (info|warning|critical), phase (numero). Corpo: 2-5 frases descrevendo o insight.
     </builder_mode>
 
     <files_to_read>
-    Ler estes arquivos no inicio da execucao usando a ferramenta Read:
-    - {phase_dir}/{plan_file} (Plano)
-    - .plano/STATE.md (Estado)
-    - .plano/config.json (Config)
+    O contexto principal ja esta no <prompt_context> acima. Ler do disco APENAS:
     - ./CLAUDE.md (Instrucoes do projeto, se existir)
+    - Arquivos referenciados em <files> das tarefas (codigo a editar)
+
+    NAO refazer Read em PLAN, STATE.md, config.json — ja estao inline.
     </files_to_read>
 
     <success_criteria>
@@ -1212,7 +1233,7 @@ Task(
     - [ ] STATE.md atualizado
     - [ ] ROADMAP.md atualizado com progresso
     </success_criteria>
-  "
+  """
 )
 ```
 

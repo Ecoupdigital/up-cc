@@ -366,6 +366,12 @@ function main() {
       break;
     }
 
+    // ==================== CONTEXT (pre-inline helper) ====================
+    case 'context': {
+      cmdContext(cwd, args.slice(1), raw);
+      break;
+    }
+
     // ==================== TIMESTAMP ====================
     case 'timestamp': {
       cmdTimestamp(args[1] || 'full', raw);
@@ -2495,6 +2501,146 @@ function cmdBudget(cwd, raw) {
       ? `Spent: $${result.spend_usd} / $${ceiling} (${result.percent_used}%) [${result.status}]`
       : `Spent: $${result.spend_usd} (no ceiling configured)`
   );
+}
+
+// =====================================================================
+// CONTEXT COMMAND (pre-inline helper — Wave 2)
+// =====================================================================
+
+/**
+ * Build a pre-inlined prompt fragment containing the contents of
+ * requested files wrapped in XML tags. Used by workflows to avoid
+ * forcing agents to make Read tool calls for content the orchestrator
+ * already has on disk.
+ *
+ * Usage:
+ *   up-tools.cjs context --plan <path> [--state] [--config]
+ *                        [--requirements] [--governance]
+ *                        [--engineering-principles] [--max-bytes N]
+ *
+ * Outputs a single string of XML blocks to stdout. Designed to be
+ * captured into a bash variable and injected into a Task/Agent prompt.
+ *
+ * Example:
+ *   CTX=$(up-tools.cjs context --plan $PLAN --state --config)
+ *   # then in spawn prompt:
+ *   #   <prompt_context>
+ *   #   {CTX}
+ *   #   </prompt_context>
+ */
+function cmdContext(cwd, args, raw) {
+  const flags = {
+    plan: null,
+    state: false,
+    config: false,
+    requirements: null,
+    governance: false,
+    engineeringPrinciples: false,
+    maxBytes: 50 * 1024, // 50kB hard cap per file by default
+  };
+
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--plan') flags.plan = args[++i];
+    else if (a === '--state') flags.state = true;
+    else if (a === '--config') flags.config = true;
+    else if (a === '--requirements') flags.requirements = args[++i] || true;
+    else if (a === '--governance') flags.governance = true;
+    else if (a === '--engineering-principles' || a === '--principles') flags.engineeringPrinciples = true;
+    else if (a === '--max-bytes') flags.maxBytes = parseInt(args[++i], 10) || flags.maxBytes;
+  }
+
+  function readCapped(filePath, maxBytes) {
+    try {
+      const stat = fs.statSync(filePath);
+      if (stat.size <= maxBytes) {
+        return fs.readFileSync(filePath, 'utf-8');
+      }
+      const fd = fs.openSync(filePath, 'r');
+      const buf = Buffer.alloc(maxBytes);
+      fs.readSync(fd, buf, 0, maxBytes, 0);
+      fs.closeSync(fd);
+      return buf.toString('utf-8') + `\n\n[TRUNCATED at ${maxBytes} bytes — full file at ${filePath}]\n`;
+    } catch {
+      return null;
+    }
+  }
+
+  const blocks = [];
+
+  if (flags.plan) {
+    const planPath = path.isAbsolute(flags.plan) ? flags.plan : path.join(cwd, flags.plan);
+    const content = readCapped(planPath, flags.maxBytes);
+    if (content !== null) {
+      blocks.push(`<plan_inlined path="${flags.plan}">\n${content}\n</plan_inlined>`);
+    }
+  }
+
+  if (flags.state) {
+    const statePath = path.join(cwd, '.plano', 'STATE.md');
+    const content = readCapped(statePath, flags.maxBytes);
+    if (content !== null) {
+      blocks.push(`<state_inlined path=".plano/STATE.md">\n${content}\n</state_inlined>`);
+    }
+  }
+
+  if (flags.config) {
+    const configPath = path.join(cwd, '.plano', 'config.json');
+    const content = readCapped(configPath, flags.maxBytes);
+    if (content !== null) {
+      blocks.push(`<config_inlined path=".plano/config.json">\n${content}\n</config_inlined>`);
+    }
+  }
+
+  if (flags.requirements) {
+    // If a phase number was passed as value, look for REQUIREMENTS-SLICE in that phase dir
+    if (typeof flags.requirements === 'string') {
+      const phasesDir = path.join(cwd, '.plano', 'fases');
+      try {
+        const dir = fs.readdirSync(phasesDir).find(d => d.startsWith(flags.requirements));
+        if (dir) {
+          const slicePath = path.join(phasesDir, dir, 'REQUIREMENTS-SLICE.md');
+          const content = readCapped(slicePath, flags.maxBytes);
+          if (content !== null) {
+            blocks.push(`<requirements_slice_inlined path="${path.relative(cwd, slicePath)}">\n${content}\n</requirements_slice_inlined>`);
+          }
+        }
+      } catch {}
+    } else {
+      // --requirements alone -> full REQUIREMENTS.md
+      const reqPath = path.join(cwd, '.plano', 'REQUIREMENTS.md');
+      const content = readCapped(reqPath, flags.maxBytes);
+      if (content !== null) {
+        blocks.push(`<requirements_inlined path=".plano/REQUIREMENTS.md">\n${content}\n</requirements_inlined>`);
+      }
+    }
+  }
+
+  if (flags.governance) {
+    const govPath = path.join(__dirname, '..', 'references', 'governance-rules-compressed.md');
+    // also try the runtime-installed location
+    const installedGovPath = path.join(require('os').homedir(), '.claude', 'up', 'references', 'governance-rules-compressed.md');
+    let govContent = readCapped(govPath, flags.maxBytes) || readCapped(installedGovPath, flags.maxBytes);
+    if (govContent !== null) {
+      blocks.push(`<governance_compressed>\n${govContent}\n</governance_compressed>`);
+    }
+  }
+
+  if (flags.engineeringPrinciples) {
+    const epPath = path.join(__dirname, '..', 'references', 'engineering-principles-compressed.md');
+    const installedEpPath = path.join(require('os').homedir(), '.claude', 'up', 'references', 'engineering-principles-compressed.md');
+    let epContent = readCapped(epPath, flags.maxBytes) || readCapped(installedEpPath, flags.maxBytes);
+    if (epContent !== null) {
+      blocks.push(`<engineering_principles_compressed>\n${epContent}\n</engineering_principles_compressed>`);
+    }
+  }
+
+  const out = blocks.join('\n\n');
+  if (raw) {
+    process.stdout.write(out);
+  } else {
+    output({ context_blocks: blocks.length, bytes: Buffer.byteLength(out, 'utf-8'), content: out }, raw, out);
+  }
 }
 
 // =====================================================================

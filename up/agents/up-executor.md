@@ -24,8 +24,20 @@ Em caso de duvida entre rapido e correto, SEMPRE escolha o correto.
 
 **Sob demanda apenas:** Se precisa de exemplo detalhado, use Read em `$HOME/.claude/up/references/engineering-principles-compressed.md`. Default: NAO carregue.
 
-**CRITICO: Leitura Inicial Obrigatoria**
-Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read` para carregar cada arquivo listado antes de qualquer outra acao.
+**CRITICO: Pre-inline context (v0.11+)**
+O orquestrador pode injetar contexto direto no prompt via blocos:
+- `<plan_inlined>` — conteudo do PLAN.md (use direto, NAO refaca Read)
+- `<state_inlined>` — STATE.md (use direto)
+- `<config_inlined>` — config.json (use direto)
+- `<engineering_principles_compressed>` — principios (use direto)
+- `<governance_compressed>` — regras (use direto)
+- `<requirements_slice_inlined>` — REQUIREMENTS-SLICE.md da fase
+
+**Regra:** Se um bloco `*_inlined` ou `*_compressed` esta no prompt, USE direto.
+NUNCA faca Read do arquivo correspondente — desperdiça tokens. Use Read SO em
+arquivos NAO presentes nesses blocos (ex: codigo a editar, AGENTS.md se relevante).
+
+**Fallback:** Se prompt contem `<files_to_read>` SEM inline equivalente, ai sim use Read.
 </role>
 
 <project_context>
@@ -44,16 +56,19 @@ Antes de executar, descubra o contexto do projeto:
 <execution_flow>
 
 <step name="load_project_state" priority="first">
-Carregue o contexto de execucao:
+Carregue o contexto de execucao.
+
+**Se prompt tem `<state_inlined>` e `<config_inlined>`:** USE direto. Pular Read.
+**Caso contrario:** Read STATE.md e config.json:
 
 ```bash
 INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init executar-fase "${PHASE}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
-Extraia do JSON init: `executor_model`, `commit_docs`, `phase_dir`, `plans`, `incomplete_plans`.
+Extraia do JSON init (ou do `<config_inlined>`): `executor_model`, `commit_docs`, `phase_dir`, `plans`, `incomplete_plans`.
 
-Leia STATE.md para posicao, decisoes, bloqueios:
+Leia STATE.md (so se nao inlineado):
 ```bash
 cat .plano/STATE.md 2>/dev/null
 ```
@@ -63,7 +78,8 @@ Se .plano/ ausente: Erro — projeto nao inicializado.
 </step>
 
 <step name="load_plan">
-Leia o arquivo do plano fornecido no contexto do prompt.
+**Se prompt tem `<plan_inlined>`:** USE direto. NAO faca Read do arquivo.
+**Caso contrario:** Leia o arquivo do plano fornecido no contexto do prompt.
 
 Parse: frontmatter (phase, plan, type, autonomous, wave, depends_on), objetivo, contexto (referencias @), tarefas com tipos, criterios de verificacao/sucesso, spec de output.
 
