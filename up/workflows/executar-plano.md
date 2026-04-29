@@ -165,7 +165,76 @@ Apresentar identificacao do plano, esperar confirmacao.
 ```bash
 PLAN_START_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 PLAN_START_EPOCH=$(date +%s)
+
+# Wave 3 (v0.12+) — timeout supervisor + stuck detector
+mkdir -p .plano/runtime
+ACTIVITY_LOG=".plano/runtime/agent-activity-${PHASE:-current}.log"
+echo "${PLAN_START_TIME}|start|${PHASE:-current}" >> "$ACTIVITY_LOG"
+LAST_ACTIVITY_EPOCH=$PLAN_START_EPOCH
+
+TIMEOUT_SOFT=${UP_TIMEOUT_SOFT:-1200}   # 20m
+TIMEOUT_HARD=${UP_TIMEOUT_HARD:-1800}   # 30m
+TIMEOUT_IDLE=${UP_TIMEOUT_IDLE:-600}    # 10m
 ```
+</step>
+
+<step name="timeout_check_protocol">
+**Wave 3 — Timeout & Stuck Detection (executar entre tarefas)**
+
+Apos COMPLETAR cada tarefa do plano:
+
+1. Append activity log:
+```bash
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)|task_complete|task_${TASK_NUMBER}" >> "$ACTIVITY_LOG"
+LAST_ACTIVITY_EPOCH=$(date +%s)
+```
+
+2. Run timeout + stuck check:
+```bash
+TIMEOUT=$(node "$HOME/.claude/up/bin/up-tools.cjs" timeout \
+  --start $PLAN_START_EPOCH \
+  --soft $TIMEOUT_SOFT \
+  --hard $TIMEOUT_HARD \
+  --idle-since $LAST_ACTIVITY_EPOCH \
+  --idle $TIMEOUT_IDLE)
+STUCK=$(node "$HOME/.claude/up/bin/up-tools.cjs" stuck-check \
+  --log "$ACTIVITY_LOG" --window 10 --threshold 3)
+```
+
+3. Decisao por status:
+
+| Status | Acao |
+|--------|------|
+| `ok` | Continuar normal |
+| `soft_warning` | Acelerar — pular tarefas opcionais, simplificar |
+| `idle_warning` | Tentar destravar; se proxima tarefa nao avanca, abortar |
+| `hard_abort` | PARAR e retornar ABORTED_TIMEOUT |
+| stuck=true | PARAR e retornar ABORTED_STUCK |
+
+4. Se hard_abort ou stuck:
+```bash
+mkdir -p .plano/governance
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)|phase-${PHASE}|executor|ABORTED|${TIMEOUT_STATUS:-stuck}|elapsed=$(($(date +%s) - PLAN_START_EPOCH))s" >> .plano/governance/aborts.log
+
+# Salvar PARTIAL-SUMMARY.md com tarefas completas
+cat > "${PHASE_DIR}/PARTIAL-SUMMARY.md" <<'EOF'
+---
+phase: ${PHASE}
+status: aborted
+reason: ${TIMEOUT_STATUS:-stuck}
+last_completed_task: ${TASK_NUMBER}
+EOF
+```
+
+Retornar mensagem estruturada:
+```
+ABORTED: Fase {phase} por {timeout|stuck}
+Tarefas: {N}/{TOTAL} completas
+Decorrido: {elapsed}s
+Estado parcial: .plano/fases/{phase}/PARTIAL-SUMMARY.md
+```
+
+NAO continuar trabalho apos abort. Orquestrador decide proximo passo (retry com escopo reduzido, escalar pro chief, etc).
 </step>
 
 <step name="load_prompt">

@@ -90,7 +90,89 @@ Parse: frontmatter (phase, plan, type, autonomous, wave, depends_on), objetivo, 
 ```bash
 PLAN_START_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 PLAN_START_EPOCH=$(date +%s)
+
+# Wave 3 (v0.12+) — timeout supervisor + stuck detector
+mkdir -p .plano/runtime
+ACTIVITY_LOG=".plano/runtime/agent-activity-${PHASE:-current}.log"
+echo "${PLAN_START_TIME}|start|${PHASE:-current}" >> "$ACTIVITY_LOG"
+LAST_ACTIVITY_EPOCH=$PLAN_START_EPOCH
+
+# Defaults: 20m soft, 30m hard, 10m idle. Override via env if needed.
+TIMEOUT_SOFT=${UP_TIMEOUT_SOFT:-1200}
+TIMEOUT_HARD=${UP_TIMEOUT_HARD:-1800}
+TIMEOUT_IDLE=${UP_TIMEOUT_IDLE:-600}
 ```
+</step>
+
+<step name="timeout_check_protocol">
+**Wave 3 (v0.12+) — Timeout & Stuck Detection**
+
+**Apos cada tarefa do plano** (entre tarefas, NAO entre tool calls):
+
+1. Append activity log com a tarefa que acabou:
+```bash
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)|task_complete|task_${TASK_NUMBER}" >> "$ACTIVITY_LOG"
+LAST_ACTIVITY_EPOCH=$(date +%s)
+```
+
+2. Check timeout:
+```bash
+TIMEOUT=$(node "$HOME/.claude/up/bin/up-tools.cjs" timeout \
+  --start $PLAN_START_EPOCH \
+  --soft $TIMEOUT_SOFT \
+  --hard $TIMEOUT_HARD \
+  --idle-since $LAST_ACTIVITY_EPOCH \
+  --idle $TIMEOUT_IDLE \
+  --raw)
+TIMEOUT_STATUS=$(echo "$TIMEOUT" | head -1 | cut -d'|' -f1 | xargs)
+```
+
+3. Check stuck pattern:
+```bash
+STUCK=$(node "$HOME/.claude/up/bin/up-tools.cjs" stuck-check \
+  --log "$ACTIVITY_LOG" \
+  --window 10 \
+  --threshold 3 \
+  --raw)
+STUCK_FLAG=$(echo "$STUCK" | grep -oE "STUCK|ok" | head -1)
+```
+
+4. **Decisao por status:**
+
+- `ok`: continuar normal
+- `soft_warning`: prosseguir mas acelerar — pular tarefas opcionais, simplificar implementacao
+- `idle_warning`: gerar log e tentar destravar; se proxima tarefa nao avanca, abortar
+- `hard_abort`: PARAR IMEDIATAMENTE, salvar parcial e retornar
+- `STUCK` detectado: PARAR IMEDIATAMENTE, salvar parcial e retornar
+
+5. **Se hard_abort ou STUCK:**
+
+```bash
+mkdir -p .plano/governance
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)|phase-${PHASE}|executor|ABORTED_${TIMEOUT_STATUS:-STUCK}|elapsed=$((${$(date +%s)} - PLAN_START_EPOCH))s, last_task=${TASK_NUMBER}" >> .plano/governance/aborts.log
+
+# Salvar PARTIAL-SUMMARY com tarefas completas e onde parou
+cat > "${PHASE_DIR}/PARTIAL-SUMMARY.md" <<EOF
+---
+phase: ${PHASE}
+status: aborted
+reason: ${TIMEOUT_STATUS:-stuck}
+elapsed_secs: $(( $(date +%s) - PLAN_START_EPOCH ))
+last_completed_task: ${TASK_NUMBER}
+EOF
+```
+
+Retornar mensagem estruturada:
+```
+ABORTED: Fase {phase} abortada por {timeout|stuck}
+Tarefas completas: {N}/{TOTAL}
+Tempo decorrido: {elapsed}s
+Ultima tarefa: {task_id}
+Estado parcial salvo em: .plano/fases/{phase}/PARTIAL-SUMMARY.md
+Log de atividade: .plano/runtime/agent-activity-{phase}.log
+```
+
+NAO continuar trabalho apos abort. Orquestrador decide proximo passo.
 </step>
 
 <step name="determine_execution_pattern">

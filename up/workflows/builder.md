@@ -1242,6 +1242,34 @@ Task(
 - Verificar que commits existem via `git log --oneline --grep`
 - Se falha: tentar re-executar o plano falho (max 1 retry)
 
+**Wave 3 (v0.12+) — handle ABORTED returns:**
+
+Se a mensagem de retorno do specialist comeca com `ABORTED:`:
+
+```bash
+if echo "$SPAWN_RETURN" | grep -q "^ABORTED:"; then
+  REASON=$(echo "$SPAWN_RETURN" | grep -oE "(timeout|stuck)" | head -1)
+  echo "WAVE INTERROMPIDA: ${REASON} na fase ${PHASE_NUMBER}"
+  
+  # Verificar se PARTIAL-SUMMARY existe
+  if [ -f "${PHASE_DIR}/PARTIAL-SUMMARY.md" ]; then
+    PARTIAL_TASKS=$(grep "last_completed_task:" "${PHASE_DIR}/PARTIAL-SUMMARY.md" | head -1)
+    
+    # Decisao: 1 retry com escopo reduzido OU escalar pro chief
+    ABORT_COUNT=$(grep -c "phase-${PHASE_NUMBER}.*ABORTED" .plano/governance/aborts.log 2>/dev/null)
+    
+    if [ "$ABORT_COUNT" -lt 2 ]; then
+      echo "Retry com escopo reduzido (1/2). Spawnando specialist novamente."
+      # Re-spawn com flag UP_RETRY_AFTER_ABORT=1 — agente pula tarefas opcionais
+      # (manter prompt principal, adicionar instrucao de retry)
+    else
+      echo "ABORTS limite (${ABORT_COUNT}). Escalando para chief-engineer."
+      # Spawn chief-engineer com PARTIAL-SUMMARY como contexto
+    fi
+  fi
+fi
+```
+
 ```
 Wave {N}: {count} planos executados
 ```

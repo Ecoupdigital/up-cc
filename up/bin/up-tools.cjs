@@ -372,6 +372,18 @@ function main() {
       break;
     }
 
+    // ==================== TIMEOUT (Wave 3) ====================
+    case 'timeout': {
+      cmdTimeout(args.slice(1), raw);
+      break;
+    }
+
+    // ==================== STUCK CHECK (Wave 3) ====================
+    case 'stuck-check': {
+      cmdStuckCheck(cwd, args.slice(1), raw);
+      break;
+    }
+
     // ==================== TIMESTAMP ====================
     case 'timestamp': {
       cmdTimestamp(args[1] || 'full', raw);
@@ -2500,6 +2512,155 @@ function cmdBudget(cwd, raw) {
     ceiling
       ? `Spent: $${result.spend_usd} / $${ceiling} (${result.percent_used}%) [${result.status}]`
       : `Spent: $${result.spend_usd} (no ceiling configured)`
+  );
+}
+
+// =====================================================================
+// TIMEOUT COMMAND (Wave 3 — soft/idle/hard timeouts)
+// =====================================================================
+
+/**
+ * Compute timeout status given a start time and limits.
+ *
+ * Usage:
+ *   up-tools.cjs timeout --start <epoch> --soft <secs> --hard <secs>
+ *                        [--idle-since <epoch>] [--idle <secs>]
+ *
+ * Returns JSON:
+ *   { elapsed_secs, status, remaining_soft, remaining_hard,
+ *     idle_secs, idle_status }
+ *
+ * Status values:
+ *   ok           — under all limits
+ *   soft_warning — past soft, warn but continue
+ *   idle_warning — idle for too long, may be stuck
+ *   hard_abort   — past hard, abort immediately
+ *
+ * Defaults match gsd-2:
+ *   soft=1200 (20m), hard=1800 (30m), idle=600 (10m)
+ */
+function cmdTimeout(args, raw) {
+  const flags = { start: null, soft: 1200, hard: 1800, idleSince: null, idle: 600 };
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--start') flags.start = parseInt(args[++i], 10);
+    else if (a === '--soft') flags.soft = parseInt(args[++i], 10);
+    else if (a === '--hard') flags.hard = parseInt(args[++i], 10);
+    else if (a === '--idle-since') flags.idleSince = parseInt(args[++i], 10);
+    else if (a === '--idle') flags.idle = parseInt(args[++i], 10);
+  }
+
+  if (!flags.start) error('Usage: timeout --start <epoch> [--soft N] [--hard N] [--idle-since E] [--idle N]');
+
+  const now = Math.floor(Date.now() / 1000);
+  const elapsed = now - flags.start;
+  const remainingSoft = Math.max(0, flags.soft - elapsed);
+  const remainingHard = Math.max(0, flags.hard - elapsed);
+
+  let status = 'ok';
+  if (elapsed >= flags.hard) status = 'hard_abort';
+  else if (elapsed >= flags.soft) status = 'soft_warning';
+
+  const result = {
+    elapsed_secs: elapsed,
+    status,
+    remaining_soft: remainingSoft,
+    remaining_hard: remainingHard,
+  };
+
+  if (flags.idleSince) {
+    const idleSecs = now - flags.idleSince;
+    result.idle_secs = idleSecs;
+    if (idleSecs >= flags.idle) {
+      result.idle_status = 'idle_warning';
+      // Idle warning escalates to hard_abort if also past soft
+      if (status === 'soft_warning') {
+        result.status = 'hard_abort';
+      } else if (status === 'ok') {
+        result.status = 'idle_warning';
+      }
+    } else {
+      result.idle_status = 'ok';
+    }
+  }
+
+  output(result, raw, `${result.status} | elapsed=${elapsed}s soft_remaining=${remainingSoft}s hard_remaining=${remainingHard}s`);
+}
+
+// =====================================================================
+// STUCK CHECK COMMAND (Wave 3 — sliding window pattern detector)
+// =====================================================================
+
+/**
+ * Detect repeated tool-call patterns by reading an activity log.
+ *
+ * Agents append events to .plano/runtime/agent-activity-<id>.log via
+ * Bash echo. Each line: "<timestamp>|<tool>|<target>". This command
+ * scans the last N lines and flags repetition.
+ *
+ * Usage:
+ *   up-tools.cjs stuck-check --log <path> [--window 10] [--threshold 3]
+ *
+ * Returns:
+ *   { stuck: bool, reason, repeated_pattern, count, window_size }
+ *
+ * Stuck = same (tool|target) appears `threshold` times within
+ * `window` last entries.
+ */
+function cmdStuckCheck(cwd, args, raw) {
+  const flags = { log: null, window: 10, threshold: 3 };
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--log') flags.log = args[++i];
+    else if (a === '--window') flags.window = parseInt(args[++i], 10);
+    else if (a === '--threshold') flags.threshold = parseInt(args[++i], 10);
+  }
+
+  if (!flags.log) error('Usage: stuck-check --log <path> [--window N] [--threshold N]');
+
+  const logPath = path.isAbsolute(flags.log) ? flags.log : path.join(cwd, flags.log);
+
+  let lines = [];
+  try {
+    const content = fs.readFileSync(logPath, 'utf-8');
+    lines = content.split('\n').filter(l => l.trim() && l.includes('|'));
+  } catch {
+    output({ stuck: false, reason: 'no_log', repeated_pattern: null, count: 0, window_size: 0 }, raw, 'no_log');
+    return;
+  }
+
+  const window = lines.slice(-flags.window);
+  const counts = new Map();
+
+  for (const line of window) {
+    const parts = line.split('|').map(s => s.trim());
+    // Treat tool|target as the pattern (skip timestamp)
+    const key = parts.slice(1, 3).join('|');
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+
+  let topPattern = null;
+  let topCount = 0;
+  for (const [key, count] of counts) {
+    if (count > topCount) {
+      topPattern = key;
+      topCount = count;
+    }
+  }
+
+  const stuck = topCount >= flags.threshold;
+
+  output(
+    {
+      stuck,
+      reason: stuck ? `pattern_repeated_${topCount}x` : 'ok',
+      repeated_pattern: stuck ? topPattern : null,
+      count: topCount,
+      window_size: window.length,
+      threshold: flags.threshold,
+    },
+    raw,
+    stuck ? `STUCK: "${topPattern}" repeated ${topCount}x in last ${window.length} entries` : `ok (top pattern: ${topCount}x in ${window.length})`
   );
 }
 
