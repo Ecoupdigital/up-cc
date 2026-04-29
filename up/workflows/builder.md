@@ -1206,20 +1206,35 @@ arquivos — economiza ~30k tokens por spawn.
 
 ```bash
 PLAN_FILE="{phase_dir}/{plan_file}"
+
+# Wave 5+ — decidir agent type ANTES (necessario pra manifest e routing)
+SPECIALIST_AGENT="up-executor"  # ou frontend/backend/database baseado em type do plano
+
+# Wave 6+ — manifest carrega so refs relevantes ao papel do agente
 CTX=$(node "$HOME/.claude/up/bin/up-tools.cjs" context \
   --plan "${PLAN_FILE}" \
   --state \
   --config \
-  --engineering-principles \
+  --manifest "${SPECIALIST_AGENT}" \
   --raw)
 
 # Wave 5+ — complexity-aware model routing per plan
-SPECIALIST_AGENT="up-executor"  # ou frontend/backend/database baseado em type
 MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" resolve-model-for-plan \
   "${PLAN_FILE}" "${SPECIALIST_AGENT}" --raw)
 CLASSIFY=$(node "$HOME/.claude/up/bin/up-tools.cjs" classify-task "${PLAN_FILE}" --raw)
 COMPLEXITY=$(echo "$CLASSIFY" | grep -oE '"complexity"[^,]+' | grep -oE '"(simple|standard|complex)"' | tr -d '"')
 SCORE=$(echo "$CLASSIFY" | grep -oE '"score"\s*:\s*[0-9]+' | grep -oE '[0-9]+')
+
+# Wave 6+ — Iron rule: validar plan ANTES de spawnar
+VALIDATE=$(node "$HOME/.claude/up/bin/up-tools.cjs" validate-plan "${PLAN_FILE}" --raw)
+VALIDATE_PASS=$(echo "$VALIDATE" | grep -oE '"pass"\s*:\s*(true|false)' | grep -oE '(true|false)')
+if [ "$VALIDATE_PASS" = "false" ]; then
+  echo "IRON RULE FALHOU: Plan ${PLAN_FILE} nao passou validate-plan."
+  echo "$VALIDATE" | grep -A 20 'suggestions'
+  echo "Voltando pro planejador pra refazer."
+  # Re-spawn planejador com VALIDATE como contexto. NAO seguir pro spawn de specialist.
+  exit 1
+fi
 
 # Log decisao (outcome marcado depois do retorno)
 node "$HOME/.claude/up/bin/up-tools.cjs" routing-log \

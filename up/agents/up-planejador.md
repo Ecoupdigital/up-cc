@@ -286,6 +286,22 @@ Apos criar PLAN.md, rode este checklist antes de retornar:
 - [ ] Cada tarefa tem files, action, verify, done?
 - [ ] Verificacao automatizada definida (regra Nyquist)?
 
+**Iron Rule (Wave 6+) — validar tamanho/decomposicao:**
+
+Para CADA PLAN.md gerado, rode:
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" validate-plan {plan-path}
+```
+
+Limites: max 25kB, max 12 tarefas, frontmatter completo, criterios de verificacao.
+
+Se `pass=false`: NAO retorne. Analise as `suggestions` e refaca o plano:
+- Tamanho excede → quebrar em 2 planos por dominio (schema separado de API separado de UI)
+- Tarefas demais → mesma quebra
+- Sem frontmatter ou verification → adicionar antes de retornar
+
+Iron rule: "uma task DEVE caber em uma janela de contexto". Se o plano viola, executor vai falhar.
+
 Se qualquer item falhar, corrija ANTES de retornar. Nao dependa de checker externo.
 </self_check>
 

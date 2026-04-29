@@ -222,21 +222,32 @@ requirements-slice direto no prompt. O agente NAO refaz Read desses
 arquivos. Economiza ~30k tokens por spawn.
 
 ```bash
+SPECIALIST_AGENT="up-executor"  # ou specialist baseado em type do plano
+
+# Wave 6+ — manifest filtra refs por papel
 CTX=$(node "$HOME/.claude/up/bin/up-tools.cjs" context \
   --plan "${PLAN}" \
   --state \
   --config \
   --requirements "${PHASE_NUMBER}" \
-  --engineering-principles \
+  --manifest "${SPECIALIST_AGENT}" \
   --raw)
 
 # Wave 5+ — complexity-aware model routing per plan
-SPECIALIST_AGENT="up-executor"  # ou specialist baseado em type do plano
 MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" resolve-model-for-plan \
   "${PLAN}" "${SPECIALIST_AGENT}" --raw)
 CLASSIFY=$(node "$HOME/.claude/up/bin/up-tools.cjs" classify-task "${PLAN}" --raw)
 COMPLEXITY=$(echo "$CLASSIFY" | grep -oE '"complexity"[^,]+' | grep -oE '"(simple|standard|complex)"' | tr -d '"')
 SCORE=$(echo "$CLASSIFY" | grep -oE '"score"\s*:\s*[0-9]+' | grep -oE '[0-9]+')
+
+# Wave 6+ — Iron rule: validar plan
+VALIDATE=$(node "$HOME/.claude/up/bin/up-tools.cjs" validate-plan "${PLAN}" --raw)
+VALIDATE_PASS=$(echo "$VALIDATE" | grep -oE '"pass"\s*:\s*(true|false)' | grep -oE '(true|false)')
+if [ "$VALIDATE_PASS" = "false" ]; then
+  echo "IRON RULE FALHOU: Plan ${PLAN} excede limites. Voltando pro planejador."
+  echo "$VALIDATE" | grep -A 20 'suggestions'
+  exit 1
+fi
 
 node "$HOME/.claude/up/bin/up-tools.cjs" routing-log \
   --plan "${PLAN}" --agent "${SPECIALIST_AGENT}" --model "${MODEL}" \

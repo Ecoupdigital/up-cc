@@ -414,6 +414,18 @@ function main() {
       break;
     }
 
+    // ==================== VALIDATE-PLAN (Wave 6) ====================
+    case 'validate-plan': {
+      cmdValidatePlan(cwd, args.slice(1), raw);
+      break;
+    }
+
+    // ==================== SKILL-MANIFEST (Wave 6) ====================
+    case 'skill-manifest': {
+      cmdSkillManifest(args.slice(1), raw);
+      break;
+    }
+
     // ==================== TIMESTAMP ====================
     case 'timestamp': {
       cmdTimestamp(args[1] || 'full', raw);
@@ -2695,6 +2707,208 @@ function cmdStuckCheck(cwd, args, raw) {
 }
 
 // =====================================================================
+// VALIDATE-PLAN COMMAND (Wave 6 — iron rule)
+// =====================================================================
+
+/**
+ * Iron rule: a plan must fit in one context window. Validate that a
+ * PLAN.md is decomposable enough to be executed by a single agent
+ * call without losing context. Fails when:
+ *   - File > 25kB (default; configurable via --max-bytes)
+ *   - Task count > 12 (default; configurable via --max-tasks)
+ *   - No frontmatter (must declare type at minimum)
+ *   - No verification criteria (no <verification>, no must_haves)
+ *
+ * Usage:
+ *   up-tools.cjs validate-plan <plan-path> [--max-bytes N] [--max-tasks N]
+ *
+ * Returns:
+ *   { pass, plan_path, bytes, tasks, frontmatter_keys, issues[],
+ *     suggestions[] }
+ */
+function cmdValidatePlan(cwd, args, raw) {
+  const flags = { maxBytes: 25 * 1024, maxTasks: 12 };
+  let planPath = null;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--max-bytes') flags.maxBytes = parseInt(args[++i], 10) || flags.maxBytes;
+    else if (a === '--max-tasks') flags.maxTasks = parseInt(args[++i], 10) || flags.maxTasks;
+    else if (!a.startsWith('--')) planPath = a;
+  }
+  if (!planPath) error('Usage: validate-plan <plan-path> [--max-bytes N] [--max-tasks N]');
+
+  const fullPath = path.isAbsolute(planPath) ? planPath : path.join(cwd, planPath);
+  let content;
+  try {
+    content = fs.readFileSync(fullPath, 'utf-8');
+  } catch {
+    error(`Cannot read plan: ${fullPath}`);
+  }
+
+  const issues = [];
+  const suggestions = [];
+  const bytes = Buffer.byteLength(content, 'utf-8');
+
+  // Frontmatter parsing
+  const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+  const fmKeys = [];
+  if (fmMatch) {
+    for (const line of fmMatch[1].split('\n')) {
+      const m = line.match(/^(\w+)\s*:/);
+      if (m) fmKeys.push(m[1]);
+    }
+  } else {
+    issues.push('no_frontmatter');
+    suggestions.push('Add YAML frontmatter with at least: phase, plan, type');
+  }
+
+  // Task count
+  const taskMatches = (content.match(/<task\b/gi) || []).length;
+  const numberedMatches = (content.match(/^###?\s+\d+\./gm) || []).length;
+  const tasks = Math.max(taskMatches, numberedMatches);
+
+  // Verification criteria
+  const hasVerification = /<verification|must_haves|criterios|criteria/i.test(content);
+
+  if (bytes > flags.maxBytes) {
+    issues.push(`size_exceeds_${flags.maxBytes}_bytes`);
+    suggestions.push(`Plan is ${(bytes/1024).toFixed(1)}kB (limit ${(flags.maxBytes/1024).toFixed(0)}kB). Split into 2 plans by task group.`);
+  }
+
+  if (tasks > flags.maxTasks) {
+    issues.push(`task_count_exceeds_${flags.maxTasks}`);
+    suggestions.push(`Plan has ${tasks} tasks (limit ${flags.maxTasks}). Split by domain (e.g., schema separate from API separate from UI).`);
+  }
+
+  if (tasks === 0) {
+    issues.push('no_tasks_detected');
+    suggestions.push('No <task> tags or numbered sections found. Use <task type="auto"> or "### 1. <action>" markers.');
+  }
+
+  if (!hasVerification) {
+    issues.push('no_verification_criteria');
+    suggestions.push('Add a <verification> block or must_haves frontmatter so the verifier can check completion.');
+  }
+
+  const pass = issues.length === 0;
+
+  output(
+    {
+      pass,
+      plan_path: path.relative(cwd, fullPath),
+      bytes,
+      tasks,
+      frontmatter_keys: fmKeys,
+      has_verification: hasVerification,
+      issues,
+      suggestions,
+      limits: { max_bytes: flags.maxBytes, max_tasks: flags.maxTasks },
+    },
+    raw,
+    pass
+      ? `validate-plan: PASS (${(bytes/1024).toFixed(1)}kB, ${tasks} tasks)`
+      : `validate-plan: FAIL (${issues.length} issues) — ${issues.join(', ')}`
+  );
+}
+
+// =====================================================================
+// SKILL-MANIFEST COMMAND (Wave 6 — per unit-type refs)
+// =====================================================================
+
+const SKILL_MANIFEST = {
+  // Execution agents — fokus em principles + production reqs
+  'up-executor': ['engineering-principles-compressed'],
+  'up-frontend-specialist': ['engineering-principles-compressed', 'ui-brand', 'production-requirements-compressed'],
+  'up-backend-specialist': ['engineering-principles-compressed', 'production-requirements-compressed'],
+  'up-database-specialist': ['engineering-principles-compressed', 'production-requirements-compressed'],
+  'up-devops-agent': ['production-requirements-compressed'],
+  'up-technical-writer': [],
+  'up-depurador': ['engineering-principles-compressed'],
+
+  // Planning agents — fokus em arquitetura + reqs
+  'up-planejador': ['engineering-principles-compressed'],
+  'up-arquiteto': ['engineering-principles-compressed', 'production-requirements-compressed'],
+  'up-product-analyst': [],
+  'up-system-designer': ['engineering-principles-compressed', 'production-requirements-compressed'],
+  'up-roteirista': [],
+  'up-pesquisador-projeto': [],
+  'up-sintetizador': [],
+  'up-mapeador-codigo': [],
+  'up-requirements-validator': ['production-requirements-compressed'],
+
+  // Governance — fokus em rules + rework
+  'up-execution-supervisor': ['governance-rules-compressed', 'engineering-principles-compressed', 'rework-limits-compressed'],
+  'up-verification-supervisor': ['governance-rules-compressed', 'rework-limits-compressed'],
+  'up-planning-supervisor': ['governance-rules-compressed', 'rework-limits-compressed'],
+  'up-quality-supervisor': ['governance-rules-compressed'],
+  'up-audit-supervisor': ['governance-rules-compressed'],
+  'up-product-supervisor': ['governance-rules-compressed'],
+  'up-architecture-supervisor': ['governance-rules-compressed'],
+  'up-operations-supervisor': ['governance-rules-compressed'],
+  'up-chief-engineer': ['governance-rules-compressed', 'rework-limits-compressed'],
+  'up-chief-architect': ['governance-rules-compressed'],
+  'up-chief-quality': ['governance-rules-compressed'],
+  'up-chief-operations': ['governance-rules-compressed'],
+  'up-chief-product': ['governance-rules-compressed'],
+  'up-project-ceo': ['governance-rules-compressed'],
+  'up-delivery-auditor': ['governance-rules-compressed', 'production-requirements-compressed'],
+  'up-planning-auditor': ['governance-rules-compressed'],
+
+  // Review & Testing — fokus em quality
+  'up-verificador': ['production-requirements-compressed'],
+  'up-blind-validator': [],
+  'up-code-reviewer': ['engineering-principles-compressed'],
+  'up-security-reviewer': ['production-requirements-compressed'],
+  'up-visual-critic': ['ui-brand'],
+  'up-exhaustive-tester': [],
+  'up-api-tester': [],
+  'up-qa-agent': [],
+  'up-auditor-ux': ['audit-ux'],
+  'up-auditor-performance': ['audit-performance'],
+  'up-auditor-modernidade': ['audit-modernidade'],
+  'up-sintetizador-melhorias': [],
+  'up-analista-codigo': ['engineering-principles-compressed'],
+  'up-pesquisador-mercado': [],
+  'up-consolidador-ideias': [],
+};
+
+/**
+ * Return the list of relevant reference files for a given agent.
+ * Used by workflows + the context command to inject only the refs
+ * relevant to the agent's role, instead of dumping all references
+ * in every prompt.
+ *
+ * Usage:
+ *   up-tools.cjs skill-manifest <agent-name>
+ *
+ * Output: { agent, refs: ["engineering-principles-compressed", ...] }
+ *
+ * Use --paths to get full paths instead of names.
+ */
+function cmdSkillManifest(args, raw) {
+  const agent = args[0];
+  if (!agent) error('Usage: skill-manifest <agent-name> [--paths]');
+  const wantPaths = args.includes('--paths');
+
+  const refs = SKILL_MANIFEST[agent] || [];
+
+  if (!wantPaths) {
+    output({ agent, refs, count: refs.length }, raw, refs.join('\n'));
+    return;
+  }
+
+  const homeRefDir = path.join(require('os').homedir(), '.claude', 'up', 'references');
+  const localRefDir = path.join(__dirname, '..', 'references');
+  const paths = refs.map(name => {
+    const installed = path.join(homeRefDir, name + '.md');
+    const local = path.join(localRefDir, name + '.md');
+    return fs.existsSync(installed) ? installed : local;
+  });
+
+  output({ agent, refs, paths, count: refs.length }, raw, paths.join('\n'));
+}
+
+// =====================================================================
 // CLASSIFY-TASK COMMAND (Wave 5 — complexity-based routing)
 // =====================================================================
 
@@ -3225,6 +3439,7 @@ function cmdContext(cwd, args, raw) {
     requirements: null,
     governance: false,
     engineeringPrinciples: false,
+    manifest: null,
     maxBytes: 50 * 1024, // 50kB hard cap per file by default
   };
 
@@ -3236,6 +3451,7 @@ function cmdContext(cwd, args, raw) {
     else if (a === '--requirements') flags.requirements = args[++i] || true;
     else if (a === '--governance') flags.governance = true;
     else if (a === '--engineering-principles' || a === '--principles') flags.engineeringPrinciples = true;
+    else if (a === '--manifest') flags.manifest = args[++i];
     else if (a === '--max-bytes') flags.maxBytes = parseInt(args[++i], 10) || flags.maxBytes;
   }
 
@@ -3321,6 +3537,28 @@ function cmdContext(cwd, args, raw) {
     let epContent = readCapped(epPath, flags.maxBytes) || readCapped(installedEpPath, flags.maxBytes);
     if (epContent !== null) {
       blocks.push(`<engineering_principles_compressed>\n${epContent}\n</engineering_principles_compressed>`);
+    }
+  }
+
+  // Wave 6 — skill manifest: include only refs relevant to the agent's role
+  if (flags.manifest) {
+    const refs = SKILL_MANIFEST[flags.manifest] || [];
+    const homeRefDir = path.join(require('os').homedir(), '.claude', 'up', 'references');
+    const localRefDir = path.join(__dirname, '..', 'references');
+    for (const refName of refs) {
+      // Skip if the ref was already added via a dedicated flag
+      if (refName === 'engineering-principles-compressed' && flags.engineeringPrinciples) continue;
+      if (refName === 'governance-rules-compressed' && flags.governance) continue;
+
+      const installed = path.join(homeRefDir, refName + '.md');
+      const local = path.join(localRefDir, refName + '.md');
+      const refPath = fs.existsSync(installed) ? installed : local;
+      const refContent = readCapped(refPath, flags.maxBytes);
+      if (refContent !== null) {
+        // XML-safe tag name from the file name
+        const tagName = refName.replace(/-/g, '_');
+        blocks.push(`<manifest_${tagName}>\n${refContent}\n</manifest_${tagName}>`);
+      }
     }
   }
 
