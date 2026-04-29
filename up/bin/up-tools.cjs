@@ -2517,12 +2517,13 @@ function cmdBudget(cwd, raw) {
       cwd,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 30000, // 30s cap — fail open if jsonl scan is slow
     });
     report = JSON.parse(out);
     spend = report.total_cost_usd ?? 0;
     agentCount = (report.agents ?? []).reduce((sum, a) => sum + (a.invocations || 0), 0);
   } catch (err) {
-    // instrumentation may fail on non-Claude Code runtimes — return zero spend
+    // instrumentation may fail on non-Claude Code runtimes or timeout — return zero spend
     spend = 0;
   }
 
@@ -2763,9 +2764,12 @@ function cmdValidatePlan(cwd, args, raw) {
   }
 
   // Task count
+  // Detect tasks via multiple shapes — <task> XML tags (preferred), or
+  // numbered/bulleted markdown headings/items at start of line.
   const taskMatches = (content.match(/<task\b/gi) || []).length;
-  const numberedMatches = (content.match(/^###?\s+\d+\./gm) || []).length;
-  const tasks = Math.max(taskMatches, numberedMatches);
+  const numberedHeadings = (content.match(/^#{2,4}\s+(?:Task\s+)?\d+[.:)]?\s/gmi) || []).length;
+  const numberedBullets = (content.match(/^[-*]\s+\d+[.:)]\s/gm) || []).length;
+  const tasks = Math.max(taskMatches, numberedHeadings, numberedBullets);
 
   // Verification criteria
   const hasVerification = /<verification|must_haves|criterios|criteria/i.test(content);
@@ -3018,9 +3022,12 @@ function classifyContent(content) {
   }
 
   // Task count (count <task> tags or numbered sections)
+  // Detect tasks via multiple shapes — <task> XML tags (preferred), or
+  // numbered/bulleted markdown headings/items at start of line.
   const taskMatches = (content.match(/<task\b/gi) || []).length;
-  const numberedMatches = (content.match(/^###?\s+\d+\./gm) || []).length;
-  const tasks = Math.max(taskMatches, numberedMatches);
+  const numberedHeadings = (content.match(/^#{2,4}\s+(?:Task\s+)?\d+[.:)]?\s/gmi) || []).length;
+  const numberedBullets = (content.match(/^[-*]\s+\d+[.:)]\s/gm) || []).length;
+  const tasks = Math.max(taskMatches, numberedHeadings, numberedBullets);
   if (tasks > 10) {
     score += 2;
     reasons.push(`tasks>10(+2)`);
@@ -3142,9 +3149,14 @@ function cmdResolveModelForPlan(cwd, args, raw) {
  *                            [--rework-cycles N]
  */
 function cmdRoutingLog(cwd, args, raw) {
-  const flags = {};
-  for (let i = 0; i < args.length; i += 2) {
-    flags[args[i].replace(/^--/, '')] = args[i + 1];
+  const flags = { update: false };
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--update') {
+      flags.update = true;
+    } else if (args[i].startsWith('--')) {
+      flags[args[i].replace(/^--/, '')] = args[i + 1];
+      i++;
+    }
   }
 
   const govDir = path.join(cwd, '.plano', 'governance');
@@ -3162,6 +3174,33 @@ function cmdRoutingLog(cwd, args, raw) {
     flags.outcome || 'pending',
     flags['rework-cycles'] || '0',
   ].join(' | ');
+
+  // --update: find last entry for (plan, agent) and rewrite it instead of appending.
+  // Used to patch outcome from "pending" to success/rework/abort once a phase finishes.
+  if (flags.update && flags.plan && flags.agent) {
+    let existing = '';
+    try {
+      existing = fs.readFileSync(logPath, 'utf-8');
+    } catch {
+      existing = '';
+    }
+    const lines = existing.split('\n').filter(Boolean);
+    let lastMatchIdx = -1;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const parts = lines[i].split('|').map(s => s.trim());
+      if (parts[1] === flags.plan && parts[2] === flags.agent) {
+        lastMatchIdx = i;
+        break;
+      }
+    }
+    if (lastMatchIdx >= 0) {
+      lines[lastMatchIdx] = line;
+      fs.writeFileSync(logPath, lines.join('\n') + '\n');
+      output({ updated: true, path: path.relative(cwd, logPath), line }, raw, line);
+      return;
+    }
+    // No match found — fall through to append
+  }
 
   fs.appendFileSync(logPath, line + '\n');
   output({ logged: true, path: path.relative(cwd, logPath), line }, raw, line);
@@ -3192,16 +3231,26 @@ function cmdAnalyzeRouting(cwd, raw) {
     return;
   }
 
-  const stats = {};
+  // Dedupe by (plan, agent) — keep latest entry. Without this, --update vs
+  // append confusion or duplicate logs would inflate counts.
+  const latestByKey = new Map();
   for (const line of lines) {
     const parts = line.split('|').map(s => s.trim());
+    const [ts, plan, agent] = parts;
+    const dedupeKey = `${plan}|${agent}`;
+    latestByKey.set(dedupeKey, parts); // last-write-wins
+  }
+
+  const stats = {};
+  for (const parts of latestByKey.values()) {
     const [ts, plan, agent, model, complexity, score, outcome, rework] = parts;
     const key = `${complexity}|${model}`;
-    if (!stats[key]) stats[key] = { total: 0, success: 0, rework: 0, abort: 0, rework_cycles_total: 0 };
+    if (!stats[key]) stats[key] = { total: 0, success: 0, rework: 0, abort: 0, pending: 0, rework_cycles_total: 0 };
     stats[key].total++;
     if (outcome === 'success') stats[key].success++;
     else if (outcome === 'rework') stats[key].rework++;
     else if (outcome === 'abort') stats[key].abort++;
+    else if (outcome === 'pending') stats[key].pending++;
     stats[key].rework_cycles_total += parseInt(rework || '0', 10);
   }
 
@@ -3360,10 +3409,20 @@ function cmdVerifyStatic(cwd, args, raw) {
     }
   }
 
-  // Test
+  // Test — detect runner and pick the right non-interactive flag
   if (flags.all || flags.test) {
     if (scripts.test) {
-      checks.push(runCheck('test', 'npm test --silent -- --run', true));
+      // Read deps to detect vitest (default watch mode needs --run to exit)
+      let testCmd = 'npm test --silent';
+      try {
+        const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));
+        const allDeps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+        if (allDeps.vitest) testCmd = 'npm test --silent -- --run';
+        // jest, mocha, jasmine, ava, tap, etc. exit on completion by default
+      } catch {}
+      // Allow override via env: UP_VERIFY_TEST_CMD
+      if (process.env.UP_VERIFY_TEST_CMD) testCmd = process.env.UP_VERIFY_TEST_CMD;
+      checks.push(runCheck('test', testCmd, true));
     } else {
       const skip = maybeSkip('test');
       if (skip) checks.push(skip);
@@ -3634,6 +3693,7 @@ function cmdStatus(cwd, raw) {
       cwd,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 30000,
     });
     const report = JSON.parse(out);
     const config = loadConfig(cwd);

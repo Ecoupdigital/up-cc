@@ -1300,6 +1300,33 @@ Task(
 - Verificar que commits existem via `git log --oneline --grep`
 - Se falha: tentar re-executar o plano falho (max 1 retry)
 
+**Wave 5+ — Patch routing outcome apos retorno do spawn:**
+
+```bash
+# Apos spawn retornar (success path)
+if [ -f "${PHASE_DIR}/$(basename ${PLAN_FILE} .md | sed 's/-PLAN/-SUMMARY/')" ]; then
+  OUTCOME=success
+elif echo "$SPAWN_RETURN" | grep -q "^ABORTED:"; then
+  OUTCOME=abort
+else
+  OUTCOME=rework
+fi
+
+REWORK_CYCLES=${REWORK_COUNT:-0}
+
+node "$HOME/.claude/up/bin/up-tools.cjs" routing-log --update \
+  --plan "${PLAN_FILE}" \
+  --agent "${SPECIALIST_AGENT}" \
+  --model "${MODEL}" \
+  --complexity "${COMPLEXITY}" \
+  --score "${SCORE}" \
+  --outcome "${OUTCOME}" \
+  --rework-cycles "${REWORK_CYCLES}"
+```
+
+Sem este step, routing-history.log fica com entries `pending` orfas e
+`analyze-routing` nao tem dados pra sugerir ajustes.
+
 **Wave 3 (v0.12+) — handle ABORTED returns:**
 
 Se a mensagem de retorno do specialist comeca com `ABORTED:`:

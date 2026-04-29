@@ -307,6 +307,23 @@ SUMMARY_COUNT=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
 echo "GATE A OK: ${SUMMARY_COUNT} SUMMARY(s)"
 ```
 
+### --- Patch routing outcome (Wave 5+) ---
+
+```bash
+if [ "$SUMMARY_COUNT" -gt 0 ]; then
+  OUTCOME=success
+elif echo "$SPAWN_RETURN" | grep -q "^ABORTED:"; then
+  OUTCOME=abort
+else
+  OUTCOME=rework
+fi
+
+node "$HOME/.claude/up/bin/up-tools.cjs" routing-log --update \
+  --plan "${PLAN}" --agent "${SPECIALIST_AGENT}" --model "${MODEL}" \
+  --complexity "${COMPLEXITY}" --score "${SCORE}" \
+  --outcome "${OUTCOME}" --rework-cycles "${REWORK_COUNT:-0}"
+```
+
 ### 3.4 Execution Supervisor Revisa (PASSO 2 — Agent SEPARADO)
 
 ```python

@@ -43,6 +43,7 @@ const hasLocal = args.includes('--local') || args.includes('-l');
 const hasClaude = args.includes('--claude');
 const hasGemini = args.includes('--gemini');
 const hasOpencode = args.includes('--opencode');
+const hasCodex = args.includes('--codex');
 const hasAll = args.includes('--all');
 const hasUninstall = args.includes('--uninstall') || args.includes('-u');
 const hasHelp = args.includes('--help') || args.includes('-h');
@@ -50,11 +51,12 @@ const hasHelp = args.includes('--help') || args.includes('-h');
 // Runtime selection
 let selectedRuntimes = [];
 if (hasAll) {
-  selectedRuntimes = ['claude', 'gemini', 'opencode'];
+  selectedRuntimes = ['claude', 'gemini', 'opencode', 'codex'];
 } else {
   if (hasClaude) selectedRuntimes.push('claude');
   if (hasGemini) selectedRuntimes.push('gemini');
   if (hasOpencode) selectedRuntimes.push('opencode');
+  if (hasCodex) selectedRuntimes.push('codex');
 }
 
 const banner = '\n' +
@@ -77,6 +79,7 @@ if (hasHelp) {
   console.log(`    ${cyan}--claude${reset}           Install for Claude Code`);
   console.log(`    ${cyan}--gemini${reset}           Install for Gemini CLI`);
   console.log(`    ${cyan}--opencode${reset}         Install for OpenCode`);
+  console.log(`    ${cyan}--codex${reset}            Install for OpenAI Codex CLI`);
   console.log(`    ${cyan}--all${reset}              Install for all runtimes`);
   console.log(`    ${cyan}-u, --uninstall${reset}   Remove all UP files`);
   console.log(`    ${cyan}-h, --help${reset}        Show this help\n`);
@@ -101,12 +104,14 @@ const packageRoot = path.resolve(scriptDir, '..');
 function getDirName(runtime) {
   if (runtime === 'opencode') return '.opencode';
   if (runtime === 'gemini') return '.gemini';
+  if (runtime === 'codex') return '.codex';
   return '.claude';
 }
 
 function getRuntimeLabel(runtime) {
   if (runtime === 'opencode') return 'OpenCode';
   if (runtime === 'gemini') return 'Gemini';
+  if (runtime === 'codex') return 'Codex CLI';
   return 'Claude Code';
 }
 
@@ -119,6 +124,10 @@ function getGlobalDir(runtime) {
   if (runtime === 'gemini') {
     if (process.env.GEMINI_CONFIG_DIR) return process.env.GEMINI_CONFIG_DIR;
     return path.join(os.homedir(), '.gemini');
+  }
+  if (runtime === 'codex') {
+    if (process.env.CODEX_HOME) return process.env.CODEX_HOME;
+    return path.join(os.homedir(), '.codex');
   }
   // Claude Code
   if (process.env.CLAUDE_CONFIG_DIR) return process.env.CLAUDE_CONFIG_DIR;
@@ -269,6 +278,7 @@ function convertAgentToGemini(content) {
 const colorNameToHex = {
   cyan: '#00FFFF', red: '#FF0000', green: '#00FF00', blue: '#0000FF',
   yellow: '#FFFF00', magenta: '#FF00FF', orange: '#FFA500', purple: '#800080',
+  gold: '#FFD700', pink: '#FFC0CB', brown: '#8B4513',
 };
 
 function convertAgentToOpencode(content) {
@@ -279,6 +289,11 @@ function convertAgentToOpencode(content) {
   converted = converted.replace(/\bTodoWrite\b/g, 'todowrite');
   converted = converted.replace(/\/up:/g, '/up-'); // OpenCode flat command structure
 
+  // Replace Task tool calls with OpenCode format
+  // Claude Code: Task(subagent_type="up-xxx", ...) / Agent(subagent_type="up-xxx", ...)
+  // OpenCode: @up-xxx or task tool with agent name
+  converted = converted.replace(/subagent_type="up-/g, 'agent="up-');
+
   const { frontmatter, body } = extractFrontmatterAndBody(converted);
   if (!frontmatter) return converted;
 
@@ -286,11 +301,17 @@ function convertAgentToOpencode(content) {
   const newLines = [];
   const tools = [];
   let inTools = false;
+  let hasMode = false;
 
   for (const line of lines) {
     const trimmed = line.trim();
 
     if (trimmed.startsWith('name:')) continue; // OpenCode uses filename
+    if (trimmed.startsWith('mode:')) {
+      hasMode = true;
+      newLines.push(line);
+      continue;
+    }
     if (trimmed.startsWith('tools:')) {
       const toolsValue = trimmed.substring(6).trim();
       if (toolsValue) {
@@ -315,6 +336,13 @@ function convertAgentToOpencode(content) {
       }
     }
     if (!inTools) newLines.push(line);
+  }
+
+  // CRITICAL: OpenCode requires mode: subagent for agents to be invokable via Task tool
+  // Without this, agents are treated as "primary" and isolated — primary agents cannot
+  // invoke each other. All UP agents are subagents (only user-facing primary is OpenCode itself).
+  if (!hasMode) {
+    newLines.push('mode: subagent');
   }
 
   if (tools.length > 0) {
@@ -342,6 +370,125 @@ function convertCommandToGeminiToml(content) {
   return toml;
 }
 
+// ── Codex Conversion ──
+
+/**
+ * Map UP agent name to Codex sandbox_mode based on role.
+ * Specialists/executors/devops get workspace-write.
+ * Supervisors/auditors/reviewers get read-only.
+ */
+function getCodexSandboxMode(agentName) {
+  const writeAgents = [
+    'up-frontend-specialist', 'up-backend-specialist', 'up-database-specialist',
+    'up-executor', 'up-devops-agent', 'up-technical-writer', 'up-arquiteto',
+    'up-system-designer', 'up-roteirista', 'up-sintetizador', 'up-sintetizador-melhorias',
+    'up-consolidador-ideias', 'up-clone-crawler', 'up-clone-design-extractor',
+    'up-clone-feature-mapper', 'up-clone-prd-writer', 'up-clone-verifier',
+    'up-visual-critic', 'up-exhaustive-tester', 'up-api-tester', 'up-qa-agent',
+    'up-depurador', 'up-verificador', 'up-blind-validator', 'up-planejador',
+    'up-mapeador-codigo', 'up-analista-codigo', 'up-pesquisador-projeto',
+    'up-pesquisador-mercado', 'up-product-analyst', 'up-project-ceo',
+  ];
+  return writeAgents.includes(agentName) ? 'workspace-write' : 'read-only';
+}
+
+/**
+ * Prepare markdown body for embedding inside a TOML literal string ('''...''').
+ * TOML literal strings don't interpret escape sequences, so backslashes in shell
+ * commands and regex patterns survive intact. The only thing we can't have inside
+ * the literal is the literal sequence ''' which would close the string.
+ */
+function prepareTomlLiteralBody(str) {
+  // If the body contains ''' (rare in markdown), break it by inserting a zero-width space.
+  // This is a known TOML limitation — literal strings cannot contain their own delimiter.
+  if (str.includes("'''")) {
+    // Replace with backtick-marked version preserving readability
+    return str.replace(/'''/g, "''\u200B'");
+  }
+  return str;
+}
+
+/**
+ * Convert Claude Code agent .md to Codex TOML format.
+ *
+ * Codex agent file structure:
+ *   name = "..."
+ *   description = "..."
+ *   developer_instructions = '''...'''
+ *   sandbox_mode = "workspace-write" | "read-only"
+ *
+ * Uses TOML literal strings ('''...''') for the body so that backslashes in
+ * embedded shell commands and regex patterns survive without escaping.
+ *
+ * Codex agents do NOT have a `tools` field. Tool access is governed by sandbox_mode only.
+ * The `color` field has no Codex equivalent and is dropped.
+ */
+function convertAgentToCodex(content, fallbackName) {
+  const { frontmatter, body } = extractFrontmatterAndBody(content);
+
+  let name = fallbackName || 'unknown';
+  let description = '';
+  if (frontmatter) {
+    name = extractFrontmatterField(frontmatter, 'name') || name;
+    description = extractFrontmatterField(frontmatter, 'description') || '';
+  }
+
+  const sandboxMode = getCodexSandboxMode(name);
+  const cleanBody = prepareTomlLiteralBody(body.trim());
+
+  let toml = '';
+  toml += `name = ${JSON.stringify(name)}\n`;
+  toml += `description = ${JSON.stringify(description)}\n`;
+  toml += `sandbox_mode = ${JSON.stringify(sandboxMode)}\n`;
+  toml += `developer_instructions = '''\n${cleanBody}\n'''\n`;
+  return toml;
+}
+
+/**
+ * Convert Claude Code command .md to Codex skill SKILL.md format.
+ * Codex skills use YAML frontmatter (same as Claude) but skill body is loaded
+ * AFTER trigger, so we keep most content there.
+ *
+ * Returns { skillMd, openaiYaml } for the caller to write to disk.
+ */
+function convertCommandToCodexSkill(content, commandName) {
+  const { frontmatter, body } = extractFrontmatterAndBody(content);
+
+  let description = '';
+  if (frontmatter) {
+    description = extractFrontmatterField(frontmatter, 'description') || '';
+  }
+
+  const skillName = commandName.startsWith('up-') ? commandName : `up-${commandName}`;
+
+  // SKILL.md frontmatter must have name + description (Codex skill spec)
+  const skillMd =
+    `---\n` +
+    `name: ${skillName}\n` +
+    `description: ${JSON.stringify(description)}\n` +
+    `---\n` +
+    body;
+
+  // openai.yaml — explicit invocation only (don't pollute auto-discovery)
+  const displayName = skillName
+    .replace(/^up-/, 'UP ')
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+  const shortDesc = description.slice(0, 60);
+  const defaultPrompt = `Use $${skillName} to ${description.slice(0, 80).toLowerCase()}`;
+
+  const openaiYaml =
+    `interface:\n` +
+    `  display_name: ${JSON.stringify(displayName)}\n` +
+    `  short_description: ${JSON.stringify(shortDesc)}\n` +
+    `  default_prompt: ${JSON.stringify(defaultPrompt)}\n` +
+    `\n` +
+    `policy:\n` +
+    `  allow_implicit_invocation: false\n`;
+
+  return { skillMd, openaiYaml };
+}
+
 // ── File Copy ──
 
 /**
@@ -363,6 +510,32 @@ function replacePaths(content, pathPrefix, runtime) {
   if (runtime === 'opencode') {
     content = content.replace(/\/up:/g, '/up-');
     content = content.replace(/subagent_type="general-purpose"/g, 'subagent_type="general"');
+    // OpenCode invokes subagents via Task tool with agent name (not subagent_type)
+    // Keep subagent_type for compatibility but ensure agents have mode:subagent
+    // Replace AskUserQuestion with question (OpenCode native)
+    content = content.replace(/\bAskUserQuestion\b/g, 'question');
+    content = content.replace(/\bSlashCommand\b/g, 'skill');
+    content = content.replace(/\bTodoWrite\b/g, 'todowrite');
+  }
+
+  if (runtime === 'codex') {
+    // Slash commands become skill mentions in Codex
+    content = content.replace(/\/up:([a-z-]+)/g, '$$up-$1');
+
+    // Translate programmatic Task() calls to Codex's natural-language invocation pattern.
+    // Codex multi-agent feature spawns agents from natural language in prompts.
+    //
+    // Pattern: Task(subagent_type="up-X", prompt="...") → "Spawn the up-X subagent..."
+    // We can't fully reformat the multi-line python-like calls, but we can strip the
+    // Python wrappers so workflow content reads as natural instructions.
+    content = content.replace(/Task\(\s*subagent_type="(up-[a-z-]+)",\s*prompt="/g,
+      'Spawn the $1 subagent with the following task: "');
+    content = content.replace(/Agent\(\s*subagent_type="(up-[a-z-]+)",/g,
+      'Spawn the $1 subagent with the following config:');
+    content = content.replace(/subagent_type="general-purpose"/g, 'general purpose');
+    // Codex tools naming
+    content = content.replace(/\bAskUserQuestion\b/g, 'ask user');
+    content = content.replace(/\bTodoWrite\b/g, 'task tracking');
   }
 
   return content;
@@ -472,7 +645,7 @@ function uninstall(targetDir, runtime) {
   const agentsDir = path.join(targetDir, 'agents');
   if (fs.existsSync(agentsDir)) {
     for (const file of fs.readdirSync(agentsDir)) {
-      if (file.startsWith('up-') && file.endsWith('.md')) {
+      if (file.startsWith('up-') && (file.endsWith('.md') || file.endsWith('.toml'))) {
         fs.unlinkSync(path.join(agentsDir, file));
         removed++;
       }
@@ -481,7 +654,23 @@ function uninstall(targetDir, runtime) {
   }
 
   // Remove UP commands (runtime-specific structure)
-  if (runtime === 'opencode') {
+  if (runtime === 'codex') {
+    // Codex: skills/up-X folders
+    const skillsDir = path.join(targetDir, 'skills');
+    if (fs.existsSync(skillsDir)) {
+      let skillCount = 0;
+      for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
+        if (entry.isDirectory() && entry.name.startsWith('up-')) {
+          rmDir(path.join(skillsDir, entry.name));
+          skillCount++;
+        }
+      }
+      if (skillCount > 0) {
+        console.log(`  ${green}✓${reset} Removed ${skillCount} skills (commands)`);
+        removed += skillCount;
+      }
+    }
+  } else if (runtime === 'opencode') {
     const commandDir = path.join(targetDir, 'command');
     if (fs.existsSync(commandDir)) {
       let cmdCount = 0;
@@ -593,6 +782,41 @@ function install(isGlobal, runtime) {
       } else {
         failures.push('commands');
       }
+    } else if (runtime === 'codex') {
+      // Codex: each command becomes a skill folder under skills/up-X/
+      const skillsDir = path.join(targetDir, 'skills');
+      fs.mkdirSync(skillsDir, { recursive: true });
+
+      // Remove old up-* skill folders
+      for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
+        if (entry.isDirectory() && entry.name.startsWith('up-')) {
+          rmDir(path.join(skillsDir, entry.name));
+        }
+      }
+
+      let skillCount = 0;
+      for (const file of fs.readdirSync(cmdsSrc)) {
+        if (file.endsWith('.md')) {
+          const commandName = file.replace(/\.md$/, '');
+          const skillName = `up-${commandName}`;
+          const skillDir = path.join(skillsDir, skillName);
+          fs.mkdirSync(skillDir, { recursive: true });
+          fs.mkdirSync(path.join(skillDir, 'agents'), { recursive: true });
+
+          let content = fs.readFileSync(path.join(cmdsSrc, file), 'utf8');
+          content = replacePaths(content, pathPrefix, runtime);
+
+          const { skillMd, openaiYaml } = convertCommandToCodexSkill(content, commandName);
+          fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skillMd);
+          fs.writeFileSync(path.join(skillDir, 'agents', 'openai.yaml'), openaiYaml);
+          skillCount++;
+        }
+      }
+      if (skillCount > 0) {
+        console.log(`  ${green}✓${reset} Installed ${skillCount} skills (commands)`);
+      } else {
+        failures.push('commands');
+      }
     } else {
       // Claude & Gemini: nested commands/up/
       const cmdsDest = path.join(targetDir, 'commands', 'up');
@@ -619,6 +843,15 @@ function install(isGlobal, runtime) {
       }
     }
 
+    // Codex needs old .toml files removed too
+    if (runtime === 'codex') {
+      for (const file of fs.readdirSync(agentsDest)) {
+        if (file.startsWith('up-') && file.endsWith('.toml')) {
+          fs.unlinkSync(path.join(agentsDest, file));
+        }
+      }
+    }
+
     // Copy UP agents with runtime conversion
     let agentCount = 0;
     for (const file of fs.readdirSync(agentsSrc)) {
@@ -628,11 +861,18 @@ function install(isGlobal, runtime) {
 
         if (runtime === 'gemini') {
           content = convertAgentToGemini(content);
+          fs.writeFileSync(path.join(agentsDest, file), content);
         } else if (runtime === 'opencode') {
           content = convertAgentToOpencode(content);
+          fs.writeFileSync(path.join(agentsDest, file), content);
+        } else if (runtime === 'codex') {
+          // Codex agents are .toml not .md
+          const baseName = file.replace(/\.md$/, '');
+          const tomlContent = convertAgentToCodex(content, baseName);
+          fs.writeFileSync(path.join(agentsDest, `${baseName}.toml`), tomlContent);
+        } else {
+          fs.writeFileSync(path.join(agentsDest, file), content);
         }
-
-        fs.writeFileSync(path.join(agentsDest, file), content);
         agentCount++;
       }
     }
@@ -715,6 +955,32 @@ function install(isGlobal, runtime) {
     }
   }
 
+  // 4b. Configure Codex config.toml with [agents] max_depth
+  if (runtime === 'codex') {
+    const configPath = path.join(targetDir, 'config.toml');
+    let existing = '';
+    if (fs.existsSync(configPath)) {
+      existing = fs.readFileSync(configPath, 'utf8');
+    }
+
+    // UP needs deeper agent nesting than Codex default (max_depth=1).
+    // Hierarchy: CEO → Chiefs → Supervisors → Operationals = 4 levels.
+    // We do an idempotent merge: if [agents] section exists, only add missing keys.
+    const upMarker = '# UP — added by up-cc installer';
+    if (!existing.includes(upMarker)) {
+      const upConfig =
+        `\n${upMarker}\n` +
+        `[agents]\n` +
+        `max_depth = 4\n` +
+        `max_threads = 8\n` +
+        `job_max_runtime_seconds = 3600\n`;
+      fs.writeFileSync(configPath, existing + upConfig);
+      console.log(`  ${green}✓${reset} Configured config.toml ([agents] max_depth=4, max_threads=8)`);
+    } else {
+      console.log(`  ${dim}config.toml already has UP settings — skipped${reset}`);
+    }
+  }
+
   // 5. Write VERSION file
   const versionDest = path.join(upDest, 'VERSION');
   fs.writeFileSync(versionDest, VERSION);
@@ -735,7 +1001,10 @@ function install(isGlobal, runtime) {
     process.exit(1);
   }
 
-  const command = runtime === 'opencode' ? '/up-ajuda' : '/up:ajuda';
+  let command;
+  if (runtime === 'opencode') command = '/up-ajuda';
+  else if (runtime === 'codex') command = '$up-ajuda';
+  else command = '/up:ajuda';
   console.log(`\n  ${green}Done!${reset} Run ${cyan}${command}${reset} in ${label} to get started.\n`);
 }
 
@@ -752,13 +1021,15 @@ function promptRuntime(callback) {
   console.log(`  ${cyan}1${reset}) Claude Code ${dim}(~/.claude)${reset}`);
   console.log(`  ${cyan}2${reset}) Gemini      ${dim}(~/.gemini)${reset}`);
   console.log(`  ${cyan}3${reset}) OpenCode    ${dim}(~/.config/opencode)${reset}`);
-  console.log(`  ${cyan}4${reset}) All\n`);
+  console.log(`  ${cyan}4${reset}) Codex CLI   ${dim}(~/.codex)${reset}`);
+  console.log(`  ${cyan}5${reset}) All\n`);
 
   rl.question(`  Choice ${dim}[1]${reset}: `, (answer) => {
     answered = true;
     rl.close();
     const choice = answer.trim() || '1';
-    if (choice === '4') callback(['claude', 'gemini', 'opencode']);
+    if (choice === '5') callback(['claude', 'gemini', 'opencode', 'codex']);
+    else if (choice === '4') callback(['codex']);
     else if (choice === '3') callback(['opencode']);
     else if (choice === '2') callback(['gemini']);
     else callback(['claude']);

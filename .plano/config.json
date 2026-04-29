@@ -2,5 +2,9 @@
   "mode": "yolo",
   "granularity": "fine",
   "parallelization": true,
-  "commit_docs": true
+  "commit_docs": true,
+  "budget_ceiling": null,
+  "modelos": {
+    "routing": "per-role"
+  }
 }
