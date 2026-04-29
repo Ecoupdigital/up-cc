@@ -141,9 +141,21 @@ AskUserQuestion([
       { label: "$50", description: "Projeto grande" },
       { label: "$100", description: "Projeto enterprise" }
     ]
+  },
+  {
+    question: "Routing de modelos: por papel ou por complexidade da task?",
+    header: "Routing",
+    multiSelect: false,
+    options: [
+      { label: "Per-role (Padrao)", description: "Preset estatico (planejador=opus, executor=sonnet, etc)" },
+      { label: "Complexity", description: "Classifier do plano decide (Wave 5+) — task simples=haiku, complexa=opus" },
+      { label: "Complexity-with-cap", description: "Classifier sugere, mas preset capa orcamento" }
+    ]
   }
 ])
 ```
+
+Mapear "Per-role" -> `per-role`, "Complexity" -> `complexity`, "Complexity-with-cap" -> `complexity-with-cap`. Salva em `modelos.routing`.
 
 Mapear: "Sem limite" -> null, "$10" -> 10, "$25" -> 25, etc.
 

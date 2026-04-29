@@ -58,19 +58,31 @@ Neste modo, TODOS os agentes devem:
 <model_handling>
 ## Modelos (v0.9.0+)
 
-**Model routing configuravel via `config.json`.** O usuario escolhe um preset via `/up:configurar`.
+**Model routing configuravel via `config.json`.** Dois eixos:
+
+1. **Por papel** (planning/execution/governance/review) — preset estatico
+2. **Por complexidade da task** (simple/standard/complex) — classifier dinamico (Wave 5+)
 
 ### Como funciona
 
-1. O workflow le o modelo do agente via:
+**Default (per-role, comportamento v0.9):**
 ```bash
 MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config resolve-model {agent-name} --raw)
 ```
 
-2. Se retorna `default`: nao passar `model=` (runtime decide — comportamento v0.6.0).
-3. Se retorna `opus`, `sonnet` ou `haiku`: passar no spawn.
+**Wave 5+ (complexity routing):** quando spawn e contextual a um plano, use:
+```bash
+MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" resolve-model-for-plan "$PLAN" {agent-name} --raw)
+```
+Isso le `config.modelos.routing` e decide:
+- `per-role` (default) → usa preset estatico
+- `complexity` → usa classifier do plano (haiku/sonnet/opus por score)
+- `complexity-with-cap` → complexity, mas capa por preset (orcamento)
 
-### Presets disponiveis
+Se retorna `default`: nao passar `model=` (runtime decide).
+Se retorna `opus|sonnet|haiku`: passar no spawn.
+
+### Presets disponiveis (per-role)
 
 | Preset | Planning | Execution | Governance | Review |
 |--------|----------|-----------|------------|--------|
@@ -80,6 +92,14 @@ MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config resolve-model {agent-nam
 | `sonnet-completo` | sonnet | sonnet | sonnet | sonnet |
 | `economico` | sonnet | sonnet | haiku | sonnet |
 | `custom` | manual | manual | manual | manual |
+
+### Routing modes (complexity)
+
+| Mode | Comportamento |
+|------|---------------|
+| `per-role` (default) | Preset estatico, nao olha o plano |
+| `complexity` | Classifier do plano decide (score 0-2 haiku, 3-5 sonnet, 6+ opus) |
+| `complexity-with-cap` | Classifier sugere, mas preset capa (ex: per-role=sonnet, complexity=opus → usa sonnet) |
 
 ### Papeis dos agentes
 
@@ -96,8 +116,14 @@ Sem `modelos` no config.json = `runtime` (nenhum override). Identico ao v0.6.0.
 
 ### Ao spawnar qualquer agente
 
+**Spawn sem plano (CEO, planejador, supervisores cross-fase):**
 ```bash
 MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config resolve-model up-executor --raw)
+```
+
+**Spawn com plano (specialist, executor, verificador por fase) — Wave 5+:**
+```bash
+MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" resolve-model-for-plan "$PLAN" up-executor --raw)
 ```
 
 ```python
@@ -1186,6 +1212,23 @@ CTX=$(node "$HOME/.claude/up/bin/up-tools.cjs" context \
   --config \
   --engineering-principles \
   --raw)
+
+# Wave 5+ — complexity-aware model routing per plan
+SPECIALIST_AGENT="up-executor"  # ou frontend/backend/database baseado em type
+MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" resolve-model-for-plan \
+  "${PLAN_FILE}" "${SPECIALIST_AGENT}" --raw)
+CLASSIFY=$(node "$HOME/.claude/up/bin/up-tools.cjs" classify-task "${PLAN_FILE}" --raw)
+COMPLEXITY=$(echo "$CLASSIFY" | grep -oE '"complexity"[^,]+' | grep -oE '"(simple|standard|complex)"' | tr -d '"')
+SCORE=$(echo "$CLASSIFY" | grep -oE '"score"\s*:\s*[0-9]+' | grep -oE '[0-9]+')
+
+# Log decisao (outcome marcado depois do retorno)
+node "$HOME/.claude/up/bin/up-tools.cjs" routing-log \
+  --plan "${PLAN_FILE}" \
+  --agent "${SPECIALIST_AGENT}" \
+  --model "${MODEL}" \
+  --complexity "${COMPLEXITY}" \
+  --score "${SCORE}" \
+  --outcome pending
 ```
 
 Spawn:

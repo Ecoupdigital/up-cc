@@ -390,6 +390,30 @@ function main() {
       break;
     }
 
+    // ==================== CLASSIFY-TASK (Wave 5) ====================
+    case 'classify-task': {
+      cmdClassifyTask(cwd, args.slice(1), raw);
+      break;
+    }
+
+    // ==================== RESOLVE-MODEL-FOR-PLAN (Wave 5) ====================
+    case 'resolve-model-for-plan': {
+      cmdResolveModelForPlan(cwd, args.slice(1), raw);
+      break;
+    }
+
+    // ==================== ROUTING-LOG (Wave 5) ====================
+    case 'routing-log': {
+      cmdRoutingLog(cwd, args.slice(1), raw);
+      break;
+    }
+
+    // ==================== ANALYZE-ROUTING (Wave 5) ====================
+    case 'analyze-routing': {
+      cmdAnalyzeRouting(cwd, raw);
+      break;
+    }
+
     // ==================== TIMESTAMP ====================
     case 'timestamp': {
       cmdTimestamp(args[1] || 'full', raw);
@@ -2667,6 +2691,329 @@ function cmdStuckCheck(cwd, args, raw) {
     },
     raw,
     stuck ? `STUCK: "${topPattern}" repeated ${topCount}x in last ${window.length} entries` : `ok (top pattern: ${topCount}x in ${window.length})`
+  );
+}
+
+// =====================================================================
+// CLASSIFY-TASK COMMAND (Wave 5 — complexity-based routing)
+// =====================================================================
+
+/**
+ * Classify a plan file by complexity. Returns complexity tier
+ * (simple|standard|complex) and suggested model.
+ *
+ * Usage:
+ *   up-tools.cjs classify-task <plan-path>
+ *
+ * Heuristics:
+ *   - Frontmatter: type, tasks count, brownfield flag
+ *   - Content patterns: integration, refactor, schema, etc.
+ *   - File size
+ *
+ * Score buckets:
+ *   0-2 -> simple   -> haiku
+ *   3-5 -> standard -> sonnet
+ *   6+  -> complex  -> opus
+ */
+function cmdClassifyTask(cwd, args, raw) {
+  const planPath = args[0];
+  if (!planPath) error('Usage: classify-task <plan-path>');
+  const fullPath = path.isAbsolute(planPath) ? planPath : path.join(cwd, planPath);
+
+  let content;
+  try {
+    content = fs.readFileSync(fullPath, 'utf-8');
+  } catch (err) {
+    error(`Cannot read plan: ${fullPath}`);
+  }
+
+  const result = classifyContent(content);
+  result.plan_path = path.relative(cwd, fullPath);
+  output(result, raw, `${result.complexity} | ${result.suggested_model} | score=${result.score} | reasons=${result.reasons.join(',')}`);
+}
+
+function classifyContent(content) {
+  let score = 0;
+  const reasons = [];
+
+  // Parse frontmatter
+  const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+  const fm = {};
+  if (fmMatch) {
+    for (const line of fmMatch[1].split('\n')) {
+      const m = line.match(/^(\w+)\s*:\s*(.+)$/);
+      if (m) fm[m[1]] = m[2].trim().replace(/^["']|["']$/g, '');
+    }
+  }
+
+  const type = (fm.type || '').toLowerCase();
+  const brownfield = String(fm.brownfield || '').toLowerCase() === 'true';
+  const lower = content.toLowerCase();
+
+  // Type-based scoring
+  if (type === 'refactor' || type === 'migration') {
+    score += 4;
+    reasons.push('type=refactor/migration');
+  } else if (type === 'integration') {
+    score += 3;
+    reasons.push('type=integration');
+  } else if (type === 'frontend' || type === 'backend') {
+    score += 1;
+    reasons.push(`type=${type}`);
+  } else if (type === 'database') {
+    score += 1;
+    reasons.push('type=database');
+  } else if (type === 'docs' || type === 'config') {
+    // simple, no points
+    reasons.push(`type=${type}-simple`);
+  }
+
+  // Brownfield = touching existing code = harder
+  if (brownfield) {
+    score += 2;
+    reasons.push('brownfield');
+  }
+
+  // Content patterns
+  const patterns = [
+    { rx: /\b(oauth|webhook|external api|third.?party|api integration)\b/i, weight: 2, name: 'external_integration' },
+    { rx: /\b(refactor|rewrite|migrate|deprecate)\b/i, weight: 2, name: 'refactor_signal' },
+    { rx: /\b(transaction|distributed|race condition|concurrency|locking)\b/i, weight: 2, name: 'concurrency' },
+    { rx: /\b(security|auth|authentication|authorization|csrf|xss|injection)\b/i, weight: 1, name: 'security' },
+    { rx: /\b(stripe|payment|billing|invoice)\b/i, weight: 2, name: 'payment' },
+    { rx: /\b(real.?time|websocket|streaming|sse)\b/i, weight: 2, name: 'realtime' },
+    { rx: /\b(performance|optimi[sz]e|cache|lazy|debounce)\b/i, weight: 1, name: 'performance' },
+    { rx: /\b(simple|trivial|basic|crud)\b/i, weight: -1, name: 'explicitly_simple' },
+  ];
+
+  for (const p of patterns) {
+    if (p.rx.test(content)) {
+      score += p.weight;
+      reasons.push(p.name + (p.weight > 0 ? `+${p.weight}` : `${p.weight}`));
+    }
+  }
+
+  // Size-based
+  const bytes = Buffer.byteLength(content, 'utf-8');
+  if (bytes > 20000) {
+    score += 2;
+    reasons.push(`size>20kB(+2)`);
+  } else if (bytes > 10000) {
+    score += 1;
+    reasons.push(`size>10kB(+1)`);
+  }
+
+  // Task count (count <task> tags or numbered sections)
+  const taskMatches = (content.match(/<task\b/gi) || []).length;
+  const numberedMatches = (content.match(/^###?\s+\d+\./gm) || []).length;
+  const tasks = Math.max(taskMatches, numberedMatches);
+  if (tasks > 10) {
+    score += 2;
+    reasons.push(`tasks>10(+2)`);
+  } else if (tasks > 6) {
+    score += 1;
+    reasons.push(`tasks>6(+1)`);
+  }
+
+  // Clamp to 0+
+  if (score < 0) score = 0;
+
+  let complexity, model;
+  if (score <= 2) {
+    complexity = 'simple';
+    model = 'haiku';
+  } else if (score <= 5) {
+    complexity = 'standard';
+    model = 'sonnet';
+  } else {
+    complexity = 'complex';
+    model = 'opus';
+  }
+
+  return {
+    complexity,
+    suggested_model: model,
+    score,
+    reasons,
+    frontmatter_type: type || null,
+    brownfield,
+    bytes,
+    tasks_detected: tasks,
+  };
+}
+
+// =====================================================================
+// RESOLVE-MODEL-FOR-PLAN (Wave 5 — combined router)
+// =====================================================================
+
+/**
+ * Resolve which model to use for an agent given a plan context.
+ * Combines per-role routing (existing) with complexity routing (new).
+ *
+ * Routing modes (config.modelos.routing):
+ *   per-role (default)   -> use existing resolveAgentModel
+ *   complexity           -> use classify-task suggestion
+ *   complexity-with-cap  -> use classify-task BUT cap by per-role
+ *                           (e.g., per-role says haiku, complexity says
+ *                            opus -> use haiku since user budget says so)
+ *
+ * Usage:
+ *   up-tools.cjs resolve-model-for-plan <plan-path> <agent-name>
+ */
+function cmdResolveModelForPlan(cwd, args, raw) {
+  const [planPath, agentName] = args;
+  if (!planPath || !agentName) error('Usage: resolve-model-for-plan <plan-path> <agent-name>');
+
+  const config = loadConfig(cwd);
+  const routingMode = (config.modelos && config.modelos.routing) || 'per-role';
+  const perRoleModel = resolveAgentModel(cwd, agentName);
+
+  if (routingMode === 'per-role') {
+    output({ model: perRoleModel || 'default', source: 'per-role' }, raw, perRoleModel || 'default');
+    return;
+  }
+
+  // Need to classify the plan
+  const fullPath = path.isAbsolute(planPath) ? planPath : path.join(cwd, planPath);
+  let content;
+  try {
+    content = fs.readFileSync(fullPath, 'utf-8');
+  } catch {
+    output({ model: perRoleModel || 'default', source: 'per-role-fallback' }, raw, perRoleModel || 'default');
+    return;
+  }
+
+  const cls = classifyContent(content);
+  const complexityModel = cls.suggested_model;
+
+  if (routingMode === 'complexity') {
+    output(
+      { model: complexityModel, source: 'complexity', complexity: cls.complexity, score: cls.score },
+      raw,
+      complexityModel
+    );
+    return;
+  }
+
+  if (routingMode === 'complexity-with-cap') {
+    // Order: haiku < sonnet < opus
+    const order = { haiku: 1, sonnet: 2, opus: 3 };
+    const finalModel =
+      perRoleModel && order[perRoleModel]
+        ? (order[complexityModel] <= order[perRoleModel] ? complexityModel : perRoleModel)
+        : complexityModel;
+    output(
+      { model: finalModel, source: 'complexity-with-cap', complexity: cls.complexity, capped_by: perRoleModel },
+      raw,
+      finalModel
+    );
+    return;
+  }
+
+  output({ model: perRoleModel || 'default', source: 'unknown-mode-fallback' }, raw, perRoleModel || 'default');
+}
+
+// =====================================================================
+// ROUTING-LOG (Wave 5 — append routing decision + outcome)
+// =====================================================================
+
+/**
+ * Append a routing decision to .plano/governance/routing-history.log
+ * for later analysis.
+ *
+ * Usage:
+ *   up-tools.cjs routing-log --plan <path> --agent <name> --model <m>
+ *                            --complexity <c> [--score N]
+ *                            [--outcome success|rework|abort]
+ *                            [--rework-cycles N]
+ */
+function cmdRoutingLog(cwd, args, raw) {
+  const flags = {};
+  for (let i = 0; i < args.length; i += 2) {
+    flags[args[i].replace(/^--/, '')] = args[i + 1];
+  }
+
+  const govDir = path.join(cwd, '.plano', 'governance');
+  try { fs.mkdirSync(govDir, { recursive: true }); } catch {}
+  const logPath = path.join(govDir, 'routing-history.log');
+
+  const ts = new Date().toISOString();
+  const line = [
+    ts,
+    flags.plan || '',
+    flags.agent || '',
+    flags.model || '',
+    flags.complexity || '',
+    flags.score || '',
+    flags.outcome || 'pending',
+    flags['rework-cycles'] || '0',
+  ].join(' | ');
+
+  fs.appendFileSync(logPath, line + '\n');
+  output({ logged: true, path: path.relative(cwd, logPath), line }, raw, line);
+}
+
+// =====================================================================
+// ANALYZE-ROUTING (Wave 5 — post-mortem of routing decisions)
+// =====================================================================
+
+/**
+ * Aggregate routing-history.log to suggest classifier adjustments.
+ *
+ * Usage:
+ *   up-tools.cjs analyze-routing
+ *
+ * Output:
+ *   - per-complexity success rate
+ *   - which complexity buckets had high rework
+ *   - suggestions: bump up to bigger model, or downgrade
+ */
+function cmdAnalyzeRouting(cwd, raw) {
+  const logPath = path.join(cwd, '.plano', 'governance', 'routing-history.log');
+  let lines = [];
+  try {
+    lines = fs.readFileSync(logPath, 'utf-8').split('\n').filter(l => l.includes('|'));
+  } catch {
+    output({ entries: 0, message: 'no_history' }, raw, 'no routing history yet');
+    return;
+  }
+
+  const stats = {};
+  for (const line of lines) {
+    const parts = line.split('|').map(s => s.trim());
+    const [ts, plan, agent, model, complexity, score, outcome, rework] = parts;
+    const key = `${complexity}|${model}`;
+    if (!stats[key]) stats[key] = { total: 0, success: 0, rework: 0, abort: 0, rework_cycles_total: 0 };
+    stats[key].total++;
+    if (outcome === 'success') stats[key].success++;
+    else if (outcome === 'rework') stats[key].rework++;
+    else if (outcome === 'abort') stats[key].abort++;
+    stats[key].rework_cycles_total += parseInt(rework || '0', 10);
+  }
+
+  const summary = [];
+  const suggestions = [];
+  for (const [key, s] of Object.entries(stats)) {
+    const [complexity, model] = key.split('|');
+    const successRate = s.total ? (s.success / s.total * 100).toFixed(1) : '0.0';
+    const avgRework = s.total ? (s.rework_cycles_total / s.total).toFixed(2) : '0';
+    summary.push({ complexity, model, total: s.total, success_rate: Number(successRate), avg_rework_cycles: Number(avgRework), aborts: s.abort });
+
+    if (Number(successRate) < 60 && s.total >= 3) {
+      suggestions.push(`${complexity}+${model}: success rate ${successRate}% (${s.total} runs) — consider bumping to bigger model`);
+    }
+    if (Number(avgRework) >= 1.5 && s.total >= 3) {
+      suggestions.push(`${complexity}+${model}: avg ${avgRework} rework cycles — model may be undersized for this complexity`);
+    }
+    if (s.abort > 0 && s.total >= 3 && (s.abort / s.total) > 0.2) {
+      suggestions.push(`${complexity}+${model}: ${s.abort}/${s.total} aborts — review timeout config or upgrade model`);
+    }
+  }
+
+  output(
+    { entries: lines.length, summary, suggestions },
+    raw,
+    `analyzed ${lines.length} entries — ${summary.length} buckets, ${suggestions.length} suggestions`
   );
 }
 

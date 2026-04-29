@@ -229,6 +229,18 @@ CTX=$(node "$HOME/.claude/up/bin/up-tools.cjs" context \
   --requirements "${PHASE_NUMBER}" \
   --engineering-principles \
   --raw)
+
+# Wave 5+ — complexity-aware model routing per plan
+SPECIALIST_AGENT="up-executor"  # ou specialist baseado em type do plano
+MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" resolve-model-for-plan \
+  "${PLAN}" "${SPECIALIST_AGENT}" --raw)
+CLASSIFY=$(node "$HOME/.claude/up/bin/up-tools.cjs" classify-task "${PLAN}" --raw)
+COMPLEXITY=$(echo "$CLASSIFY" | grep -oE '"complexity"[^,]+' | grep -oE '"(simple|standard|complex)"' | tr -d '"')
+SCORE=$(echo "$CLASSIFY" | grep -oE '"score"\s*:\s*[0-9]+' | grep -oE '[0-9]+')
+
+node "$HOME/.claude/up/bin/up-tools.cjs" routing-log \
+  --plan "${PLAN}" --agent "${SPECIALIST_AGENT}" --model "${MODEL}" \
+  --complexity "${COMPLEXITY}" --score "${SCORE}" --outcome pending
 ```
 
 ```python
