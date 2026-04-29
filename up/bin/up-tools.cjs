@@ -360,6 +360,12 @@ function main() {
       break;
     }
 
+    // ==================== STATUS (headless aggregator) ====================
+    case 'status': {
+      cmdStatus(cwd, raw);
+      break;
+    }
+
     // ==================== TIMESTAMP ====================
     case 'timestamp': {
       cmdTimestamp(args[1] || 'full', raw);
@@ -2489,6 +2495,121 @@ function cmdBudget(cwd, raw) {
       ? `Spent: $${result.spend_usd} / $${ceiling} (${result.percent_used}%) [${result.status}]`
       : `Spent: $${result.spend_usd} (no ceiling configured)`
   );
+}
+
+// =====================================================================
+// STATUS COMMAND (headless aggregator — no LLM needed)
+// =====================================================================
+
+function cmdStatus(cwd, raw) {
+  // Aggregates progress + budget + current phase + governance counts in one shot.
+  // Designed for /up:progresso, /up:saude, dashboards, or external monitoring.
+  const phasesDir = path.join(cwd, '.plano', 'fases');
+  const phases = [];
+  let totalPlans = 0;
+  let totalSummaries = 0;
+  let currentPhase = null;
+
+  try {
+    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort((a, b) => comparePhaseNum(a, b));
+    for (const dir of dirs) {
+      const dm = dir.match(/^(\d+(?:\.\d+)*)-?(.*)/);
+      const phaseNum = dm ? dm[1] : dir;
+      const phaseName = dm && dm[2] ? dm[2].replace(/-/g, ' ') : '';
+      const phaseFiles = fs.readdirSync(path.join(phasesDir, dir));
+      const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md').length;
+      const summaries = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md').length;
+      const verifications = phaseFiles.filter(f => f.endsWith('-VERIFICATION.md') || f === 'VERIFICATION.md').length;
+      totalPlans += plans;
+      totalSummaries += summaries;
+      let status;
+      if (plans === 0) status = 'pending';
+      else if (summaries >= plans) status = 'complete';
+      else if (summaries > 0) status = 'in_progress';
+      else status = 'planned';
+      const phaseEntry = { number: phaseNum, name: phaseName, plans, summaries, verifications, status };
+      phases.push(phaseEntry);
+      if (!currentPhase && (status === 'in_progress' || status === 'planned')) {
+        currentPhase = phaseEntry;
+      }
+    }
+  } catch {}
+
+  const percent = totalPlans > 0 ? Math.min(100, Math.round((totalSummaries / totalPlans) * 100)) : 0;
+
+  // Governance counts
+  const approvalsLog = path.join(cwd, '.plano', 'governance', 'approvals.log');
+  const technicalDebtLog = path.join(cwd, '.plano', 'governance', 'technical-debt.log');
+  let approvalCount = 0;
+  let technicalDebtCount = 0;
+  try {
+    if (fs.existsSync(approvalsLog)) {
+      approvalCount = fs.readFileSync(approvalsLog, 'utf-8').split('\n').filter(l => l.includes('|')).length;
+    }
+    if (fs.existsSync(technicalDebtLog)) {
+      technicalDebtCount = fs.readFileSync(technicalDebtLog, 'utf-8').split('\n').filter(l => l.includes('|')).length;
+    }
+  } catch {}
+
+  // Budget (best-effort; never blocks status)
+  let budget = { spend_usd: 0, ceiling_usd: null, status: 'no_data' };
+  try {
+    const { execSync } = require('child_process');
+    const instrumentPath = path.join(__dirname, 'up-instrument.cjs');
+    const out = execSync(`node "${instrumentPath}" report --json --all-sessions`, {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    const report = JSON.parse(out);
+    const config = loadConfig(cwd);
+    const ceiling = config.budget_ceiling;
+    const spend = report.total_cost_usd ?? 0;
+    let bStatus = 'no_ceiling';
+    let pct = null;
+    if (ceiling && ceiling > 0) {
+      pct = Number(((spend / ceiling) * 100).toFixed(1));
+      if (pct >= 100) bStatus = 'over_budget';
+      else if (pct >= 90) bStatus = 'critical_90';
+      else if (pct >= 75) bStatus = 'warning_75';
+      else if (pct >= 50) bStatus = 'warning_50';
+      else bStatus = 'under_budget';
+    }
+    budget = {
+      spend_usd: Number(spend.toFixed(4)),
+      ceiling_usd: ceiling,
+      percent_used: pct,
+      status: bStatus,
+    };
+  } catch {}
+
+  const config = loadConfig(cwd);
+  const result = {
+    cwd,
+    phases,
+    progress: {
+      total_plans: totalPlans,
+      total_summaries: totalSummaries,
+      percent,
+    },
+    current_phase: currentPhase,
+    governance: {
+      approvals_logged: approvalCount,
+      technical_debt_entries: technicalDebtCount,
+    },
+    budget,
+    config: {
+      modo: config.modo,
+      paralelizacao: config.paralelizacao,
+      auto_advance: config.auto_advance,
+      modelos_preset: config.modelos?.preset ?? 'runtime',
+      instrumentation_enabled: config.instrumentation?.enabled ?? false,
+    },
+    timestamp: new Date().toISOString(),
+  };
+
+  output(result, raw, JSON.stringify(result, null, 2));
 }
 
 // =====================================================================

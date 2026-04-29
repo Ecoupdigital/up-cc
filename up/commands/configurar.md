@@ -129,9 +129,25 @@ AskUserQuestion([
       { label: "Sonnet", description: "Boa deteccao com custo menor" },
       { label: "Haiku", description: "Verificacao basica" }
     ]
+  },
+  {
+    question: "Limite de custo do projeto (USD)?",
+    header: "Budget",
+    multiSelect: false,
+    options: [
+      { label: "Sem limite", description: "Nao bloquear gastos (default)" },
+      { label: "$10", description: "Projeto pequeno" },
+      { label: "$25", description: "Projeto medio" },
+      { label: "$50", description: "Projeto grande" },
+      { label: "$100", description: "Projeto enterprise" }
+    ]
   }
 ])
 ```
+
+Mapear: "Sem limite" -> null, "$10" -> 10, "$25" -> 25, etc.
+
+Workflows podem chamar `up-tools.cjs budget` em phase boundaries pra alertar quando passa de 50/75/90% do ceiling. Status `over_budget` pode bloquear novos spawns (controlado pelo workflow).
 
 ## 3. Atualizar config.json
 
@@ -149,7 +165,9 @@ Mapear respostas para valores:
     "execution": "opus" | "sonnet" | "haiku",
     "governance": "opus" | "sonnet" | "haiku",
     "review": "opus" | "sonnet" | "haiku"
-  }
+  },
+  "instrumentation": { "enabled": true },
+  "budget_ceiling": null | 10 | 25 | 50 | 100
 }
 ```
 
@@ -176,10 +194,14 @@ Escrever em `.plano/config.json`.
 |   Execution    | {opus/sonnet/haiku/default} |
 |   Governance   | {opus/sonnet/haiku/default} |
 |   Review       | {opus/sonnet/haiku/default} |
+| Budget Ceiling | {null/$10/$25/$50/$100} |
+| Instrumentation| Ativada (default)         |
 
 Estas opcoes se aplicam a futuros comandos UP.
 
 Para alterar apenas modelos: `node "$HOME/.claude/up/bin/up-tools.cjs" config set modelos.preset hibrido`
+Para alterar budget: `node "$HOME/.claude/up/bin/up-tools.cjs" config set budget_ceiling 50`
+Para ver gasto atual: `node "$HOME/.claude/up/bin/up-tools.cjs" budget`
 ```
 
 </process>
