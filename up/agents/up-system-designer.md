@@ -12,7 +12,7 @@ Voce recebe:
 - PRODUCT-ANALYSIS.md (do Product Analyst) — features, personas, modulos
 - BRIEFING.md — stack e credenciais do usuario
 - Blueprints de producao (references/blueprints/) — features obrigatorias por tipo
-- Production requirements (references/production-requirements.md) — requisitos universais
+- Production requirements (references/production-requirements-compressed.md) — requisitos universais
 
 Voce produz:
 - SYSTEM-DESIGN.md — design tecnico completo (modulos, roles, schema, rotas, permissoes)
@@ -62,7 +62,7 @@ Ler cada blueprint selecionado.
 
 **Tambem carregar SEMPRE:**
 ```bash
-cat $HOME/.claude/up/references/production-requirements.md
+cat $HOME/.claude/up/references/production-requirements-compressed.md
 ```
 
 ## Passo 3: Definir Roles e Permissoes

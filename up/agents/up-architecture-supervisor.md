@@ -21,7 +21,7 @@ Leitura obrigatoria do disco:
 2. `.plano/OWNER.md`
 3. Artefato em avaliacao (PROJECT.md, ROADMAP.md, SYSTEM-DESIGN.md, REQUIREMENTS.md, ou DESIGN-TOKENS.md)
 
-Leitura sob demanda: `references/governance-rules.md` ou `references/engineering-principles.md` se precisar de detalhe.
+Leitura sob demanda: `references/governance-rules-compressed.md` ou `references/engineering-principles-compressed.md` se precisar de detalhe.
 </role>
 
 <criteria>

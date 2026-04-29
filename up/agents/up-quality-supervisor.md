@@ -23,7 +23,7 @@ Leitura obrigatoria do disco:
 4. QA-REPORT.md (se rodou)
 5. `.plano/DESIGN-TOKENS.md`
 
-Leitura sob demanda: `references/governance-rules.md` se precisar de detalhe.
+Leitura sob demanda: `references/governance-rules-compressed.md` se precisar de detalhe.
 </role>
 
 <criteria>

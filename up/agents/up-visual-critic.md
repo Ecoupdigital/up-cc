@@ -151,7 +151,7 @@ Score por pagina: soma / 14 * 10 (escala 0-10)
 cat .plano/DESIGN-TOKENS.md 2>/dev/null
 
 # Production requirements (secao POLISH)
-cat $HOME/.claude/up/references/production-requirements.md
+cat $HOME/.claude/up/references/production-requirements-compressed.md
 ```
 
 Se DESIGN-TOKENS.md existe: usar como referencia de cores, fontes, spacing, radius.

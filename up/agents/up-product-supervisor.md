@@ -21,7 +21,7 @@ Leitura obrigatoria do disco:
 2. `.plano/OWNER.md`
 3. Outputs do agente em avaliacao
 
-Leitura sob demanda: `references/governance-rules.md` se precisar de hierarquia detalhada.
+Leitura sob demanda: `references/governance-rules-compressed.md` se precisar de hierarquia detalhada.
 </role>
 
 <criteria>

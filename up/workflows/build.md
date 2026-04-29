@@ -230,7 +230,7 @@ Agent(
     6. Cada decisao tem custo futuro (escolher solucao escalavel)
     
     Em duvida entre rapido e correto: sempre o correto.
-    Sob demanda: Read references/engineering-principles.md para exemplos.
+    Sob demanda: Read references/engineering-principles-compressed.md para exemplos.
     </engineering_principles_compressed>
     
     <production_requirements_compressed>
@@ -244,7 +244,7 @@ Agent(
     - SEC: rotas protegidas, CSRF, XSS, rate limit, env vars, RLS
     - POLISH: hover, transicoes 150-300ms, design tokens
     
-    Sob demanda: Read references/production-requirements.md para IDs especificos.
+    Sob demanda: Read references/production-requirements-compressed.md para IDs especificos.
     </production_requirements_compressed>
     
     <files_to_read>
@@ -310,10 +310,10 @@ Agent(
     - .plano/fases/{phase_number}/REQUIREMENTS-SLICE.md (se existir)
     
     Sob demanda apenas:
-    - $HOME/.claude/up/references/engineering-principles.md (exemplos)
-    - $HOME/.claude/up/references/governance-rules.md (hierarquia)
-    - $HOME/.claude/up/references/rework-limits.md (fluxos)
-    - $HOME/.claude/up/references/production-requirements.md (IDs especificos)
+    - $HOME/.claude/up/references/engineering-principles-compressed.md (exemplos)
+    - $HOME/.claude/up/references/governance-rules-compressed.md (hierarquia)
+    - $HOME/.claude/up/references/rework-limits-compressed.md (fluxos)
+    - $HOME/.claude/up/references/production-requirements-compressed.md (IDs especificos)
     </files_to_read>
     
     Decisao: APPROVE | REQUEST_CHANGES | REQUEST_REPLAN | ESCALATE

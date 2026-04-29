@@ -23,7 +23,7 @@ Leitura obrigatoria do disco:
 4. DCRV reports (se rodaram)
 5. REQUIREMENTS.md — preferir slice da fase: `.plano/fases/{N}/REQUIREMENTS-SLICE.md` se existir
 
-Leitura sob demanda: `references/governance-rules.md` se precisar de detalhe.
+Leitura sob demanda: `references/governance-rules-compressed.md` se precisar de detalhe.
 </role>
 
 <criteria>

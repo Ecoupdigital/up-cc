@@ -719,7 +719,7 @@ Modo autonomo — NAO pergunte nada.
 - .plano/BRIEFING.md (Briefing e stack)
 - .plano/PRODUCT-ANALYSIS.md (Analise de produto — features, personas, modulos)
 - .plano/pesquisa/SUMMARY.md (Pesquisa, se existir)
-- $HOME/.claude/up/references/production-requirements.md (Requisitos universais)
+- $HOME/.claude/up/references/production-requirements-compressed.md (Requisitos universais)
 - $HOME/.claude/up/references/blueprints/ (Blueprints — ler os relevantes ao dominio)
 {BROWNFIELD EXTRA:}
 - .plano/codebase/STACK.md (Stack existente)
@@ -1280,10 +1280,10 @@ Agent(
     - .plano/fases/{phase_number}/REQUIREMENTS-SLICE.md (se existir)
     
     Sob demanda apenas:
-    - $HOME/.claude/up/references/engineering-principles.md (exemplos)
-    - $HOME/.claude/up/references/governance-rules.md (hierarquia)
-    - $HOME/.claude/up/references/rework-limits.md (fluxos)
-    - $HOME/.claude/up/references/production-requirements.md (IDs especificos)
+    - $HOME/.claude/up/references/engineering-principles-compressed.md (exemplos)
+    - $HOME/.claude/up/references/governance-rules-compressed.md (hierarquia)
+    - $HOME/.claude/up/references/rework-limits-compressed.md (fluxos)
+    - $HOME/.claude/up/references/production-requirements-compressed.md (IDs especificos)
     </files_to_read>
     
     Decisao: APPROVE | REQUEST_CHANGES | REQUEST_REPLAN | ESCALATE
@@ -1420,7 +1420,7 @@ Task(
 
     <files_to_read>
     - {phase_dir}/*-SUMMARY.md (O que foi implementado)
-    - $HOME/.claude/up/references/production-requirements.md (Checklist de producao)
+    - $HOME/.claude/up/references/production-requirements-compressed.md (Checklist de producao)
     - ./CLAUDE.md (Convencoes do projeto, se existir)
     </files_to_read>
 
@@ -1521,8 +1521,8 @@ Agent(
     - .plano/REQUIREMENTS.md (requisitos da fase)
     
     Sob demanda apenas:
-    - $HOME/.claude/up/references/governance-rules.md
-    - $HOME/.claude/up/references/rework-limits.md
+    - $HOME/.claude/up/references/governance-rules-compressed.md
+    - $HOME/.claude/up/references/rework-limits-compressed.md
     </files_to_read>
     
     Validar que a verificacao foi rigorosa e que os claims tem backing.
@@ -1722,8 +1722,8 @@ Agent(
     - .plano/REQUIREMENTS.md (requisitos)
     
     Sob demanda apenas:
-    - $HOME/.claude/up/references/governance-rules.md
-    - $HOME/.claude/up/references/rework-limits.md
+    - $HOME/.claude/up/references/governance-rules-compressed.md
+    - $HOME/.claude/up/references/rework-limits-compressed.md
     </files_to_read>
     
     Consolidar tudo e decidir: APPROVE | REQUEST_CHANGES | ESCALATE_CEO

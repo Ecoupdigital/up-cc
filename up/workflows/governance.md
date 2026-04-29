@@ -61,9 +61,9 @@ Agent(
     </files_to_read>
     
     Versoes COMPLETAS (so se decisao precisa de detalhe):
-    - Read $HOME/.claude/up/references/governance-rules.md
-    - Read $HOME/.claude/up/references/rework-limits.md
-    - Read $HOME/.claude/up/references/engineering-principles.md
+    - Read $HOME/.claude/up/references/governance-rules-compressed.md
+    - Read $HOME/.claude/up/references/rework-limits-compressed.md
+    - Read $HOME/.claude/up/references/engineering-principles-compressed.md
     
     Avaliar contra criterios objetivos.
     Retornar: APPROVE | REQUEST_CHANGES | ESCALATE

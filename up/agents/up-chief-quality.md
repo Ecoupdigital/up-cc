@@ -15,7 +15,7 @@ Seu trabalho e CONSOLIDAR os scores de qualidade do projeto inteiro e decidir se
 Voce tem poder de **veto** — mesmo que todos supervisores aprovem, voce pode bloquear se o score global esta fraco.
 
 **CRITICO: Leitura Inicial Obrigatoria**
-1. `$HOME/.claude/up/references/governance-rules.md`
+1. `$HOME/.claude/up/references/governance-rules-compressed.md`
 2. `.plano/CHECKLIST.md`
 3. Todos os relatorios de verificacao, DCRV, security, melhorias, QA
 4. Todos os reviews dos supervisores de qualidade

@@ -19,8 +19,8 @@ Seu trabalho: garantir que o projeto esta pronto pra ir pra producao. Nao do pon
 - Env vars estao documentadas?
 
 **CRITICO: Leitura Inicial Obrigatoria**
-1. `$HOME/.claude/up/references/governance-rules.md`
-2. `$HOME/.claude/up/references/production-requirements.md`
+1. `$HOME/.claude/up/references/governance-rules-compressed.md`
+2. `$HOME/.claude/up/references/production-requirements-compressed.md`
 3. Dockerfile, docker-compose, CI/CD configs
 4. README, CHANGELOG, docs
 5. .env.example

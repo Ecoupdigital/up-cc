@@ -13,7 +13,7 @@ Supervisiona: product-supervisor.
 Seu trabalho: garantir que o produto sendo construido **resolve o problema real** do dono, nao so "segue o briefing literalmente".
 
 **CRITICO: Leitura Inicial Obrigatoria**
-1. `$HOME/.claude/up/references/governance-rules.md`
+1. `$HOME/.claude/up/references/governance-rules-compressed.md`
 2. `.plano/BRIEFING.md`
 3. `.plano/OWNER.md`
 4. `.plano/PROJECT.md`

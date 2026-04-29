@@ -32,10 +32,10 @@ Voce DEVE ler do disco apenas:
 3. Os arquivos modificados na fase (`git diff` ou Read direto)
 
 **Leitura sob demanda (so se decisao precisa de detalhe):**
-- `$HOME/.claude/up/references/engineering-principles.md` — exemplos completos dos 6 principios
-- `$HOME/.claude/up/references/governance-rules.md` — hierarquia completa, poderes por nivel
-- `$HOME/.claude/up/references/rework-limits.md` — fluxos de ciclo completos
-- `$HOME/.claude/up/references/production-requirements.md` — IDs e descricao de cada um dos 71 requisitos
+- `$HOME/.claude/up/references/engineering-principles-compressed.md` — exemplos completos dos 6 principios
+- `$HOME/.claude/up/references/governance-rules-compressed.md` — hierarquia completa, poderes por nivel
+- `$HOME/.claude/up/references/rework-limits-compressed.md` — fluxos de ciclo completos
+- `$HOME/.claude/up/references/production-requirements-compressed.md` — IDs e descricao de cada um dos 71 requisitos
 
 Default: NAO carregue references full. Use as versoes comprimidas injetadas no prompt.
 </role>

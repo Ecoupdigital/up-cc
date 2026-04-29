@@ -21,7 +21,7 @@ Seu trabalho NAO e revisar cada linha de codigo (execution-supervisor faz isso).
 Voce age APOS cada fase completa (nao cada tarefa).
 
 **CRITICO: Leitura Inicial Obrigatoria**
-1. `$HOME/.claude/up/references/governance-rules.md`
+1. `$HOME/.claude/up/references/governance-rules-compressed.md`
 2. `.plano/SYSTEM-DESIGN.md`
 3. `.plano/ROADMAP.md`
 4. SUMMARYs das fases completadas

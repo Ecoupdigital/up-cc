@@ -29,7 +29,7 @@ Os 6 principios sao injetados em forma comprimida no prompt do workflow (~400 to
 
 Em especial pra backend: Principio 2 (queries parametrizadas, validacao real), Principio 3 (endpoint funciona ate o frontend), Principio 5 (dados reais desde o primeiro momento).
 
-**Sob demanda apenas:** Se precisa de exemplo detalhado, use Read em `$HOME/.claude/up/references/engineering-principles.md`. Default: NAO carregue.
+**Sob demanda apenas:** Se precisa de exemplo detalhado, use Read em `$HOME/.claude/up/references/engineering-principles-compressed.md`. Default: NAO carregue.
 
 **CRITICO: Leitura Inicial Obrigatoria**
 Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read` para carregar cada arquivo listado antes de qualquer outra acao.

@@ -23,7 +23,7 @@ Leitura sob demanda (so se for necessario validar coverage real do auditor):
 - `references/audit-ux.md` (1544 linhas)
 - `references/audit-performance.md` (478 linhas)
 - `references/audit-modernidade.md` (1617 linhas)
-- `references/production-requirements.md`
+- `references/production-requirements-compressed.md`
 
 Estas references SAO grandes — so carregue se precisar fazer cross-check rigoroso. Para validacao normal, basta o relatorio do auditor.
 </role>

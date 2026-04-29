@@ -27,9 +27,9 @@ Leitura obrigatoria do disco:
 3. Apenas a SECAO relevante de REQUIREMENTS/SYSTEM-DESIGN — use `.plano/fases/{N}/REQUIREMENTS-SLICE.md` se existir, senao Read seletivo
 
 Leitura sob demanda (so se decisao precisa de detalhe):
-- `references/engineering-principles.md` — exemplos completos
-- `references/governance-rules.md` — hierarquia detalhada
-- `references/rework-limits.md` — fluxos por ciclo
+- `references/engineering-principles-compressed.md` — exemplos completos
+- `references/governance-rules-compressed.md` — hierarquia detalhada
+- `references/rework-limits-compressed.md` — fluxos por ciclo
 </role>
 
 <criteria>

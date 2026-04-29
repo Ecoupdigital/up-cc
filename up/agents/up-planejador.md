@@ -87,7 +87,7 @@ Antes de planejar, descubra o contexto do projeto:
 1. Liste skills disponiveis (subdiretorios)
 2. Leia `SKILL.md` de cada skill (indice leve ~130 linhas)
 3. Carregue arquivos `rules/*.md` especificos conforme necessario durante o planejamento
-4. Carregue `AGENTS.md` quando necessario para entender padroes do projeto (com 1M de contexto, 100KB e aceitavel)
+4. Carregue `AGENTS.md` APENAS se relevante a tarefa atual. Prefira ler so as secoes relevantes via Grep/offset.
 5. Garanta que planos considerem padroes e convencoes das skills do projeto
 </project_context>
 

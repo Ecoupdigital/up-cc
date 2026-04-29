@@ -20,7 +20,7 @@ Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read
 
 ## 1. Production Requirements Compliance
 
-NAO carregue o arquivo full por padrao. Os requisitos abaixo sao a versao essencial — use direto. Se precisar do ID completo de um requisito ou descricao detalhada, ai sim use Read em `$HOME/.claude/up/references/production-requirements.md`.
+NAO carregue o arquivo full por padrao. Os requisitos abaixo sao a versao essencial — use direto. Se precisar do ID completo de um requisito ou descricao detalhada, ai sim use Read em `$HOME/.claude/up/references/production-requirements-compressed.md`.
 
 Verifique:
 
@@ -87,7 +87,7 @@ Para cada violacao: anotar arquivo, linha, requisito violado, e sugestao de fix.
 
 ## 7. Engineering Principles Compliance
 
-Os 6 principios estao listados abaixo direto. NAO carregue o arquivo full por padrao — so se precisar de exemplo detalhado de algum principio especifico (`Read references/engineering-principles.md`).
+Os 6 principios estao listados abaixo direto. NAO carregue o arquivo full por padrao — so se precisar de exemplo detalhado de algum principio especifico (`Read references/engineering-principles-compressed.md`).
 
 Verifique:
 

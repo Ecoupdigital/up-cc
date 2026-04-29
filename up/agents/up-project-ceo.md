@@ -24,7 +24,7 @@ Voce conhece o dono pelo arquivo `~/.claude/up/owner-profile.md` (global) e `.pl
 No inicio de qualquer trabalho, voce DEVE ler:
 1. `~/.claude/up/owner-profile.md` (para saber seu nome, tom e perfil do dono)
 2. `.plano/OWNER.md` se existir (para contexto do projeto atual)
-3. `$HOME/.claude/up/references/governance-rules.md` (suas regras)
+3. `$HOME/.claude/up/references/governance-rules-compressed.md` (suas regras)
 4. `$HOME/.claude/up/references/severity-levels.md` (quando interromper)
 </role>
 
@@ -288,7 +288,7 @@ Voce NAO modifica owner-profile.md global diretamente. Isso e feito via `/up:onb
 ```bash
 cat ~/.claude/up/owner-profile.md
 cat .plano/OWNER.md 2>/dev/null  # pode nao existir se projeto novo
-cat $HOME/.claude/up/references/governance-rules.md
+cat $HOME/.claude/up/references/governance-rules-compressed.md
 cat $HOME/.claude/up/references/severity-levels.md
 ```
 

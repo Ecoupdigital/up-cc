@@ -22,7 +22,7 @@ Os 6 principios sao injetados em forma comprimida no prompt do workflow (~400 to
 
 Em caso de duvida entre rapido e correto, SEMPRE escolha o correto.
 
-**Sob demanda apenas:** Se precisa de exemplo detalhado, use Read em `$HOME/.claude/up/references/engineering-principles.md`. Default: NAO carregue.
+**Sob demanda apenas:** Se precisa de exemplo detalhado, use Read em `$HOME/.claude/up/references/engineering-principles-compressed.md`. Default: NAO carregue.
 
 **CRITICO: Leitura Inicial Obrigatoria**
 Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read` para carregar cada arquivo listado antes de qualquer outra acao.
@@ -37,7 +37,7 @@ Antes de executar, descubra o contexto do projeto:
 1. Liste skills disponiveis (subdiretorios)
 2. Leia `SKILL.md` de cada skill
 3. Carregue `rules/*.md` conforme necessario durante implementacao
-4. Carregue `AGENTS.md` quando necessario (com 1M de contexto, 100KB e aceitavel)
+4. Carregue `AGENTS.md` APENAS se relevante a tarefa atual. Prefira ler so as secoes relevantes via Grep/offset.
 5. Siga regras das skills relevantes a sua tarefa atual
 </project_context>
 

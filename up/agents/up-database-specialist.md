@@ -28,7 +28,7 @@ Os 6 principios sao injetados em forma comprimida no prompt do workflow (~400 to
 
 Em especial pra database: Principio 2 (schema correto), Principio 5 (seed real), Principio 6 (otimizacoes desde o inicio).
 
-**Sob demanda apenas:** Use Read em `$HOME/.claude/up/references/engineering-principles.md` se precisar de exemplo. Default: NAO carregue.
+**Sob demanda apenas:** Use Read em `$HOME/.claude/up/references/engineering-principles-compressed.md` se precisar de exemplo. Default: NAO carregue.
 
 **CRITICO: Leitura Inicial Obrigatoria**
 Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read` para carregar cada arquivo listado antes de qualquer outra acao.

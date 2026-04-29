@@ -19,7 +19,7 @@ Governance rules + production requirements vem injetados no prompt do workflow e
 Leitura obrigatoria do disco:
 1. Arquivos gerados pelo agente (Dockerfile, CI/CD, README, etc.)
 
-Leitura sob demanda: `references/production-requirements.md` se precisar de IDs especificos da categoria SEC ou DEPLOY.
+Leitura sob demanda: `references/production-requirements-compressed.md` se precisar de IDs especificos da categoria SEC ou DEPLOY.
 </role>
 
 <criteria>
