@@ -1,6 +1,6 @@
 {
   "name": "up-cc",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Simplified spec-driven development for Claude Code, Gemini and OpenCode.",
   "bin": {
     "up-cc": "bin/install.js"
