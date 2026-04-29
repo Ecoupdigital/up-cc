@@ -148,6 +148,8 @@ function loadConfig(cwd) {
     paralelizacao: true,
     commit_docs: true,
     auto_advance: false,
+    instrumentation: { enabled: true },
+    budget_ceiling: null,
   };
 
   try {
@@ -160,6 +162,8 @@ function loadConfig(cwd) {
       commit_docs: parsed.commit_docs ?? defaults.commit_docs,
       auto_advance: parsed.auto_advance ?? defaults.auto_advance,
       modelos: parsed.modelos ?? null,
+      instrumentation: parsed.instrumentation ?? defaults.instrumentation,
+      budget_ceiling: parsed.budget_ceiling ?? defaults.budget_ceiling,
     };
   } catch {
     return defaults;

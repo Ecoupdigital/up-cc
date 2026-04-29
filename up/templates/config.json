@@ -2,5 +2,7 @@
   "modo": "solo",
   "paralelizacao": true,
   "commit_docs": true,
-  "auto_advance": false
+  "auto_advance": false,
+  "instrumentation": { "enabled": true },
+  "budget_ceiling": null
 }

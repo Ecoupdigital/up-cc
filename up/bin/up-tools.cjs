@@ -354,6 +354,12 @@ function main() {
       break;
     }
 
+    // ==================== BUDGET ====================
+    case 'budget': {
+      cmdBudget(cwd, raw);
+      break;
+    }
+
     // ==================== TIMESTAMP ====================
     case 'timestamp': {
       cmdTimestamp(args[1] || 'full', raw);
@@ -2309,6 +2315,7 @@ function cmdConfigSet(cwd, keyPath, value, raw) {
   let parsedValue = value;
   if (value === 'true') parsedValue = true;
   else if (value === 'false') parsedValue = false;
+  else if (value === 'null') parsedValue = null;
   else if (!isNaN(value) && value !== '') parsedValue = Number(value);
 
   let config = {};
@@ -2421,6 +2428,67 @@ function cmdCommit(cwd, message, files, raw) {
   const hashResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
   const hash = hashResult.exitCode === 0 ? hashResult.stdout : null;
   output({ committed: true, hash, reason: 'committed' }, raw, hash || 'committed');
+}
+
+// =====================================================================
+// BUDGET COMMAND
+// =====================================================================
+
+function cmdBudget(cwd, raw) {
+  const config = loadConfig(cwd);
+  const ceiling = config.budget_ceiling;
+
+  // Spawn up-instrument.cjs report --json to get current spend
+  const { execSync } = require('child_process');
+  const instrumentPath = path.join(__dirname, 'up-instrument.cjs');
+
+  let spend = 0;
+  let agentCount = 0;
+  let report = null;
+
+  try {
+    const out = execSync(`node "${instrumentPath}" report --json --all-sessions`, {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    report = JSON.parse(out);
+    spend = report.total_cost_usd ?? 0;
+    agentCount = (report.agents ?? []).reduce((sum, a) => sum + (a.invocations || 0), 0);
+  } catch (err) {
+    // instrumentation may fail on non-Claude Code runtimes — return zero spend
+    spend = 0;
+  }
+
+  const result = {
+    spend_usd: Number(spend.toFixed(4)),
+    ceiling_usd: ceiling,
+    agent_invocations: agentCount,
+    status: 'unknown',
+    percent_used: null,
+  };
+
+  if (ceiling === null || ceiling === undefined) {
+    result.status = 'no_ceiling';
+  } else if (ceiling <= 0) {
+    result.status = 'no_ceiling';
+  } else {
+    const pct = (spend / ceiling) * 100;
+    result.percent_used = Number(pct.toFixed(1));
+    if (pct >= 100) result.status = 'over_budget';
+    else if (pct >= 90) result.status = 'critical_90';
+    else if (pct >= 75) result.status = 'warning_75';
+    else if (pct >= 50) result.status = 'warning_50';
+    else result.status = 'under_budget';
+  }
+
+  output(
+    result,
+    raw,
+    ceiling
+      ? `Spent: $${result.spend_usd} / $${ceiling} (${result.percent_used}%) [${result.status}]`
+      : `Spent: $${result.spend_usd} (no ceiling configured)`
+  );
 }
 
 // =====================================================================
