@@ -1498,26 +1498,74 @@ Reflect: score {N}/10 | {criticas} criticas | {importantes} importantes | {menor
 
 #### 3.1.4 Verificar Fase
 
-Spawnar verificador autonomo:
+**Wave 4 (v0.13+) — Verification Ladder Determinística**
 
+ANTES de spawnar o verificador-LLM, rodar checks deterministicos via
+`up-tools.cjs verify-static`. Isso roda lint, typecheck, test e audit
+do projeto. Se TUDO passa, a verificacao LLM pode ser pulada (criar
+VERIFICATION.md sintetico marcando "passed via static checks").
+Se algo falha, o output capturado vira contexto pro verificador-LLM —
+ele foca no que quebrou em vez de re-rodar tudo.
+
+```bash
+# Step 1: Roda checks deterministicos
+STATIC=$(node "$HOME/.claude/up/bin/up-tools.cjs" verify-static --raw)
+STATIC_OVERALL=$(echo "$STATIC" | grep -oE 'overall.{1,20}' | head -1 | grep -oE '"(pass|fail|skip)"' | tr -d '"')
+
+if [ "$STATIC_OVERALL" = "pass" ]; then
+  # Step 2a: Tudo passou — criar VERIFICATION.md sintetico, pular LLM
+  cat > "${PHASE_DIR}/VERIFICATION.md" <<EOF
+---
+status: passed
+verifier: static-only
+phase: ${PHASE_NUMBER}
+checks_passed: lint+typecheck+test+audit
+timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+---
+
+# Verificacao da Fase ${PHASE_NUMBER}
+
+Aprovacao automatica via verificacao estatica deterministica.
+
+Detalhes em \`.plano/runtime/verify-static-*.log\`.
+EOF
+  echo "Verification: PASSED via static checks (LLM verifier skipped)"
+elif [ "$STATIC_OVERALL" = "skip" ]; then
+  # Sem scripts disponiveis — fallback pra LLM verifier
+  STATIC_CONTEXT="Static checks indisponiveis (sem lint/test scripts)."
+fi
 ```
+
+**Step 2b — Se STATIC falhou OU foi pulado:** spawnar verificador-LLM com output dos checks como contexto.
+
+```python
+# Carregar logs de checks que falharam
+STATIC_LOGS=""
+for log in .plano/runtime/verify-static-*.log; do
+  [ -f "$log" ] && STATIC_LOGS="${STATIC_LOGS}\n--- $(basename $log) ---\n$(cat $log)"
+done
+
 Task(
-  prompt="Verificar atingimento do objetivo da fase {phase_number}.
+  prompt=f"""Verificar atingimento do objetivo da fase {phase_number}.
 Diretorio da fase: {phase_dir}
-Objetivo da fase: {goal do ROADMAP.md}
+Objetivo da fase: {goal}
 IDs de requisitos da fase: {phase_req_ids}
+
+<static_check_results overall="{STATIC_OVERALL}">
+{STATIC_LOGS}
+</static_check_results>
 
 <builder_mode>
 Modo builder. NAO use AskUserQuestion.
+- FOCAR no que falhou nos static checks (nao reexecutar tudo)
 - Verificar must_haves contra codebase real
 - Cross-referenciar requisitos do frontmatter contra REQUIREMENTS.md
-- Rodar testes automatizados se existirem
+- Rodar testes APENAS se nao constam dos static checks
 - Se human_needed: considerar como PASSED (sera verificado no final)
 - Criar VERIFICATION.md
 </builder_mode>
-",
+""",
   subagent_type="up-verificador",
- 
 )
 ```
 

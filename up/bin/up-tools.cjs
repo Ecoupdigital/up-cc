@@ -384,6 +384,12 @@ function main() {
       break;
     }
 
+    // ==================== VERIFY-STATIC (Wave 4) ====================
+    case 'verify-static': {
+      cmdVerifyStatic(cwd, args.slice(1), raw);
+      break;
+    }
+
     // ==================== TIMESTAMP ====================
     case 'timestamp': {
       cmdTimestamp(args[1] || 'full', raw);
@@ -2661,6 +2667,181 @@ function cmdStuckCheck(cwd, args, raw) {
     },
     raw,
     stuck ? `STUCK: "${topPattern}" repeated ${topCount}x in last ${window.length} entries` : `ok (top pattern: ${topCount}x in ${window.length})`
+  );
+}
+
+// =====================================================================
+// VERIFY-STATIC COMMAND (Wave 4 — deterministic verification ladder)
+// =====================================================================
+
+/**
+ * Run deterministic project checks (lint, typecheck, test, audit)
+ * BEFORE invoking an LLM verifier. If everything passes, the workflow
+ * can skip the LLM verification step entirely. If something fails,
+ * the captured output is fed into the LLM verifier as context so it
+ * can focus on what actually broke instead of running the same checks.
+ *
+ * Usage:
+ *   up-tools.cjs verify-static [--lint] [--typecheck] [--test] [--audit]
+ *                              [--all] [--skip-missing]
+ *
+ * If no flags given, defaults to --all (--skip-missing).
+ *
+ * Returns JSON:
+ *   {
+ *     overall: "pass" | "fail" | "skip",
+ *     checks: [
+ *       { name, status: "pass"|"fail"|"skip", exit_code, summary, output_path }
+ *     ],
+ *     duration_secs
+ *   }
+ *
+ * Each check's full output is written to .plano/runtime/verify-static-<check>.log
+ */
+function cmdVerifyStatic(cwd, args, raw) {
+  const flags = {
+    lint: false,
+    typecheck: false,
+    test: false,
+    audit: false,
+    all: false,
+    skipMissing: false,
+  };
+  for (const a of args) {
+    if (a === '--lint') flags.lint = true;
+    else if (a === '--typecheck') flags.typecheck = true;
+    else if (a === '--test') flags.test = true;
+    else if (a === '--audit') flags.audit = true;
+    else if (a === '--all') flags.all = true;
+    else if (a === '--skip-missing') flags.skipMissing = true;
+  }
+  // Default: run all, skip if script missing
+  if (!flags.lint && !flags.typecheck && !flags.test && !flags.audit && !flags.all) {
+    flags.all = true;
+    flags.skipMissing = true;
+  }
+
+  const { execSync } = require('child_process');
+  const runtimeDir = path.join(cwd, '.plano', 'runtime');
+  try { fs.mkdirSync(runtimeDir, { recursive: true }); } catch {}
+
+  // Read package.json scripts to know what's available
+  let scripts = {};
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));
+    scripts = pkg.scripts || {};
+  } catch {}
+
+  const checks = [];
+  const start = Date.now();
+
+  function runCheck(name, cmd, condition) {
+    if (!condition) return null;
+    const logPath = path.join(runtimeDir, `verify-static-${name}.log`);
+    try {
+      const out = execSync(cmd, {
+        cwd,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        timeout: 300000, // 5min cap per check
+      });
+      fs.writeFileSync(logPath, out);
+      return {
+        name,
+        status: 'pass',
+        exit_code: 0,
+        summary: `${name} passed`,
+        output_path: path.relative(cwd, logPath),
+      };
+    } catch (err) {
+      const out = (err.stdout || '') + (err.stderr || '');
+      fs.writeFileSync(logPath, out);
+      // Extract short summary: last few non-empty lines or error counts
+      const lines = out.split('\n').filter(l => l.trim());
+      const tail = lines.slice(-5).join(' | ').slice(0, 300);
+      return {
+        name,
+        status: 'fail',
+        exit_code: err.status || 1,
+        summary: tail || err.message,
+        output_path: path.relative(cwd, logPath),
+      };
+    }
+  }
+
+  function maybeSkip(name) {
+    if (flags.skipMissing) {
+      return { name, status: 'skip', exit_code: null, summary: 'script not found in package.json', output_path: null };
+    }
+    return null;
+  }
+
+  // Lint
+  if (flags.all || flags.lint) {
+    if (scripts.lint) {
+      checks.push(runCheck('lint', 'npm run lint --silent', true));
+    } else {
+      const skip = maybeSkip('lint');
+      if (skip) checks.push(skip);
+    }
+  }
+
+  // Typecheck
+  if (flags.all || flags.typecheck) {
+    const cmd = scripts.typecheck ? 'npm run typecheck --silent' :
+                scripts['type-check'] ? 'npm run type-check --silent' :
+                fs.existsSync(path.join(cwd, 'tsconfig.json')) ? 'npx tsc --noEmit' : null;
+    if (cmd) {
+      checks.push(runCheck('typecheck', cmd, true));
+    } else {
+      const skip = maybeSkip('typecheck');
+      if (skip) checks.push(skip);
+    }
+  }
+
+  // Test
+  if (flags.all || flags.test) {
+    if (scripts.test) {
+      checks.push(runCheck('test', 'npm test --silent -- --run', true));
+    } else {
+      const skip = maybeSkip('test');
+      if (skip) checks.push(skip);
+    }
+  }
+
+  // Audit
+  if (flags.all || flags.audit) {
+    // npm audit always runs if package.json exists
+    if (Object.keys(scripts).length > 0 || fs.existsSync(path.join(cwd, 'package.json'))) {
+      checks.push(runCheck('audit', 'npm audit --audit-level=high --silent', true));
+    } else {
+      const skip = maybeSkip('audit');
+      if (skip) checks.push(skip);
+    }
+  }
+
+  const duration = Math.round((Date.now() - start) / 1000);
+
+  const failed = checks.filter(c => c.status === 'fail');
+  const passed = checks.filter(c => c.status === 'pass');
+  const skipped = checks.filter(c => c.status === 'skip');
+
+  let overall;
+  if (failed.length > 0) overall = 'fail';
+  else if (passed.length > 0) overall = 'pass';
+  else overall = 'skip';
+
+  const result = {
+    overall,
+    checks,
+    duration_secs: duration,
+    counts: { passed: passed.length, failed: failed.length, skipped: skipped.length },
+  };
+
+  output(
+    result,
+    raw,
+    `verify-static: ${overall} (${passed.length} passed, ${failed.length} failed, ${skipped.length} skipped, ${duration}s)`
   );
 }
 

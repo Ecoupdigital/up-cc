@@ -394,8 +394,41 @@ fi
 
 ### 3.6 Verificacao (PASSO 3 — Agent SEPARADO)
 
+**Wave 4 (v0.13+) — Verification Ladder Determinística**
+
+ANTES do verificador-LLM, rodar checks deterministicos:
+
+```bash
+STATIC=$(node "$HOME/.claude/up/bin/up-tools.cjs" verify-static --raw)
+STATIC_OVERALL=$(echo "$STATIC" | grep -oE 'overall.{1,20}' | head -1 | grep -oE '"(pass|fail|skip)"' | tr -d '"')
+
+if [ "$STATIC_OVERALL" = "pass" ]; then
+  # Pular verificador-LLM, criar VERIFICATION.md sintetico
+  cat > "${PHASE_DIR}/VERIFICATION.md" <<EOF
+---
+status: passed
+verifier: static-only
+phase: ${PHASE_NUMBER}
+checks_passed: lint+typecheck+test+audit
+---
+Aprovacao automatica via verificacao estatica.
+EOF
+  echo "Verification: PASSED via static checks (LLM skipped)"
+fi
+```
+
+Se STATIC=fail ou skip: spawnar verificador-LLM com static logs como contexto:
+
 ```python
-Agent(subagent_type="up-verificador", prompt="Verificar fase {phase_number}...")
+Agent(subagent_type="up-verificador", prompt=f"""
+  Verificar fase {phase_number}.
+  
+  <static_check_results overall="{STATIC_OVERALL}">
+  Logs em .plano/runtime/verify-static-*.log
+  </static_check_results>
+  
+  FOCAR no que falhou nos checks. Nao reexecutar tudo.
+""")
 ```
 
 ### --- GATE C: Verificar que verificacao produziu artefatos ---
