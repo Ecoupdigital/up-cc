@@ -32,8 +32,14 @@ const dim = '\x1b[2m';
 const bold = '\x1b[1m';
 const reset = '\x1b[0m';
 
-// Version from package.json
-const pkg = require('../package.json');
+// Version from package.json — try sibling (up/package.json in repo) first,
+// then walk up to find the npm-shipped root package.json.
+let pkg;
+try {
+  pkg = require('../package.json');
+} catch {
+  pkg = require('../../package.json');
+}
 const VERSION = pkg.version;
 
 // Parse args
