@@ -16,7 +16,8 @@ SEM trazer governanca hierarquica/supervisores/CEO:
   classify-task escala o brainstorm; greenfield spawna 4x up-pesquisador; modo light = mini-scan inline).
   `/up:build` assume que isso ja rodou e que existe PLAN-READY.md.
 - **Crash recovery via LOCK.md:** preservado aqui (Estagio 0.3).
-- **Specialist routing por tipo de plano (frontend/backend/database/executor):** preservado (Estagio 3.2).
+- **Routing por tipo de plano (frontend/backend/database/misto):** preservado (Estagio 3.2), AGORA via
+  CONTEXTO no `up-executor` (carrega skill/ref de dominio sob demanda), sem agentes specialist separados.
 - **Pre-inline de contexto via `up-tools.cjs context`:** preservado (Estagio 3.3), economiza tokens por spawn.
 - **Verification ladder deterministica (verify-static antes do verificador-LLM):** preservada (Estagio 3.6).
 - **E2E + DCRV por fase:** delega a `@~/.claude/up/workflows/dcrv.md` (que absorveu builder-e2e.md).
@@ -31,7 +32,7 @@ de aprovacao LLM, updates periodicos ao dono.
 Pipeline final por fase (redesign v2):
 
 ```
-[up-planejador (replan LOCAL, so se preciso)] -> up-executor/specialists -> up-verificador
+[up-planejador (replan LOCAL, so se preciso)] -> up-executor (roteia por contexto) -> up-verificador
   -> [GATE approvals.log] -> up-revisor -> marcar completa
 ```
 
@@ -59,8 +60,11 @@ e um `Agent()` SEPARADO. O enforcement e o GATE deterministico do `approvals.log
   branch ATUAL. Zero worktree, zero issue, zero PR, zero rede. (Mesmo comportamento de `/up:rapido`.)
 - `--auto`: pula o menu. Apos o GATE aprovar, `github finish-phase --mode auto` (PR -> merge squash ->
   cleanup) automaticamente. So faz sentido com github_native ligado.
-- `--board`: espelha status no Multica (batched, fim da onda). TODO Fase 5 (Multica): `up-tools.cjs
-  multica sync` batched, deteccao `uname -s`, fail-open.
+- `--board`: espelha status no Multica (espelho de board OPT-IN, BATCHED no fim da onda/fase). NAO ha
+  stream ao vivo no fluxo local: o board mostra so o status (`todo -> in_progress -> in_review -> done /
+  blocked`), nunca cada tool_use. Chamadas via `up-tools.cjs multica {init|sync|board}` (que usa
+  `multica.cjs`, deteccao `uname -s` Mac->`ssh server-ecoup`, FAIL-OPEN: se `multica` indisponivel, avisa
+  e segue sem board, nunca crasha). So roda quando `--board` ligado.
 
 **FAIL-OPEN universal:** `start-phase`/`finish-phase` detectam `gh` + remote. Faltando qualquer um, degradam
 para git local (worktree local + merge local; issue/PR = null) com aviso, NUNCA crasham. `git worktree` e
@@ -187,6 +191,11 @@ if [ "$GITHUB_NATIVE" = "true" ]; then
 else
   GITHUB_MODE="--solo (commit atomico na branch atual, sem worktree/issue/PR)"
 fi
+
+# --board liga o espelho Multica (OPT-IN). So tem efeito se passado explicitamente.
+BOARD=false
+[ "$BOARD_FLAG" = "true" ] && BOARD=true
+[ "$BOARD" = "true" ] && GITHUB_MODE="$GITHUB_MODE + Multica board (espelho de status, batched, fail-open)"
 ```
 
 Confirmar via AskUserQuestion ("Iniciar execucao?"). Se recusar: abortar.
@@ -201,7 +210,18 @@ touch .plano/governance/approvals.log
   echo "# Build governance initialized at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .plano/governance/approvals.log
 ```
 
-> Multica (TODO Fase 5): se `--board`, `multica issue status in_progress` na entrada da fase (batched).
+**Inicializar board no Multica (so se `--board`, UMA vez no inicio do projeto):**
+`multica init` garante o `project` no Multica + a issue-pai (e as issues-filhas por fase, se `/up:plan`
+ja as criou) e grava `metadata up_project=<repo>`. FAIL-OPEN: se `multica` indisponivel ou der erro,
+avisa e segue sem board (nunca crasha o build). Deteccao `uname -s` fica dentro de `multica.cjs`.
+
+```bash
+if [ "$BOARD" = "true" ]; then
+  # init = ensureProject + issue-pai (idempotente; reconcilia via metadata up_project).
+  MULTICA_INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" multica init --raw 2>/dev/null) \
+    || echo "AVISO: Multica indisponivel (init). Seguindo sem board."
+fi
+```
 
 Para cada fase em ROADMAP.md (em ordem):
 
@@ -228,7 +248,7 @@ else
 fi
 ```
 
-**Entrar na worktree (so se github_native):** o trabalho da fase (executor, specialists, commits) acontece
+**Entrar na worktree (so se github_native):** o trabalho da fase (executor, commits) acontece
 DENTRO de `$WORKTREE`. Preferir a tool nativa do harness **EnterWorktree** apontando para `$WORKTREE`; se
 indisponivel, a worktree ja foi criada por `start-phase` (basta usar `--cwd "$WORKTREE"` nos comandos
 `up-tools.cjs` e `cd "$WORKTREE"` antes de `git add/commit`). O `.plano/` da fase viaja na branch da fase;
@@ -236,6 +256,19 @@ indisponivel, a worktree ja foi criada por `start-phase` (basta usar `--cwd "$WO
 voltar `cd` para o repo principal) antes de atualizar `git-map.json` na main.
 
 > Em `--solo`, IGNORAR EnterWorktree/ExitWorktree: tudo na branch atual.
+
+**Multica: marcar a fase em execucao (so se `--board`, 1 chamada na ENTRADA da fase).**
+Uma transicao por fase (nao por microtransicao): status `in_progress` + metadata `gh_issue`/`branch`.
+FAIL-OPEN: erro ou `multica` indisponivel -> avisa e segue.
+
+```bash
+if [ "$BOARD" = "true" ]; then
+  node "$HOME/.claude/up/bin/up-tools.cjs" multica sync \
+    --phase {phase_number} --status in_progress \
+    --gh-issue "${ISSUE:-}" --branch "${BRANCH:-}" --raw 2>/dev/null \
+    || echo "AVISO: Multica indisponivel (sync in_progress fase {phase_number}). Seguindo."
+fi
+```
 
 ### 3.1 Carregar Plano da Fase
 
@@ -245,40 +278,50 @@ PHASE_DIR=$(ls -d "$WORKTREE"/.plano/fases/{phase_number}-* 2>/dev/null)
 PLAN=$(ls "$PHASE_DIR"/*-PLAN.md | head -1)
 ```
 
-### 3.2 Detectar Tipo de Plano (Specialist Routing)
+### 3.2 Detectar Tipo de Plano (routing por CONTEXTO no executor)
 
-Ler o frontmatter do plano pra determinar o agente:
-- Frontend tasks -> up-frontend-specialist
-- Backend tasks -> up-backend-specialist
-- Database tasks -> up-database-specialist
-- Misto -> up-executor
+Ler o frontmatter do plano pra determinar o TIPO (`frontend`/`backend`/`database`/`misto`). NAO ha mais
+agentes specialist separados (Onda 2 do corte): o agente e SEMPRE `up-executor`. O tipo do plano e passado
+ao executor, que ROTEIA POR CONTEXTO: carrega a skill/ref de dominio sob demanda (UI/CSS, API/server,
+schema/DB) e atua conforme, sem trocar de agente.
 
-### 3.3 Spawnar Executor/Specialist (PASSO 1 — Agent SEPARADO)
+```bash
+# Tipo apenas informa o executor qual dominio carregar; o agente nao muda.
+PLAN_TYPE=$(grep -oE '^type:[[:space:]]*[a-z-]+' "$PLAN" | head -1 | sed 's/type:[[:space:]]*//')
+EXECUTOR_DOMAIN="$PLAN_TYPE"   # frontend|backend|database|misto (vazio = misto)
+```
+
+### 3.3 Spawnar Executor (PASSO 1 — Agent SEPARADO)
 
 **Pre-inline de contexto** (economiza ~30k tokens/spawn): montar via `up-tools.cjs context`.
 
 ```bash
-SPECIALIST_AGENT="up-executor"  # ou specialist baseado no type do plano
+EXECUTOR_AGENT="up-executor"   # SEMPRE up-executor (Onda 2: sem specialists separados)
 
 CTX=$(node "$HOME/.claude/up/bin/up-tools.cjs" context \
   --plan "${PLAN}" \
   --state \
   --config \
   --requirements "${PHASE_NUMBER}" \
-  --manifest "${SPECIALIST_AGENT}" \
+  --manifest "${EXECUTOR_AGENT}" \
   --raw)
 
 MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" resolve-model-for-plan \
-  "${PLAN}" "${SPECIALIST_AGENT}" --raw)
+  "${PLAN}" "${EXECUTOR_AGENT}" --raw)
 CLASSIFY=$(node "$HOME/.claude/up/bin/up-tools.cjs" classify-task "${PLAN}" --raw)
 COMPLEXITY=$(echo "$CLASSIFY" | grep -oE '"complexity"[^,]+' | grep -oE '"(simple|standard|complex)"' | tr -d '"')
 ```
 
 ```python
 Agent(
-  subagent_type="{up-specialist}",
+  subagent_type="up-executor",
   prompt=f"""
     Executar Plano da Fase {phase_number}.
+
+    Tipo do plano (dominio a carregar por contexto): {EXECUTOR_DOMAIN}
+    Roteie POR CONTEXTO conforme o tipo: frontend -> carregar skill/ref de UI/CSS e DESIGN-TOKENS;
+    backend -> ref de API/server; database -> ref de schema/migrations; misto -> conforme cada tarefa.
+    NAO existem agentes specialist separados: voce e o unico executor e adapta ao dominio.
 
     <prompt_context>
     {CTX}
@@ -422,8 +465,8 @@ echo "Fase {phase_number}: evidence esperada = ${EVIDENCE_TYPE}:${EVIDENCE_RESUL
 ```
 
 A evidencia ja foi PRODUZIDA upstream: `logic:test_pass` pelo verificador (red-green); `ui:visual` pela
-captura do up-visual-critic no DCRV (3.6); `glue:smoke` pelo smoke do DCRV (3.6). O revisor apenas CONFIRMA
-que ela existe e a carimba no approvals.log. Ver `@~/.claude/up/workflows/dcrv.md`.
+captura visual antes/depois do `up-tester` no DCRV (3.6); `glue:smoke` pelo smoke do DCRV (3.6). O revisor
+apenas CONFIRMA que ela existe e a carimba no approvals.log. Ver `@~/.claude/up/workflows/dcrv.md`.
 
 Spawnar `up-revisor` (UNICO, two-stage). Substitui supervisores, chiefs e auditores gold.
 
@@ -454,7 +497,7 @@ Agent(
     **EVIDENCIA OBRIGATORIA (Fase 3 - TDD por tipo):** so APPROVE se houver evidencia fresca do tipo
     `{EVIDENCE_TYPE}` desta fase:
     - logic (parser/calculo/API-propria/bugfix): teste red-green passando -> evidence=logic:test_pass
-    - ui (UI/CSS): captura visual antes/depois (Playwright, do up-visual-critic) -> evidence=ui:visual
+    - ui (UI/CSS): captura visual antes/depois (Playwright, do up-tester) -> evidence=ui:visual
     - glue (integracao Asaas/uazapi/etc): smoke-test passando -> evidence=glue:smoke
     Se a evidencia do tipo certo NAO existe, o veredito NAO pode ser APPROVE (use REQUEST_CHANGES para
     forcar a producao da evidencia).
@@ -560,7 +603,33 @@ default, ou `--strategy merge|rebase`) -> cleanup worktree+branch, e atualiza `g
 gh/remote, faz merge LOCAL da branch da fase na base e remove a worktree (issue/PR = null). `--mode solo` nao
 faz nada (usado quando ja esta tudo committado na branch atual); em `--solo` o fluxo nem chega aqui.
 
-> Multica (TODO Fase 5): se `--board`, `multica issue status done` batched no fim da fase.
+**Multica: sync BATCHED no FIM da fase/onda (so se `--board`).**
+Uma unica chamada que reflete TODAS as transicoes acumuladas da fase de uma vez (nao por microtransicao):
+status final + metadata `gh_issue`/`branch`/`pr`. Mapeamento de status UP -> Multica:
+`done->done`, `in_review->in_review`, `blocked->blocked` (descarte/opcao 4 -> `cancelled`). Status final:
+opcoes 1/2 (merge/PR) -> `done`; opcao 3 (deixa branch) -> `in_review`; opcao 4 (descarta) -> `cancelled`.
+A KEY do Multica ja vai no body do PR (`Closes MUL-X`) via `finish-phase`, entao o merge auto-avanca a
+issue pra `done` no proprio Multica; este `sync done` e idempotente. FAIL-OPEN: erro -> avisa e segue.
+
+```bash
+if [ "$BOARD" = "true" ]; then
+  case "$ESCOLHA" in
+    1|2) MB_STATUS=done ;;
+    3)   MB_STATUS=in_review ;;
+    4)   MB_STATUS=cancelled ;;
+    *)   MB_STATUS=done ;;   # --auto sem menu = fechou = done
+  esac
+  # Ler pr_number do git-map.json da fase (escrito por finish-phase), se houver.
+  MB_PR=$(node "$HOME/.claude/up/bin/up-tools.cjs" github status --phase {phase_number} --raw 2>/dev/null \
+    | grep -oE '"pr"[^,}]*' | sed 's/.*: *//;s/"//g')
+  node "$HOME/.claude/up/bin/up-tools.cjs" multica sync \
+    --phase {phase_number} --status "$MB_STATUS" \
+    --gh-issue "${ISSUE:-}" --branch "${BRANCH:-}" --pr "${MB_PR:-}" --raw 2>/dev/null \
+    || echo "AVISO: Multica indisponivel (sync $MB_STATUS fase {phase_number}). Seguindo."
+fi
+```
+
+> Em `--solo` o fluxo nem chega aqui (sem `--board`): nenhuma chamada Multica.
 
 ### 3.9 Reassessment de roadmap (pos-fase, inline, ~30s)
 
@@ -613,6 +682,17 @@ Apresentacao = output direto do orquestrador (sem CEO). Le owner-profile pra tom
 mv .plano/PLAN-READY.md .plano/PROJECT-COMPLETE.md
 ```
 
+**Multica: fechar o board (so se `--board`).** Sync batched final marca a issue-pai como `done` (idempotente).
+FAIL-OPEN. Imprimir a URL do board pro dono ver o resultado.
+
+```bash
+if [ "$BOARD" = "true" ]; then
+  node "$HOME/.claude/up/bin/up-tools.cjs" multica sync --status done --raw 2>/dev/null \
+    || echo "AVISO: Multica indisponivel (sync final). Seguindo."
+  node "$HOME/.claude/up/bin/up-tools.cjs" multica board --raw 2>/dev/null   # imprime a URL do board
+fi
+```
+
 Adicionar ao frontmatter:
 ```yaml
 status: complete
@@ -637,11 +717,18 @@ final_confidence: [do up-revisor de delivery]
 - [ ] GATE de fase deterministico passou (APPROVE + evidence do tipo certo, ou forced approval com debito)
 - [ ] GitHub-nativo (default): worktree+branch+issue por fase via `github start-phase`; menu 4 opcoes /
       `github finish-phase` no fim. `--solo` degrada para commit na branch atual (sem worktree/issue/PR)
+- [ ] Execucao sempre via up-executor (roteia por contexto: frontend/backend/database/misto); SEM agentes
+      specialist separados (Onda 2 do corte)
+- [ ] `--board`: Multica init no inicio (project+pai), sync `in_progress` na entrada da fase, sync BATCHED
+      no fim da fase/onda (status+metadata gh_issue/branch/pr), sync done + board URL no delivery. Tudo
+      fail-open (nunca crasha) e batched (nao por microtransicao). Sem `--board`: zero chamada Multica
 - [ ] Cap de rework de 1 round respeitado
 - [ ] Re-plans locais registrados (se houve, max 2)
 - [ ] Quality Gate global rodou
 - [ ] up-revisor fez revisao de delivery consolidada
 - [ ] PLAN-READY.md -> PROJECT-COMPLETE.md
 - [ ] Nenhuma referencia a CEO, chiefs, camadas de revisao intermediaria, auditores gold ou builder-e2e
+- [ ] Nenhuma referencia aos 3 specialists de dominio nem aos 3 detectores DCRV antigos (6 agentes
+      deletados na Onda 2; tudo via up-executor e up-tester)
 </success_criteria>
 </output>

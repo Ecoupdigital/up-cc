@@ -86,7 +86,7 @@ const MODEL_PRESETS = {
   },
 };
 
-// Map agent names to their model role
+// Map agent names to their model role (12 agentes — onda 2 do corte)
 const AGENT_ROLE_MAP = {
   // Planning
   'up-planejador': 'planning',
@@ -95,19 +95,14 @@ const AGENT_ROLE_MAP = {
   'up-sintetizador': 'planning',
   'up-mapeador-codigo': 'planning',
   'up-pesquisador': 'planning',
-  // Execution
+  // Execution (up-executor roteia frontend/backend/database por contexto)
   'up-executor': 'execution',
-  'up-frontend-specialist': 'execution',
-  'up-backend-specialist': 'execution',
-  'up-database-specialist': 'execution',
   'up-depurador': 'execution',
-  // Review & Testing
+  // Review & Testing (up-tester funde os 3 detectores DCRV)
   'up-verificador': 'review',
   'up-revisor': 'review',
   'up-auditor': 'review',
-  'up-visual-critic': 'review',
-  'up-exhaustive-tester': 'review',
-  'up-api-tester': 'review',
+  'up-tester': 'review',
 };
 
 function loadConfig(cwd) {

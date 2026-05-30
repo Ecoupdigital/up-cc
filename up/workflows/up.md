@@ -9,8 +9,9 @@ Subverbos: `estado` (status/saude/pausar/resetar/custos/remover-fase) e `config`
 Este workflow ABSORVE: novo-projeto.md, clone-builder.md, iniciar.md, progresso.md, retomar.md,
 pausar.md e o intake de ceo-intake.md (que vira prompt inline do orquestrador, SEM CEO).
 
-A maquinaria GitHub-nativa (worktree/issue/PR) e Multica (--board) e referenciada como interface
-alvo mas a orquestracao real e stub (ver TODOs Fase 4/Fase 5). Esta fase entrega so o roteamento.
+A maquinaria GitHub-nativa (worktree/issue/PR, Fase 4) e Multica (`--board`, Fase 5) vive no `/up:build`
+e `/up:plan`. Este roteador so a referencia (subverbo `estado board` abre a URL do board). A execucao
+real acontece no build/plan; aqui o foco e roteamento + intake.
 </purpose>
 
 <core_principle>
@@ -344,8 +345,9 @@ Apos estruturar, o `/up` NAO planeja nem executa fases sozinho. Ele entrega o ha
 ---
 ```
 
-> Interface alvo (Fase 4/5): `/up:build` aceitara `--solo` (default, commit na branch atual),
-> `--pr` (worktree+issue+PR), `--board` (espelho Multica), `--auto` (merge se verde). Aqui so anunciamos.
+> `/up:build` aceita `--solo` (default, commit na branch atual), `--pr` (worktree+issue+PR),
+> `--board` (espelho de status no Multica, batched, fail-open) e `--auto` (merge se verde). Para ver o
+> board depois: `/up estado board` (abre a URL no Multica). Aqui so roteamos pro /up:plan.
 
 ## Passo 4: CLONE (URL recebida)
 
@@ -403,13 +405,14 @@ Usar `.plano/clone/CLONE-PRD.md` como briefing. Entregar handoff pro `/up:plan` 
 
 ## Passo 5: ESTADO (subverbo)
 
-`/up estado [status|saude|pausar|resetar|custos|remover-fase N]`. Max 3 conceitos visiveis; o resto
+`/up estado [status|saude|board|pausar|resetar|custos|remover-fase N]`. Max 3 conceitos visiveis; o resto
 e detectado por contexto. Operacoes:
 
 | Pedido | Acao |
 |--------|------|
 | status (default) | Mesmo relatorio do Passo 1 (sem rotear execucao) |
 | saude | Diagnostico de integridade do `.plano/` (rodar `up-tools.cjs` saude se disponivel) |
+| board | Abre/imprime a URL do board no Multica (substitui o antigo dashboard local :4040). Roda `node "$HOME/.claude/up/bin/up-tools.cjs" multica board --raw` (deteccao `uname -s`, fail-open: se nao houver board `--board`/`multica` indisponivel, avisa que nao ha board e segue). NAO ha dashboard local nem stream ao vivo: o board mostra so status (todo/in_progress/in_review/done). |
 | pausar | Criar handoff `.continue-aqui.md` — delegar a `@~/.claude/up/workflows/pausar.md` |
 | resetar | Limpeza destrutiva do `.plano/` — delegar a `@~/.claude/up/workflows/resetar.md` |
 | custos | Estimativa de tokens dos agentes UP usados (Claude Code only) |
@@ -438,6 +441,7 @@ e detectado por contexto. Operacoes:
 - [ ] Clone: up-mapeador-codigo modo clone gerou CLONE-PRD; roteado pro /up:plan
 - [ ] Handoff claro pro /up:plan ou /up:build
 - [ ] Subverbos estado/config delegam aos workflows corretos
+- [ ] Subverbo `estado board` abre a URL do Multica (via `up-tools.cjs multica board`, fail-open); NAO ha dashboard local :4040 nem stream ao vivo
 - [ ] Nenhuma referencia a CEO, chiefs, supervisores ou agentes clone-*
 </success_criteria>
 </output>

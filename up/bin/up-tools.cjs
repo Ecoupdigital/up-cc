@@ -35,6 +35,7 @@ const {
 } = require('./lib/core.cjs');
 
 const github = require('./lib/github.cjs');
+const multica = require('./lib/multica.cjs');
 
 // --- Frontmatter helpers ---
 
@@ -372,6 +373,12 @@ function main() {
       } else {
         error('Unknown github subcommand. Available: start-phase, finish-phase, status');
       }
+      break;
+    }
+
+    // ==================== MULTICA (Fase 5: board OPT-IN) ====================
+    case 'multica': {
+      cmdMultica(cwd, args.slice(1), raw);
       break;
     }
 
@@ -2858,11 +2865,10 @@ function cmdValidatePlan(cwd, args, raw) {
 // =====================================================================
 
 const SKILL_MANIFEST = {
-  // Execution agents — fokus em principles + production reqs
-  'up-executor': ['engineering-principles-compressed'],
-  'up-frontend-specialist': ['engineering-principles-compressed', 'ui-brand', 'production-requirements-compressed'],
-  'up-backend-specialist': ['engineering-principles-compressed', 'production-requirements-compressed'],
-  'up-database-specialist': ['engineering-principles-compressed', 'production-requirements-compressed'],
+  // Execution agents — fokus em principles + production reqs.
+  // up-executor roteia frontend/backend/database por contexto (carrega
+  // ui-brand + production-requirements sob demanda quando o dominio exige).
+  'up-executor': ['engineering-principles-compressed', 'ui-brand', 'production-requirements-compressed'],
   'up-depurador': ['engineering-principles-compressed'],
 
   // Planning agents — fokus em arquitetura + reqs
@@ -2873,13 +2879,12 @@ const SKILL_MANIFEST = {
   'up-sintetizador': ['production-requirements-compressed'],
   'up-mapeador-codigo': [],
 
-  // Review & Testing — fokus em quality
+  // Review & Testing — fokus em quality.
+  // up-tester funde visual + exhaustive + api (multi-pass via Playwright).
   'up-verificador': ['production-requirements-compressed'],
   'up-revisor': ['engineering-principles-compressed', 'production-requirements-compressed'],
   'up-auditor': ['audit-ux', 'audit-performance', 'audit-modernidade'],
-  'up-visual-critic': ['ui-brand'],
-  'up-exhaustive-tester': [],
-  'up-api-tester': [],
+  'up-tester': ['ui-brand', 'production-requirements-compressed'],
 };
 
 /**
@@ -2916,6 +2921,116 @@ function cmdSkillManifest(args, raw) {
   });
 
   output({ agent, refs, paths, count: refs.length }, raw, paths.join('\n'));
+}
+
+// =====================================================================
+// MULTICA COMMAND (Fase 5 — espelho de board OPT-IN)
+// =====================================================================
+
+/**
+ * Espelha o estado do UP no board Multica (so quando --board ligado no build).
+ * Subverbos: init, sync, board. FAIL-OPEN em tudo (warning, nunca crasha).
+ *
+ * Usage:
+ *   up-tools.cjs multica init [--name <proj>] [--phase N --title <t>] [--dry-run]
+ *   up-tools.cjs multica sync --phase N --status <s> [--metadata k=v ...] [--dry-run]
+ *   up-tools.cjs multica board [--project <id>]
+ *
+ * Atualiza .plano/git-map.json com multica_issue por fase (init/sync).
+ * Saida JSON.
+ */
+function cmdMultica(cwd, args, raw) {
+  const sub = args[0];
+  const getFlag = (name) => {
+    const i = args.indexOf(name);
+    return i !== -1 ? args[i + 1] : null;
+  };
+  const hasFlag = (name) => args.indexOf(name) !== -1;
+  // --metadata k=v (repetivel)
+  const collectMetadata = () => {
+    const meta = {};
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === '--metadata' && args[i + 1]) {
+        const kv = args[i + 1];
+        const eq = kv.indexOf('=');
+        if (eq > 0) meta[kv.slice(0, eq)] = kv.slice(eq + 1);
+      }
+    }
+    return meta;
+  };
+
+  const dryRun = hasFlag('--dry-run');
+
+  if (sub === 'init') {
+    // ensureProject (+ parent issue opcional por fase quando --phase dado)
+    const name = getFlag('--name');
+    const phase = getFlag('--phase');
+    const title = getFlag('--title');
+
+    const proj = multica.ensureProject({ cwd, name, dryRun });
+    const result = { subcommand: 'init', dry_run: dryRun, project: proj };
+
+    if (phase) {
+      const projectId = proj && proj.ok && proj.project_id ? proj.project_id : null;
+      const issue = multica.ensurePhaseIssue({
+        cwd, phase, title: title || `Fase ${phase}`, project: projectId, dryRun,
+      });
+      result.issue = issue;
+      if (!dryRun && issue && issue.ok && issue.issue_id) {
+        persistMulticaIssue(cwd, phase, issue.issue_id);
+      }
+    }
+
+    output(result, raw, JSON.stringify(result));
+    return;
+  }
+
+  if (sub === 'sync') {
+    const phase = getFlag('--phase');
+    const status = getFlag('--status');
+    if (!phase) error('Usage: multica sync --phase N --status <s> [--metadata k=v ...] [--dry-run]');
+    if (!status) error('Usage: multica sync --phase N --status <s> [--metadata k=v ...] [--dry-run]');
+
+    const metadata = collectMetadata();
+    const res = multica.syncStatus({ cwd, phase, status, metadata, dryRun });
+
+    // persiste id resolvido no git-map (so quando rodou de verdade)
+    if (!dryRun && res && res.issue_id) {
+      persistMulticaIssue(cwd, phase, res.issue_id);
+    }
+
+    const result = { subcommand: 'sync', dry_run: dryRun, phase, status, metadata, result: res };
+    output(result, raw, JSON.stringify(result));
+    return;
+  }
+
+  if (sub === 'board') {
+    const project = getFlag('--project');
+    const res = multica.boardUrl({ cwd, project });
+    const result = { subcommand: 'board', ...res };
+    output(result, raw, res.url);
+    return;
+  }
+
+  error('Unknown multica subcommand. Available: init, sync, board');
+}
+
+/**
+ * Grava multica_issue por fase no .plano/git-map.json (ao lado de issue/pr do
+ * GitHub). Best-effort: nunca quebra o fluxo.
+ */
+function persistMulticaIssue(cwd, phase, multicaIssueId) {
+  try {
+    const map = github.readGitMap(cwd);
+    const key = String(phase).replace(/^0+(\d)/, '$1').replace(/^(\d+)$/, '$1');
+    const normKey = require('./lib/core.cjs').normalizePhaseName(phase).replace(/^0+(\d)/, '$1');
+    const k = normKey || key;
+    map.phases = map.phases || {};
+    map.phases[k] = { ...(map.phases[k] || {}), multica_issue: multicaIssueId };
+    github.writeGitMap(cwd, map);
+  } catch {
+    // fail-open
+  }
 }
 
 // =====================================================================

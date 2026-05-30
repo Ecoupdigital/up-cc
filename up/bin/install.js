@@ -393,10 +393,12 @@ function convertCommandToGeminiToml(content) {
  * Supervisors/auditors/reviewers get read-only.
  */
 function getCodexSandboxMode(agentName) {
+  // 12 agentes (onda 2 do corte). up-executor roteia frontend/backend/database
+  // por contexto; up-tester funde visual + exhaustive + api num spawn multi-pass
+  // (precisa de workspace-write pra escrever reports).
   const writeAgents = [
-    'up-frontend-specialist', 'up-backend-specialist', 'up-database-specialist',
     'up-executor', 'up-arquiteto', 'up-roteirista', 'up-sintetizador',
-    'up-visual-critic', 'up-exhaustive-tester', 'up-api-tester',
+    'up-tester',
     'up-depurador', 'up-verificador', 'up-planejador', 'up-mapeador-codigo',
     'up-pesquisador', 'up-revisor', 'up-auditor',
   ];

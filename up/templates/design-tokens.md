@@ -1,7 +1,7 @@
 # Design Tokens — {PROJECT_NAME}
 
 Referencia visual do projeto. Gerado pelo up-arquiteto durante a fase de arquitetura.
-Usado pelo up-visual-critic como baseline para avaliar consistencia visual.
+Usado pelo up-tester (passe visual) como baseline para avaliar consistencia visual.
 
 ---
 

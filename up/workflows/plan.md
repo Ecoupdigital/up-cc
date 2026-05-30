@@ -134,6 +134,21 @@ Agent(subagent_type="up-arquiteto", prompt="""
   && echo "OK" || { echo "FALHOU: re-spawnar up-arquiteto"; exit 1; }
 ```
 
+**Multica: criar 1 issue-filha por fase (so se `--board`, BATCHED, MODO PROJETO).**
+Agora que o ROADMAP existe com todas as fases, `multica init` garante o project + a issue-pai e cria 1
+issue-filha por fase (`--parent <pai> --status backlog`, `metadata up_project=<repo> up_phase=N`) numa
+chamada batched (uma por fase, nao por microtransicao). Idempotente: reconcilia via
+`multica issue list --metadata up_project=<repo> --metadata up_phase=N` (nao duplica em re-plans).
+FAIL-OPEN: se `multica` indisponivel ou erro, avisa e segue o planejamento sem board. Deteccao `uname -s`
+fica dentro de `multica.cjs`. So roda no MODO PROJETO (no MODO FASE nao recria o board).
+
+```bash
+if [ "$BOARD" = "true" ] && [ "$MODE_FASE" != "true" ]; then
+  node "$HOME/.claude/up/bin/up-tools.cjs" multica init --from-roadmap --raw 2>/dev/null \
+    || echo "AVISO: Multica indisponivel (init/issues por fase). Seguindo o plano sem board."
+fi
+```
+
 ```python
 # PASSO 2: Sintetizador valida os REQUIREMENTS (modo validacao — 13 checks)
 # Absorve requirements-validator: completude, testabilidade, cobertura, ausencia de ambiguidade.
@@ -304,6 +319,12 @@ Marca em PLAN-READY.md; o build valida compatibilidade.
 ### --no-audit
 Pula o Planning Review (estagio P). Util pra dev rapido. NAO recomendado em producao.
 
+### --board
+Espelha o plano no Multica (OPT-IN). Ao gerar o ROADMAP (MODO PROJETO), cria 1 issue-filha por fase
+(batched, `--status backlog`, `metadata up_project up_phase`) sob a issue-pai do projeto. Idempotente
+(reconcilia via metadata, nao duplica). FAIL-OPEN: `multica` indisponivel -> avisa e planeja sem board.
+Sem stream ao vivo: o board reflete so status. O `/up:build --board` continua a sincronizacao na execucao.
+
 </flags>
 
 <success_criteria>
@@ -317,6 +338,7 @@ Pula o Planning Review (estagio P). Util pra dev rapido. NAO recomendado em prod
 - [ ] GATE de planejamento deterministico passou (APPROVE ou forced approval)
 - [ ] AUDIT-PLAN.md gerado com Planning Confidence Score
 - [ ] PLAN-READY.md gerado e committado
+- [ ] `--board` (se passado, MODO PROJETO): 1 issue-filha Multica por fase criada batched (via `multica init --from-roadmap`), idempotente e fail-open
 - [ ] Apresentacao = output do orquestrador (sem CEO)
 - [ ] Nenhuma referencia a CEO, chiefs, camadas de revisao intermediaria ou aos agentes de planejamento deletados
 </success_criteria>

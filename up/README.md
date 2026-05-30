@@ -18,20 +18,22 @@
 
 ---
 
-**UP** e um sistema de meta-prompting que transforma seu assistente de IA em um desenvolvedor estruturado. Em vez de pedir "faz X", voce descreve o projeto e o UP cuida do planejamento, execucao, verificacao e rastreamento — tudo via slash commands.
+**UP** e um sistema de meta-prompting que transforma seu assistente de IA em um desenvolvedor estruturado. Em vez de pedir "faz X", voce descreve o que quer e o UP cuida do brainstorm, planejamento, execucao, verificacao e rastreamento, tudo via slash commands.
 
 Funciona com **Claude Code**, **Gemini CLI** e **OpenCode**.
+
+> **v2.0 e um redesign completo (breaking change).** Sao 7 comandos no lugar de 31, 12 agentes no lugar de 52, e o default agora e leve (commit local, sem cerimonia). Veja a [tabela de migracao no CHANGELOG](CHANGELOG.md).
 
 ## Por que UP?
 
 Sem UP, voce pede algo ao assistente e torce pra dar certo. Com UP:
 
+- **Brainstorm-first** com profundidade escalada: tarefa trivial nao faz pergunta nenhuma, tarefa grande passa por brainstorm completo com aprovacao por secao
 - **Projetos sao divididos em fases** com roadmap, planos executaveis e criterios de aceite
-- **Cada fase passa por um pipeline**: discutir → planejar → executar → verificar
-- **Estado persiste entre sessoes** via arquivos em `.plano/` — sobrevive a `/clear` e troca de contexto
+- **Estado persiste entre sessoes** via arquivos em `.plano/`, sobrevive a `/clear` e troca de contexto
 - **Commits atomicos** rastreiam cada mudanca com mensagens descritivas
-- **Agentes especializados** rodam em paralelo para pesquisa, planejamento, execucao e verificacao
-- **Tarefas rapidas** tem o mesmo rigor sem a cerimonia completa
+- **TDD por tipo de codigo**: logica pede teste red-green, UI pede prova visual, glue pede smoke-test. Nunca "Pronto!" sem evidencia fresca
+- **GitHub-native opt-in**: worktree, issue, PR e merge com `--pr`. Sem isso, commit local na branch atual (`--solo`, o default)
 - **Detecta projetos existentes** e adapta o fluxo automaticamente (brownfield)
 
 ## Instalacao
@@ -55,369 +57,168 @@ Desinstalar:
 npx up-cc@latest --uninstall
 ```
 
-Apos instalar, reinicie o Claude Code e digite `/up:ajuda` para ver todos os comandos.
+Apos instalar, reinicie o CLI e digite `/up` para comecar de onde parou (ou descreva o que quer construir).
 
 ---
 
-## Manual de Uso
+## Os 7 comandos
 
-### 1. Inicializando um projeto
-
-O UP tem duas formas de comecar, dependendo do que voce precisa.
-
-#### Adocao leve — `/up:iniciar` (recomendado para projetos existentes)
-
-```
-/up:iniciar
-```
-
-O UP vai:
-1. Detectar automaticamente a stack, estrutura e features do seu projeto
-2. Criar `PROJECT.md` documentando o que existe — **sem fazer perguntas**
-3. Criar `config.json` com valores padrao
-4. Parar
-
-Sem questionario, sem requisitos, sem roadmap. Voce vai construindo incrementalmente conforme precisa:
-
-```
-/up:iniciar                    # Registra projeto, cria PROJECT.md
-/up:mapear-codigo              # Analise profunda do codebase (opcional)
-/up:melhorias                  # Descobre o que melhorar
-/up:planejar-fase 1            # Quando tiver algo para implementar
-```
-
-Ideal quando voce quer adotar o UP num projeto existente sem definir tudo de cara.
-
-#### Pipeline completo — `/up:novo-projeto`
-
-```
-/up:novo-projeto
-```
-
-O UP vai:
-1. Perguntar "O que voce quer construir?" (greenfield) ou "O que voce quer fazer com esse codigo?" (brownfield)
-2. Fazer perguntas de acompanhamento para entender o projeto
-3. Opcionalmente pesquisar o ecossistema do dominio (stack, features, armadilhas)
-4. Definir requisitos interativamente, agrupados por categoria
-5. Gerar ROADMAP.md com fases, criterios de sucesso e rastreabilidade
-6. Criar PROJECT.md, STATE.md e config.json
-
-Ideal quando voce ja sabe o que quer fazer e quer o pipeline completo de cara. Funciona tanto para projetos novos (greenfield) quanto existentes (brownfield) — a deteccao e automatica.
-
-#### Mapeamento de codebase
-
-Ambos os caminhos se beneficiam do mapeamento profundo do codebase:
-
-```
-/up:mapear-codigo
-```
-
-Produz 7 documentos em `.plano/codebase/`:
-
-| Documento | Conteudo |
-|-----------|----------|
-| STACK.md | Tecnologias, frameworks, dependencias |
-| ARCHITECTURE.md | Design do sistema, fluxo de dados, padroes |
-| STRUCTURE.md | Organizacao de diretorios e arquivos |
-| CONVENTIONS.md | Estilo de codigo, nomeacao, padroes de erro |
-| INTEGRATIONS.md | APIs externas, banco de dados, autenticacao |
-| TESTING.md | Infraestrutura de testes, cobertura |
-| CONCERNS.md | Divida tecnica, areas frageis, seguranca |
-
-Esses documentos alimentam automaticamente o restante do pipeline (discutir, planejar, executar).
-
-### 2. O pipeline de fases
-
-Cada fase do roadmap passa por um pipeline de 4 etapas. Voce controla o ritmo — cada etapa e um comando separado.
-
-#### Etapa 1: Discutir (`/up:discutir-fase N`)
-
-```
-/up:discutir-fase 1
-```
-
-O UP analisa a fase e identifica **areas cinzentas** — ambiguidades que mudariam a implementacao. Voce escolhe quais discutir.
-
-- Perguntas sao adaptadas ao que ja foi decidido em fases anteriores
-- Se o projeto e brownfield, carrega ARCHITECTURE.md e CONVENTIONS.md para perguntas informadas
-- Ideias fora do escopo sao anotadas como "adiadas", nao perdidas
-- Resultado: `CONTEXT.md` com decisoes capturadas
-
-**Quando pular:** Se a fase e infraestrutura pura ou a implementacao e obvia, voce pode ir direto para planejar.
-
-#### Etapa 2: Planejar (`/up:planejar-fase N`)
-
-```
-/up:planejar-fase 1
-```
-
-Spawna o agente **up-planejador** que:
-- Le CONTEXT.md, ROADMAP.md, REQUIREMENTS.md e codebase docs
-- Faz pesquisa inline se necessario (busca docs, verifica APIs)
-- Cria PLAN-001.md, PLAN-002.md, etc. com tarefas especificas
-- Auto-verifica: cobertura de requisitos, dependencias, waves de execucao
-- Resultado: Planos executaveis prontos
-
-Flags uteis:
-- `--pesquisar` — Forcar pesquisa profunda antes de planejar
-- `--sem-pesquisa` — Pular pesquisa, ir direto
-- `--gaps` — Replanejar a partir de lacunas do verificar-trabalho
-
-#### Etapa 3: Executar (`/up:executar-fase N`)
-
-```
-/up:executar-fase 1
-```
-
-Spawna agentes **up-executor** que:
-- Executam planos organizados em **waves** (planos independentes rodam em paralelo)
-- Cada plano produz commits atomicos com mensagens descritivas
-- Resultado: Codigo implementado e commitado, SUMMARY.md criado
-
-#### Etapa 4: Verificar (`/up:verificar-trabalho N`)
-
-```
-/up:verificar-trabalho 1
-```
-
-Verificacao goal-backward (parte do resultado desejado e volta):
-- Testa se os criterios de sucesso da fase foram atingidos
-- Se encontra gaps: gera VERIFICATION.md com detalhes
-- Resultado: Fase aprovada ou lista de gaps para corrigir
-
-#### Ciclo de correcao de gaps
-
-Se a verificacao encontrou problemas:
-
-```
-/up:planejar-fase 1 --gaps     # Cria planos de correcao baseados no VERIFICATION.md
-/up:executar-fase 1 --gaps-only # Executa apenas os planos de correcao
-/up:verificar-trabalho 1        # Re-verifica
-```
-
-### 3. Gerenciamento do projeto
-
-#### Ver progresso
-
-```
-/up:progresso
-```
-
-Mostra dashboard com: fase atual, porcentagem de conclusao, bloqueios, e sugere o proximo comando a rodar.
-
-#### Pausar e retomar
-
-```
-/up:pausar          # Cria .continue-aqui.md com contexto completo
-```
-
-Na proxima sessao (ou apos `/clear`):
-
-```
-/up:retomar          # Le .continue-aqui.md e STATE.md, restaura tudo
-```
-
-O UP foi desenhado para sobreviver a `/clear`. Todo estado fica em disco no `.plano/`.
-
-#### Adicionar e remover fases
-
-```
-/up:planejar-fase "Implementar sistema de notificacoes"   # Adiciona ao final E ja planeja
-/up:remover-fase 5                                         # Remove e renumera
-```
-
-Apenas fases futuras (nao iniciadas) podem ser removidas.
-
-### 4. Tarefas rapidas
-
-Para tarefas pequenas que nao justificam uma fase inteira:
-
-```
-/up:rapido "Corrigir bug no formulario de login"
-/up:rapido "Adicionar favicon"
-/up:rapido "Atualizar dependencias"
-```
-
-O `/up:rapido` faz o mesmo pipeline simplificado:
-- Planeja e executa em um unico fluxo
-- Commits atomicos com rastreamento
-- Tarefas ficam em `.plano/rapido/TASK-NNN.md`
-- Nao afeta ROADMAP.md — e separado das fases
-
-### 5. Depuracao
-
-Para bugs complexos que precisam de investigacao sistematica:
-
-```
-/up:depurar "Botao de salvar nao funciona na pagina de perfil"
-```
-
-O depurador:
-- Coleta sintomas (comportamento esperado, real, erros, reproducao)
-- Spawna agente **up-depurador** que investiga com metodo cientifico
-- Forma hipoteses falsificaveis, testa uma de cada vez
-- Mantém sessao persistente em `.plano/debug/` (sobrevive a `/clear`)
-- Ao encontrar a causa raiz, oferece corrigir automaticamente
-
-Sessoes ativas podem ser retomadas:
-
-```
-/up:depurar                    # Sem argumento: lista sessoes ativas
-```
-
-### 6. Testes
-
-Apos completar uma fase, gerar testes automaticamente:
-
-```
-/up:adicionar-testes 1
-```
-
-O UP:
-- Analisa todos os arquivos modificados pela fase
-- Classifica cada um: unitario (TDD), E2E (browser) ou pular
-- Apresenta classificacao para aprovacao
-- Gera testes seguindo convencoes do projeto
-- Reporta: passando, falhando, gaps de cobertura, bugs descobertos
-
-### 7. Configuracao
-
-```
-/up:configurar
-```
-
-| Opcao | Default | Descricao |
-|-------|---------|-----------|
-| Modo | solo | `solo` (commits diretos) ou `time` (branches por fase) |
-| Paralelizacao | sim | Agentes rodam em paralelo quando independentes |
-| Commit Docs | sim | Commitar documentos de planejamento automaticamente |
-| Auto-Advance | nao | Encadear estagios automaticamente |
-
-### 8. Manutencao
-
-```
-/up:saude              # Diagnostica integridade do .plano/
-/up:saude --reparar    # Corrige problemas automaticamente
-/up:atualizar          # Verifica e instala atualizacoes do UP
-```
-
----
-
-## Referencia Rapida
-
-### Comandos
-
-| Comando | Descricao |
+| Comando | O que faz |
 |---------|-----------|
-| `/up:iniciar` | Registrar projeto existente (leve, sem questionario) |
-| `/up:novo-projeto` | Inicializar projeto completo (questionario + requisitos + roadmap) |
-| `/up:mapear-codigo` | Analisar codebase existente com agentes paralelos |
-| `/up:retomar` | Restaurar contexto da sessao anterior |
-| `/up:discutir-fase N` | Coletar contexto por questionamento estruturado |
-| `/up:planejar-fase N` | Criar planos executaveis com pesquisa e self-check |
-| `/up:executar-fase N` | Executar planos com paralelizacao por ondas |
-| `/up:verificar-trabalho N` | Validar features via UAT conversacional |
-| `/up:progresso` | Dashboard de status e proxima acao |
-| `/up:pausar` | Criar arquivo de handoff `.continue-aqui.md` |
-| `/up:planejar-fase "desc"` | Adicionar fase ao final do roadmap e ja planejar |
-| `/up:remover-fase N` | Remover fase futura e renumerar |
-| `/up:adicionar-testes N` | Gerar testes para fase completa |
-| `/up:melhorias` | Auditoria completa (UX, performance, modernidade) |
-| `/up:ideias` | Sugestoes de features com pesquisa de mercado |
-| `/up:rapido "tarefa"` | Tarefa rapida com commits atomicos |
-| `/up:depurar` | Depuracao sistematica com metodo cientifico |
-| `/up:configurar` | Configurar opcoes do workflow |
-| `/up:atualizar` | Verificar e instalar atualizacoes |
-| `/up:saude` | Diagnosticar integridade do `.plano/` |
-| `/up:ajuda` | Referencia completa de comandos |
+| **`/up`** | Porta unica. Sem argumento, continua de onde parou (le `STATE.md` e roteia). Com descricao, dispara o brainstorm escalado e roteia greenfield/brownfield/clone. Tambem e a casa de `estado` e `config` (subverbos). |
+| **`/up:plan`** | Planeja projeto ou fase (deteccao automatica). Research inline + self-check. Gera `PLAN-READY.md` executavel, inclusive em outro runtime. |
+| **`/up:build`** | Executa o que foi planejado. **Default `--solo`** (commit atomico na branch atual). Flags opt-in: `--pr` (worktree+issue+PR), `--board` (espelha Multica), `--auto` (merge automatico se verde). |
+| **`/up:testar`** | Loop DCRV unico (detectar, corrigir, reverificar) num passe. Default roda tudo: visual, interacao, API, UX, mobile, E2E. Flags `--ux`/`--mobile`/`--e2e` focam. |
+| **`/up:depurar`** | Depuracao sistematica (causa raiz, hipotese, fix com teste de regressao) com estado persistente entre `/clear`. |
+| **`/up:auditar`** | Auditoria priorizada num passe (UX, performance, modernidade). Flag `--features` ativa pesquisa de mercado para sugerir features novas. |
+| **`/up:rapido`** | Tarefa pontual com garantias UP minimas (commit atomico, rastreamento em `STATE.md`), pulando o roadmap inteiro. O escape hatch nomeado. |
 
-### Flags
+Regra de design: **nenhum comando tem mais de 3 subverbos.** A superficie cognitiva real e ~12 entradas, nao ~50.
+
+---
+
+## Fluxo
+
+O UP escala o esforco pelo tamanho da tarefa, sem voce pedir.
+
+### Caminho rapido (o default, ~70% do trabalho)
 
 ```
-# planejar-fase
---pesquisar       Forcar re-pesquisa mesmo com RESEARCH.md existente
---sem-pesquisa    Pular pesquisa, ir direto ao planejamento
---auto            Auto-detectar proxima fase nao planejada
---gaps            Modo fechamento de gaps (le VERIFICATION.md)
-
-# executar-fase
---gaps-only       Executar apenas planos de fechamento de gaps
+/up "ajusta o titulo do botao pra X"
+  -> classify-task: TRIVIAL -> 0 perguntas, anuncia e executa
+  -> up-executor muda + prova fresca por tipo (UI -> captura visual antes/depois)
+  -> commit atomico na branch ATUAL
+  -> STATE.md atualizado. FIM.
 ```
 
-### Pipelines
+Zero worktree, zero issue, zero PR, zero rede. `/up:rapido` faz o mesmo pulando ate o roadmap.
+
+### Caminho medio (feature de 1 subsistema)
 
 ```
-Leve (recomendado para projetos existentes):
-/up:iniciar → /up:planejar-fase N → /up:executar-fase N → /up:verificar-trabalho N
-
-Completo:
-/up:novo-projeto → /up:discutir-fase N → /up:planejar-fase N → /up:executar-fase N → /up:verificar-trabalho N
-
-Ciclo de gaps:
-/up:verificar-trabalho N → Gaps? → /up:planejar-fase N --gaps → /up:executar-fase N --gaps-only → Re-verificar
+/up "adiciona filtro por data no dashboard"
+  -> classify-task: PEQUENA -> 1 pergunta-chave + design em 3 frases
+  -> BRIEFING.md curto, commitado
+  -> /up:plan gera PLAN-READY.md
+  -> /up:build: TDD por tipo, commits atomicos na branch atual
+  -> menu de 4 opcoes (merge local / abrir PR / deixa a branch / descarta)
 ```
+
+### Caminho completo (projeto grande, repo colaborativo)
+
+```
+/up "redesign do gestor com novo modulo de cohorts"
+  -> classify-task: GRANDE -> brainstorm full com aprovacao por secao
+  -> BRIEFING.md completo -> /up:plan gera ROADMAP.md + PLAN-READY.md
+  -> /up:build --pr --board   (GitHub-native + Multica ligados, opt-in)
+     por fase: worktree -> issue -> ondas de agentes -> menu 4 opcoes -> PR/merge
+  -> .plano/ consolida na main no merge; git-map.json atualizado
+```
+
+---
+
+## TDD por tipo de codigo
+
+A Iron Law do UP nao e "TDD unit universal", e **evidencia fresca antes de afirmar pronto**. O gate cobra a prova certa para cada tipo, decidida pelo `classify-task`:
+
+| Tipo de codigo | Prova exigida |
+|---|---|
+| Logica, parser, calculo, API propria, bugfix | Teste red-green (TDD unit) |
+| UI, CSS, layout | Prova visual antes/depois (via `up-tester`) |
+| Glue, integracao, config | Smoke-test |
+
+O sistema sabe que CSS pede prova visual. Voce nao precisa pedir licenca, e o agente nao diz "Pronto!" sem mostrar a evidencia.
+
+---
+
+## GitHub-native (opt-in)
+
+O default e `--solo`: commit atomico na branch atual, sem tocar no GitHub. Quando voce quer o fluxo completo, e `--pr`:
+
+```
+/up:build --pr          # worktree -> issue -> PR
+/up:build --pr --auto   # + merge automatico se CI verde e verificador passou
+```
+
+- Usa a tool nativa `EnterWorktree` do harness quando disponivel (fallback: `git worktree add`)
+- 1 issue por fase, branch `up/fase-NN-slug`, `Closes #N` no corpo do PR
+- No fim da fase, **menu de 4 opcoes** (merge local / abrir PR / deixa a branch / descarta), nunca PR-automatico
+- Mapa de identidade em `.plano/git-map.json` (issue/pr por fase)
+- Fail-open: se algo do GitHub falhar, o build segue
+
+## Multica `--board` (opt-in)
+
+Espelha o progresso das fases no board do [Multica](https://multica.ai) (issue tracker para times humano + agente). Opt-in via `--board`:
+
+```
+/up:build --pr --board
+```
+
+- Status batched no fim de cada onda (todo, in_progress, in_review, done, blocked), nao por microtransicao
+- 1 issue-pai por projeto + 1 issue-filha por fase, com identidade idempotente via metadata (`up_project`, `up_phase`, `gh_issue`, `branch`, `pr`)
+- **Fail-open**: se o Multica estiver indisponivel, o UP avisa e segue sem board, nunca derruba o build
+- Subcomando `up-tools.cjs multica` (`init`/`sync`/`board`), com `--dry-run` de preview
+
+> O board mostra **status** (nao stream ao vivo de cada tool). O stream so existe quando o proprio Multica dispara o agente.
+
+---
+
+## Os 12 agentes
+
+O UP usa 12 agentes especializados que rodam como subprocessos. Os antigos specialists (frontend/backend/database) fundiram no `up-executor`, que roteia dominio por contexto.
+
+| Agente | Funcao |
+|--------|--------|
+| **up-arquiteto** | Design upfront a partir do brainstorm |
+| **up-planejador** | Planeja fases com research inline e self-check |
+| **up-executor** | Executa planos com commits atomicos; roteia frontend/backend/database por contexto |
+| **up-verificador** | Verificacao goal-backward com evidencia fresca por tipo |
+| **up-mapeador-codigo** | Analisa codebases existentes (e extrai design/features no modo clone) |
+| **up-depurador** | Investigacao de bugs com metodo cientifico |
+| **up-pesquisador** | Pesquisa de dominio, tecnologia e mercado |
+| **up-revisor** | Review two-stage: spec-compliance cetico + qualidade de codigo |
+| **up-tester** | Roda o app via Playwright num spawn multi-pass: visual + exhaustive + API |
+| **up-auditor** | Auditoria de UX + performance + modernidade num passe |
+| **up-sintetizador** | Sintetiza research, melhorias, ideias e requisitos |
+| **up-roteirista** | Conteudo (roadmap, carrosseis, aulas) |
+
+## Hooks
+
+Instalados automaticamente:
+
+- **up-statusline**: barra de status mostrando modelo, diretorio e uso de contexto
+- **up-context-monitor**: avisa quando o contexto enche, sugerindo `/clear` + `/up`
+- **up-session-start**: injeta a skill `usando-up` no inicio da sessao (e apos `/clear`/`/compact`), ligando a auto-ativacao das skills por contexto. Aditivo: se falhar, a sessao segue normal.
+
+---
 
 ## Estrutura do `.plano/`
 
 ```
 .plano/
-├── PROJECT.md              # O que e o projeto, requisitos, decisoes
-├── ROADMAP.md              # Todas as fases com status
-├── STATE.md                # Posicao atual, progresso, continuidade
-├── config.json             # Configuracoes do workflow
-├── codebase/               # Mapeamento do codebase (brownfield)
-│   ├── STACK.md
-│   ├── ARCHITECTURE.md
-│   ├── CONVENTIONS.md
-│   ├── CONCERNS.md
-│   └── ...
+├── PROJECT.md         # O que e o projeto, requisitos, decisoes
+├── ROADMAP.md         # Todas as fases com status
+├── STATE.md           # Posicao atual, progresso, continuidade
+├── config.json        # Configuracoes do workflow
+├── git-map.json       # Identidade GitHub/Multica por fase (issue/pr/multica_issue)
+├── approvals.log      # Gate deterministico de aprovacao de fase/plano
+├── codebase/          # Mapeamento do codebase (brownfield)
 ├── fases/
-│   ├── 01-autenticacao/
-│   │   ├── CONTEXT.md      # Contexto coletado na discussao
-│   │   ├── RESEARCH.md     # Pesquisa de dominio/tecnologia
-│   │   ├── PLAN-001.md     # Plano executavel
-│   │   ├── SUMMARY-001.md  # Resultado da execucao
-│   │   └── VERIFICATION.md # Resultado do UAT
-│   └── ...
-├── rapido/
-│   └── TASK-001.md         # Tarefa rapida executada
-└── debug/
-    ├── bug-login.md        # Sessao de debug ativa
-    └── resolved/           # Sessoes resolvidas
+│   └── 01-slug/
+│       ├── BRIEFING.md       # Resultado do brainstorm
+│       ├── CONTEXT.md        # Contexto coletado
+│       ├── PLAN-READY.md     # Plano executavel
+│       ├── SUMMARY-001.md    # Resultado da execucao
+│       └── VERIFICATION.md   # Resultado da verificacao
+├── rapido/            # Tarefas rapidas
+└── debug/             # Sessoes de debug (sobrevivem a /clear)
 ```
 
-Todos esses arquivos sao texto puro (Markdown/JSON) e podem ser commitados no repositorio.
+Todos os arquivos sao texto puro (Markdown/JSON) e podem ser commitados.
 
-## Agentes
+## Persistencia entre sessoes
 
-O UP usa 8 agentes especializados que rodam como subprocessos:
-
-| Agente | Funcao |
-|--------|--------|
-| **up-pesquisador-projeto** | Pesquisa de dominio e tecnologia para novos projetos |
-| **up-roteirista** | Cria ROADMAP.md com fases e criterios de sucesso |
-| **up-planejador** | Planeja fases com pesquisa inline e self-check |
-| **up-executor** | Executa planos com commits atomicos |
-| **up-verificador** | Verificacao goal-backward de trabalho completado |
-| **up-mapeador-codigo** | Analisa codebases existentes em paralelo |
-| **up-depurador** | Investigacao de bugs com metodo cientifico |
-| **up-sintetizador** | Sintetiza pesquisa em documentos estruturados |
-
-## Hooks
-
-Dois hooks sao instalados automaticamente:
-
-- **up-statusline** — Barra de status abaixo do input mostrando modelo, diretorio e uso de contexto
-- **up-context-monitor** — Avisa quando o contexto esta ficando cheio (35% warning, 25% critico), sugerindo `/clear` + `/up:retomar`
-
-## Persistencia entre Sessoes
-
-O UP sobrevive a `/clear` e reinicializacoes do CLI:
-
-1. **Estado em disco** — `.plano/STATE.md` rastreia posicao, decisoes, bloqueios
-2. **Handoff** — `/up:pausar` cria `.continue-aqui.md` com contexto para retomada
-3. **Retomada** — `/up:retomar` le os arquivos de estado e restaura o contexto completo
-4. **Debug persistente** — Sessoes de debug em `.plano/debug/` sobrevivem entre conversas
+O UP sobrevive a `/clear` e reinicializacoes do CLI. Todo estado fica em disco no `.plano/`. Apos um `/clear`, basta `/up` para restaurar o contexto e continuar de onde parou.
 
 ## Compatibilidade
 
@@ -432,10 +233,11 @@ Requisitos: Node.js >= 16.7.0
 ## Atualizacao
 
 ```
-/up:atualizar             # Verifica e instala de dentro do CLI
-npx up-cc@latest --claude --global  # Ou via terminal
+/up                                  # subverbo de atualizacao via npm
+npx up-cc@latest --claude --global   # Ou via terminal
 ```
 
 ## Licenca
 
 MIT
+</content>

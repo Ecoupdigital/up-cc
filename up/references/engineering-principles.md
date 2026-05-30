@@ -1,7 +1,7 @@
 # Engineering Principles
 
 Principios que governam TODA decisao de implementacao no UP.
-Carregado por todos os agentes executores (up-executor, up-frontend-specialist, up-backend-specialist, up-database-specialist).
+Carregado pelo up-executor (que roteia frontend/backend/database por contexto).
 
 Estes principios existem porque IAs tendem a escolher o caminho mais facil, nao o melhor. Cada principio combate um vicio especifico.
 
