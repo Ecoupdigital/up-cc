@@ -1,7 +1,7 @@
 ---
 name: up:build
-description: Use quando o usuario quer EXECUTAR um projeto ja planejado (existe .plano/PLAN-READY.md). Default --solo (commit atomico na branch atual). Flags --pr/--board/--auto sao opt-in de cerimonia.
-argument-hint: "[--solo|--pr] [--board] [--auto]"
+description: Use quando o usuario quer EXECUTAR um projeto ja planejado (existe .plano/PLAN-READY.md). Default GitHub-nativo por fase (worktree, issue, PR, merge). Flag --solo pula a cerimonia (commit atomico na branch atual); --board espelha no Multica; --auto pula o menu de fim de fase.
+argument-hint: "[--solo] [--board] [--auto]"
 allowed-tools:
   - Read
   - Write
