@@ -34,6 +34,8 @@ const {
   pathExistsInternal, generateSlugInternal, toPosixPath,
 } = require('./lib/core.cjs');
 
+const github = require('./lib/github.cjs');
+
 // --- Frontmatter helpers ---
 
 function extractFrontmatter(content) {
@@ -333,6 +335,42 @@ function main() {
         cmdRequirementsMarkComplete(cwd, args.slice(2), raw);
       } else {
         error('Unknown requirements subcommand. Available: mark-complete');
+      }
+      break;
+    }
+
+    // ==================== GITHUB (Fase 4: GitHub-native) ====================
+    case 'github': {
+      const sub = args[1];
+      const getFlag = (name) => {
+        const i = args.indexOf(name);
+        return i !== -1 ? args[i + 1] : null;
+      };
+      const hasFlag = (name) => args.indexOf(name) !== -1;
+
+      if (sub === 'start-phase') {
+        const phase = getFlag('--phase');
+        const slug = getFlag('--slug');
+        if (!phase) error('Usage: github start-phase --phase N --slug S [--solo]');
+        const result = github.startPhase({
+          cwd,
+          phase,
+          slug: slug || '',
+          solo: hasFlag('--solo'),
+        });
+        output(result, raw, JSON.stringify(result));
+      } else if (sub === 'finish-phase') {
+        const phase = getFlag('--phase');
+        const mode = getFlag('--mode') || 'menu';
+        const strategy = getFlag('--strategy');
+        if (!phase) error('Usage: github finish-phase --phase N --mode menu|auto|solo [--strategy squash|merge|rebase]');
+        const result = github.finishPhase({ cwd, phase, mode, strategy });
+        output(result, raw, JSON.stringify(result));
+      } else if (sub === 'status') {
+        const result = github.status({ cwd });
+        output(result, raw, JSON.stringify(result));
+      } else {
+        error('Unknown github subcommand. Available: start-phase, finish-phase, status');
       }
       break;
     }

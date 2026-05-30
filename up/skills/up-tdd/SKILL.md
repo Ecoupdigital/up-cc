@@ -7,7 +7,7 @@ description: "Use ao implementar qualquer feature, ajuste ou bugfix, antes de es
 
 A Lei de Ferro real e "evidencia fresca antes de afirmar pronto" (ver `up-verificar-antes-de-concluir`). TDD-unit nao e universal: e UMA forma de prova. O tipo de codigo decide qual prova o gate exige.
 
-Leia o tipo via `classify-task` (`frontmatter_type`, reasons) do `up-tools.cjs`, ou classifique pela natureza da mudanca. O gate `approvals.log` so passa com a evidencia do tipo certo.
+Leia o tipo via `classify-task` (`frontmatter_type`, reasons) do `up-tools.cjs`, ou classifique pela natureza da mudanca. Os 3 tipos, a prova de cada e o formato do campo `evidence=<tipo>:<resultado>` estao na ref `tdd-evidence-types` (carregada pelo `up-verificador`). O gate `approvals.log` so passa com a linha do `up-revisor` carregando `evidence=` do tipo certo (`logic:test_pass` | `ui:visual` | `glue:smoke`).
 
 ## Logica / parser / calculo / API-propria / bugfix -> red-green-refactor de verdade
 

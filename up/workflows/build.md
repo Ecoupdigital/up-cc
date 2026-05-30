@@ -51,14 +51,24 @@ O LLM tende a colapsar passos (mesmo agente executa + verifica). Isso e PROIBIDO
 e um `Agent()` SEPARADO. O enforcement e o GATE deterministico do `approvals.log`
 (ver `@~/.claude/up/workflows/governance.md`), nao uma piramide de supervisores.
 
-**Interface alvo GitHub-nativa / Multica (DOCUMENTADA, orquestracao stub nesta fase):**
-- `--solo` (DEFAULT): commit atomico na branch ATUAL. Zero worktree, zero issue, zero PR, zero rede.
-- `--pr`: worktree -> issue -> PR -> merge (menu de 4 opcoes no fim da fase, nunca PR-automatico).
-- `--board`: espelha status no Multica (batched, fim da onda).
-- `--auto`: merge automatico se CI verde + gate passou.
-Nesta fase entregamos so o `--solo`. As flags `--pr/--board/--auto` ficam como stub:
-  - TODO Fase 4 (GitHub-native): EnterWorktree (fallback git worktree), gh issue/PR, menu 4 opcoes.
-  - TODO Fase 5 (Multica): `up-tools.cjs multica sync` batched, deteccao `uname -s`, fail-open.
+**GitHub-nativo e o DEFAULT (v2):**
+- **PADRAO (sem flag):** cada fase abre uma worktree + branch `up/fase-NN-slug` e (se houver `gh` + remote)
+  uma issue do GitHub; no fim da fase o orquestrador oferece o MENU de 4 opcoes (merge local / PR / deixa
+  branch / descarta). Isto e o caminho quente. Controlado por `config.github_native=true` (default).
+- `--solo`: ESCAPE HATCH sem cerimonia. Forca `github_native=false` SO nesta execucao. Commit atomico na
+  branch ATUAL. Zero worktree, zero issue, zero PR, zero rede. (Mesmo comportamento de `/up:rapido`.)
+- `--auto`: pula o menu. Apos o GATE aprovar, `github finish-phase --mode auto` (PR -> merge squash ->
+  cleanup) automaticamente. So faz sentido com github_native ligado.
+- `--board`: espelha status no Multica (batched, fim da onda). TODO Fase 5 (Multica): `up-tools.cjs
+  multica sync` batched, deteccao `uname -s`, fail-open.
+
+**FAIL-OPEN universal:** `start-phase`/`finish-phase` detectam `gh` + remote. Faltando qualquer um, degradam
+para git local (worktree local + merge local; issue/PR = null) com aviso, NUNCA crasham. `git worktree` e
+sempre local e funciona offline. Com `--solo` nao ha nem worktree (commit direto na branch atual).
+
+**Onde o estado vive:** `git-map.json` e canonico no working dir PRINCIPAL (`.plano/git-map.json`). O `.plano/`
+de cada fase viaja na branch da fase (worktree) e volta pra main no merge. STATE.md permanece a fonte humana
+de "onde estou"; git-map.json e o indice maquina de "onde esta cada fase no GitHub".
 </core_principle>
 
 <process>
@@ -157,7 +167,26 @@ Projeto planejado em {runtime}.
 Resumo: {N} fases, {M} planos. Planning confidence: {X}/100.
 Pendencias conhecidas: {de PENDING.md}.
 
-Modo: --solo (commit na branch atual)   [--pr/--board/--auto: stub, Fase 4/5]
+Modo git: {GITHUB_MODE}   (GitHub-nativo e o default; --solo desliga; --auto pula o menu)
+```
+
+Resolver `GITHUB_MODE` antes do banner:
+
+```bash
+# --solo forca github_native=false SO nesta execucao
+if [ "$SOLO" = "true" ]; then
+  GITHUB_NATIVE=false
+else
+  GITHUB_NATIVE=$(node "$HOME/.claude/up/bin/up-tools.cjs" config get github_native --raw 2>/dev/null)
+  [ -z "$GITHUB_NATIVE" ] && GITHUB_NATIVE=true   # default TRUE
+fi
+
+if [ "$GITHUB_NATIVE" = "true" ]; then
+  GITHUB_MODE="GitHub-nativo (worktree + issue + PR/menu por fase)"
+  [ "$AUTO" = "true" ] && GITHUB_MODE="GitHub-nativo --auto (PR + merge squash automatico)"
+else
+  GITHUB_MODE="--solo (commit atomico na branch atual, sem worktree/issue/PR)"
+fi
 ```
 
 Confirmar via AskUserQuestion ("Iniciar execucao?"). Se recusar: abortar.
@@ -172,16 +201,47 @@ touch .plano/governance/approvals.log
   echo "# Build governance initialized at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .plano/governance/approvals.log
 ```
 
-> TODO Fase 4 (GitHub-native): se `--pr`, aqui entra `EnterWorktree` (fallback `git worktree add`) +
-> `gh issue create` por fase. Stub nesta fase: `--solo` opera na branch atual.
-> TODO Fase 5 (Multica): se `--board`, `multica issue status in_progress` na entrada da fase (batched).
+> Multica (TODO Fase 5): se `--board`, `multica issue status in_progress` na entrada da fase (batched).
 
 Para cada fase em ROADMAP.md (em ordem):
+
+### 3.0 Abrir a fase (GitHub-nativo - DEFAULT)
+
+A menos que `--solo` (ou `github_native=false`), abrir worktree + branch + issue ANTES de executar a fase.
+
+```bash
+PHASE_SLUG=$(node "$HOME/.claude/up/bin/up-tools.cjs" slug "{phase_name}" --raw)
+
+if [ "$GITHUB_NATIVE" = "true" ]; then
+  # Cria worktree + branch up/fase-NN-slug; se gh+remote, cria issue. Escreve .plano/git-map.json.
+  # Fail-open: sem gh/remote -> worktree local, issue=null, aviso (nunca crasha).
+  START=$(node "$HOME/.claude/up/bin/up-tools.cjs" github start-phase \
+    --phase {phase_number} --slug "$PHASE_SLUG" --raw)
+  if [[ "$START" == @file:* ]]; then START=$(cat "${START#@file:}"); fi
+  WORKTREE=$(echo "$START" | grep -oE '"worktree"[^,}]*' | sed 's/.*: *"//;s/"//')
+  BRANCH=$(echo "$START"   | grep -oE '"branch"[^,}]*'   | sed 's/.*: *"//;s/"//')
+  ISSUE=$(echo "$START"    | grep -oE '"issue"[^,}]*'    | sed 's/.*: *//')
+  echo "Fase {phase_number}: branch=$BRANCH worktree=$WORKTREE issue=${ISSUE:-null}"
+else
+  # --solo: sem worktree/issue. Trabalho acontece na branch atual.
+  WORKTREE="$(pwd)"; BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"; ISSUE=""
+fi
+```
+
+**Entrar na worktree (so se github_native):** o trabalho da fase (executor, specialists, commits) acontece
+DENTRO de `$WORKTREE`. Preferir a tool nativa do harness **EnterWorktree** apontando para `$WORKTREE`; se
+indisponivel, a worktree ja foi criada por `start-phase` (basta usar `--cwd "$WORKTREE"` nos comandos
+`up-tools.cjs` e `cd "$WORKTREE"` antes de `git add/commit`). O `.plano/` da fase viaja na branch da fase;
+`git-map.json` permanece canonico no working dir principal. Ao terminar a fase usar **ExitWorktree** (ou
+voltar `cd` para o repo principal) antes de atualizar `git-map.json` na main.
+
+> Em `--solo`, IGNORAR EnterWorktree/ExitWorktree: tudo na branch atual.
 
 ### 3.1 Carregar Plano da Fase
 
 ```bash
-PHASE_DIR=$(ls -d .plano/fases/{phase_number}-* 2>/dev/null)
+# Paths relativos a $WORKTREE (em --solo, $WORKTREE = repo principal).
+PHASE_DIR=$(ls -d "$WORKTREE"/.plano/fases/{phase_number}-* 2>/dev/null)
 PLAN=$(ls "$PHASE_DIR"/*-PLAN.md | head -1)
 ```
 
@@ -348,6 +408,23 @@ Pular se a fase nao tem UI nem API (infra/schema).
 
 ### 3.7 Revisao (PASSO 4 — Agent SEPARADO)
 
+**Derivar o tipo de evidencia esperado (Fase 3 - TDD por tipo).** Sai do `type` do frontmatter do plano
+(via classify-task / heuristica). O GATE so aprova com `evidence=<tipo>:<resultado>` do tipo certo:
+
+```bash
+PLAN_TYPE=$(grep -oE '^type:[[:space:]]*[a-z-]+' "$PLAN" | head -1 | sed 's/type:[[:space:]]*//')
+case "$PLAN_TYPE" in
+  frontend|ui|css)             EVIDENCE_TYPE="ui";   EVIDENCE_RESULT="visual" ;;   # UI/CSS -> captura visual antes/depois (Playwright)
+  integration|glue|webhook)    EVIDENCE_TYPE="glue"; EVIDENCE_RESULT="smoke" ;;    # integracao (Asaas/uazapi/etc) -> smoke-test
+  *)                           EVIDENCE_TYPE="logic"; EVIDENCE_RESULT="test_pass" ;; # parser/calculo/API-propria/bugfix -> teste red-green
+esac
+echo "Fase {phase_number}: evidence esperada = ${EVIDENCE_TYPE}:${EVIDENCE_RESULT}"
+```
+
+A evidencia ja foi PRODUZIDA upstream: `logic:test_pass` pelo verificador (red-green); `ui:visual` pela
+captura do up-visual-critic no DCRV (3.6); `glue:smoke` pelo smoke do DCRV (3.6). O revisor apenas CONFIRMA
+que ela existe e a carimba no approvals.log. Ver `@~/.claude/up/workflows/dcrv.md`.
+
 Spawnar `up-revisor` (UNICO, two-stage). Substitui supervisores, chiefs e auditores gold.
 
 ```python
@@ -374,11 +451,19 @@ Agent(
 
     Veredito unico: APPROVE | REQUEST_CHANGES | BLOCK.
 
-    **OUTPUT OBRIGATORIO (ANTES de retornar):**
+    **EVIDENCIA OBRIGATORIA (Fase 3 - TDD por tipo):** so APPROVE se houver evidencia fresca do tipo
+    `{EVIDENCE_TYPE}` desta fase:
+    - logic (parser/calculo/API-propria/bugfix): teste red-green passando -> evidence=logic:test_pass
+    - ui (UI/CSS): captura visual antes/depois (Playwright, do up-visual-critic) -> evidence=ui:visual
+    - glue (integracao Asaas/uazapi/etc): smoke-test passando -> evidence=glue:smoke
+    Se a evidencia do tipo certo NAO existe, o veredito NAO pode ser APPROVE (use REQUEST_CHANGES para
+    forcar a producao da evidencia).
+
+    **OUTPUT OBRIGATORIO (ANTES de retornar) - formato estendido com campo evidence:**
     ```bash
-    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | up-revisor | {{DECISAO}} | {{motivo}}" >> .plano/governance/approvals.log
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | up-revisor | {{DECISAO}} | {{motivo}} | evidence={EVIDENCE_TYPE}:{EVIDENCE_RESULT}" >> .plano/governance/approvals.log
     ```
-    Sem este log, o GATE de fase bloqueia o avanco.
+    Sem este log COM o campo evidence preenchido do tipo certo, o GATE de fase bloqueia o avanco.
   """
 )
 ```
@@ -397,6 +482,15 @@ PASS=true
 [ "$SUMMARY_OK" -eq 0 ] && echo "FALHA: sem SUMMARY.md" && PASS=false
 [ "$VERIF_OK" -eq 0 ] && echo "FALHA: sem VERIFICATION.md" && PASS=false
 [ -z "$REVISOR_ENTRY" ] && echo "FALHA: up-revisor NAO logou" && PASS=false
+
+# Fase 3 - TDD: a entry do revisor PRECISA ter o campo evidence=<tipo>:<resultado> do tipo certo.
+EVIDENCE_FIELD=$(echo "$REVISOR_ENTRY" | grep -oE 'evidence=(logic|ui|glue):(test_pass|visual|smoke)')
+if [ -z "$EVIDENCE_FIELD" ]; then
+  echo "FALHA: up-revisor logou sem campo evidence=<tipo>:<resultado>. Re-rodar revisor com prova fresca." && PASS=false
+elif [ -n "$EVIDENCE_TYPE" ] && ! echo "$EVIDENCE_FIELD" | grep -q "evidence=${EVIDENCE_TYPE}:"; then
+  echo "FALHA: evidence de tipo errado ($EVIDENCE_FIELD; esperado ${EVIDENCE_TYPE}). Re-rodar com prova certa." && PASS=false
+fi
+
 DECISION=$(echo "$REVISOR_ENTRY" | awk -F'|' '{gsub(/ /,"",$4); print $4}')
 
 if [ "$PASS" = false ]; then
@@ -411,14 +505,62 @@ fi
   com o review; round >= 1 -> forced approval com debito tecnico. Depois re-rodar verificador + revisor.
 - `BLOCK`: interromper e alertar o dono (AskUserQuestion).
 
-### 3.8 Marcar Completa e Avancar
+### 3.8 Fechar a fase (GitHub-nativo - menu de 4 opcoes) e Avancar
 
 So apos o GATE aprovar (APPROVE ou forced approval registrado).
 
-> TODO Fase 4 (GitHub-native): se `--pr`, fim da fase -> MENU 4 OPCOES
-> ("1) merge local  2) abrir PR (gh pr create --base main, Closes #N)  3) deixa a branch  4) descarta").
-> Default sugerido = 1. Cleanup provenance-based. Stub nesta fase (so `--solo`: ja committado na branch atual).
-> TODO Fase 5 (Multica): se `--board`, `multica issue status` batched no fim da fase.
+Antes de fechar, sair da worktree (**ExitWorktree** ou `cd` de volta ao repo principal) para que
+`finish-phase` opere e atualize `git-map.json` na main.
+
+**Caso `--solo` (github_native=false):** nada a fazer aqui. Tudo ja foi committado atomicamente na branch
+atual. Seguir direto para 3.9.
+
+**Caso GitHub-nativo + `--auto`:** sem menu. Fechar automaticamente (PR -> merge squash -> cleanup):
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase \
+  --phase {phase_number} --mode auto --strategy squash
+```
+
+**Caso GitHub-nativo interativo (default):** apresentar o MENU de 4 OPCOES via AskUserQuestion (nunca PR
+automatico - builder solitario decide). Default sugerido = 1 (merge local).
+
+```
+AskUserQuestion(
+  header: "Fase {phase_number} aprovada. Como fechar?",
+  question: "Escolha:",
+  options: [
+    "1) merge local (squash na branch base, sem PR)",   # default
+    "2) abrir PR (gh pr create --base main, Closes #N) e mergear",
+    "3) deixa a branch (nao mergeia agora)",
+    "4) descarta (remove worktree + branch)"
+  ]
+)
+```
+
+Mapear a escolha para `finish-phase` (subverbos do contrato: `start-phase`, `finish-phase`, `status`;
+`finish-phase --mode menu|auto|solo`):
+
+```bash
+case "$ESCOLHA" in
+  # 1 e 2 = fechar a fase. finish-phase --mode auto faz gh pr create (Closes #N) -> merge squash -> cleanup.
+  # FAIL-OPEN: sem gh/remote, --mode auto degrada para merge LOCAL da branch na base + cleanup (issue/PR=null),
+  # que e exatamente a opcao 1 quando o repo nao tem remote. Com remote, "1) merge local" e atendido pelo
+  # squash-merge do finish-phase (1 commit limpo na base); "2)" registra o PR explicitamente.
+  1|2) node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase --phase {phase_number} --mode auto --strategy squash ;;
+  # 3 = nao mergeia: deixa worktree+branch vivos. menu so atualiza git-map.json (status=branch-kept).
+  3)   node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase --phase {phase_number} --mode menu ;;
+  # 4 = descarta: orquestrador remove worktree + branch (sem merge); reflete em git-map.json via status.
+  4)   echo "Descartando fase {phase_number}: remover worktree + branch (sem merge)." ;;
+esac
+```
+
+`finish-phase --mode auto` faz: gh pr create (body com `Closes #<issue>` quando ha issue) -> merge (squash
+default, ou `--strategy merge|rebase`) -> cleanup worktree+branch, e atualiza `git-map.json`. FAIL-OPEN: sem
+gh/remote, faz merge LOCAL da branch da fase na base e remove a worktree (issue/PR = null). `--mode solo` nao
+faz nada (usado quando ja esta tudo committado na branch atual); em `--solo` o fluxo nem chega aqui.
+
+> Multica (TODO Fase 5): se `--board`, `multica issue status done` batched no fim da fase.
 
 ### 3.9 Reassessment de roadmap (pos-fase, inline, ~30s)
 
@@ -491,8 +633,10 @@ final_confidence: [do up-revisor de delivery]
 - [ ] Todas as fases executadas com SUMMARY.md (GATE A)
 - [ ] Verificador produziu VERIFICATION.md por fase (GATE B); ladder estatica usada quando possivel
 - [ ] E2E + DCRV rodaram por fase (delegado a dcrv.md)
-- [ ] up-revisor emitiu veredito por fase e LOGOU em approvals.log
-- [ ] GATE de fase deterministico passou (APPROVE ou forced approval com debito)
+- [ ] up-revisor emitiu veredito por fase e LOGOU em approvals.log COM campo evidence=<tipo>:<resultado>
+- [ ] GATE de fase deterministico passou (APPROVE + evidence do tipo certo, ou forced approval com debito)
+- [ ] GitHub-nativo (default): worktree+branch+issue por fase via `github start-phase`; menu 4 opcoes /
+      `github finish-phase` no fim. `--solo` degrada para commit na branch atual (sem worktree/issue/PR)
 - [ ] Cap de rework de 1 round respeitado
 - [ ] Re-plans locais registrados (se houve, max 2)
 - [ ] Quality Gate global rodou

@@ -119,6 +119,10 @@ function loadConfig(cwd) {
     auto_advance: false,
     instrumentation: { enabled: true },
     budget_ceiling: null,
+    // Fase 4: GitHub-native e o PADRAO. --solo no comando forca github_native=false
+    // so na execucao (o build.md le a flag e roteia para o modo solo, sem persistir).
+    github_native: true,
+    merge_strategy: 'squash',
   };
 
   try {
@@ -133,6 +137,8 @@ function loadConfig(cwd) {
       modelos: parsed.modelos ?? null,
       instrumentation: parsed.instrumentation ?? defaults.instrumentation,
       budget_ceiling: parsed.budget_ceiling ?? defaults.budget_ceiling,
+      github_native: parsed.github_native ?? defaults.github_native,
+      merge_strategy: parsed.merge_strategy ?? defaults.merge_strategy,
     };
   } catch {
     return defaults;

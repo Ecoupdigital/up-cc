@@ -34,6 +34,8 @@ Pulou um passo = mentir, nao verificar.
 
 Confie no diff do VCS, nao no relatorio. Subagente terminou rapido demais? Inspecione o codigo de verdade.
 
+A prova exigida por tipo (logic=teste red-green / ui=captura / glue=smoke) e o campo `evidence=<tipo>:<resultado>` que o gate de fase le no `approvals.log` estao na ref `tdd-evidence-types`. O `up-revisor` so APROVA com a `evidence=` do tipo certo logada.
+
 ## Red flags (racionalizacoes que matam o atalho)
 
 - "Isso e obviamente certo, nao preciso rodar." -> Rode.

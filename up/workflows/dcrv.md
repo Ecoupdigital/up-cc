@@ -35,6 +35,17 @@ verificar-trabalho.md (gate UAT). Tudo vira FLAG/MODO sobre o mesmo loop. Defaul
 
 Spawns (todos sobreviventes): up-visual-critic, up-api-tester, up-exhaustive-tester (detectores);
 up-frontend/backend/database-specialist (correcao). Sem agente deletado.
+
+**Evidencia para o GATE de fase (Fase 3 - TDD por tipo).** Quando rodado por fase no build, este loop
+PRODUZ a evidencia que o GATE exige no approvals.log (`evidence=<tipo>:<resultado>`):
+- **ui:visual** - a captura visual antes/depois do `up-visual-critic` (screenshots em `{$DCRV_DIR}`) e a
+  evidencia de fases de UI/CSS. O VISUAL-REPORT.md + as imagens sao o artefato que o up-revisor confirma.
+- **glue:smoke** - o smoke-test do modo E2E (navegar rotas / exercitar a integracao, capturar erros de
+  console / status) e a evidencia de fases de integracao (Asaas/uazapi/etc).
+- **logic:test_pass** - fases de logica (parser/calculo/API-propria/bugfix) provam via teste red-green no
+  verificador (fora deste loop); o DCRV nao e a fonte para `logic`.
+O up-revisor (build 3.7) le esses artefatos e carimba o campo `evidence` no approvals.log. Nenhum CLI novo:
+a evidencia sao os relatorios/screenshots ja gerados aqui.
 </purpose>
 
 <process>
@@ -143,7 +154,10 @@ Agent(
     
     Paginas a testar: {$ROUTES_UI}
     Dev server: http://localhost:{$PORT}
-    
+
+    Capturar screenshot de CADA pagina testada em {$DCRV_DIR}/captures/ (antes/depois quando houver
+    correcao). Estas capturas sao a EVIDENCIA ui:visual do GATE de fase (Fase 3 - TDD por tipo).
+
     Salvar relatorio em: {$DCRV_DIR}/VISUAL-REPORT.md
     Salvar issues em: {$DCRV_DIR}/VISUAL-ISSUES.json
   """
@@ -443,6 +457,9 @@ Ativado por `--e2e`, e SEMPRE no build (scope=phase) e no quality gate (scope=gl
 4. **Por fase (scope=phase):** extrair os testes/criterios da fase do SUMMARY e exercitar so o que a
    fase tocou. Erros de console globais entram no issue board.
 5. As issues E2E entram no ISSUE-BOARD junto das dos detectores e seguem o mesmo loop de correcao.
+6. **Evidencia glue:smoke (Fase 3 - TDD):** o smoke de rotas + a verificacao da integracao (status/console
+   limpos apos exercitar o fluxo) sao a evidencia que o GATE de fase exige para fases de integracao
+   (Asaas/uazapi/etc). Registrar o resultado do smoke no relatorio para o up-revisor confirmar (glue:smoke).
 
 ### Modo UX (absorve ux-tester.md)
 

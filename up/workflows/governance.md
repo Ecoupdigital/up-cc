@@ -34,20 +34,27 @@ touch .plano/governance/approvals.log
 
 ## 2. Contrato do approvals.log
 
-O `up-revisor` (e so ele) escreve no log ANTES de retornar. Formato de uma entry:
+O `up-revisor` (e so ele) escreve no log ANTES de retornar. Formato ESTENDIDO (Fase 3 - TDD) de uma entry:
 
 ```
-<timestamp ISO> | <escopo> | up-revisor | <DECISAO> | <motivo>
+<timestamp ISO> | <escopo> | up-revisor | <DECISAO> | <motivo> | evidence=<tipo>:<resultado>
 ```
 
 Onde:
 - `<escopo>` = `phase-N` (gate de fase no build) ou `planning` / `architecture` (gate no plan).
 - `<DECISAO>` = `APPROVE` | `REQUEST_CHANGES` | `BLOCK`.
+- `evidence=<tipo>:<resultado>` - **OBRIGATORIO no gate de fase** (escopo `phase-N`):
+  - `<tipo>` ∈ {`logic`, `ui`, `glue`}, derivado do `type` do plano (classify-task / heuristica):
+    parser/calculo/API-propria/bugfix -> `logic`; UI/CSS -> `ui`; integracao (Asaas/uazapi/etc) -> `glue`.
+  - `<resultado>` ∈ {`test_pass`, `visual`, `smoke`}: `logic:test_pass` (teste red-green),
+    `ui:visual` (captura antes/depois via Playwright), `glue:smoke` (smoke-test).
+  - O GATE de fase **so APROVA** se houver entry up-revisor com `evidence` preenchido do tipo certo.
+    Para escopos `planning`/`architecture` (gate do plan) o campo evidence e opcional.
 
-Exemplo (o revisor roda isto ao final):
+Exemplo (o revisor roda isto ao final - logica com teste red-green passando):
 
 ```bash
-echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-${PHASE_NUMBER} | up-revisor | APPROVE | spec ok, code-quality ok" \
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-${PHASE_NUMBER} | up-revisor | APPROVE | spec ok, code-quality ok | evidence=logic:test_pass" \
   >> .plano/governance/approvals.log
 ```
 
@@ -69,6 +76,15 @@ PASS=true
 [ "$SUMMARY_OK" -eq 0 ] && echo "FALHA: sem SUMMARY.md" && PASS=false
 [ "$VERIF_OK" -eq 0 ] && echo "FALHA: sem VERIFICATION.md" && PASS=false
 [ -z "$REVISOR_ENTRY" ] && echo "FALHA: up-revisor NAO logou veredito" && PASS=false
+
+# Fase 3 - TDD: a entry PRECISA carregar evidence=<tipo>:<resultado> do tipo certo.
+# $EVIDENCE_TYPE e derivado no build.md (3.7) do type do plano; se vazio, exige so a presenca do campo.
+EVIDENCE_FIELD=$(echo "$REVISOR_ENTRY" | grep -oE 'evidence=(logic|ui|glue):(test_pass|visual|smoke)')
+if [ -z "$EVIDENCE_FIELD" ]; then
+  echo "FALHA: up-revisor sem campo evidence=<tipo>:<resultado>" && PASS=false
+elif [ -n "$EVIDENCE_TYPE" ] && ! echo "$EVIDENCE_FIELD" | grep -q "evidence=${EVIDENCE_TYPE}:"; then
+  echo "FALHA: evidence de tipo errado ($EVIDENCE_FIELD; esperado ${EVIDENCE_TYPE})" && PASS=false
+fi
 
 # Se logou, qual foi a decisao?
 DECISION=$(echo "$REVISOR_ENTRY" | awk -F'|' '{gsub(/ /,"",$4); print $4}')
@@ -105,9 +121,12 @@ $(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-${PHASE_NUMBER} | up-revisor | FORCED_APP
   Remaining: [issues pendentes do review]
 EOF
 
-echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-${PHASE_NUMBER} | up-revisor | APPROVE | forced (debito tecnico)" \
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-${PHASE_NUMBER} | up-revisor | APPROVE | forced (debito tecnico) | evidence=${EVIDENCE_TYPE:-logic}:${EVIDENCE_RESULT:-test_pass}" \
   >> .plano/governance/approvals.log
 ```
+
+(O forced approval ainda carrega o campo `evidence` do tipo da fase para satisfazer o gate estendido; a
+ressalva de debito tecnico fica registrada em `technical-debt.log` e aparece no relatorio de entrega.)
 
 Items com debito tecnico aparecem como ressalva no relatorio de entrega.
 
@@ -123,6 +142,8 @@ re-planejar a fase (via `/up:plan`) ou abandonar.
 - [ ] .plano/governance/approvals.log inicializado
 - [ ] Gate verifica artefatos (SUMMARY + VERIFICATION) e o veredito do up-revisor
 - [ ] Gate nao avanca sem entry do up-revisor para a fase
+- [ ] Gate exige campo evidence=<tipo>:<resultado> do tipo certo na entry (Fase 3 - TDD); forced approval
+      tambem carrega evidence
 - [ ] Cap de rework de 1 round respeitado; forced approval registra debito tecnico
 - [ ] BLOCK alerta o dono (sem CEO)
 - [ ] Nenhum spawn de CEO/chief/supervisor neste workflow
