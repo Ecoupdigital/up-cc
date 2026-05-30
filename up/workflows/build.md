@@ -1,19 +1,39 @@
 <purpose>
 Workflow `/up:build` — Execucao de projeto previamente planejado.
 
-Requer `.plano/PLAN-READY.md` (gerado por `/up:plan`).
+Requer `.plano/PLAN-READY.md` (gerado por `/up:plan`). Conduz Build (loop por fase) + Quality Gate
+global + Delivery. Pode executar projeto planejado em outro runtime — confia no PLAN-READY.md.
 
-Conduz Estagios 3 (Build) + 4 (Quality Gate) + 4.5 (Delivery Audit) + 5 (Delivery).
-
-Pode executar projeto planejado em outro runtime — confia no PLAN-READY.md.
+Este e o MOTOR UNICO de execucao do redesign v2. Absorveu executar-fase.md, executar-plano.md e a
+parte de execucao do modo-builder (builder.md, que foi deletado).
 </purpose>
 
-<core_principle>
-Este workflow assume que o projeto foi completamente planejado por `/up:plan`.
+<migrado_de_builder>
+O antigo builder.md (3416 linhas) foi deletado. Capacidades reais migradas para ca (ou pro up.md/plan.md),
+SEM trazer governanca hierarquica/supervisores/CEO:
 
-Diferenca do builder:
-- Builder: planeja + executa em sequencia, no mesmo runtime
-- Build: SO executa, le PLAN-READY.md gerado anteriormente (mesmo runtime ou outro)
+- **Intake autonomo de projeto + pesquisa inline de stack:** migrado para `workflows/up.md` (Passo 2,
+  classify-task escala o brainstorm; greenfield spawna 4x up-pesquisador; modo light = mini-scan inline).
+  `/up:build` assume que isso ja rodou e que existe PLAN-READY.md.
+- **Crash recovery via LOCK.md:** preservado aqui (Estagio 0.3).
+- **Specialist routing por tipo de plano (frontend/backend/database/executor):** preservado (Estagio 3.2).
+- **Pre-inline de contexto via `up-tools.cjs context`:** preservado (Estagio 3.3), economiza tokens por spawn.
+- **Verification ladder deterministica (verify-static antes do verificador-LLM):** preservada (Estagio 3.6).
+- **E2E + DCRV por fase:** delega a `@~/.claude/up/workflows/dcrv.md` (que absorveu builder-e2e.md).
+- **Modo light (pipeline enxuto):** o conceito de "feature pequena = menos cerimonia" agora e decidido
+  upstream pelo classify-task (em up.md). Aqui o pipeline e o mesmo; o cap de rework e 1 round.
+
+NAO migrado (morto de proposito): CEO/chiefs/supervisores, governanca hierarquica, re-plans com 2 niveis
+de aprovacao LLM, updates periodicos ao dono.
+</migrado_de_builder>
+
+<core_principle>
+Pipeline final por fase (redesign v2):
+
+```
+[up-planejador (replan LOCAL, so se preciso)] -> up-executor/specialists -> up-verificador
+  -> [GATE approvals.log] -> up-revisor -> marcar completa
+```
 
 **Model routing configuravel (v0.9.0+):**
 Antes de spawnar qualquer agente, resolver o modelo:
@@ -21,41 +41,24 @@ Antes de spawnar qualquer agente, resolver o modelo:
 MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config resolve-model {agent-name} --raw)
 ```
 Se `default`: nao passar `model=`. Se `opus/sonnet/haiku`: passar `model="{MODEL}"` no spawn.
-Isso permite que o usuario configure via `/up:configurar` quais agentes usam qual modelo.
-Sem configuracao, todos usam o modelo do runtime (comportamento v0.6.0).
 
 **Re-plan local permitido (max 2):**
-Se durante execucao o execution-supervisor detectar que um plano esta inviavel,
-ele pode pedir REQUEST_REPLAN. O planejador local refaz o plano daquela fase.
-NUNCA volta pro runtime que planejou originalmente.
+Se durante a execucao ficar claro que um plano e inviavel, o orquestrador pode re-planejar a fase
+LOCALMENTE via `up-planejador` (self-check). NUNCA volta pro runtime que planejou originalmente.
 
-**REGRA ANTI-COLAPSO — SEPARACAO RIGIDA DE AGENTES:**
+**SEPARACAO RIGIDA DE AGENTES:**
+O LLM tende a colapsar passos (mesmo agente executa + verifica). Isso e PROIBIDO. Cada passo do Stage 3
+e um `Agent()` SEPARADO. O enforcement e o GATE deterministico do `approvals.log`
+(ver `@~/.claude/up/workflows/governance.md`), nao uma piramide de supervisores.
 
-O LLM tende a otimizar colapsando passos — dar ao mesmo agente tarefas de executar + verificar,
-ou pular supervisores por parecer "overhead". Isso e PROIBIDO.
-
-**Cada passo do Stage 3 DEVE ser um Agent() SEPARADO.**
-**NUNCA combinar dois passos em um unico spawn.**
-**NUNCA instruir um agente a fazer o trabalho de outro.**
-
-Exemplo do que NAO fazer:
-```
-# ERRADO — combina execucao + verificacao
-Agent(subagent_type="up-executor", prompt="Executar E verificar a fase...")
-
-# ERRADO — pula supervisor
-# (executar e marcar completa sem passar por execution-supervisor)
-```
-
-**Mecanismo de enforcement: GATES verificaveis.**
-Cada supervisor DEVE escrever no `.plano/governance/approvals.log`.
-Cada GATE verifica que o log tem a entry esperada.
-Se o gate falha, NAO avance — spawne o agente faltante.
-
-**Pipeline obrigatorio por fase:**
-```
-Specialist → [GATE A] → EXECUTION-SUPERVISOR → [GATE B] → Verificador → [GATE C] → VERIFICATION-SUPERVISOR → [GATE D] → E2E + DCRV → CHIEF-ENGINEER → [GATE E] → Marcar completa
-```
+**Interface alvo GitHub-nativa / Multica (DOCUMENTADA, orquestracao stub nesta fase):**
+- `--solo` (DEFAULT): commit atomico na branch ATUAL. Zero worktree, zero issue, zero PR, zero rede.
+- `--pr`: worktree -> issue -> PR -> merge (menu de 4 opcoes no fim da fase, nunca PR-automatico).
+- `--board`: espelha status no Multica (batched, fim da onda).
+- `--auto`: merge automatico se CI verde + gate passou.
+Nesta fase entregamos so o `--solo`. As flags `--pr/--board/--auto` ficam como stub:
+  - TODO Fase 4 (GitHub-native): EnterWorktree (fallback git worktree), gh issue/PR, menu 4 opcoes.
+  - TODO Fase 5 (Multica): `up-tools.cjs multica sync` batched, deteccao `uname -s`, fail-open.
 </core_principle>
 
 <process>
@@ -66,21 +69,19 @@ Specialist → [GATE A] → EXECUTION-SUPERVISOR → [GATE B] → Verificador �
 
 ```bash
 if [ ! -f ~/.claude/up/owner-profile.md ]; then
-  echo "Owner profile nao existe NESTE runtime. Rodando /up:onboard..."
-  # Delegar pro workflow onboarding.md
+  echo "Owner profile nao existe NESTE runtime. Rodando onboarding..."
+  # Delegar pro workflow @~/.claude/up/workflows/onboarding.md
 fi
 ```
 
-**IMPORTANTE:** O profile e do RUNTIME ATUAL, nao do runtime que planejou. Cada runtime tem seu profile.
+O profile e do RUNTIME ATUAL, nao do runtime que planejou.
 
 ### 0.2 PLAN-READY.md Existe?
 
 ```bash
 if [ ! -f .plano/PLAN-READY.md ]; then
   echo "ERRO: Este projeto nao foi planejado."
-  echo ""
-  echo "Use /up:plan primeiro pra planejar o projeto."
-  echo "Ou /up:modo-builder pra planejar e executar de uma vez."
+  echo "Use /up:plan primeiro. Ou /up \"descricao\" -> /up:plan -> /up:build."
   exit 1
 fi
 ```
@@ -91,7 +92,8 @@ fi
 ls .plano/LOCK.md 2>/dev/null
 ```
 
-Se LOCK.md existe e `stage: build`: retomar.
+Se LOCK.md existe e `stage: build`: retomar do passo/fase correto (pular o que ja tem SUMMARY/VERIFICATION).
+Se `status: completed`: deletar LOCK.md e iniciar normalmente.
 
 ## Estagio V: VALIDACAO LIGHT
 
@@ -100,7 +102,6 @@ Se LOCK.md existe e `stage: build`: retomar.
 ### V.1 Parsear PLAN-READY.md
 
 ```bash
-# Extrair frontmatter
 PLANNED_RUNTIME=$(grep "runtime:" .plano/PLAN-READY.md | head -1 | awk '{print $2}')
 INTENDED_RUNTIME=$(grep -A1 "intended_execution:" .plano/PLAN-READY.md | tail -1 | awk '{print $2}')
 TOTAL_PHASES=$(grep "total_phases:" .plano/PLAN-READY.md | awk '{print $2}')
@@ -110,15 +111,13 @@ CONFIDENCE=$(grep "planning_confidence:" .plano/PLAN-READY.md | awk '{print $2}'
 ### V.2 Validacao de Compatibilidade
 
 ```bash
-CURRENT_RUNTIME="claude-code"  # detectar
+CURRENT_RUNTIME="claude-code"
 [ -d ~/.config/opencode ] && CURRENT_RUNTIME="opencode"
 [ -d ~/.gemini ] && CURRENT_RUNTIME="gemini-cli"
 
-# Se intended_execution especifica um runtime e nao e o atual, alertar
 if [ "$INTENDED_RUNTIME" != "same" ] && [ "$INTENDED_RUNTIME" != "any" ] && [ "$INTENDED_RUNTIME" != "$CURRENT_RUNTIME" ]; then
-  echo "AVISO: Plano gerado pra $INTENDED_RUNTIME, voce esta em $CURRENT_RUNTIME"
-  echo "Pode haver incompatibilidades. Continuar mesmo assim?"
-  # AskUserQuestion sim/nao
+  echo "AVISO: Plano gerado pra $INTENDED_RUNTIME, voce esta em $CURRENT_RUNTIME. Continuar?"
+  # AskUserQuestion sim/nao (output direto, sem CEO)
 fi
 ```
 
@@ -133,68 +132,49 @@ fi
 
 ### V.4 Validar Planos Listados
 
-Pra cada plano listado em PLAN-READY.md, checar se arquivo existe:
-
 ```bash
-# Extrair lista de planos do PLAN-READY.md
 PLANS=$(grep -oE "fases/[0-9]+-[a-z-]+/[0-9]+-[0-9]+-PLAN.md" .plano/PLAN-READY.md)
-
 for plan in $PLANS; do
-  if [ ! -f ".plano/$plan" ]; then
-    echo "FALTANDO: $plan"
-    FAIL=1
-  fi
+  [ ! -f ".plano/$plan" ] && echo "FALTANDO: $plan" && FAIL=1
 done
 ```
 
 ### V.5 Decidir
 
-**Se todos arquivos OK:** prosseguir.
+**Tudo OK:** prosseguir. **Falta algo:** alertar o dono (AskUserQuestion), oferecer re-planejar
+localmente (`/up:plan`) ou abortar.
 
-**Se algo falta:** 
-- Alertar usuario
-- Oferecer: "Posso planejar localmente?" (re-roda /up:plan)
-- Ou abortar
+## Estagio C: CONFIRMACAO DO DONO (orquestrador, sem CEO)
 
-## Estagio C: CEO CONFIRMA
+Output direto do orquestrador (le owner-profile pra tom):
 
-Spawnar CEO local:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ UP > BUILD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-```python
-Agent(
-  subagent_type="up-project-ceo",
-  prompt="""
-    Confirmar execucao de projeto previamente planejado.
-    
-    <files_to_read>
-    - ~/.claude/up/owner-profile.md (perfil LOCAL deste runtime)
-    - .plano/BRIEFING.md (briefing original)
-    - .plano/PLAN-READY.md (resumo do planejamento)
-    - .plano/AUDIT-PLAN.md (audit do planejamento)
-    - .plano/PENDING.md
-    </files_to_read>
-    
-    Apresentar ao dono:
-    - "Detectei projeto planejado em {runtime} por {ceo_name_anterior}"
-    - Resumo: N fases, M planos
-    - Planning confidence: X/100
-    - Pendencias conhecidas
-    - "Iniciar execucao? (enter pra continuar)"
-    
-    Se dono confirmar: prosseguir.
-    Se recusar: abortar.
-  """
-)
+Projeto planejado em {runtime}.
+Resumo: {N} fases, {M} planos. Planning confidence: {X}/100.
+Pendencias conhecidas: {de PENDING.md}.
+
+Modo: --solo (commit na branch atual)   [--pr/--board/--auto: stub, Fase 4/5]
 ```
 
-## Estagio 3: BUILD (loop por fase — com GATES verificaveis)
+Confirmar via AskUserQuestion ("Iniciar execucao?"). Se recusar: abortar.
 
-**Inicializar governance:**
+## Estagio 3: BUILD (loop por fase — com GATE deterministico)
+
+**Inicializar governance** (ver `@~/.claude/up/workflows/governance.md`):
 ```bash
 mkdir -p .plano/governance
 touch .plano/governance/approvals.log
-echo "# Build governance initialized at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .plano/governance/approvals.log
+[ -s .plano/governance/approvals.log ] || \
+  echo "# Build governance initialized at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .plano/governance/approvals.log
 ```
+
+> TODO Fase 4 (GitHub-native): se `--pr`, aqui entra `EnterWorktree` (fallback `git worktree add`) +
+> `gh issue create` por fase. Stub nesta fase: `--solo` opera na branch atual.
+> TODO Fase 5 (Multica): se `--board`, `multica issue status in_progress` na entrada da fase (batched).
 
 Para cada fase em ROADMAP.md (em ordem):
 
@@ -207,24 +187,19 @@ PLAN=$(ls "$PHASE_DIR"/*-PLAN.md | head -1)
 
 ### 3.2 Detectar Tipo de Plano (Specialist Routing)
 
-Ler o frontmatter do plano pra determinar qual specialist usar:
-- Frontend tasks → up-frontend-specialist
-- Backend tasks → up-backend-specialist
-- Database tasks → up-database-specialist
-- Misto → up-executor
+Ler o frontmatter do plano pra determinar o agente:
+- Frontend tasks -> up-frontend-specialist
+- Backend tasks -> up-backend-specialist
+- Database tasks -> up-database-specialist
+- Misto -> up-executor
 
-### 3.3 Spawnar Specialist (PASSO 1 — Agent SEPARADO)
+### 3.3 Spawnar Executor/Specialist (PASSO 1 — Agent SEPARADO)
 
-**Wave 2 (v0.11+) — pre-inline context:**
-ANTES do spawn, montar contexto via `up-tools.cjs context`. Isso injeta
-PLAN, STATE, config, governance comprimida, engineering principles,
-requirements-slice direto no prompt. O agente NAO refaz Read desses
-arquivos. Economiza ~30k tokens por spawn.
+**Pre-inline de contexto** (economiza ~30k tokens/spawn): montar via `up-tools.cjs context`.
 
 ```bash
-SPECIALIST_AGENT="up-executor"  # ou specialist baseado em type do plano
+SPECIALIST_AGENT="up-executor"  # ou specialist baseado no type do plano
 
-# Wave 6+ — manifest filtra refs por papel
 CTX=$(node "$HOME/.claude/up/bin/up-tools.cjs" context \
   --plan "${PLAN}" \
   --state \
@@ -233,25 +208,10 @@ CTX=$(node "$HOME/.claude/up/bin/up-tools.cjs" context \
   --manifest "${SPECIALIST_AGENT}" \
   --raw)
 
-# Wave 5+ — complexity-aware model routing per plan
 MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" resolve-model-for-plan \
   "${PLAN}" "${SPECIALIST_AGENT}" --raw)
 CLASSIFY=$(node "$HOME/.claude/up/bin/up-tools.cjs" classify-task "${PLAN}" --raw)
 COMPLEXITY=$(echo "$CLASSIFY" | grep -oE '"complexity"[^,]+' | grep -oE '"(simple|standard|complex)"' | tr -d '"')
-SCORE=$(echo "$CLASSIFY" | grep -oE '"score"\s*:\s*[0-9]+' | grep -oE '[0-9]+')
-
-# Wave 6+ — Iron rule: validar plan
-VALIDATE=$(node "$HOME/.claude/up/bin/up-tools.cjs" validate-plan "${PLAN}" --raw)
-VALIDATE_PASS=$(echo "$VALIDATE" | grep -oE '"pass"\s*:\s*(true|false)' | grep -oE '(true|false)')
-if [ "$VALIDATE_PASS" = "false" ]; then
-  echo "IRON RULE FALHOU: Plan ${PLAN} excede limites. Voltando pro planejador."
-  echo "$VALIDATE" | grep -A 20 'suggestions'
-  exit 1
-fi
-
-node "$HOME/.claude/up/bin/up-tools.cjs" routing-log \
-  --plan "${PLAN}" --agent "${SPECIALIST_AGENT}" --model "${MODEL}" \
-  --complexity "${COMPLEXITY}" --score "${SCORE}" --outcome pending
 ```
 
 ```python
@@ -259,15 +219,15 @@ Agent(
   subagent_type="{up-specialist}",
   prompt=f"""
     Executar Plano da Fase {phase_number}.
-    
+
     <prompt_context>
     {CTX}
     </prompt_context>
-    
+
     <production_requirements_compressed>
-    Categorias a respeitar (71 requisitos no total):
-    - UIST (UI States): loading/error/empty/success em TODA operacao async
-    - ERR (Error handling): boundaries, try/catch, sessao expirada, 404
+    Categorias a respeitar (71 requisitos):
+    - UIST: loading/error/empty/success em TODA operacao async
+    - ERR: boundaries, try/catch, sessao expirada, 404
     - PERF: lazy loading, code split, debounce, pagination > 20 items, cache
     - FORM: validacao inline, mensagens especificas, autofocus, mascaras
     - RESP: 375px funcional, touch 44x44, hamburger mobile
@@ -275,175 +235,73 @@ Agent(
     - SEC: rotas protegidas, CSRF, XSS, rate limit, env vars, RLS
     - POLISH: hover, transicoes 150-300ms, design tokens
     </production_requirements_compressed>
-    
+
     <files_to_read>
-    O contexto principal ja esta no <prompt_context> acima. Ler do disco APENAS:
+    O contexto principal ja esta no <prompt_context>. Ler do disco APENAS:
     - ./CLAUDE.md (se existir)
-    - .plano/fases/{phase_number}/PHASE.md (se existir, complemento curto)
+    - .plano/fases/{phase_number}/PHASE.md (se existir)
     - .plano/DESIGN-TOKENS.md (so se frontend e existir)
     - Arquivos referenciados em <files> das tarefas (codigo a editar)
-    
-    TIER 3 — Sob demanda apenas:
-    - .plano/PROJECT.md (so se precisar visao geral)
-    - .plano/SYSTEM-DESIGN.md (so se decisao de arquitetura aparecer)
-    - .plano/REQUIREMENTS.md (so se a slice nao tiver info suficiente)
-    
-    NAO refazer Read em PLAN, STATE.md, config.json, REQUIREMENTS-SLICE.md,
-    engineering-principles — ja estao inline em <prompt_context>.
+
+    Sob demanda apenas: .plano/PROJECT.md, .plano/SYSTEM-DESIGN.md, .plano/REQUIREMENTS.md
+    NAO refazer Read em PLAN/STATE/config/REQUIREMENTS-SLICE/engineering-principles — ja inline.
     </files_to_read>
-    
-    Implementar todas as tarefas. Commitar atomicamente.
+
+    Implementar todas as tarefas. Se o plano pedir, gerar tambem artefatos de prod/docs/testes
+    inline (papeis de devops/technical-writer/qa absorvidos pelo executor). Commitar atomicamente.
     Gerar SUMMARY.md.
   """
 )
 ```
 
-### --- GATE A: Verificar que execucao produziu artefatos ---
+### --- GATE A: artefatos da execucao ---
 
 ```bash
-echo "=== GATE A: Verificando artefatos da execucao (Fase ${PHASE_NUMBER}) ==="
+echo "=== GATE A: artefatos da execucao (Fase ${PHASE_NUMBER}) ==="
 SUMMARY_COUNT=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
-[ "$SUMMARY_COUNT" -eq 0 ] && echo "GATE A FALHOU: Nenhum SUMMARY.md. Re-executar specialist." && exit 1
+[ "$SUMMARY_COUNT" -eq 0 ] && echo "GATE A FALHOU: nenhum SUMMARY.md. Re-executar executor." && exit 1
 echo "GATE A OK: ${SUMMARY_COUNT} SUMMARY(s)"
 ```
 
-### --- Patch routing outcome (Wave 5+) ---
+### 3.4 Re-plan local (so se a execucao revelar plano inviavel)
 
-```bash
-if [ "$SUMMARY_COUNT" -gt 0 ]; then
-  OUTCOME=success
-elif echo "$SPAWN_RETURN" | grep -q "^ABORTED:"; then
-  OUTCOME=abort
-else
-  OUTCOME=rework
-fi
-
-node "$HOME/.claude/up/bin/up-tools.cjs" routing-log --update \
-  --plan "${PLAN}" --agent "${SPECIALIST_AGENT}" --model "${MODEL}" \
-  --complexity "${COMPLEXITY}" --score "${SCORE}" \
-  --outcome "${OUTCOME}" --rework-cycles "${REWORK_COUNT:-0}"
-```
-
-### 3.4 Execution Supervisor Revisa (PASSO 2 — Agent SEPARADO)
-
-```python
-Agent(
-  subagent_type="up-execution-supervisor",
-  prompt=f"""
-    Revisar execucao da Fase {phase_number}.
-    
-    <governance_compressed>
-    DECISOES: APPROVE | REQUEST_CHANGES | REQUEST_REPLAN | ESCALATE
-    REWORK: max 3 ciclos antes de forcar approval com debito
-    NUNCA APROVAR: trabalho nao verificado, evidencia ambigua, claim sem backing,
-                   stub/placeholder, falta de wiring
-    </governance_compressed>
-    
-    <engineering_principles_compressed>
-    1. Implementacao real (zero placeholder)
-    2. Correto, nao rapido
-    3. Conectado ponta a ponta
-    4. Consistencia (seguir patterns existentes)
-    5. Dados reais
-    6. Custo futuro
-    </engineering_principles_compressed>
-    
-    <files_to_read>
-    - {PLAN}
-    - {PHASE_DIR}/*-SUMMARY.md
-    - git diff (use Bash)
-    - .plano/fases/{phase_number}/REQUIREMENTS-SLICE.md (se existir)
-    
-    Sob demanda apenas:
-    - $HOME/.claude/up/references/engineering-principles-compressed.md (exemplos)
-    - $HOME/.claude/up/references/governance-rules-compressed.md (hierarquia)
-    - $HOME/.claude/up/references/rework-limits-compressed.md (fluxos)
-    - $HOME/.claude/up/references/production-requirements-compressed.md (IDs especificos)
-    </files_to_read>
-    
-    Decisao: APPROVE | REQUEST_CHANGES | REQUEST_REPLAN | ESCALATE
-    
-    REQUEST_REPLAN: Se descobrir que o plano e fundamentalmente errado/inviavel.
-                    Max 2 re-plans por projeto.
-    
-    **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
-    ```bash
-    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | execution-supervisor | {{DECISAO}} | {{motivo}}" >> .plano/governance/approvals.log
-    ```
-    Sem este log, o GATE B vai bloquear o avanço.
-  """
-)
-```
-
-### --- GATE B: Verificar que execution-supervisor logou ---
-
-```bash
-echo "=== GATE B: Verificando governance da execucao (Fase ${PHASE_NUMBER}) ==="
-EXEC_ENTRY=$(grep "phase-${PHASE_NUMBER}.*execution-supervisor" .plano/governance/approvals.log 2>/dev/null | tail -1)
-[ -z "$EXEC_ENTRY" ] && echo "GATE B FALHOU: execution-supervisor NAO logou. Spawnar agora." && exit 1
-echo "GATE B OK: $EXEC_ENTRY"
-```
-
-### 3.5 Processar Decisao do Supervisor
-
-**Se APPROVE:** prosseguir para verificacao.
-
-**Se REQUEST_CHANGES:** re-spawn specialist com feedback (max 3 ciclos).
-
-**Se REQUEST_REPLAN:**
+Se durante a execucao ficar evidente que o plano e fundamentalmente errado/inviavel, o orquestrador
+re-planeja LOCALMENTE (max 2 por projeto). Sem supervisor: o `up-planejador` faz self-check.
 
 ```bash
 REPLAN_COUNT=$(cat .plano/governance/replans.log 2>/dev/null | wc -l)
 if [ "$REPLAN_COUNT" -ge 2 ]; then
-  echo "Max re-plans atingido. Escalando pro CEO."
-  # ESCALATE
+  echo "Max re-plans atingido. Alertar o dono (AskUserQuestion)."
 else
-  # Re-planejar fase localmente
-  echo "REQUEST_REPLAN aprovado. Re-planejando fase {phase_number} localmente..."
-  
-  # Spawnar planejador LOCAL (Agent SEPARADO)
-  Agent(
-    subagent_type="up-planejador",
-    prompt=f"""
-      RE-PLAN da Fase {phase_number}.
-      
-      Plano original: {PLAN}
-      Razao do re-plan: {execution_supervisor_reason}
-      
-      Refaca o plano corrigindo o problema descoberto.
-    """
-  )
-  
-  # Salvar como -PLAN-v2.md
-  mv "$PLAN" "${PLAN%-PLAN.md}-PLAN-v1.md"
-  
-  # Registrar
-  echo "$(date -u) | phase-{phase_number} | execution-supervisor | REPLAN | reason: {reason}" >> .plano/governance/replans.log
-  
-  # Planning-supervisor revisa novo plano (Agent SEPARADO)
-  Agent(subagent_type="up-planning-supervisor", prompt="""
-    Revisar re-plan da fase {phase_number}.
-    **OUTPUT OBRIGATORIO:** logar em .plano/governance/approvals.log
-  """)
-  
-  # Voltar pro 3.3 (re-spawn specialist)
+  echo "REQUEST_REPLAN. Re-planejando fase {phase_number} localmente..."
 fi
 ```
 
-**Se ESCALATE:** chief-engineer entra.
+```python
+# Re-plan LOCAL — Agent SEPARADO (so up-planejador, sem camada de revisao intermediaria)
+Agent(subagent_type="up-planejador", prompt=f"""
+  RE-PLAN da Fase {phase_number}.
+  Plano original: {PLAN}
+  Razao: {motivo descoberto na execucao}
+  Refaca o plano corrigindo o problema. Self-check: confirme viabilidade e completude antes de retornar.
+""")
+```
 
-### 3.6 Verificacao (PASSO 3 — Agent SEPARADO)
+```bash
+mv "$PLAN" "${PLAN%-PLAN.md}-PLAN-v1.md"
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | up-planejador | REPLAN | {motivo}" >> .plano/governance/replans.log
+# Voltar pro 3.3 com o novo plano.
+```
 
-**Wave 4 (v0.13+) — Verification Ladder Determinística**
+### 3.5 Verificacao (PASSO 2 — Agent SEPARADO)
 
-ANTES do verificador-LLM, rodar checks deterministicos:
+**Verification ladder deterministica primeiro:**
 
 ```bash
 STATIC=$(node "$HOME/.claude/up/bin/up-tools.cjs" verify-static --raw)
 STATIC_OVERALL=$(echo "$STATIC" | grep -oE 'overall.{1,20}' | head -1 | grep -oE '"(pass|fail|skip)"' | tr -d '"')
 
 if [ "$STATIC_OVERALL" = "pass" ]; then
-  # Pular verificador-LLM, criar VERIFICATION.md sintetico
   cat > "${PHASE_DIR}/VERIFICATION.md" <<EOF
 ---
 status: passed
@@ -457,122 +315,159 @@ EOF
 fi
 ```
 
-Se STATIC=fail ou skip: spawnar verificador-LLM com static logs como contexto:
+Se STATIC=fail ou skip: spawnar `up-verificador` com os logs estaticos como contexto:
 
 ```python
 Agent(subagent_type="up-verificador", prompt=f"""
   Verificar fase {phase_number}.
-  
   <static_check_results overall="{STATIC_OVERALL}">
   Logs em .plano/runtime/verify-static-*.log
   </static_check_results>
-  
-  FOCAR no que falhou nos checks. Nao reexecutar tudo.
+  FOCAR no que falhou. Exigir evidencia fresca por tipo de codigo. Gerar VERIFICATION.md.
 """)
 ```
 
-### --- GATE C: Verificar que verificacao produziu artefatos ---
+### --- GATE B: artefatos da verificacao ---
 
 ```bash
-echo "=== GATE C: Verificando artefatos da verificacao (Fase ${PHASE_NUMBER}) ==="
+echo "=== GATE B: artefatos da verificacao (Fase ${PHASE_NUMBER}) ==="
 VERIF_COUNT=$(ls ${PHASE_DIR}/*-VERIFICATION.md 2>/dev/null | wc -l)
-[ "$VERIF_COUNT" -eq 0 ] && echo "GATE C FALHOU: Sem VERIFICATION.md. Spawnar verificador." && exit 1
-echo "GATE C OK: ${VERIF_COUNT} VERIFICATION(s)"
+[ "$VERIF_COUNT" -eq 0 ] && echo "GATE B FALHOU: sem VERIFICATION.md. Spawnar verificador." && exit 1
+echo "GATE B OK: ${VERIF_COUNT} VERIFICATION(s)"
 ```
 
-### 3.6.1 Verification Supervisor (PASSO 4 — Agent SEPARADO)
+### 3.6 E2E + DCRV (PASSO 3)
 
-```python
-Agent(subagent_type="up-verification-supervisor", prompt=f"""
-  Revisar verificacao da Fase {phase_number}.
-  Decisao: APPROVE | REQUEST_CHANGES | ESCALATE
-  
-  **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
-  ```bash
-  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | verification-supervisor | {{DECISAO}} | {{motivo}}" >> .plano/governance/approvals.log
-  ```
-""")
+Delegar ao loop DCRV (que absorveu builder-e2e). Ver `@~/.claude/up/workflows/dcrv.md`.
+
+```
+SCOPE=phase, PHASE_DIR={PHASE_DIR}, PHASE_NUMBER={phase_number}, AUTO_FIX=true, MAX_CYCLES=3
 ```
 
-### --- GATE D: Verificar que AMBOS supervisores logaram ---
+Pular se a fase nao tem UI nem API (infra/schema).
 
-```bash
-echo "=== GATE D: Verificando governance completa (Fase ${PHASE_NUMBER}) ==="
-EXEC_OK=$(grep -c "phase-${PHASE_NUMBER}.*execution-supervisor" .plano/governance/approvals.log 2>/dev/null)
-VERIF_OK=$(grep -c "phase-${PHASE_NUMBER}.*verification-supervisor" .plano/governance/approvals.log 2>/dev/null)
-[ "$EXEC_OK" -eq 0 ] || [ "$VERIF_OK" -eq 0 ] && echo "GATE D FALHOU: supervisor faltante" && exit 1
-echo "GATE D OK: ambos supervisores logaram"
-```
+### 3.7 Revisao (PASSO 4 — Agent SEPARADO)
 
-### 3.7 E2E + DCRV (PASSO 5)
-
-Ver builder.md secao 3.1.5 (E2E) e 3.1.5.1 (DCRV).
-
-### 3.8 Chief-engineer Aprova Fase (PASSO 6 — Agent SEPARADO)
+Spawnar `up-revisor` (UNICO, two-stage). Substitui supervisores, chiefs e auditores gold.
 
 ```python
 Agent(
-  subagent_type="up-chief-engineer",
+  subagent_type="up-revisor",
   prompt=f"""
-    Revisar Fase {phase_number} consolidada.
-    Validar coerencia plano vs execucao vs verificacao.
-    Decidir: APPROVE | REQUEST_CHANGES | ESCALATE_CEO
-    
-    **OUTPUT OBRIGATORIO (fazer ANTES de retornar):**
+    Revisar a Fase {phase_number} consolidada (two-stage).
+
+    STAGE 1 — spec-compliance cetico: assuma que "terminou rapido demais". Valide o comportamento
+    contra os REQUIREMENTS desta fase navegando/inspecionando o resultado real (nao confie no codigo
+    nem no SUMMARY). Emita um Confidence Score (0-100) de delivery.
+    STAGE 2 — code-quality: padroes, edge cases, OWASP/security, wiring ponta a ponta.
+
+    <files_to_read>
+    - {PLAN}
+    - {PHASE_DIR}/*-SUMMARY.md
+    - {PHASE_DIR}/*-VERIFICATION.md
+    - {PHASE_DIR}/dcrv/DCRV-REPORT.md (se existir)
+    - git diff (use Bash)
+    - .plano/fases/{phase_number}/REQUIREMENTS-SLICE.md (se existir)
+    Sob demanda: $HOME/.claude/up/references/engineering-principles-compressed.md,
+                 $HOME/.claude/up/references/production-requirements-compressed.md
+    </files_to_read>
+
+    Veredito unico: APPROVE | REQUEST_CHANGES | BLOCK.
+
+    **OUTPUT OBRIGATORIO (ANTES de retornar):**
     ```bash
-    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | chief-engineer | {{DECISAO}} | {{motivo}}" >> .plano/governance/approvals.log
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | up-revisor | {{DECISAO}} | {{motivo}}" >> .plano/governance/approvals.log
     ```
+    Sem este log, o GATE de fase bloqueia o avanco.
   """
 )
 ```
 
-### --- GATE E: Verificar TODA governanca antes de marcar completa ---
+### --- GATE de fase: veredito do revisor (deterministico) ---
+
+Aplicar o gate de `@~/.claude/up/workflows/governance.md`:
 
 ```bash
-echo "=== GATE E: Verificacao FINAL (Fase ${PHASE_NUMBER}) ==="
+echo "=== GATE: Fase ${PHASE_NUMBER} ==="
 SUMMARY_OK=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
-VERIF_FILE_OK=$(ls ${PHASE_DIR}/*-VERIFICATION.md 2>/dev/null | wc -l)
-EXEC_OK=$(grep -c "phase-${PHASE_NUMBER}.*execution-supervisor" .plano/governance/approvals.log 2>/dev/null)
-VERIF_OK=$(grep -c "phase-${PHASE_NUMBER}.*verification-supervisor" .plano/governance/approvals.log 2>/dev/null)
-CHIEF_OK=$(grep -c "phase-${PHASE_NUMBER}.*chief-engineer" .plano/governance/approvals.log 2>/dev/null)
+VERIF_OK=$(ls ${PHASE_DIR}/*-VERIFICATION.md 2>/dev/null | wc -l)
+REVISOR_ENTRY=$(grep "phase-${PHASE_NUMBER}.*up-revisor" .plano/governance/approvals.log 2>/dev/null | tail -1)
 
 PASS=true
-[ "$SUMMARY_OK" -eq 0 ] && echo "FALHA: Sem SUMMARY.md" && PASS=false
-[ "$VERIF_FILE_OK" -eq 0 ] && echo "FALHA: Sem VERIFICATION.md" && PASS=false
-[ "$EXEC_OK" -eq 0 ] && echo "FALHA: execution-supervisor NAO rodou" && PASS=false
-[ "$VERIF_OK" -eq 0 ] && echo "FALHA: verification-supervisor NAO rodou" && PASS=false
-[ "$CHIEF_OK" -eq 0 ] && echo "FALHA: chief-engineer NAO rodou" && PASS=false
+[ "$SUMMARY_OK" -eq 0 ] && echo "FALHA: sem SUMMARY.md" && PASS=false
+[ "$VERIF_OK" -eq 0 ] && echo "FALHA: sem VERIFICATION.md" && PASS=false
+[ -z "$REVISOR_ENTRY" ] && echo "FALHA: up-revisor NAO logou" && PASS=false
+DECISION=$(echo "$REVISOR_ENTRY" | awk -F'|' '{gsub(/ /,"",$4); print $4}')
 
 if [ "$PASS" = false ]; then
-  echo "GATE E FALHOU: Voltar e executar passos faltantes."
+  echo "GATE FALHOU: spawnar o agente faltante e re-rodar."
   exit 1
-else
-  echo "GATE E OK: Todos 5 checks passaram."
 fi
 ```
 
-### 3.9 Marcar Completa e Avancar
+**Processar o veredito:**
+- `APPROVE`: prosseguir para 3.8.
+- `REQUEST_CHANGES`: cap de rework 1 round (ver governance.md passo 4). Round 0 -> re-spawn executor
+  com o review; round >= 1 -> forced approval com debito tecnico. Depois re-rodar verificador + revisor.
+- `BLOCK`: interromper e alertar o dono (AskUserQuestion).
 
-**So apos GATE E passar.**
+### 3.8 Marcar Completa e Avancar
+
+So apos o GATE aprovar (APPROVE ou forced approval registrado).
+
+> TODO Fase 4 (GitHub-native): se `--pr`, fim da fase -> MENU 4 OPCOES
+> ("1) merge local  2) abrir PR (gh pr create --base main, Closes #N)  3) deixa a branch  4) descarta").
+> Default sugerido = 1. Cleanup provenance-based. Stub nesta fase (so `--solo`: ja committado na branch atual).
+> TODO Fase 5 (Multica): se `--board`, `multica issue status` batched no fim da fase.
+
+### 3.9 Reassessment de roadmap (pos-fase, inline, ~30s)
+
+Apos o GATE aprovar e ANTES de planejar/executar a proxima fase, o orquestrador re-avalia o ROADMAP inline (sem agente separado). Migrado do builder.md 3.1.7 (caira por omissao no corte; recolocado).
+
+Ler ROADMAP.md (fases futuras) + os SUMMARY da fase recem-completa e checar 3 coisas:
+- **(a) Fase futura virou redundante?** A fase atual pode ter coberto algo que uma fase futura faria (ex: auth da Fase 3 ja entregou o RBAC que a Fase 6 planejava). Se sim: marcar a fase futura como `Removida (coberta pela Fase {X})` no ROADMAP.
+- **(b) Fase futura precisa de ajuste?** Decisao arquitetural desta fase muda o escopo de fases futuras (ex: escolheu tRPC, fases de API mudam). Se sim: atualizar objetivo/criterios da fase futura.
+- **(c) Surgiu necessidade nova critica?** Ler `.plano/captures/` (se existir). Insight que bloqueia fases futuras vira fase nova; melhoria so vai pro Polish.
+
+Se houve mudanca no roadmap:
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: reassessment apos fase {X}" --files .plano/ROADMAP.md
+```
+
+Log de 1 linha: `Reassessment: [sem mudancas | X ajustadas | Y removidas | Z adicionadas]`. Sem mudanca: seguir silenciosamente. Diferente do re-plan LOCAL do Estagio 3.4 (que so corrige a fase corrente): aqui poda/ajusta o roadmap FUTURO a luz do que ja foi construido.
 
 ## Estagio 4: QUALITY GATE GLOBAL
 
-Mesmo processo do builder.md secao Estagio 4. Sem model routing.
+Rodar DCRV em escopo global apos todas as fases:
 
-## Estagio 4.5: DELIVERY AUDIT
+```
+SCOPE=global, AUTO_FIX=true, MAX_CYCLES=5
+```
+
+Ver `@~/.claude/up/workflows/dcrv.md`. Carryover de issues por fase ja foi acumulado em
+`.plano/issues-carryover/`.
+
+## Estagio 4.5: REVISAO DE DELIVERY (consolidada)
+
+Spawnar `up-revisor` em escopo global (Confidence Score de delivery do projeto inteiro). Substitui a
+antiga auditoria de delivery dedicada.
 
 ```python
-Agent(subagent_type="up-delivery-auditor", ...)
+Agent(subagent_type="up-revisor", prompt="""
+  Revisao final de delivery (escopo: projeto). Stage 1 valida comportamento vs REQUIREMENTS globais;
+  Stage 2 confere qualidade/seguranca cross-fase. Emitir Confidence Score (0-100) e veredito.
+  Logar em .plano/governance/approvals.log com escopo 'delivery'.
+""")
 ```
 
 ## Estagio 5: DELIVERY
 
-Mesmo processo. CEO local apresenta resultado.
+Apresentacao = output direto do orquestrador (sem CEO). Le owner-profile pra tom.
 
 ### 5.X Marcar Projeto Completo
 
 ```bash
-# PLAN-READY.md → PROJECT-COMPLETE.md
 mv .plano/PLAN-READY.md .plano/PROJECT-COMPLETE.md
 ```
 
@@ -582,69 +477,27 @@ status: complete
 completed_at: [timestamp]
 completed_by:
   runtime: [current]
-  ceo_name: [local]
-final_confidence: [from audit]
+final_confidence: [do up-revisor de delivery]
 ```
 
 </process>
-
-<replans>
-
-## Re-plans Locais (max 2)
-
-Quando: execution-supervisor descobre que o plano original esta inviavel.
-
-Como funciona:
-
-```
-Execution falha
-  ↓
-execution-supervisor analisa
-  ↓
-Decide: REQUEST_REPLAN
-  ↓
-Verifica replans.log < 2?
-  ├─ Sim: prosseguir
-  └─ Nao: ESCALATE pro CEO
-  ↓
-Spawnar planejador LOCAL no runtime atual
-  ↓
-Refaz plano daquela fase
-  ↓
-Salva como PLAN-v2.md (preserva v1 pra historico)
-  ↓
-Planning-supervisor LOCAL revisa
-  ↓
-Se APPROVE: voltar pro executor com novo plano
-Se REJECT: ESCALATE pro chief-engineer
-```
-
-Registro em `.plano/governance/replans.log`:
-```
-2026-04-11T15:30:00Z | phase-3 | execution-supervisor | REPLAN | cycle 1/2
-  reason: Library X discontinued, need to use Y instead
-  original_plan: 03-01-PLAN-v1.md
-  new_plan: 03-01-PLAN.md (was v2)
-```
-
-</replans>
 
 <success_criteria>
 - [ ] Owner profile LOCAL validado
 - [ ] PLAN-READY.md existe e parseado
 - [ ] Validacao light passou (artefatos + planos existem)
-- [ ] CEO confirmou execucao
+- [ ] Dono confirmou execucao (orquestrador, sem CEO)
 - [ ] Governance inicializada (.plano/governance/approvals.log)
-- [ ] Todas fases executadas com SUMMARY.md (GATE A por fase)
-- [ ] Execution-supervisor revisou CADA fase (GATE B — logou em approvals.log)
-- [ ] Verificador produziu VERIFICATION.md por fase (GATE C)
-- [ ] Verification-supervisor revisou CADA verificacao (GATE D — logou em approvals.log)
-- [ ] Chief-engineer aprovou CADA fase (GATE E — logou em approvals.log)
-- [ ] GATE E passou para CADA fase (todos 5 checks OK)
-- [ ] Re-plans registrados (se houve)
-- [ ] Quality Gate global passou
-- [ ] Delivery audit aprovou
-- [ ] CEO apresentou resultado
-- [ ] PLAN-READY.md → PROJECT-COMPLETE.md
-- [ ] .plano/governance/approvals.log tem entries de TODOS supervisores e chiefs
+- [ ] Todas as fases executadas com SUMMARY.md (GATE A)
+- [ ] Verificador produziu VERIFICATION.md por fase (GATE B); ladder estatica usada quando possivel
+- [ ] E2E + DCRV rodaram por fase (delegado a dcrv.md)
+- [ ] up-revisor emitiu veredito por fase e LOGOU em approvals.log
+- [ ] GATE de fase deterministico passou (APPROVE ou forced approval com debito)
+- [ ] Cap de rework de 1 round respeitado
+- [ ] Re-plans locais registrados (se houve, max 2)
+- [ ] Quality Gate global rodou
+- [ ] up-revisor fez revisao de delivery consolidada
+- [ ] PLAN-READY.md -> PROJECT-COMPLETE.md
+- [ ] Nenhuma referencia a CEO, chiefs, camadas de revisao intermediaria, auditores gold ou builder-e2e
 </success_criteria>
+</output>

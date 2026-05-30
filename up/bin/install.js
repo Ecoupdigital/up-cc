@@ -395,14 +395,10 @@ function convertCommandToGeminiToml(content) {
 function getCodexSandboxMode(agentName) {
   const writeAgents = [
     'up-frontend-specialist', 'up-backend-specialist', 'up-database-specialist',
-    'up-executor', 'up-devops-agent', 'up-technical-writer', 'up-arquiteto',
-    'up-system-designer', 'up-roteirista', 'up-sintetizador', 'up-sintetizador-melhorias',
-    'up-consolidador-ideias', 'up-clone-crawler', 'up-clone-design-extractor',
-    'up-clone-feature-mapper', 'up-clone-prd-writer', 'up-clone-verifier',
-    'up-visual-critic', 'up-exhaustive-tester', 'up-api-tester', 'up-qa-agent',
-    'up-depurador', 'up-verificador', 'up-blind-validator', 'up-planejador',
-    'up-mapeador-codigo', 'up-analista-codigo', 'up-pesquisador-projeto',
-    'up-pesquisador-mercado', 'up-product-analyst', 'up-project-ceo',
+    'up-executor', 'up-arquiteto', 'up-roteirista', 'up-sintetizador',
+    'up-visual-critic', 'up-exhaustive-tester', 'up-api-tester',
+    'up-depurador', 'up-verificador', 'up-planejador', 'up-mapeador-codigo',
+    'up-pesquisador', 'up-revisor', 'up-auditor',
   ];
   return writeAgents.includes(agentName) ? 'workspace-write' : 'read-only';
 }

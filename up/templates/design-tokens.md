@@ -1,6 +1,6 @@
 # Design Tokens — {PROJECT_NAME}
 
-Referencia visual do projeto. Gerado pelo up-system-designer durante o Estagio 2 (Arquitetura).
+Referencia visual do projeto. Gerado pelo up-arquiteto durante a fase de arquitetura.
 Usado pelo up-visual-critic como baseline para avaliar consistencia visual.
 
 ---

@@ -1,7 +1,7 @@
 # Governance Rules
 
 Regras de governanca aplicadas a TODOS os comandos UP.
-Carregado por supervisores, chiefs e CEO.
+Carregado pelo orquestrador e pelo up-revisor.
 
 ---
 
@@ -10,13 +10,13 @@ Carregado por supervisores, chiefs e CEO.
 ```
 DONO (humano)
   ↓
-CEO (up-project-ceo)
+ORQUESTRADOR (intake/canal com o dono)
   ↓
-CHIEFS (5 — architecture, product, engineer, quality, operations)
+up-revisor (consolidacao + veredito que alimenta o gate)
   ↓
-SUPERVISORES (8 — area especifica)
+GATE deterministico (approvals.log)
   ↓
-OPERACIONAIS (36 — agentes existentes)
+OPERACIONAIS (agentes existentes)
 ```
 
 ## Fluxo de Aprovacao

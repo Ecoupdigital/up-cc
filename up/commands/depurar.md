@@ -101,7 +101,7 @@ Agent(
 - Exibir causa raiz e resumo de evidencias
 - Oferecer opcoes:
   - "Corrigir agora" - spawnar subagente de correcao
-  - "Planejar correcao" - sugerir /up:planejar-fase
+  - "Planejar correcao" - sugerir /up:plan (modo fase)
   - "Correcao manual" - encerrar
 
 **Se `## CHECKPOINT REACHED`:**

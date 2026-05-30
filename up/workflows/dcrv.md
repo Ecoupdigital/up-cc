@@ -1,23 +1,40 @@
 <purpose>
-Workflow DCRV (Detectar → Classificar → Resolver → Verificar) — loop de qualidade reutilizavel.
+Workflow DCRV (Detectar → Classificar → Resolver → Verificar) — loop de qualidade unico do UP.
 
-Roda 3 detectores (Visual Critic, Exhaustive Tester, API Tester), consolida issues, despacha para especialistas corrigirem, e re-verifica. Loop ate resolver ou atingir max ciclos.
+Roda os detectores (Visual Critic, Exhaustive Tester, API Tester), consolida issues, despacha para
+especialistas corrigirem, e re-verifica. Loop ate resolver ou atingir max ciclos.
 
-**Modos de uso:**
-- **Por fase (builder):** Testa apenas paginas/rotas da fase recem-executada
-- **Global (quality gate):** Testa TODAS as paginas/rotas do projeto
-- **Standalone:** Chamado por /up:executar-fase, /up:rapido, /up:ux-tester, /up:verificar-trabalho
-- **Light (1 ciclo):** Roda detectores + reporta, sem loop de correcao
+Este e o workflow UNICO de `/up:testar` no redesign v2. Absorveu builder-e2e.md (E2E + smoke + console
+errors), ux-tester.md (avaliacao em 6 dimensoes), mobile-first.md (responsividade por breakpoint) e
+verificar-trabalho.md (gate UAT). Tudo vira FLAG/MODO sobre o mesmo loop. Default = roda tudo.
+
+**Scopes de uso:**
+- **Por fase (build):** Testa apenas paginas/rotas da fase recem-executada. Inclui E2E da fase.
+- **Global (quality gate):** Testa TODAS as paginas/rotas do projeto. Inclui smoke + E2E + responsividade.
+- **Light (1 ciclo):** Roda detectores + reporta, sem loop de correcao.
+
+**Flags de `/up:testar` (default = todas ligadas):**
+- `--ux`: alem dos detectores, avalia as 6 dimensoes de UX (clareza, eficiencia, feedback, consistencia,
+  a11y basica, performance percebida) e gera UX-REPORT.md.
+- `--mobile`: testa responsividade por breakpoint (375px, 768px, 1024px), touch 44x44, hamburger;
+  detecta e corrige problemas sem quebrar desktop.
+- `--e2e`: smoke test de rotas + fluxos E2E principais + erros de console (absorve builder-e2e). No
+  build, roda por fase automaticamente.
+- gate UAT (absorve verificar-trabalho): cria/retoma `.plano/fases/XX/{N}-UAT.md` (sobrevive a /clear)
+  com testes de aceitacao; alimenta lacunas de volta pra `/up:plan`.
 
 **Parametros esperados no prompt:**
 - `$SCOPE`: "phase" | "global" | "light"
-- `$PHASE_DIR`: diretorio da fase (se scope=phase)
-- `$PHASE_NUMBER`: numero da fase (se scope=phase)
-- `$ROUTES`: lista de rotas a testar (se vazio, descobre automaticamente)
+- `$PHASE_DIR`, `$PHASE_NUMBER`: se scope=phase
+- `$ROUTES`: rotas a testar (vazio = descobre automaticamente)
 - `$PORT`: porta do dev server (default: 3000)
-- `$MAX_CYCLES`: max ciclos de correcao (default: 3 para phase, 5 para global, 1 para light)
-- `$MAX_ISSUES_PER_CYCLE`: max issues para corrigir por ciclo (default: 15 para phase, 20 para global)
-- `$AUTO_FIX`: true | false (se false, apenas reporta sem corrigir)
+- `$MAX_CYCLES`: default 3 (phase), 5 (global), 1 (light)
+- `$MAX_ISSUES_PER_CYCLE`: default 15 (phase), 20 (global)
+- `$AUTO_FIX`: true | false
+- `$MODES`: subconjunto de {ux, mobile, e2e, uat} (vazio = roda tudo aplicavel ao projeto)
+
+Spawns (todos sobreviventes): up-visual-critic, up-api-tester, up-exhaustive-tester (detectores);
+up-frontend/backend/database-specialist (correcao). Sem agente deletado.
 </purpose>
 
 <process>
@@ -407,6 +424,64 @@ Para cada fase anterior com UI (< fase atual):
 
 Regressoes entram no issue board com prioridade maxima (corrigir antes de issues novas).
 </smoke_regression>
+
+<absorbed_modes>
+## Modos absorvidos (flags de /up:testar)
+
+Estes modos rodam JUNTO do loop DCRV (mesmos detectores, mesmo dispatcher de correcao). Default: todos
+os aplicaveis ao projeto. As flags `--ux/--mobile/--e2e` restringem a um subconjunto.
+
+### Modo E2E (absorve builder-e2e.md)
+
+Ativado por `--e2e`, e SEMPRE no build (scope=phase) e no quality gate (scope=global).
+
+1. **Subir/garantir dev server** (Passo 0.1 ja faz). Manter rodando entre fases (nao matar a cada fase).
+2. **Smoke test de rotas:** navegar cada rota descoberta, capturar erros de console
+   (`browser_console_messages level=error`) e screenshot. Rota que da tela branca/erro -> issue critical.
+3. **Fluxos E2E principais (scope=global):** identificar 2-4 fluxos do dominio (ex: signup -> login ->
+   acao core) e executa-los ponta a ponta via Playwright. Falha de fluxo -> issue high/critical.
+4. **Por fase (scope=phase):** extrair os testes/criterios da fase do SUMMARY e exercitar so o que a
+   fase tocou. Erros de console globais entram no issue board.
+5. As issues E2E entram no ISSUE-BOARD junto das dos detectores e seguem o mesmo loop de correcao.
+
+### Modo UX (absorve ux-tester.md)
+
+Ativado por `--ux`. Apos os detectores, navegar o sistema como usuario real e avaliar 6 dimensoes,
+gerando `{$DCRV_DIR}/UX-REPORT.md` com score por dimensao:
+
+1. **Clareza** — proposito de cada tela e obvio? CTAs claros?
+2. **Eficiencia** — numero de cliques pra completar tarefas core; atalhos.
+3. **Feedback** — toda acao tem resposta (loading/sucesso/erro)? (cruza com issues INT-* do exhaustive).
+4. **Consistencia** — padroes visuais/interacao uniformes (cruza com issues VIS-* do visual critic).
+5. **Acessibilidade basica** — foco visivel, labels, contraste, navegacao por teclado.
+6. **Performance percebida** — skeletons, otimismo de UI, ausencia de travas.
+
+Problemas viram issues no board (severidade conforme impacto) e seguem o loop de correcao se `$AUTO_FIX`.
+
+### Modo Mobile (absorve mobile-first.md)
+
+Ativado por `--mobile`. Testar responsividade SEM quebrar desktop:
+
+1. Para cada rota com UI, redimensionar (`browser_resize`) para 375px, 768px, 1024px e capturar.
+2. Detectar: overflow horizontal, texto cortado, alvos de toque < 44x44, menu sem hamburger no mobile,
+   tabelas nao responsivas, modais que estouram a viewport.
+3. Issues entram no board com tipo `responsive`. Correcao via up-frontend-specialist, com instrucao
+   explicita de preservar o layout desktop (mobile-first aditivo, nunca regressivo).
+4. Re-verificar nos 3 breakpoints apos a correcao.
+
+### Gate UAT (absorve verificar-trabalho.md)
+
+Ativado quando `/up:testar` roda como gate de aceitacao (ou no checkpoint de fim de fase do build):
+
+1. Procurar UAT ativo: `find .plano/fases -name "*-UAT.md"`. Se existe e tem testes `result: [pendente]`,
+   RETOMAR (sobrevive a /clear).
+2. Senao, criar `.plano/fases/XX-nome/{fase_num}-UAT.md` com os testes de aceitacao derivados dos
+   criterios de sucesso da fase / REQUIREMENTS.
+3. Conduzir UAT conversacional com o dono (AskUserQuestion), marcando cada teste como pass/fail e
+   gravando no UAT.md.
+4. Lacunas (testes que falharam) alimentam de volta o planejamento: registrar como pendencias pra
+   `/up:plan` tratar numa proxima fase. NAO ha supervisor aqui (UAT humano ja e autoritativo).
+</absorbed_modes>
 
 <success_criteria>
 - [ ] Projeto classificado (UI, API, ambos, nenhum)

@@ -1,7 +1,7 @@
 # Severity Levels
 
-Niveis de severidade usados pelo CEO para decidir quando interromper o dono.
-Carregado pelo up-project-ceo.
+Niveis de severidade usados para decidir quando interromper o dono.
+Carregado pelo orquestrador e pelo up-revisor.
 
 ---
 
