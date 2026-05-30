@@ -1,6 +1,6 @@
 ---
 name: up:plan
-description: Planejamento completo de projeto. Gera PLAN-READY.md pronto pra ser executado por /up:build (mesmo runtime ou outro)
+description: Use quando o usuario quer PLANEJAR antes de executar: gera .plano/PLAN-READY.md sem tocar em codigo, pronto pra /up:build rodar (mesmo runtime ou outro).
 argument-hint: "[descricao do projeto] [--execution-runtime=runtime] [--no-audit]"
 allowed-tools:
   - Read

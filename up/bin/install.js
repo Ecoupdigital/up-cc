@@ -105,6 +105,15 @@ if (hasHelp) {
 const scriptDir = __dirname;
 const packageRoot = path.resolve(scriptDir, '..');
 
+// Known UP skill directory names (namespaced). Only these are installed/removed,
+// so third-party skills under <config>/skills/ are never touched.
+const UP_SKILLS = [
+  'usando-up',
+  'up-brainstorm',
+  'up-tdd',
+  'up-verificar-antes-de-concluir',
+];
+
 // ── Runtime Helpers ──
 
 function getDirName(runtime) {
@@ -714,6 +723,27 @@ function uninstall(targetDir, runtime) {
     console.log(`  ${green}✓${reset} Removed UP hooks`);
   }
 
+  // Remove UP skills layer (Claude Code only — only the known UP skill dirs,
+  // never third-party skills).
+  if (runtime === 'claude') {
+    const skillsDir = path.join(targetDir, 'skills');
+    if (fs.existsSync(skillsDir)) {
+      let skillCount = 0;
+      for (const skillName of UP_SKILLS) {
+        const skillPath = path.join(skillsDir, skillName);
+        if (fs.existsSync(skillPath)) {
+          const count = countFiles(skillPath);
+          rmDir(skillPath);
+          removed += count;
+          skillCount++;
+        }
+      }
+      if (skillCount > 0) {
+        console.log(`  ${green}✓${reset} Removed ${skillCount} UP skills`);
+      }
+    }
+  }
+
   // Clean settings.json references
   if (runtime === 'claude') {
     const settingsPath = path.join(targetDir, 'settings.json');
@@ -733,7 +763,20 @@ function uninstall(targetDir, runtime) {
             return !hooks.some(h => h.command && h.command.includes('up-context-monitor'));
           });
           if (settings.hooks.PostToolUse.length === 0) delete settings.hooks.PostToolUse;
-          if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
+          changed = true;
+        }
+
+        if (settings.hooks && settings.hooks.SessionStart) {
+          settings.hooks.SessionStart = settings.hooks.SessionStart.filter(entry => {
+            const hooks = entry.hooks || [];
+            return !hooks.some(h => h.command && h.command.includes('up-session-start'));
+          });
+          if (settings.hooks.SessionStart.length === 0) delete settings.hooks.SessionStart;
+          changed = true;
+        }
+
+        if (settings.hooks && Object.keys(settings.hooks).length === 0) {
+          delete settings.hooks;
           changed = true;
         }
 
@@ -927,6 +970,7 @@ function install(isGlobal, runtime) {
 
       const statuslineCmd = `node "${path.join(hooksDest, 'up-statusline.js')}"`;
       const contextMonitorCmd = `node "${path.join(hooksDest, 'up-context-monitor.js')}"`;
+      const sessionStartCmd = `node "${path.join(hooksDest, 'up-session-start.js')}"`;
 
       // Set statusLine
       settings.statusLine = { type: 'command', command: statuslineCmd };
@@ -951,13 +995,51 @@ function install(isGlobal, runtime) {
         if (settings.hooks.SessionStart.length === 0) delete settings.hooks.SessionStart;
       }
 
+      // Set SessionStart hook for the UP skill bootstrap (idempotent).
+      // Fires on startup/clear/compact; the hook itself decides per source.
+      const sessionStartHooks = settings.hooks.SessionStart || [];
+      // Drop any prior UP session-start entries before re-adding (no duplicates)
+      const sessionFiltered = sessionStartHooks.filter(entry => {
+        const hooks = entry.hooks || [];
+        return !hooks.some(h => h.command && h.command.includes('up-session-start'));
+      });
+      sessionFiltered.push({
+        matcher: 'startup|clear|compact',
+        hooks: [{ type: 'command', command: sessionStartCmd }],
+      });
+      settings.hooks.SessionStart = sessionFiltered;
+
       // Clean old GSD statusLine reference
       if (settings.statusLine && settings.statusLine.command && settings.statusLine.command.includes('gsd-statusline')) {
         settings.statusLine = { type: 'command', command: statuslineCmd };
       }
 
       fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
-      console.log(`  ${green}✓${reset} Configured statusLine and context monitor`);
+      console.log(`  ${green}✓${reset} Configured statusLine, context monitor and session-start hook`);
+    }
+  }
+
+  // 4c. Install skills layer (Claude Code discovers skills at <config>/skills/*/SKILL.md)
+  if (runtime === 'claude') {
+    const skillsSrc = path.join(packageRoot, 'skills');
+    if (fs.existsSync(skillsSrc)) {
+      const skillsDest = path.join(targetDir, 'skills');
+      fs.mkdirSync(skillsDest, { recursive: true });
+
+      let skillCount = 0;
+      for (const skillName of UP_SKILLS) {
+        const src = path.join(skillsSrc, skillName);
+        if (fs.existsSync(src) && fs.statSync(src).isDirectory()) {
+          // copyDirWithReplace clears the dest dir first, so existing third-party
+          // skills (other names) are untouched — only this dir is replaced.
+          copyDirWithReplace(src, path.join(skillsDest, skillName), pathPrefix, runtime);
+          skillCount++;
+        }
+      }
+
+      if (skillCount > 0) {
+        console.log(`  ${green}✓${reset} Installed ${skillCount} skills`);
+      }
     }
   }
 
@@ -971,9 +1053,13 @@ function install(isGlobal, runtime) {
 
     // UP needs deeper agent nesting than Codex default (max_depth=1).
     // Hierarchy: CEO → Chiefs → Supervisors → Operationals = 4 levels.
-    // We do an idempotent merge: if [agents] section exists, only add missing keys.
     const upMarker = '# UP — added by up-cc installer';
-    if (!existing.includes(upMarker)) {
+    const hasAgentsSection = /^\[agents\]/m.test(existing);
+    if (existing.includes(upMarker)) {
+      console.log(`  ${dim}config.toml already has UP settings — skipped${reset}`);
+    } else if (hasAgentsSection) {
+      console.log(`  ${dim}config.toml already has [agents] section — skipped (verify max_depth>=4, max_threads>=8)${reset}`);
+    } else {
       const upConfig =
         `\n${upMarker}\n` +
         `[agents]\n` +
@@ -982,8 +1068,6 @@ function install(isGlobal, runtime) {
         `job_max_runtime_seconds = 3600\n`;
       fs.writeFileSync(configPath, existing + upConfig);
       console.log(`  ${green}✓${reset} Configured config.toml ([agents] max_depth=4, max_threads=8)`);
-    } else {
-      console.log(`  ${dim}config.toml already has UP settings — skipped${reset}`);
     }
   }
 

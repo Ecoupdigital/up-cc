@@ -42,8 +42,8 @@ Agent(
     - ESCALATE — fora do escopo, decisao arquitetural ou conflito → chief
     
     REWORK LIMITS:
-    - Operacional ← Supervisor: max 3 ciclos, depois forca approval com debito tecnico
-    - Supervisor ← Chief: max 2 ciclos, depois escala pro CEO
+    - Operacional ← Supervisor: max 1 ciclo, depois forca approval com debito tecnico
+    - Supervisor ← Chief: max 1 ciclo, depois escala pro CEO
     
     NUNCA APROVAR SE:
     - Trabalho nao foi de fato verificado ("parece ok")
@@ -80,8 +80,8 @@ Agent(
 
 **Se REQUEST_CHANGES:**
 - Incrementar rework_cycle do item
-- Se cycle < 3: re-spawnar operacional com review como contexto
-- Se cycle = 3: FORCA aprovacao com debito tecnico, registrar e prosseguir
+- Se cycle < 1: re-spawnar operacional com review como contexto
+- Se cycle = 1: FORCA aprovacao com debito tecnico, registrar e prosseguir
 
 ```python
 # Re-spawn do operacional
@@ -89,7 +89,7 @@ Agent(
   subagent_type="up-{operacional_name}",
   model="{modelo correto}",
   prompt="""
-    REWORK — Ciclo {N}/3
+    REWORK — Ciclo {N}/1
     
     Seu output anterior foi revisado e precisa de mudancas.
     
@@ -133,11 +133,11 @@ Chief age em 2 situacoes:
 
 ### Ciclos de Rework (Chief ← Supervisor)
 
-Max 2 ciclos:
+Max 1 ciclo:
 
 ```
 Ciclo 1: Chief pede rework → Supervisor coordena com operacional
-Ciclo 2: Chief re-revisa → APPROVE ou ESCALATE_CEO
+Apos isso: Chief re-revisa → APPROVE ou ESCALATE_CEO
 ```
 
 ## Loop de Governanca (Nivel CEO)

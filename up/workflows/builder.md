@@ -178,8 +178,8 @@ Se a entry esperada nao existe, o builder PARA e spawna o agente faltante.
 1. Todo output de agente operacional passa por supervisor
 2. Toda area tem chief que consolida
 3. CEO aprova delivery final
-4. Max 3 ciclos de rework (operacional ← supervisor)
-5. Max 2 ciclos (supervisor ← chief)
+4. Max 1 ciclo de rework (operacional ← supervisor)
+5. Max 1 ciclo (supervisor ← chief)
 6. Max 1 ciclo (chief ← CEO)
 
 **Pre-requisito:**
@@ -1392,7 +1392,7 @@ Agent(
     
     <governance_compressed>
     DECISOES: APPROVE | REQUEST_CHANGES | REQUEST_REPLAN | ESCALATE
-    REWORK: max 3 ciclos antes de forcar approval com debito
+    REWORK: max 1 ciclo antes de forcar approval com debito
     NUNCA APROVAR: trabalho nao verificado, evidencia ambigua, claim sem backing,
                    stub/placeholder, falta de wiring
     LOG OBRIGATORIO: .plano/governance/approvals.log
@@ -1439,14 +1439,14 @@ Agent(
 
 **Se APPROVE:** Verificar que approvals.log foi escrito (o supervisor deve ter feito). Prosseguir para 3.1.3.
 
-**Se REQUEST_CHANGES:** Re-spawn specialist com feedback (max 3 ciclos).
+**Se REQUEST_CHANGES:** Re-spawn specialist com feedback (max 1 ciclo).
 
 ```python
 # Re-spawn do specialist com review como contexto
 Agent(
   subagent_type="{mesmo specialist da execucao}",
   prompt=f"""
-    REWORK — Ciclo {{N}}/3
+    REWORK — Ciclo {{N}}/1
     
     Seu output anterior foi revisado pelo execution-supervisor e precisa de mudancas.
     
@@ -1460,13 +1460,13 @@ Agent(
 )
 ```
 
-Se apos 3 ciclos sem melhoria: FORCAR aprovacao com debito tecnico.
+Se apos 1 ciclo sem melhoria: FORCAR aprovacao com debito tecnico.
 
 ```bash
 mkdir -p .plano/governance
 cat >> .plano/governance/technical-debt.log <<EOF
 $(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | execution-supervisor | FORCED_APPROVAL
-  Reason: Max rework cycles (3) reached without improvement
+  Reason: Max rework cycles (1) reached without improvement
   Remaining issues: [lista]
 EOF
 ```
@@ -1572,7 +1572,7 @@ Ler resultado do code review:
 
 **Se ha issues CRITICAS (score < 7):**
 - Spawnar executor para corrigir issues criticas
-- Re-rodar code review (max 2 ciclos de correcao)
+- Re-rodar code review (max 1 ciclo de correcao)
 
 **Se score >= 7:**
 - Registrar score e prosseguir
@@ -1687,7 +1687,7 @@ Agent(
     
     <governance_compressed>
     DECISOES: APPROVE | REQUEST_CHANGES | ESCALATE
-    REWORK: max 3 ciclos antes de forcar approval com debito
+    REWORK: max 1 ciclo antes de forcar approval com debito
     NUNCA APROVAR SE:
     - Verificacao superficial ("parece ok")
     - VERIFICATION.md claim sem evidencia no codigo
@@ -1722,7 +1722,7 @@ Agent(
 
 **Se APPROVE:** Verificar que approvals.log foi escrito. Prosseguir.
 
-**Se REQUEST_CHANGES:** Re-spawn verificador com feedback (max 3 ciclos).
+**Se REQUEST_CHANGES:** Re-spawn verificador com feedback (max 1 ciclo).
 
 **Se ESCALATE:** Spawnar chief-engineer.
 
@@ -1882,7 +1882,7 @@ Agent(
     
     <governance_compressed>
     DECISOES: APPROVE | REQUEST_CHANGES | ESCALATE_CEO
-    REWORK (chief → supervisor): max 2 ciclos, depois escala pro CEO
+    REWORK (chief → supervisor): max 1 ciclo, depois escala pro CEO
     
     VERIFICAR:
     1. Coerencia entre plano, execucao e verificacao
@@ -1924,7 +1924,7 @@ Agent(
 
 **Se REQUEST_CHANGES:**
 - Chief identifica area problematica e supervisor responsavel
-- Re-spawn supervisor correspondente com feedback do chief (max 2 ciclos chief ← supervisor)
+- Re-spawn supervisor correspondente com feedback do chief (max 1 ciclo chief ← supervisor)
 - Supervisor coordena rework com operacional
 - Chief re-revisa e loga novamente em approvals.log
 
@@ -2703,7 +2703,7 @@ Agent(
 **Se NEEDS_REWORK (confidence 70-84%):**
 - Executar rework plan do auditor
 - Re-rodar estagios problematicos
-- Voltar pro auditor (max 3 ciclos)
+- Voltar pro auditor (max 1 ciclo)
 
 **Se BLOCKED (confidence < 70% ou problema critico):**
 - Escalar pro CEO
@@ -2716,16 +2716,13 @@ Agent(
 Ciclo 1: rodar auditor
   Se NEEDS_REWORK:
     Executar rework plan
-    Ciclo 2: rodar auditor
+    Re-rodar auditor:
       Se NEEDS_REWORK:
-        Executar rework plan
-        Ciclo 3: rodar auditor
-          Se NEEDS_REWORK:
-            Forca APPROVED_WITH_WARNINGS
-            CEO decide o que fazer
+        Forca APPROVED_WITH_WARNINGS
+        CEO decide o que fazer
 ```
 
-Max 3 ciclos. Depois: forcar aprovacao ou escalar CEO.
+Max 1 ciclo. Depois: forcar aprovacao ou escalar CEO.
 
 ---
 
@@ -3150,7 +3147,7 @@ SUMMARY_COUNT=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
 
 #### L3.2.1 GOVERNANCE LIGHT — Execution Supervisor
 
-**OBRIGATORIO mesmo no modo light.** Roda com max 1 ciclo de rework (vs 3 no full).
+**OBRIGATORIO mesmo no modo light.** Roda com max 1 ciclo de rework (mesmo cap do full).
 **Este passo NAO pode ser colapsado com a execucao. DEVE ser um Agent() SEPARADO.**
 
 ```bash

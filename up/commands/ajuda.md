@@ -47,7 +47,7 @@ Sistema de desenvolvimento orientado a fases para projetos de software.
 |---------|-----------|-----|
 | `/up:progresso` | Status do projeto e proxima acao | `/up:progresso` |
 | `/up:pausar` | Criar handoff .continue-aqui.md | `/up:pausar` |
-| `/up:adicionar-fase` | Adicionar fase ao roadmap | `/up:adicionar-fase "Deploy em producao"` |
+| `/up:planejar-fase` | Adicionar fase ao roadmap e ja planejar | `/up:planejar-fase "Deploy em producao"` |
 | `/up:remover-fase` | Remover fase futura e renumerar | `/up:remover-fase 5` |
 | `/up:resetar` | Resetar projeto (limpar .plano/) | `/up:resetar` |
 
@@ -160,7 +160,7 @@ Resultado em .plano/ideias/RELATORIO.md com ranking ICE e anti-features.
 
 ### Adicionar/Remover Fases
 ```
-/up:adicionar-fase "Descricao da nova fase"
+/up:planejar-fase "Descricao da nova fase"   # adiciona ao roadmap E ja planeja
 /up:remover-fase 5
 ```
 

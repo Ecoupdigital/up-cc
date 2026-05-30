@@ -1,6 +1,6 @@
 ---
 name: up:build
-description: Executar projeto previamente planejado por /up:plan. Requer PLAN-READY.md. Pode rodar em runtime diferente do que planejou.
+description: Use quando o usuario quer EXECUTAR um projeto ja planejado (existe .plano/PLAN-READY.md). Por padrao GitHub-nativo (worktree, issue, PR, merge); use /up:rapido pra pular a cerimonia GitHub.
 argument-hint: ""
 allowed-tools:
   - Read

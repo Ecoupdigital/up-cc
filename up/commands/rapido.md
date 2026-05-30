@@ -1,6 +1,6 @@
 ---
 name: up:rapido
-description: Tarefa rapida com garantias UP (commits atomicos, rastreamento)
+description: Use quando o usuario quer uma tarefa pontual rapida, sem roadmap nem cerimonia GitHub: commit atomico na branch atual com rastreamento em STATE.md. O escape hatch pra pular o /up:build GitHub-nativo.
 argument-hint: "[descricao]"
 allowed-tools:
   - Read

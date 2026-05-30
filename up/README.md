@@ -222,8 +222,8 @@ O UP foi desenhado para sobreviver a `/clear`. Todo estado fica em disco no `.pl
 #### Adicionar e remover fases
 
 ```
-/up:adicionar-fase "Implementar sistema de notificacoes"   # Adiciona ao final
-/up:remover-fase 5                                          # Remove e renumera
+/up:planejar-fase "Implementar sistema de notificacoes"   # Adiciona ao final E ja planeja
+/up:remover-fase 5                                         # Remove e renumera
 ```
 
 Apenas fases futuras (nao iniciadas) podem ser removidas.
@@ -319,7 +319,7 @@ O UP:
 | `/up:verificar-trabalho N` | Validar features via UAT conversacional |
 | `/up:progresso` | Dashboard de status e proxima acao |
 | `/up:pausar` | Criar arquivo de handoff `.continue-aqui.md` |
-| `/up:adicionar-fase "desc"` | Adicionar fase ao final do roadmap |
+| `/up:planejar-fase "desc"` | Adicionar fase ao final do roadmap e ja planejar |
 | `/up:remover-fase N` | Remover fase futura e renumerar |
 | `/up:adicionar-testes N` | Gerar testes para fase completa |
 | `/up:melhorias` | Auditoria completa (UX, performance, modernidade) |
