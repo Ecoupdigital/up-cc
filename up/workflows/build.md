@@ -54,12 +54,16 @@ e um `Agent()` SEPARADO. O enforcement e o GATE deterministico do `approvals.log
 
 **GitHub-nativo e o DEFAULT (v2):**
 - **PADRAO (sem flag):** cada fase abre uma worktree + branch `up/fase-NN-slug` e (se houver `gh` + remote)
-  uma issue do GitHub; no fim da fase o orquestrador oferece o MENU de 4 opcoes (merge local / PR / deixa
-  branch / descarta). Isto e o caminho quente. Controlado por `config.github_native=true` (default).
+  uma issue do GitHub; no fim da fase, se a fase tem UI, **sobe o dev server e PEDE aprovacao visual antes de
+  mergear** (3.8.0), depois fecha (merge local / PR / deixa / descarta). Isto e o caminho quente.
+  Controlado por `config.github_native=true` (default).
 - `--solo`: ESCAPE HATCH sem cerimonia. Forca `github_native=false` SO nesta execucao. Commit atomico na
   branch ATUAL. Zero worktree, zero issue, zero PR, zero rede. (Mesmo comportamento de `/up:rapido`.)
-- `--auto`: pula o menu. Apos o GATE aprovar, `github finish-phase --mode auto` (PR -> merge squash ->
-  cleanup) automaticamente. So faz sentido com github_native ligado.
+- **Teste visual antes do merge (`require_visual_test`, default true):** fase de UI sobe dev server e exige
+  o dono aprovar na tela ANTES do merge (3.8.0). Projeto em PRODUCAO: deixe ligado (nada sobe sem voce ver).
+- `--auto`: pula o MENU de fechamento. Apos o GATE aprovar, `finish-phase --mode auto` (PR -> merge squash ->
+  cleanup). MAS o teste visual (3.8.0) ainda roda se `require_visual_test=true` (so `false` deixa o --auto
+  mergear UI sem aprovacao). So faz sentido com github_native ligado.
 - `--board`: espelha status no Multica (espelho de board OPT-IN, BATCHED no fim da onda/fase). NAO ha
   stream ao vivo no fluxo local: o board mostra so o status (`todo -> in_progress -> in_review -> done /
   blocked`), nunca cada tool_use. Chamadas via `up-tools.cjs multica {init|sync|board}` (que usa
@@ -548,53 +552,100 @@ fi
   com o review; round >= 1 -> forced approval com debito tecnico. Depois re-rodar verificador + revisor.
 - `BLOCK`: interromper e alertar o dono (AskUserQuestion).
 
-### 3.8 Fechar a fase (GitHub-nativo - menu de 4 opcoes) e Avancar
+### 3.8 Fechar a fase: teste visual (pre-merge) + merge
 
 So apos o GATE aprovar (APPROVE ou forced approval registrado).
 
-Antes de fechar, sair da worktree (**ExitWorktree** ou `cd` de volta ao repo principal) para que
-`finish-phase` opere e atualize `git-map.json` na main.
-
 **Caso `--solo` (github_native=false):** nada a fazer aqui. Tudo ja foi committado atomicamente na branch
-atual. Seguir direto para 3.9.
+atual. Seguir direto para 3.9. (Sem worktree, sem teste-visual-gate, sem merge.)
 
-**Caso GitHub-nativo + `--auto`:** sem menu. Fechar automaticamente (PR -> merge squash -> cleanup):
+#### 3.8.0 Checkpoint de teste visual (PRE-MERGE) - so GitHub-nativo
+
+Roda ANTES de qualquer merge. Garante que NADA sobe sem o dono ver na tela. Resolver:
 
 ```bash
-node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase \
-  --phase {phase_number} --mode auto --strategy squash
+REQUIRE_VISUAL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config get require_visual_test --raw 2>/dev/null)
+[ -z "$REQUIRE_VISUAL" ] && REQUIRE_VISUAL=true
+# HAS_UI: a fase tocou em UI? (tipo do plano frontend/ui/css OU package.json com script dev/start/serve)
+HAS_DEV=$(node -e "try{const s=require('./package.json').scripts||{};process.stdout.write((s.dev||s.start||s.serve)?'1':'')}catch(e){}" 2>/dev/null)
 ```
 
-**Caso GitHub-nativo interativo (default):** apresentar o MENU de 4 OPCOES via AskUserQuestion (nunca PR
-automatico - builder solitario decide). Default sugerido = 1 (merge local).
+**Aplica o gate quando:** (HAS_UI ou HAS_DEV) E NAO (`--auto` E REQUIRE_VISUAL=false).
+Ou seja: por padrao SEMPRE pede aprovacao visual antes do merge em fase de UI. Para PULAR (CI/yolo):
+`--auto` + setar `require_visual_test=false` no config. Para projeto em PRODUCAO: deixe o default (true).
+
+Se aplica:
+
+1. **Subir o dev server DENTRO da worktree** (o codigo da fase vive na worktree - voce testa o codigo REAL
+   da fase, nao a main). Ainda DENTRO da worktree, antes de sair dela:
+
+```bash
+PORT=${PORT:-3000}
+if ! curl -s "http://localhost:${PORT}" >/dev/null 2>&1; then
+  ( npm run dev > /tmp/up-build-dev-${phase_number}.log 2>&1 & ) \
+    || ( npm start > /tmp/up-build-dev-${phase_number}.log 2>&1 & )
+  for i in $(seq 1 40); do curl -s "http://localhost:${PORT}" >/dev/null 2>&1 && break; sleep 1; done
+fi
+echo "Dev server da Fase {phase_number} no ar: http://localhost:${PORT}"
+```
+
+2. **Perguntar (AskUserQuestion):**
 
 ```
-AskUserQuestion(
-  header: "Fase {phase_number} aprovada. Como fechar?",
-  question: "Escolha:",
-  options: [
-    "1) merge local (squash na branch base, sem PR)",   # default
-    "2) abrir PR (gh pr create --base main, Closes #N) e mergear",
-    "3) deixa a branch (nao mergeia agora)",
-    "4) descarta (remove worktree + branch)"
-  ]
-)
+header: "Fase {phase_number}: testar antes de mergear?"
+question: "Subi o dev server em http://localhost:{PORT} com o codigo desta fase. Testar primeiro ou pode mergear?"
+options:
+  - "Testar primeiro (deixo o server no ar)"
+  - "Pode mergear"
+  - "Deixa a branch (nao mergeia agora)"
+  - "Descarta a fase"
 ```
 
-Mapear a escolha para `finish-phase` (subverbos do contrato: `start-phase`, `finish-phase`, `status`;
-`finish-phase --mode menu|auto|solo`):
+3. **Se "Testar primeiro":** MANTEM o dev server no ar, repete a URL, e ESPERA o dono testar. Quando ele
+   voltar, perguntar de novo:
+
+```
+header: "Testou a Fase {phase_number}?"
+question: "E ai, pode fechar?"
+options:
+  - "Aprovado, pode mergear"
+  - "Achei problema, quero ajustar"
+```
+
+   - **"Achei problema, quero ajustar":** pedir a descricao do problema, re-spawnar `up-executor` pra corrigir
+     NA WORKTREE (mesma branch da fase), re-rodar `up-verificador` + GATE (3.6/3.7), e VOLTAR pro 3.8.0
+     (re-testa com o dev server). Loop ate o dono aprovar. (E o "quando eu disser nao, ajusta; quando eu
+     disser sim, merge".)
+   - **"Aprovado, pode mergear":** segue como "Pode mergear".
+
+4. **Matar o dev server** antes de sair da worktree e mergear:
+
+```bash
+pkill -f "npm run dev" 2>/dev/null || true; pkill -f "npm start" 2>/dev/null || true
+```
+
+A escolha do checkpoint define a acao de fechamento (3.8.1): "Pode mergear"/"Aprovado" -> MERGE;
+"Deixa a branch" -> nao mergeia; "Descarta" -> remove sem merge.
+
+**Fase SEM UI** (infra/schema/backend puro) ou `--auto` com `require_visual_test=false`: pula 3.8.0.
+Nesse caso, GitHub-nativo interativo ainda apresenta o mesmo AskUserQuestion de 4 opcoes (sem o passo do
+dev server) pra o dono decidir merge/PR/deixa/descarta. `--auto` com fase sem UI fecha direto (sem perguntar).
+
+#### 3.8.1 Merge e avancar
+
+Sair da worktree (**ExitWorktree** ou `cd` de volta ao repo principal) para que `finish-phase` opere e
+atualize `git-map.json` na main. Mapear a escolha de 3.8.0 para `finish-phase`
+(`--mode menu|auto|solo`):
 
 ```bash
 case "$ESCOLHA" in
-  # 1 e 2 = fechar a fase. finish-phase --mode auto faz gh pr create (Closes #N) -> merge squash -> cleanup.
-  # FAIL-OPEN: sem gh/remote, --mode auto degrada para merge LOCAL da branch na base + cleanup (issue/PR=null),
-  # que e exatamente a opcao 1 quando o repo nao tem remote. Com remote, "1) merge local" e atendido pelo
-  # squash-merge do finish-phase (1 commit limpo na base); "2)" registra o PR explicitamente.
-  1|2) node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase --phase {phase_number} --mode auto --strategy squash ;;
-  # 3 = nao mergeia: deixa worktree+branch vivos. menu so atualiza git-map.json (status=branch-kept).
-  3)   node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase --phase {phase_number} --mode menu ;;
-  # 4 = descarta: orquestrador remove worktree + branch (sem merge); reflete em git-map.json via status.
-  4)   echo "Descartando fase {phase_number}: remover worktree + branch (sem merge)." ;;
+  # Pode mergear / Aprovado: finish-phase --mode auto faz gh pr create (Closes #N) -> merge squash -> cleanup.
+  # FAIL-OPEN: sem gh/remote, --mode auto degrada para merge LOCAL da branch na base + cleanup (issue/PR=null).
+  mergear|aprovado) node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase --phase {phase_number} --mode auto --strategy squash ;;
+  # Deixa a branch: nao mergeia; worktree+branch vivos. menu so atualiza git-map.json (status=in_review).
+  deixa)            node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase --phase {phase_number} --mode menu ;;
+  # Descarta: orquestrador remove worktree + branch (sem merge); reflete em git-map.json via status=cancelled.
+  descarta)         echo "Descartando fase {phase_number}: remover worktree + branch (sem merge)." ;;
 esac
 ```
 

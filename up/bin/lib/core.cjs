@@ -118,6 +118,9 @@ function loadConfig(cwd) {
     // so na execucao (o build.md le a flag e roteia para o modo solo, sem persistir).
     github_native: true,
     merge_strategy: 'squash',
+    // Fim de fase: se a fase tem UI, sobe dev server e exige aprovacao visual ANTES do merge.
+    // true por padrao (projeto em producao nao mergeia sem o dono ver na tela). --auto so pula se false.
+    require_visual_test: true,
   };
 
   try {
@@ -134,6 +137,7 @@ function loadConfig(cwd) {
       budget_ceiling: parsed.budget_ceiling ?? defaults.budget_ceiling,
       github_native: parsed.github_native ?? defaults.github_native,
       merge_strategy: parsed.merge_strategy ?? defaults.merge_strategy,
+      require_visual_test: parsed.require_visual_test ?? defaults.require_visual_test,
     };
   } catch {
     return defaults;
