@@ -1090,10 +1090,10 @@ function install(isGlobal, runtime) {
   }
 
   let command;
-  if (runtime === 'opencode') command = '/up-ajuda';
-  else if (runtime === 'codex') command = '$up-ajuda';
-  else command = '/up:ajuda';
-  console.log(`\n  ${green}Done!${reset} Run ${cyan}${command}${reset} in ${label} to get started.\n`);
+  if (runtime === 'opencode') command = '/up-up';
+  else if (runtime === 'codex') command = '$up-up';
+  else command = '/up:up';
+  console.log(`\n  ${green}Done!${reset} Run ${cyan}${command} "sua ideia"${reset} in ${label} to get started.\n`);
 }
 
 // ── INTERACTIVE MODE ──
