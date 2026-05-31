@@ -666,6 +666,21 @@ function uninstall(targetDir, runtime) {
     if (removed > 0) console.log(`  ${green}✓${reset} Removed UP agents`);
   }
 
+  // Remove o bootstrap brainstorm-first do arquivo de instrucoes (non-Claude)
+  const bootstrapFile = bootstrapTargetFile(runtime);
+  if (bootstrapFile) {
+    const bootstrapPath = path.join(targetDir, bootstrapFile);
+    if (fs.existsSync(bootstrapPath)) {
+      const before = fs.readFileSync(bootstrapPath, 'utf8');
+      const after = stripUpBootstrapBlock(before);
+      if (after !== before) {
+        if (after.trim()) fs.writeFileSync(bootstrapPath, after.trimEnd() + '\n');
+        else fs.unlinkSync(bootstrapPath); // o arquivo era so do UP -> remove
+        console.log(`  ${green}✓${reset} Removed UP bootstrap de ${bootstrapFile}`);
+      }
+    }
+  }
+
   // Remove UP commands (runtime-specific structure)
   if (runtime === 'codex') {
     // Codex: skills/up-X folders
@@ -794,6 +809,67 @@ function uninstall(targetDir, runtime) {
 }
 
 // ── INSTALL ──
+
+// ── Brainstorm-first bootstrap for non-Claude runtimes ──
+// Claude usa o hook SessionStart + skills. Gemini/OpenCode/Codex nao tem esse mecanismo,
+// entao injetamos a doutrina UP no arquivo de instrucoes global do runtime (sempre carregado).
+const UP_BOOTSTRAP_START = '<!-- UP-BOOTSTRAP:START (gerado por up-cc; nao edite a mao) -->';
+const UP_BOOTSTRAP_END = '<!-- UP-BOOTSTRAP:END -->';
+
+function bootstrapTargetFile(runtime) {
+  if (runtime === 'gemini') return 'GEMINI.md';
+  if (runtime === 'opencode' || runtime === 'codex') return 'AGENTS.md';
+  return null;
+}
+
+function buildUpBootstrapBlock(runtime, pathPrefix) {
+  const cmd = runtime === 'opencode' ? '/up-' : runtime === 'codex' ? '$up-' : '/up:';
+  const entry = runtime === 'opencode' ? '/up-up' : runtime === 'codex' ? '$up-up' : '/up:up';
+  const skills = toHomePrefix(pathPrefix) + 'up/skills';
+  return [
+    UP_BOOTSTRAP_START,
+    '# UP (up-cc): doutrina sempre-ativa',
+    '',
+    'Voce tem o UP instalado. Antes de QUALQUER trabalho de codigo, design ou decisao, siga:',
+    '',
+    '1. BRAINSTORM-FIRST: explore intencao, requisitos e design ANTES de implementar. Escale por tamanho:',
+    '   trivial = 0 perguntas (anuncia e faz); pequena = 1 pergunta; media/grande = brainstorm completo com',
+    '   aprovacao por secao. Ref: ' + skills + '/up-brainstorm/SKILL.md',
+    '2. LEI DE FERRO (evidencia antes de afirmar): nunca diga "pronto", "funciona" ou "corrigido" sem rodar a',
+    '   prova NESTA resposta e confirmar a saida. Ref: ' + skills + '/up-verificar-antes-de-concluir/SKILL.md',
+    '3. TDD POR TIPO: logica/parser/bugfix = teste red-green; UI/CSS = prova visual (antes/depois);',
+    '   glue/integracao = smoke-test. Ref: ' + skills + '/up-tdd/SKILL.md',
+    '4. GitHub-nativo e o padrao no ' + cmd + 'build (worktree -> issue -> PR -> merge); ' + cmd + 'rapido pula a cerimonia.',
+    '5. O estado vive em .plano/ e sobrevive a reset de contexto. Persistencia e o coracao do UP.',
+    '',
+    'Porta unica: ' + entry + ' "sua ideia". Comandos: ' + cmd + 'up, ' + cmd + 'plan, ' + cmd + 'build, ' + cmd + 'testar, ' + cmd + 'auditar, ' + cmd + 'depurar, ' + cmd + 'rapido.',
+    UP_BOOTSTRAP_END,
+  ].join('\n');
+}
+
+// Remove um bloco UP previo (idempotente). Retorna o conteudo sem o bloco.
+function stripUpBootstrapBlock(content) {
+  const startIdx = content.indexOf(UP_BOOTSTRAP_START);
+  if (startIdx === -1) return content;
+  const endIdx = content.indexOf(UP_BOOTSTRAP_END, startIdx);
+  if (endIdx === -1) return content;
+  const before = content.slice(0, startIdx).replace(/\n*$/, '');
+  const after = content.slice(endIdx + UP_BOOTSTRAP_END.length).replace(/^\n*/, '');
+  return (before + (before && after ? '\n\n' : '') + after).trim();
+}
+
+function injectBootstrapInstructions(runtime, targetDir, pathPrefix) {
+  const fileName = bootstrapTargetFile(runtime);
+  if (!fileName) return;
+  const filePath = path.join(targetDir, fileName);
+  let existing = '';
+  if (fs.existsSync(filePath)) existing = fs.readFileSync(filePath, 'utf8');
+  existing = stripUpBootstrapBlock(existing); // idempotente: tira o bloco antigo
+  const block = buildUpBootstrapBlock(runtime, pathPrefix);
+  const next = existing ? existing.trimEnd() + '\n\n' + block + '\n' : block + '\n';
+  fs.writeFileSync(filePath, next);
+  console.log(`  ${green}✓${reset} Brainstorm-first em ${fileName} (bootstrap UP)`);
+}
 
 function install(isGlobal, runtime) {
   const targetDir = getTargetDir(runtime, isGlobal);
@@ -1067,6 +1143,11 @@ function install(isGlobal, runtime) {
       fs.writeFileSync(configPath, existing + upConfig);
       console.log(`  ${green}✓${reset} Configured config.toml ([agents] max_depth=4, max_threads=8)`);
     }
+  }
+
+  // 4d. Brainstorm-first bootstrap (non-Claude runtimes; Claude usa hook + skills no lugar)
+  if (runtime !== 'claude') {
+    injectBootstrapInstructions(runtime, targetDir, pathPrefix);
   }
 
   // 5. Write VERSION file
