@@ -1,9 +1,9 @@
 # AUDIT-PLAN.md Template
 
-Template para `.plano/AUDIT-PLAN.md` — relatorio do up-planning-auditor.
+Template para `.plano/AUDIT-PLAN.md`. Relatorio do up-revisor (stage planejamento).
 Gerado ao final do planejamento, antes do PLAN-READY.md.
 
-Diferente do AUDIT-REPORT.md (do delivery-auditor) que audita execucao,
+Diferente do AUDIT-REPORT.md (up-revisor, stage delivery) que audita execucao,
 este audita SOMENTE o planejamento.
 
 <template>
@@ -11,7 +11,7 @@ este audita SOMENTE o planejamento.
 ```markdown
 ---
 audited_at: ""
-auditor: up-planning-auditor
+auditor: up-revisor
 planning_confidence: 0  # 0-100
 recommendation: PENDING | READY_FOR_BUILD | NEEDS_REWORK | BLOCKED
 ---

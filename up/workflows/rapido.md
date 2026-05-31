@@ -1,5 +1,11 @@
 <purpose>
 Executar tarefas pequenas e ad-hoc com garantias UP (commits atomicos, rastreamento STATE.md). Modo rapido spawna up-planejador (modo rapido) + up-executor(s), rastreia tarefas em `.plano/rapido/`, e atualiza tabela "Tarefas Rapidas Completadas" do STATE.md.
+
+**ESCAPE HATCH PURO (sem cerimonia GitHub).** Diferente de `/up:build` (GitHub-nativo por DEFAULT:
+worktree -> branch `up/fase-NN` -> issue -> PR -> menu), o modo rapido NUNCA cria worktree, NUNCA cria
+issue do GitHub, NUNCA abre PR e NAO toca em `.plano/git-map.json`. Todo o trabalho e committado
+atomicamente na branch ATUAL (mesmo semantica do `--solo` do build). E o caminho quente para
+"so faz e commita". Quem quer worktree/issue/PR usa `/up:build`.
 </purpose>
 
 <process>
@@ -233,5 +239,5 @@ Pronto para proxima tarefa: /up:rapido
 - [ ] `${next_num}-PLAN.md` criado pelo planejador
 - [ ] `${next_num}-SUMMARY.md` criado pelo executor
 - [ ] STATE.md atualizado com linha da tarefa rapida
-- [ ] Artefatos committed
+- [ ] Artefatos committed na branch ATUAL (sem worktree, sem issue, sem PR, sem git-map.json)
 </success_criteria>

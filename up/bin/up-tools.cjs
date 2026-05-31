@@ -34,6 +34,9 @@ const {
   pathExistsInternal, generateSlugInternal, toPosixPath,
 } = require('./lib/core.cjs');
 
+const github = require('./lib/github.cjs');
+const multica = require('./lib/multica.cjs');
+
 // --- Frontmatter helpers ---
 
 function extractFrontmatter(content) {
@@ -334,6 +337,48 @@ function main() {
       } else {
         error('Unknown requirements subcommand. Available: mark-complete');
       }
+      break;
+    }
+
+    // ==================== GITHUB (Fase 4: GitHub-native) ====================
+    case 'github': {
+      const sub = args[1];
+      const getFlag = (name) => {
+        const i = args.indexOf(name);
+        return i !== -1 ? args[i + 1] : null;
+      };
+      const hasFlag = (name) => args.indexOf(name) !== -1;
+
+      if (sub === 'start-phase') {
+        const phase = getFlag('--phase');
+        const slug = getFlag('--slug');
+        if (!phase) error('Usage: github start-phase --phase N --slug S [--solo]');
+        const result = github.startPhase({
+          cwd,
+          phase,
+          slug: slug || '',
+          solo: hasFlag('--solo'),
+        });
+        output(result, raw, JSON.stringify(result));
+      } else if (sub === 'finish-phase') {
+        const phase = getFlag('--phase');
+        const mode = getFlag('--mode') || 'menu';
+        const strategy = getFlag('--strategy');
+        if (!phase) error('Usage: github finish-phase --phase N --mode menu|auto|solo [--strategy squash|merge|rebase]');
+        const result = github.finishPhase({ cwd, phase, mode, strategy });
+        output(result, raw, JSON.stringify(result));
+      } else if (sub === 'status') {
+        const result = github.status({ cwd });
+        output(result, raw, JSON.stringify(result));
+      } else {
+        error('Unknown github subcommand. Available: start-phase, finish-phase, status');
+      }
+      break;
+    }
+
+    // ==================== MULTICA (Fase 5: board OPT-IN) ====================
+    case 'multica': {
+      cmdMultica(cwd, args.slice(1), raw);
       break;
     }
 
@@ -2820,60 +2865,26 @@ function cmdValidatePlan(cwd, args, raw) {
 // =====================================================================
 
 const SKILL_MANIFEST = {
-  // Execution agents — fokus em principles + production reqs
-  'up-executor': ['engineering-principles-compressed'],
-  'up-frontend-specialist': ['engineering-principles-compressed', 'ui-brand', 'production-requirements-compressed'],
-  'up-backend-specialist': ['engineering-principles-compressed', 'production-requirements-compressed'],
-  'up-database-specialist': ['engineering-principles-compressed', 'production-requirements-compressed'],
-  'up-devops-agent': ['production-requirements-compressed'],
-  'up-technical-writer': [],
+  // Execution agents — fokus em principles + production reqs.
+  // up-executor roteia frontend/backend/database por contexto (carrega
+  // ui-brand + production-requirements sob demanda quando o dominio exige).
+  'up-executor': ['engineering-principles-compressed', 'ui-brand', 'production-requirements-compressed'],
   'up-depurador': ['engineering-principles-compressed'],
 
   // Planning agents — fokus em arquitetura + reqs
   'up-planejador': ['engineering-principles-compressed'],
   'up-arquiteto': ['engineering-principles-compressed', 'production-requirements-compressed'],
-  'up-product-analyst': [],
-  'up-system-designer': ['engineering-principles-compressed', 'production-requirements-compressed'],
   'up-roteirista': [],
-  'up-pesquisador-projeto': [],
-  'up-sintetizador': [],
+  'up-pesquisador': [],
+  'up-sintetizador': ['production-requirements-compressed'],
   'up-mapeador-codigo': [],
-  'up-requirements-validator': ['production-requirements-compressed'],
 
-  // Governance — fokus em rules + rework
-  'up-execution-supervisor': ['governance-rules-compressed', 'engineering-principles-compressed', 'rework-limits-compressed'],
-  'up-verification-supervisor': ['governance-rules-compressed', 'rework-limits-compressed'],
-  'up-planning-supervisor': ['governance-rules-compressed', 'rework-limits-compressed'],
-  'up-quality-supervisor': ['governance-rules-compressed'],
-  'up-audit-supervisor': ['governance-rules-compressed'],
-  'up-product-supervisor': ['governance-rules-compressed'],
-  'up-architecture-supervisor': ['governance-rules-compressed'],
-  'up-operations-supervisor': ['governance-rules-compressed'],
-  'up-chief-engineer': ['governance-rules-compressed', 'rework-limits-compressed'],
-  'up-chief-architect': ['governance-rules-compressed'],
-  'up-chief-quality': ['governance-rules-compressed'],
-  'up-chief-operations': ['governance-rules-compressed'],
-  'up-chief-product': ['governance-rules-compressed'],
-  'up-project-ceo': ['governance-rules-compressed'],
-  'up-delivery-auditor': ['governance-rules-compressed', 'production-requirements-compressed'],
-  'up-planning-auditor': ['governance-rules-compressed'],
-
-  // Review & Testing — fokus em quality
+  // Review & Testing — fokus em quality.
+  // up-tester funde visual + exhaustive + api (multi-pass via Playwright).
   'up-verificador': ['production-requirements-compressed'],
-  'up-blind-validator': [],
-  'up-code-reviewer': ['engineering-principles-compressed'],
-  'up-security-reviewer': ['production-requirements-compressed'],
-  'up-visual-critic': ['ui-brand'],
-  'up-exhaustive-tester': [],
-  'up-api-tester': [],
-  'up-qa-agent': [],
-  'up-auditor-ux': ['audit-ux'],
-  'up-auditor-performance': ['audit-performance'],
-  'up-auditor-modernidade': ['audit-modernidade'],
-  'up-sintetizador-melhorias': [],
-  'up-analista-codigo': ['engineering-principles-compressed'],
-  'up-pesquisador-mercado': [],
-  'up-consolidador-ideias': [],
+  'up-revisor': ['engineering-principles-compressed', 'production-requirements-compressed'],
+  'up-auditor': ['audit-ux', 'audit-performance', 'audit-modernidade'],
+  'up-tester': ['ui-brand', 'production-requirements-compressed'],
 };
 
 /**
@@ -2910,6 +2921,116 @@ function cmdSkillManifest(args, raw) {
   });
 
   output({ agent, refs, paths, count: refs.length }, raw, paths.join('\n'));
+}
+
+// =====================================================================
+// MULTICA COMMAND (Fase 5 — espelho de board OPT-IN)
+// =====================================================================
+
+/**
+ * Espelha o estado do UP no board Multica (so quando --board ligado no build).
+ * Subverbos: init, sync, board. FAIL-OPEN em tudo (warning, nunca crasha).
+ *
+ * Usage:
+ *   up-tools.cjs multica init [--name <proj>] [--phase N --title <t>] [--dry-run]
+ *   up-tools.cjs multica sync --phase N --status <s> [--metadata k=v ...] [--dry-run]
+ *   up-tools.cjs multica board [--project <id>]
+ *
+ * Atualiza .plano/git-map.json com multica_issue por fase (init/sync).
+ * Saida JSON.
+ */
+function cmdMultica(cwd, args, raw) {
+  const sub = args[0];
+  const getFlag = (name) => {
+    const i = args.indexOf(name);
+    return i !== -1 ? args[i + 1] : null;
+  };
+  const hasFlag = (name) => args.indexOf(name) !== -1;
+  // --metadata k=v (repetivel)
+  const collectMetadata = () => {
+    const meta = {};
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === '--metadata' && args[i + 1]) {
+        const kv = args[i + 1];
+        const eq = kv.indexOf('=');
+        if (eq > 0) meta[kv.slice(0, eq)] = kv.slice(eq + 1);
+      }
+    }
+    return meta;
+  };
+
+  const dryRun = hasFlag('--dry-run');
+
+  if (sub === 'init') {
+    // ensureProject (+ parent issue opcional por fase quando --phase dado)
+    const name = getFlag('--name');
+    const phase = getFlag('--phase');
+    const title = getFlag('--title');
+
+    const proj = multica.ensureProject({ cwd, name, dryRun });
+    const result = { subcommand: 'init', dry_run: dryRun, project: proj };
+
+    if (phase) {
+      const projectId = proj && proj.ok && proj.project_id ? proj.project_id : null;
+      const issue = multica.ensurePhaseIssue({
+        cwd, phase, title: title || `Fase ${phase}`, project: projectId, dryRun,
+      });
+      result.issue = issue;
+      if (!dryRun && issue && issue.ok && issue.issue_id) {
+        persistMulticaIssue(cwd, phase, issue.issue_id);
+      }
+    }
+
+    output(result, raw, JSON.stringify(result));
+    return;
+  }
+
+  if (sub === 'sync') {
+    const phase = getFlag('--phase');
+    const status = getFlag('--status');
+    if (!phase) error('Usage: multica sync --phase N --status <s> [--metadata k=v ...] [--dry-run]');
+    if (!status) error('Usage: multica sync --phase N --status <s> [--metadata k=v ...] [--dry-run]');
+
+    const metadata = collectMetadata();
+    const res = multica.syncStatus({ cwd, phase, status, metadata, dryRun });
+
+    // persiste id resolvido no git-map (so quando rodou de verdade)
+    if (!dryRun && res && res.issue_id) {
+      persistMulticaIssue(cwd, phase, res.issue_id);
+    }
+
+    const result = { subcommand: 'sync', dry_run: dryRun, phase, status, metadata, result: res };
+    output(result, raw, JSON.stringify(result));
+    return;
+  }
+
+  if (sub === 'board') {
+    const project = getFlag('--project');
+    const res = multica.boardUrl({ cwd, project });
+    const result = { subcommand: 'board', ...res };
+    output(result, raw, res.url);
+    return;
+  }
+
+  error('Unknown multica subcommand. Available: init, sync, board');
+}
+
+/**
+ * Grava multica_issue por fase no .plano/git-map.json (ao lado de issue/pr do
+ * GitHub). Best-effort: nunca quebra o fluxo.
+ */
+function persistMulticaIssue(cwd, phase, multicaIssueId) {
+  try {
+    const map = github.readGitMap(cwd);
+    const key = String(phase).replace(/^0+(\d)/, '$1').replace(/^(\d+)$/, '$1');
+    const normKey = require('./lib/core.cjs').normalizePhaseName(phase).replace(/^0+(\d)/, '$1');
+    const k = normKey || key;
+    map.phases = map.phases || {};
+    map.phases[k] = { ...(map.phases[k] || {}), multica_issue: multicaIssueId };
+    github.writeGitMap(cwd, map);
+  } catch {
+    // fail-open
+  }
 }
 
 // =====================================================================

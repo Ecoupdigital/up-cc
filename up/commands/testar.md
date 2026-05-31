@@ -1,7 +1,7 @@
 ---
 name: up:testar
-description: Testar projeto completo — descobre todas paginas e APIs, clica em tudo, testa tudo, corrige o que puder
-argument-hint: "[url ou porta] [--no-fix] [--report-only]"
+description: Use quando o usuario quer testar o produto. Loop DCRV unico (detectar-corrigir-reverificar) num passe. Default roda tudo (visual, interacao, API, UX, mobile, E2E). Flags --ux/--mobile/--e2e focam.
+argument-hint: "[url ou porta] [--ux] [--mobile] [--e2e] [--no-fix]"
 allowed-tools:
   - Read
   - Write
@@ -10,17 +10,24 @@ allowed-tools:
   - Grep
   - Bash
   - Task
+  - AskUserQuestion
   - mcp__plugin_playwright_playwright__*
 ---
 <objective>
-Testar um projeto existente de forma exaustiva. Descobre TODAS as paginas e APIs pelo codigo fonte, roda os 3 detectores DCRV (Visual Critic, Exhaustive Tester, API Tester), corrige issues encontradas, e gera relatorio completo.
+Testar um projeto existente de forma exaustiva, num loop DCRV unico (Detectar -> Corrigir -> Re-verificar). Descobre TODAS as paginas e APIs pelo codigo fonte, roda os detectores, corrige issues e gera relatorio.
 
-NAO planeja, NAO cria features, NAO faz auditoria de codigo. Apenas TESTA e CORRIGE.
+Funde `/up:testar` (DCRV objetivo) + `/up:ux-tester` (experiencia em 6 dimensoes) + `/up:mobile-first` (responsividade multi-viewport) + `/up:adicionar-testes` (gerar testes unitarios/E2E) + `/up:verificar-trabalho` (gate UAT conversacional).
 
-**Standalone:** Funciona em qualquer projeto, qualquer momento. NAO requer .plano/ ou /up:novo-projeto.
-**Diferencial:** Teste objetivo — clica em tudo, testa todo endpoint, verifica visual. Nao opina sobre UX.
+**Default (sem flag): roda TUDO** — visual, interacao, API, UX, mobile e E2E, num passe consolidado.
 
-**Output:** `.plano/teste/` com DCRV-REPORT.md, issues resolvidas, screenshots.
+**Flags focam o escopo:**
+- `--ux` — avalia experiencia em 6 dimensoes (clareza, eficiencia, feedback, consistencia, acessibilidade, performance percebida) e melhora.
+- `--mobile` — responsividade em mobile/tablet sem quebrar desktop (desktop e a referencia sagrada; reverte se desktop mudar).
+- `--e2e` — foca em gerar/rodar testes E2E + unitarios (ex-adicionar-testes: classifica TDD/E2E/Pular, gera com RED-GREEN).
+
+**Standalone:** funciona em qualquer projeto, qualquer momento. NAO requer `.plano/` nem `/up`.
+
+**Output:** `.plano/teste/` com DCRV-REPORT.md, issues resolvidas, screenshots antes/depois.
 </objective>
 
 <execution_context>
@@ -32,13 +39,15 @@ NAO planeja, NAO cria features, NAO faz auditoria de codigo. Apenas TESTA e CORR
 $ARGUMENTS
 
 **Argumentos opcionais:**
-- URL ou porta: `http://localhost:3000` ou `3000` (default: detecta automaticamente)
-- `--no-fix`: Apenas gerar relatorio, NAO corrigir issues
-- `--report-only`: Alias para --no-fix
+- URL ou porta: `http://localhost:3000` ou `3000` (default: detecta automaticamente).
+- `--ux` — foca em UX (6 dimensoes).
+- `--mobile` — foca em responsividade. Aceita `--page /rota` pra uma pagina so.
+- `--e2e` — foca em gerar/rodar testes (TDD unitario + E2E browser).
+- `--no-fix` (alias `--report-only`) — apenas relatorio, NAO corrige.
 
-**Se sem argumentos:** Detecta stack, sobe dev server automaticamente, usa porta padrao.
-**Se .plano/ existe:** Usa PROJECT.md para entender o projeto.
-**Se .plano/ NAO existe:** Descobre tudo pelo codigo fonte.
+**Se nenhuma flag de foco:** roda o DCRV completo (todos os detectores).
+**Se sem argumentos:** detecta stack, sobe dev server, usa porta padrao.
+**Se .plano/ existe:** usa PROJECT.md/REQUIREMENTS.md pra entender fluxos. Senao, descobre tudo pelo codigo.
 </context>
 
 <process>
@@ -48,7 +57,6 @@ $ARGUMENTS
 ### 1.1 Detectar Stack e Dev Server
 
 ```bash
-# Detectar stack
 if [ -f package.json ]; then
   node -e "const p=require('./package.json'); console.log(JSON.stringify({name: p.name, scripts: p.scripts, deps: Object.keys(p.dependencies||{}).slice(0,20)}))"
 fi
@@ -62,10 +70,8 @@ Definir $PORT a partir dos argumentos ou detectar automaticamente.
 ### 1.2 Subir Dev Server
 
 ```bash
-# Verificar se ja esta rodando
 curl -s http://localhost:${PORT:-3000} > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-  # Detectar comando de dev
   if [ -f package.json ]; then
     npm run dev > /tmp/up-testar-server.log 2>&1 &
     TESTAR_DEV_PID=$!
@@ -73,8 +79,6 @@ if [ $? -ne 0 ]; then
     python manage.py runserver > /tmp/up-testar-server.log 2>&1 &
     TESTAR_DEV_PID=$!
   fi
-  
-  # Esperar ficar pronto (max 30s)
   for i in $(seq 1 30); do
     curl -s http://localhost:${PORT:-3000} > /dev/null 2>&1 && break
     sleep 1
@@ -88,164 +92,135 @@ Se nao subir: ERRO — informar usuario.
 
 ```bash
 echo "=== Descobrindo paginas ==="
-
 # Next.js App Router
 find app -name "page.tsx" -o -name "page.ts" 2>/dev/null | grep -v node_modules | sort
-
 # Next.js Pages Router
 find pages -name "*.tsx" -o -name "*.ts" 2>/dev/null | grep -v node_modules | grep -v "_app\|_document\|api/" | sort
-
-# React Router (Vite/CRA) — extrair paths
+# React Router (Vite/CRA)
 grep -rn "path:" src/ --include="*.tsx" --include="*.ts" --include="*.jsx" --include="*.js" 2>/dev/null | grep -v node_modules | head -30
-
 # Python (Django)
 grep -rn "path(" */urls.py 2>/dev/null | head -20
-
 # Python (FastAPI) com templates
 grep -rn "templates.TemplateResponse\|return.*html" . --include="*.py" 2>/dev/null | head -20
 ```
 
-Converter caminhos de arquivo para URLs:
-- `app/page.tsx` → `/`
-- `app/dashboard/page.tsx` → `/dashboard`
-- `app/settings/[tab]/page.tsx` → `/settings/general` (usar primeiro valor provavel)
-- `pages/about.tsx` → `/about`
-
-Montar lista `$ROUTES_UI`.
+Converter caminhos de arquivo para URLs e montar lista `$ROUTES_UI`.
 
 ### 1.4 Descobrir TODAS as APIs
 
 ```bash
 echo "=== Descobrindo APIs ==="
-
 # Next.js App Router API routes
 find app -path "*/api/*" -name "route.ts" -o -name "route.js" 2>/dev/null | grep -v node_modules | sort
-
-# Para cada route.ts, extrair metodos exportados
 for route in $(find app -path "*/api/*" -name "route.ts" 2>/dev/null); do
   methods=$(grep -oE "export.*(async )?(function )?(GET|POST|PUT|PATCH|DELETE)" "$route" | grep -oE "GET|POST|PUT|PATCH|DELETE")
   echo "$route: $methods"
 done
-
 # Next.js Pages Router API
 find pages/api -name "*.ts" -o -name "*.js" 2>/dev/null | sort
-
 # Express/Fastify
 grep -rn "app\.\(get\|post\|put\|patch\|delete\)\|router\.\(get\|post\|put\|patch\|delete\)" src/ --include="*.ts" --include="*.js" 2>/dev/null | head -30
-
 # FastAPI (Python)
 grep -rn "@app\.\(get\|post\|put\|patch\|delete\)\|@router\.\(get\|post\|put\|patch\|delete\)" . --include="*.py" 2>/dev/null | head -30
-
 # tRPC
 grep -rn "\.query\|\.mutation" src/ --include="*.ts" 2>/dev/null | grep -i "router\|procedure" | head -20
-
 # Supabase Edge Functions
 ls supabase/functions/*/index.ts 2>/dev/null
 ```
 
 Montar lista `$ROUTES_API` com metodo + path.
 
-### 1.5 Classificar Projeto e Reportar
+### 1.5 Parsear Flags e Definir Escopo
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- UP > TESTAR — DESCOBERTA COMPLETA
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- `--ux` -> SCOPE inclui auditoria de experiencia (6 dimensoes).
+- `--mobile` -> SCOPE inclui responsividade multi-viewport (aceita `--page /rota`).
+- `--e2e` -> SCOPE inclui geracao/execucao de testes (TDD unitario + E2E browser).
+- **Nenhuma flag de foco** -> SCOPE = TUDO (visual + interacao + API + UX + mobile + E2E).
+- `--no-fix`/`--report-only` -> AUTO_FIX=false.
 
-Projeto: [nome do package.json ou diretorio]
-Stack: [Next.js / Vite / FastAPI / etc.]
-Dev server: http://localhost:{PORT}
-
-Paginas encontradas: {N}
-  [lista de URLs]
-
-APIs encontradas: {N}
-  [lista de METHOD /path]
-
-Detectores a rodar:
-  [x] Visual Critic ({N} paginas × 3 viewports)
-  [x] Exhaustive Tester ({N} paginas, todos elementos)
-  [x] API Tester ({N} endpoints, bateria completa)
-
-Iniciando testes...
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-### 1.6 Criar Diretorio de Resultados
+### 1.6 Reportar Descoberta e Criar Diretorio
 
 ```bash
 mkdir -p .plano/teste
 ```
 
-## Passo 2: Rodar DCRV Global
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ UP > TESTAR — DESCOBERTA COMPLETA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Projeto: [nome]   Stack: [...]   Dev server: http://localhost:{PORT}
+Paginas: {N}   APIs: {N}   Escopo: [tudo | ux | mobile | e2e]
+Iniciando testes...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+## Passo 2: Rodar DCRV
 
 **Referencia:** `@~/.claude/up/workflows/dcrv.md`
 
-Determinar AUTO_FIX baseado nas flags:
-- Se `--no-fix` ou `--report-only`: AUTO_FIX=false
-- Senao: AUTO_FIX=true
-
-Executar workflow DCRV com parametros:
+Executar o workflow DCRV com:
 ```
 SCOPE=global
-PORT={porta do dev server}
+PORT={porta}
 MAX_CYCLES=3
 MAX_ISSUES_PER_CYCLE=20
-AUTO_FIX={true ou false baseado nas flags}
-ROUTES_UI={lista de paginas descobertas}
-ROUTES_API={lista de APIs descobertas}
+AUTO_FIX={true ou false}
+ROUTES_UI={paginas}
+ROUTES_API={APIs}
 DCRV_DIR=.plano/teste
+PASSES={derivado das flags: visual, interacao, api sempre; ux se --ux ou default; mobile se --mobile ou default; e2e se --e2e ou default}
 ```
 
-O DCRV cuida de:
-1. Rodar Visual Critic em todas paginas (3 viewports, CSS extraction, screenshots)
-2. Rodar API Tester em todas rotas (happy path, payloads invalidos, auth, edge cases)
-3. Rodar Exhaustive Tester em todas paginas (clicar em CADA elemento)
-4. Consolidar issues
-5. Se AUTO_FIX: dispatcher roteia para especialistas corrigirem
-6. Re-verificar correcoes
-7. Loop ate resolver ou max ciclos
+O DCRV (workflow unico, ja absorveu ux-tester / mobile-first / builder-e2e) cuida de:
+1. Visual em todas paginas (3 viewports, CSS extraction, screenshots)
+2. API Tester (happy path, payloads invalidos, auth, edge cases)
+3. Exhaustive Tester (clicar em CADA elemento)
+4. UX (6 dimensoes) — quando no escopo
+5. Mobile (responsividade, desktop sagrado) — quando no escopo
+6. E2E + geracao de testes (TDD/E2E classificados, RED-GREEN) — quando no escopo
+7. Consolidar issues -> se AUTO_FIX: dispatcher roteia pra correcao -> re-verificar -> loop ate resolver ou max ciclos
 
 ## Passo 3: Carregar Design Tokens (se existir)
 
 ```bash
-# Checar se projeto tem design tokens definidos
 cat .plano/DESIGN-TOKENS.md 2>/dev/null
-# Ou inferir do Tailwind config
 cat tailwind.config.ts tailwind.config.js 2>/dev/null | head -50
-# Ou de globals.css
 cat app/globals.css src/globals.css styles/globals.css 2>/dev/null | head -50
 ```
 
-Passar como referencia para o Visual Critic.
+Passar como referencia para os detectores visuais.
 
-## Passo 4: Cleanup
+## Passo 4: Gate UAT (ex-verificar-trabalho)
+
+Se `.plano/` tem fase ativa com plano, rodar gate UAT conversacional:
+- Testar cada feature planejada contra REQUIREMENTS.
+- Coletar feedback do usuario via AskUserQuestion.
+- Gerar/atualizar `VERIFICATION.md` na pasta da fase.
+- Se gaps: oferecer `/up:plan <fase> --gaps` pra planejar correcoes.
+- Se aprovado: marcar a fase como verificada.
+
+## Passo 5: Cleanup
 
 ```bash
-# Matar dev server se nos que subimos
-if [ -n "$TESTAR_DEV_PID" ]; then
-  kill $TESTAR_DEV_PID 2>/dev/null
-fi
+if [ -n "$TESTAR_DEV_PID" ]; then kill $TESTAR_DEV_PID 2>/dev/null; fi
 ```
-
 Fechar browser se aberto.
 
-## Passo 5: Apresentar Resultado
+## Passo 6: Apresentar Resultado
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  UP > TESTE COMPLETO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-## Scores
-
 | Detector | Score | Detalhes |
 |----------|-------|----------|
-| Visual | {N}/10 | {issues} issues em {paginas} paginas |
-| Interacao | {N}% pass | {passed}/{total} elementos funcionam |
-| API | {N}% pass | {passed}/{total} testes passaram |
-
-## Issues
+| Visual    | {N}/10 | {issues} em {paginas} paginas |
+| Interacao | {N}% pass | {passed}/{total} elementos |
+| API       | {N}% pass | {passed}/{total} testes |
+| UX        | {N}/10 | (se no escopo) |
+| Mobile    | {N}/10 | (se no escopo) |
+| E2E       | {M} testes | {pass}/{total} (se no escopo) |
 
 | Severidade | Encontradas | Corrigidas | Pendentes |
 |-----------|-------------|-----------|-----------|
@@ -254,20 +229,7 @@ Fechar browser se aberto.
 | Medium | {N} | {N} | {N} |
 | Low | {N} | — | {N} |
 
-## Top Issues Pendentes (se houver)
-
-[Lista das issues nao corrigidas com descricao]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Relatorio completo: .plano/teste/DCRV-REPORT.md
-Screenshots: .plano/teste/
-
-Proximos passos:
-- /up:ux-tester — avaliar experiencia do usuario
-- /up:melhorias — auditoria de codigo
-- /up:modo-builder "nova feature" — adicionar funcionalidade
-
+Relatorio: .plano/teste/DCRV-REPORT.md   Screenshots: .plano/teste/
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -275,13 +237,10 @@ Proximos passos:
 
 <success_criteria>
 - [ ] Stack detectada e dev server rodando
-- [ ] TODAS paginas descobertas pelo codigo fonte
-- [ ] TODAS APIs descobertas pelo codigo fonte
-- [ ] Visual Critic rodou em todas paginas (3 viewports)
-- [ ] Exhaustive Tester clicou em todos elementos de todas paginas
-- [ ] API Tester testou todos endpoints com bateria completa
-- [ ] Issues consolidadas com severidade
-- [ ] Issues corrigidas (se nao --no-fix)
-- [ ] DCRV-REPORT.md gerado em .plano/teste/
-- [ ] Resumo apresentado com scores
+- [ ] TODAS paginas e APIs descobertas pelo codigo fonte
+- [ ] Flags parseadas (default = roda tudo)
+- [ ] DCRV rodou os passes do escopo (visual/interacao/api + ux/mobile/e2e conforme flags)
+- [ ] Issues consolidadas com severidade e corrigidas (se nao --no-fix)
+- [ ] Gate UAT rodado quando ha fase ativa (VERIFICATION.md)
+- [ ] DCRV-REPORT.md gerado e resumo apresentado
 </success_criteria>

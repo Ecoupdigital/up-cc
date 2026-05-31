@@ -1,7 +1,7 @@
 # Production Requirements Reference
 
 Checklist de requisitos que TODO sistema pronto para producao deve ter.
-O up-system-designer e up-arquiteto usam esta referencia para injetar requisitos automaticamente.
+O up-arquiteto usa esta referencia para injetar requisitos automaticamente.
 
 Cada item e um requisito com ID sugerido. O arquiteto ajusta IDs para nao colidir com requisitos explicitos do usuario.
 

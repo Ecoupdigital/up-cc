@@ -105,6 +105,15 @@ if (hasHelp) {
 const scriptDir = __dirname;
 const packageRoot = path.resolve(scriptDir, '..');
 
+// Known UP skill directory names (namespaced). Only these are installed/removed,
+// so third-party skills under <config>/skills/ are never touched.
+const UP_SKILLS = [
+  'usando-up',
+  'up-brainstorm',
+  'up-tdd',
+  'up-verificar-antes-de-concluir',
+];
+
 // ── Runtime Helpers ──
 
 function getDirName(runtime) {
@@ -384,16 +393,14 @@ function convertCommandToGeminiToml(content) {
  * Supervisors/auditors/reviewers get read-only.
  */
 function getCodexSandboxMode(agentName) {
+  // 12 agentes (onda 2 do corte). up-executor roteia frontend/backend/database
+  // por contexto; up-tester funde visual + exhaustive + api num spawn multi-pass
+  // (precisa de workspace-write pra escrever reports).
   const writeAgents = [
-    'up-frontend-specialist', 'up-backend-specialist', 'up-database-specialist',
-    'up-executor', 'up-devops-agent', 'up-technical-writer', 'up-arquiteto',
-    'up-system-designer', 'up-roteirista', 'up-sintetizador', 'up-sintetizador-melhorias',
-    'up-consolidador-ideias', 'up-clone-crawler', 'up-clone-design-extractor',
-    'up-clone-feature-mapper', 'up-clone-prd-writer', 'up-clone-verifier',
-    'up-visual-critic', 'up-exhaustive-tester', 'up-api-tester', 'up-qa-agent',
-    'up-depurador', 'up-verificador', 'up-blind-validator', 'up-planejador',
-    'up-mapeador-codigo', 'up-analista-codigo', 'up-pesquisador-projeto',
-    'up-pesquisador-mercado', 'up-product-analyst', 'up-project-ceo',
+    'up-executor', 'up-arquiteto', 'up-roteirista', 'up-sintetizador',
+    'up-tester',
+    'up-depurador', 'up-verificador', 'up-planejador', 'up-mapeador-codigo',
+    'up-pesquisador', 'up-revisor', 'up-auditor',
   ];
   return writeAgents.includes(agentName) ? 'workspace-write' : 'read-only';
 }
@@ -659,6 +666,21 @@ function uninstall(targetDir, runtime) {
     if (removed > 0) console.log(`  ${green}✓${reset} Removed UP agents`);
   }
 
+  // Remove o bootstrap brainstorm-first do arquivo de instrucoes (non-Claude)
+  const bootstrapFile = bootstrapTargetFile(runtime);
+  if (bootstrapFile) {
+    const bootstrapPath = path.join(targetDir, bootstrapFile);
+    if (fs.existsSync(bootstrapPath)) {
+      const before = fs.readFileSync(bootstrapPath, 'utf8');
+      const after = stripUpBootstrapBlock(before);
+      if (after !== before) {
+        if (after.trim()) fs.writeFileSync(bootstrapPath, after.trimEnd() + '\n');
+        else fs.unlinkSync(bootstrapPath); // o arquivo era so do UP -> remove
+        console.log(`  ${green}✓${reset} Removed UP bootstrap de ${bootstrapFile}`);
+      }
+    }
+  }
+
   // Remove UP commands (runtime-specific structure)
   if (runtime === 'codex') {
     // Codex: skills/up-X folders
@@ -714,6 +736,27 @@ function uninstall(targetDir, runtime) {
     console.log(`  ${green}✓${reset} Removed UP hooks`);
   }
 
+  // Remove UP skills layer (Claude Code only — only the known UP skill dirs,
+  // never third-party skills).
+  if (runtime === 'claude') {
+    const skillsDir = path.join(targetDir, 'skills');
+    if (fs.existsSync(skillsDir)) {
+      let skillCount = 0;
+      for (const skillName of UP_SKILLS) {
+        const skillPath = path.join(skillsDir, skillName);
+        if (fs.existsSync(skillPath)) {
+          const count = countFiles(skillPath);
+          rmDir(skillPath);
+          removed += count;
+          skillCount++;
+        }
+      }
+      if (skillCount > 0) {
+        console.log(`  ${green}✓${reset} Removed ${skillCount} UP skills`);
+      }
+    }
+  }
+
   // Clean settings.json references
   if (runtime === 'claude') {
     const settingsPath = path.join(targetDir, 'settings.json');
@@ -733,7 +776,20 @@ function uninstall(targetDir, runtime) {
             return !hooks.some(h => h.command && h.command.includes('up-context-monitor'));
           });
           if (settings.hooks.PostToolUse.length === 0) delete settings.hooks.PostToolUse;
-          if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
+          changed = true;
+        }
+
+        if (settings.hooks && settings.hooks.SessionStart) {
+          settings.hooks.SessionStart = settings.hooks.SessionStart.filter(entry => {
+            const hooks = entry.hooks || [];
+            return !hooks.some(h => h.command && h.command.includes('up-session-start'));
+          });
+          if (settings.hooks.SessionStart.length === 0) delete settings.hooks.SessionStart;
+          changed = true;
+        }
+
+        if (settings.hooks && Object.keys(settings.hooks).length === 0) {
+          delete settings.hooks;
           changed = true;
         }
 
@@ -753,6 +809,67 @@ function uninstall(targetDir, runtime) {
 }
 
 // ── INSTALL ──
+
+// ── Brainstorm-first bootstrap for non-Claude runtimes ──
+// Claude usa o hook SessionStart + skills. Gemini/OpenCode/Codex nao tem esse mecanismo,
+// entao injetamos a doutrina UP no arquivo de instrucoes global do runtime (sempre carregado).
+const UP_BOOTSTRAP_START = '<!-- UP-BOOTSTRAP:START (gerado por up-cc; nao edite a mao) -->';
+const UP_BOOTSTRAP_END = '<!-- UP-BOOTSTRAP:END -->';
+
+function bootstrapTargetFile(runtime) {
+  if (runtime === 'gemini') return 'GEMINI.md';
+  if (runtime === 'opencode' || runtime === 'codex') return 'AGENTS.md';
+  return null;
+}
+
+function buildUpBootstrapBlock(runtime, pathPrefix) {
+  const cmd = runtime === 'opencode' ? '/up-' : runtime === 'codex' ? '$up-' : '/up:';
+  const entry = runtime === 'opencode' ? '/up-up' : runtime === 'codex' ? '$up-up' : '/up:up';
+  const skills = toHomePrefix(pathPrefix) + 'up/skills';
+  return [
+    UP_BOOTSTRAP_START,
+    '# UP (up-cc): doutrina sempre-ativa',
+    '',
+    'Voce tem o UP instalado. Antes de QUALQUER trabalho de codigo, design ou decisao, siga:',
+    '',
+    '1. BRAINSTORM-FIRST: explore intencao, requisitos e design ANTES de implementar. Escale por tamanho:',
+    '   trivial = 0 perguntas (anuncia e faz); pequena = 1 pergunta; media/grande = brainstorm completo com',
+    '   aprovacao por secao. Ref: ' + skills + '/up-brainstorm/SKILL.md',
+    '2. LEI DE FERRO (evidencia antes de afirmar): nunca diga "pronto", "funciona" ou "corrigido" sem rodar a',
+    '   prova NESTA resposta e confirmar a saida. Ref: ' + skills + '/up-verificar-antes-de-concluir/SKILL.md',
+    '3. TDD POR TIPO: logica/parser/bugfix = teste red-green; UI/CSS = prova visual (antes/depois);',
+    '   glue/integracao = smoke-test. Ref: ' + skills + '/up-tdd/SKILL.md',
+    '4. GitHub-nativo e o padrao no ' + cmd + 'build (worktree -> issue -> PR -> merge); ' + cmd + 'rapido pula a cerimonia.',
+    '5. O estado vive em .plano/ e sobrevive a reset de contexto. Persistencia e o coracao do UP.',
+    '',
+    'Porta unica: ' + entry + ' "sua ideia". Comandos: ' + cmd + 'up, ' + cmd + 'plan, ' + cmd + 'build, ' + cmd + 'testar, ' + cmd + 'auditar, ' + cmd + 'depurar, ' + cmd + 'rapido.',
+    UP_BOOTSTRAP_END,
+  ].join('\n');
+}
+
+// Remove um bloco UP previo (idempotente). Retorna o conteudo sem o bloco.
+function stripUpBootstrapBlock(content) {
+  const startIdx = content.indexOf(UP_BOOTSTRAP_START);
+  if (startIdx === -1) return content;
+  const endIdx = content.indexOf(UP_BOOTSTRAP_END, startIdx);
+  if (endIdx === -1) return content;
+  const before = content.slice(0, startIdx).replace(/\n*$/, '');
+  const after = content.slice(endIdx + UP_BOOTSTRAP_END.length).replace(/^\n*/, '');
+  return (before + (before && after ? '\n\n' : '') + after).trim();
+}
+
+function injectBootstrapInstructions(runtime, targetDir, pathPrefix) {
+  const fileName = bootstrapTargetFile(runtime);
+  if (!fileName) return;
+  const filePath = path.join(targetDir, fileName);
+  let existing = '';
+  if (fs.existsSync(filePath)) existing = fs.readFileSync(filePath, 'utf8');
+  existing = stripUpBootstrapBlock(existing); // idempotente: tira o bloco antigo
+  const block = buildUpBootstrapBlock(runtime, pathPrefix);
+  const next = existing ? existing.trimEnd() + '\n\n' + block + '\n' : block + '\n';
+  fs.writeFileSync(filePath, next);
+  console.log(`  ${green}✓${reset} Brainstorm-first em ${fileName} (bootstrap UP)`);
+}
 
 function install(isGlobal, runtime) {
   const targetDir = getTargetDir(runtime, isGlobal);
@@ -927,6 +1044,7 @@ function install(isGlobal, runtime) {
 
       const statuslineCmd = `node "${path.join(hooksDest, 'up-statusline.js')}"`;
       const contextMonitorCmd = `node "${path.join(hooksDest, 'up-context-monitor.js')}"`;
+      const sessionStartCmd = `node "${path.join(hooksDest, 'up-session-start.js')}"`;
 
       // Set statusLine
       settings.statusLine = { type: 'command', command: statuslineCmd };
@@ -951,13 +1069,51 @@ function install(isGlobal, runtime) {
         if (settings.hooks.SessionStart.length === 0) delete settings.hooks.SessionStart;
       }
 
+      // Set SessionStart hook for the UP skill bootstrap (idempotent).
+      // Fires on startup/clear/compact; the hook itself decides per source.
+      const sessionStartHooks = settings.hooks.SessionStart || [];
+      // Drop any prior UP session-start entries before re-adding (no duplicates)
+      const sessionFiltered = sessionStartHooks.filter(entry => {
+        const hooks = entry.hooks || [];
+        return !hooks.some(h => h.command && h.command.includes('up-session-start'));
+      });
+      sessionFiltered.push({
+        matcher: 'startup|clear|compact',
+        hooks: [{ type: 'command', command: sessionStartCmd }],
+      });
+      settings.hooks.SessionStart = sessionFiltered;
+
       // Clean old GSD statusLine reference
       if (settings.statusLine && settings.statusLine.command && settings.statusLine.command.includes('gsd-statusline')) {
         settings.statusLine = { type: 'command', command: statuslineCmd };
       }
 
       fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
-      console.log(`  ${green}✓${reset} Configured statusLine and context monitor`);
+      console.log(`  ${green}✓${reset} Configured statusLine, context monitor and session-start hook`);
+    }
+  }
+
+  // 4c. Install skills layer (Claude Code discovers skills at <config>/skills/*/SKILL.md)
+  if (runtime === 'claude') {
+    const skillsSrc = path.join(packageRoot, 'skills');
+    if (fs.existsSync(skillsSrc)) {
+      const skillsDest = path.join(targetDir, 'skills');
+      fs.mkdirSync(skillsDest, { recursive: true });
+
+      let skillCount = 0;
+      for (const skillName of UP_SKILLS) {
+        const src = path.join(skillsSrc, skillName);
+        if (fs.existsSync(src) && fs.statSync(src).isDirectory()) {
+          // copyDirWithReplace clears the dest dir first, so existing third-party
+          // skills (other names) are untouched — only this dir is replaced.
+          copyDirWithReplace(src, path.join(skillsDest, skillName), pathPrefix, runtime);
+          skillCount++;
+        }
+      }
+
+      if (skillCount > 0) {
+        console.log(`  ${green}✓${reset} Installed ${skillCount} skills`);
+      }
     }
   }
 
@@ -971,9 +1127,13 @@ function install(isGlobal, runtime) {
 
     // UP needs deeper agent nesting than Codex default (max_depth=1).
     // Hierarchy: CEO → Chiefs → Supervisors → Operationals = 4 levels.
-    // We do an idempotent merge: if [agents] section exists, only add missing keys.
     const upMarker = '# UP — added by up-cc installer';
-    if (!existing.includes(upMarker)) {
+    const hasAgentsSection = /^\[agents\]/m.test(existing);
+    if (existing.includes(upMarker)) {
+      console.log(`  ${dim}config.toml already has UP settings — skipped${reset}`);
+    } else if (hasAgentsSection) {
+      console.log(`  ${dim}config.toml already has [agents] section — skipped (verify max_depth>=4, max_threads>=8)${reset}`);
+    } else {
       const upConfig =
         `\n${upMarker}\n` +
         `[agents]\n` +
@@ -982,9 +1142,12 @@ function install(isGlobal, runtime) {
         `job_max_runtime_seconds = 3600\n`;
       fs.writeFileSync(configPath, existing + upConfig);
       console.log(`  ${green}✓${reset} Configured config.toml ([agents] max_depth=4, max_threads=8)`);
-    } else {
-      console.log(`  ${dim}config.toml already has UP settings — skipped${reset}`);
     }
+  }
+
+  // 4d. Brainstorm-first bootstrap (non-Claude runtimes; Claude usa hook + skills no lugar)
+  if (runtime !== 'claude') {
+    injectBootstrapInstructions(runtime, targetDir, pathPrefix);
   }
 
   // 5. Write VERSION file
@@ -1008,10 +1171,10 @@ function install(isGlobal, runtime) {
   }
 
   let command;
-  if (runtime === 'opencode') command = '/up-ajuda';
-  else if (runtime === 'codex') command = '$up-ajuda';
-  else command = '/up:ajuda';
-  console.log(`\n  ${green}Done!${reset} Run ${cyan}${command}${reset} in ${label} to get started.\n`);
+  if (runtime === 'opencode') command = '/up-up';
+  else if (runtime === 'codex') command = '$up-up';
+  else command = '/up:up';
+  console.log(`\n  ${green}Done!${reset} Run ${cyan}${command} "sua ideia"${reset} in ${label} to get started.\n`);
 }
 
 // ── INTERACTIVE MODE ──

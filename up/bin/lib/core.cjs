@@ -86,59 +86,23 @@ const MODEL_PRESETS = {
   },
 };
 
-// Map agent names to their model role
+// Map agent names to their model role (12 agentes — onda 2 do corte)
 const AGENT_ROLE_MAP = {
   // Planning
   'up-planejador': 'planning',
   'up-arquiteto': 'planning',
-  'up-product-analyst': 'planning',
-  'up-system-designer': 'planning',
   'up-roteirista': 'planning',
-  'up-pesquisador-projeto': 'planning',
   'up-sintetizador': 'planning',
   'up-mapeador-codigo': 'planning',
-  'up-requirements-validator': 'planning',
-  // Execution
+  'up-pesquisador': 'planning',
+  // Execution (up-executor roteia frontend/backend/database por contexto)
   'up-executor': 'execution',
-  'up-frontend-specialist': 'execution',
-  'up-backend-specialist': 'execution',
-  'up-database-specialist': 'execution',
-  'up-devops-agent': 'execution',
-  'up-technical-writer': 'execution',
   'up-depurador': 'execution',
-  // Governance (supervisors + chiefs + CEO)
-  'up-execution-supervisor': 'governance',
-  'up-verification-supervisor': 'governance',
-  'up-planning-supervisor': 'governance',
-  'up-quality-supervisor': 'governance',
-  'up-audit-supervisor': 'governance',
-  'up-product-supervisor': 'governance',
-  'up-architecture-supervisor': 'governance',
-  'up-operations-supervisor': 'governance',
-  'up-chief-engineer': 'governance',
-  'up-chief-architect': 'governance',
-  'up-chief-quality': 'governance',
-  'up-chief-operations': 'governance',
-  'up-chief-product': 'governance',
-  'up-project-ceo': 'governance',
-  'up-delivery-auditor': 'governance',
-  'up-planning-auditor': 'governance',
-  // Review & Testing
+  // Review & Testing (up-tester funde os 3 detectores DCRV)
   'up-verificador': 'review',
-  'up-blind-validator': 'review',
-  'up-code-reviewer': 'review',
-  'up-security-reviewer': 'review',
-  'up-visual-critic': 'review',
-  'up-exhaustive-tester': 'review',
-  'up-api-tester': 'review',
-  'up-qa-agent': 'review',
-  'up-auditor-ux': 'review',
-  'up-auditor-performance': 'review',
-  'up-auditor-modernidade': 'review',
-  'up-sintetizador-melhorias': 'review',
-  'up-analista-codigo': 'review',
-  'up-pesquisador-mercado': 'review',
-  'up-consolidador-ideias': 'review',
+  'up-revisor': 'review',
+  'up-auditor': 'review',
+  'up-tester': 'review',
 };
 
 function loadConfig(cwd) {
@@ -150,6 +114,13 @@ function loadConfig(cwd) {
     auto_advance: false,
     instrumentation: { enabled: true },
     budget_ceiling: null,
+    // Fase 4: GitHub-native e o PADRAO. --solo no comando forca github_native=false
+    // so na execucao (o build.md le a flag e roteia para o modo solo, sem persistir).
+    github_native: true,
+    merge_strategy: 'squash',
+    // Fim de fase: se a fase tem UI, sobe dev server e exige aprovacao visual ANTES do merge.
+    // true por padrao (projeto em producao nao mergeia sem o dono ver na tela). --auto so pula se false.
+    require_visual_test: true,
   };
 
   try {
@@ -164,6 +135,9 @@ function loadConfig(cwd) {
       modelos: parsed.modelos ?? null,
       instrumentation: parsed.instrumentation ?? defaults.instrumentation,
       budget_ceiling: parsed.budget_ceiling ?? defaults.budget_ceiling,
+      github_native: parsed.github_native ?? defaults.github_native,
+      merge_strategy: parsed.merge_strategy ?? defaults.merge_strategy,
+      require_visual_test: parsed.require_visual_test ?? defaults.require_visual_test,
     };
   } catch {
     return defaults;

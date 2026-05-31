@@ -1,6 +1,6 @@
 # AUDIT-REPORT.md Template
 
-Template para `.plano/AUDIT-REPORT.md` — relatorio do Delivery Auditor.
+Template para `.plano/AUDIT-REPORT.md`. Relatorio do up-revisor (stage delivery).
 Gerado no Estagio 4.5, antes do Delivery.
 
 <template>
@@ -8,7 +8,7 @@ Gerado no Estagio 4.5, antes do Delivery.
 ```markdown
 ---
 audited_at: ""
-auditor: up-delivery-auditor
+auditor: up-revisor
 confidence_score: 0
 quality_score: 0
 recommendation: PENDING | READY_FOR_DELIVERY | NEEDS_REWORK | BLOCKED

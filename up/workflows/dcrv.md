@@ -1,23 +1,53 @@
 <purpose>
-Workflow DCRV (Detectar → Classificar → Resolver → Verificar) — loop de qualidade reutilizavel.
+Workflow DCRV (Detectar → Classificar → Resolver → Verificar) — loop de qualidade unico do UP.
 
-Roda 3 detectores (Visual Critic, Exhaustive Tester, API Tester), consolida issues, despacha para especialistas corrigirem, e re-verifica. Loop ate resolver ou atingir max ciclos.
+Roda o detector unico `up-tester` (spawn multi-pass: visual + exhaustive + api via Playwright), consolida
+issues, despacha para o `up-executor` corrigir (roteando por contexto), e re-verifica. Loop ate resolver
+ou atingir max ciclos.
 
-**Modos de uso:**
-- **Por fase (builder):** Testa apenas paginas/rotas da fase recem-executada
-- **Global (quality gate):** Testa TODAS as paginas/rotas do projeto
-- **Standalone:** Chamado por /up:executar-fase, /up:rapido, /up:ux-tester, /up:verificar-trabalho
-- **Light (1 ciclo):** Roda detectores + reporta, sem loop de correcao
+Este e o workflow UNICO de `/up:testar` no redesign v2. Absorveu builder-e2e.md (E2E + smoke + console
+errors), ux-tester.md (avaliacao em 6 dimensoes), mobile-first.md (responsividade por breakpoint) e
+verificar-trabalho.md (gate UAT). Tudo vira FLAG/MODO sobre o mesmo loop. Default = roda tudo.
+
+**Scopes de uso:**
+- **Por fase (build):** Testa apenas paginas/rotas da fase recem-executada. Inclui E2E da fase.
+- **Global (quality gate):** Testa TODAS as paginas/rotas do projeto. Inclui smoke + E2E + responsividade.
+- **Light (1 ciclo):** Roda detectores + reporta, sem loop de correcao.
+
+**Flags de `/up:testar` (default = todas ligadas):**
+- `--ux`: alem dos detectores, avalia as 6 dimensoes de UX (clareza, eficiencia, feedback, consistencia,
+  a11y basica, performance percebida) e gera UX-REPORT.md.
+- `--mobile`: testa responsividade por breakpoint (375px, 768px, 1024px), touch 44x44, hamburger;
+  detecta e corrige problemas sem quebrar desktop.
+- `--e2e`: smoke test de rotas + fluxos E2E principais + erros de console (absorve builder-e2e). No
+  build, roda por fase automaticamente.
+- gate UAT (absorve verificar-trabalho): cria/retoma `.plano/fases/XX/{N}-UAT.md` (sobrevive a /clear)
+  com testes de aceitacao; alimenta lacunas de volta pra `/up:plan`.
 
 **Parametros esperados no prompt:**
 - `$SCOPE`: "phase" | "global" | "light"
-- `$PHASE_DIR`: diretorio da fase (se scope=phase)
-- `$PHASE_NUMBER`: numero da fase (se scope=phase)
-- `$ROUTES`: lista de rotas a testar (se vazio, descobre automaticamente)
+- `$PHASE_DIR`, `$PHASE_NUMBER`: se scope=phase
+- `$ROUTES`: rotas a testar (vazio = descobre automaticamente)
 - `$PORT`: porta do dev server (default: 3000)
-- `$MAX_CYCLES`: max ciclos de correcao (default: 3 para phase, 5 para global, 1 para light)
-- `$MAX_ISSUES_PER_CYCLE`: max issues para corrigir por ciclo (default: 15 para phase, 20 para global)
-- `$AUTO_FIX`: true | false (se false, apenas reporta sem corrigir)
+- `$MAX_CYCLES`: default 3 (phase), 5 (global), 1 (light)
+- `$MAX_ISSUES_PER_CYCLE`: default 15 (phase), 20 (global)
+- `$AUTO_FIX`: true | false
+- `$MODES`: subconjunto de {ux, mobile, e2e, uat} (vazio = roda tudo aplicavel ao projeto)
+
+Spawns (Onda 2 do corte): `up-tester` (detector unico multi-pass: visual + exhaustive + api);
+`up-executor` (correcao, roteando por contexto). Os 3 detectores DCRV antigos foram fundidos no
+`up-tester` e os specialists de dominio foram fundidos no `up-executor` (nenhum agente separado).
+
+**Evidencia para o GATE de fase (Fase 3 - TDD por tipo).** Quando rodado por fase no build, este loop
+PRODUZ a evidencia que o GATE exige no approvals.log (`evidence=<tipo>:<resultado>`):
+- **ui:visual** - a captura visual antes/depois do `up-tester` (pass visual; screenshots em `{$DCRV_DIR}`)
+  e a evidencia de fases de UI/CSS. O VISUAL-REPORT.md + as imagens sao o artefato que o up-revisor confirma.
+- **glue:smoke** - o smoke-test do modo E2E (navegar rotas / exercitar a integracao, capturar erros de
+  console / status) e a evidencia de fases de integracao (Asaas/uazapi/etc).
+- **logic:test_pass** - fases de logica (parser/calculo/API-propria/bugfix) provam via teste red-green no
+  verificador (fora deste loop); o DCRV nao e a fonte para `logic`.
+O up-revisor (build 3.7) le esses artefatos e carimba o campo `evidence` no approvals.log. Nenhum CLI novo:
+a evidencia sao os relatorios/screenshots ja gerados aqui.
 </purpose>
 
 <process>
@@ -68,16 +98,20 @@ grep -rn "app\.\(get\|post\|put\|patch\|delete\)" src/ --include="*.ts" --includ
 
 ### 0.3 Classificar projeto
 
-```
-HAS_UI = rotas de pagina encontradas?
-HAS_API = rotas de API encontradas?
+```bash
+# HAS_UI=true se ha rotas de pagina; HAS_API=true se ha rotas de API.
+[ -n "$ROUTES_UI" ]  && HAS_UI=true  || HAS_UI=false
+[ -n "$ROUTES_API" ] && HAS_API=true || HAS_API=false
 ```
 
-| Projeto | Detectores |
-|---------|-----------|
-| UI + API | Visual Critic → API Tester → Exhaustive Tester (todos) |
-| UI only | Visual Critic → Exhaustive Tester (pular API) |
-| API only | API Tester com profundidade extra (pular visual + exhaustive) |
+O detector e UNICO (`up-tester`), multi-pass. A classificacao do projeto decide QUAIS passes o up-tester
+roda (passado no prompt como `$PASSES`):
+
+| Projeto | Passes do up-tester |
+|---------|---------------------|
+| UI + API | visual + exhaustive + api (todos) |
+| UI only | visual + exhaustive (pular api) |
+| API only | api com profundidade extra (pular visual + exhaustive) |
 | Infra/schema | Pular DCRV (nada para testar via browser/curl) |
 
 ### 0.4 Carregar referencia visual
@@ -86,7 +120,7 @@ HAS_API = rotas de API encontradas?
 cat .plano/DESIGN-TOKENS.md 2>/dev/null
 ```
 
-Se nao existe: visual critic vai inferir do codebase (e registrar ausencia como issue leve).
+Se nao existe: o up-tester (pass visual) vai inferir do codebase (e registrar ausencia como issue leve).
 
 ### 0.5 Definir output dir
 
@@ -101,7 +135,7 @@ fi
 mkdir -p "$DCRV_DIR"
 ```
 
-## Passo 1: Detectar (Rodar Detectores)
+## Passo 1: Detectar (up-tester multi-pass — UM spawn)
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -109,61 +143,46 @@ mkdir -p "$DCRV_DIR"
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-**Ordem obrigatoria: Visual → API → Exhaustive**
-(Visual so observa, API usa curl, Exhaustive clica em tudo — minimiza interferencia)
+Um UNICO spawn do `up-tester` roda os 3 passes internamente, na ORDEM OBRIGATORIA **visual → api →
+exhaustive** (visual so observa, api usa curl, exhaustive clica em tudo: ordem minimiza interferencia).
+Os passes rodados sao restritos pela classificacao do projeto (`$PASSES`, do Passo 0.3).
 
-### 1.1 Visual Critic (se HAS_UI)
+```bash
+# Montar a lista de passes conforme HAS_UI / HAS_API.
+PASSES=""
+[ "$HAS_UI" = "true" ]  && PASSES="visual,exhaustive"
+[ "$HAS_API" = "true" ] && PASSES="${PASSES:+$PASSES,}api"
+# API only: profundidade extra no pass api (visual/exhaustive ausentes).
+```
 
 ```python
 Agent(
-  subagent_type="up-visual-critic",
-  prompt="""
-    Avaliar qualidade visual.
-    
+  subagent_type="up-tester",
+  prompt=f"""
+    Detector multi-pass do DCRV. Rodar SO os passes: {$PASSES} (ordem: visual → api → exhaustive).
+
     <files_to_read>
-    - .plano/DESIGN-TOKENS.md (referencia visual, se existe)
+    - .plano/DESIGN-TOKENS.md (referencia visual, se existe; pass visual)
     </files_to_read>
-    
-    Paginas a testar: {$ROUTES_UI}
+
     Dev server: http://localhost:{$PORT}
-    
-    Salvar relatorio em: {$DCRV_DIR}/VISUAL-REPORT.md
-    Salvar issues em: {$DCRV_DIR}/VISUAL-ISSUES.json
-  """
-)
-```
+    Paginas (passes visual/exhaustive): {$ROUTES_UI}
+    Rotas API (pass api): {$ROUTES_API}
 
-### 1.2 API Tester (se HAS_API)
+    PASS visual (se em $PASSES): avaliar qualidade visual de cada pagina. Capturar screenshot de CADA
+    pagina em {$DCRV_DIR}/captures/ (antes/depois quando houver correcao). Estas capturas sao a EVIDENCIA
+    ui:visual do GATE de fase (Fase 3 - TDD por tipo).
+      -> {$DCRV_DIR}/VISUAL-REPORT.md + {$DCRV_DIR}/VISUAL-ISSUES.json
 
-```python
-Agent(
-  subagent_type="up-api-tester",
-  prompt="""
-    Testar robustez das rotas API.
-    
-    Rotas a testar: {$ROUTES_API}
-    Dev server: http://localhost:{$PORT}
-    
-    Salvar relatorio em: {$DCRV_DIR}/API-REPORT.md
-    Salvar issues em: {$DCRV_DIR}/API-ISSUES.json
-  """
-)
-```
+    PASS api (se em $PASSES): testar robustez das rotas API (inputs invalidos, auth, status, edge cases;
+    profundidade extra se for o unico pass).
+      -> {$DCRV_DIR}/API-REPORT.md + {$DCRV_DIR}/API-ISSUES.json
 
-### 1.3 Exhaustive Tester (se HAS_UI)
+    PASS exhaustive (se em $PASSES): testar CADA elemento interativo, sem limite: clicar em tudo.
+      -> {$DCRV_DIR}/EXHAUSTIVE-REPORT.md + {$DCRV_DIR}/EXHAUSTIVE-ISSUES.json
 
-```python
-Agent(
-  subagent_type="up-exhaustive-tester",
-  prompt="""
-    Testar CADA elemento interativo.
-    
-    Paginas a testar: {$ROUTES_UI}
-    Dev server: http://localhost:{$PORT}
-    Sem limite de elementos — testar TODOS.
-    
-    Salvar relatorio em: {$DCRV_DIR}/EXHAUSTIVE-REPORT.md
-    Salvar issues em: {$DCRV_DIR}/EXHAUSTIVE-ISSUES.json
+    Manter os MESMOS nomes de arquivo por pass (o Passo 2 le os JSONs por pass independente de qual
+    detector rodou).
   """
 )
 ```
@@ -229,7 +248,7 @@ Escrever em `{$DCRV_DIR}/ISSUE-BOARD.md`.
 
 **Se zero issues para correcao:** Pular para Passo 5 (score perfeito).
 
-## Passo 3: Resolver (Dispatcher + Especialistas)
+## Passo 3: Resolver (Dispatcher + up-executor por contexto)
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -237,16 +256,18 @@ Escrever em `{$DCRV_DIR}/ISSUE-BOARD.md`.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-### 3.1 Diagnosticar e Rotear
+### 3.1 Diagnosticar e Determinar Dominio
 
-Para cada issue a corrigir, o orquestrador FAZ diagnostico rapido:
+A correcao SEMPRE vai pro `up-executor` (Onda 2: sem specialists separados). O diagnostico abaixo NAO
+escolhe agente; so determina o DOMINIO (`frontend`/`backend`/`database`) que o orquestrador passa ao
+executor pra ele carregar a skill/ref certa por contexto.
 
 **Issues visuais (VIS-*):**
 ```bash
 # Encontrar componente da pagina
 grep -rn "[rota_ou_componente]" src/ --include="*.tsx" --include="*.ts" | head -5
 ```
-→ Rotear para `up-frontend-specialist`
+→ dominio `frontend`
 
 **Issues de interacao (INT-*):**
 ```bash
@@ -254,37 +275,37 @@ grep -rn "[rota_ou_componente]" src/ --include="*.tsx" --include="*.ts" | head -
 grep -rn "onClick\|onSubmit\|onChange" [arquivo_do_componente] | head -10
 ```
 - Handler existe e chama API? → Verificar se API funciona
-  - API falha: `up-backend-specialist`
-  - API OK, handler bugado: `up-frontend-specialist`
-- Handler nao existe: `up-frontend-specialist`
-- Handler vazio (`() => {}`): `up-frontend-specialist`
+  - API falha: dominio `backend`
+  - API OK, handler bugado: dominio `frontend`
+- Handler nao existe / vazio (`() => {}`): dominio `frontend`
 
 **Issues de API (API-*):**
-- Validacao faltando: `up-backend-specialist`
-- Schema/dados errados: `up-database-specialist`
-- Auth bypass: `up-backend-specialist`
-- 500 crash: `up-backend-specialist`
+- Validacao faltando / auth bypass / 500 crash: dominio `backend`
+- Schema/dados errados: dominio `database`
 
-### 3.2 Spawnar Especialistas
+### 3.2 Spawnar up-executor (correcao, agrupado por dominio)
 
-Agrupar issues por especialista para eficiencia (1 spawn com multiplas issues em vez de 1 spawn por issue):
+Agrupar issues por DOMINIO para eficiencia (1 spawn de up-executor por dominio com multiplas issues, em
+vez de 1 spawn por issue). O executor roteia por contexto conforme o `<dominio>` recebido.
 
 ```python
 Agent(
-  subagent_type="up-frontend-specialist",
+  subagent_type="up-executor",
   prompt="""
-    Corrigir as seguintes issues de qualidade:
-    
+    <modo>correcao-dcrv</modo>
+    <dominio>{frontend|backend|database}</dominio>
+    Carregue a skill/ref do dominio por contexto e corrija as seguintes issues de qualidade:
+
     1. {VIS-001}: {titulo} — {descricao} — Fix: {suggested_fix}
        Arquivo: {path} | Screenshot: {evidence}
-    
+
     2. {INT-003}: {titulo} — {descricao} — Fix: {suggested_fix}
        Arquivo: {path}
-    
+
     Para cada issue:
     - Corrigir o problema
     - Commitar: fix({scope}): {issue_id} — {titulo}
-    
+
     NAO criar SUMMARY.md. Apenas corrigir e commitar.
   """
 )
@@ -299,13 +320,13 @@ DCRV Ciclo {CYCLE}: {resolved}/{to_fix} issues resolvidas
   ✗ API-007: Amount negativo → 2 tentativas, nao corrigido
 ```
 
-## Passo 4: Verificar (Re-rodar Detectores)
+## Passo 4: Verificar (Re-rodar up-tester nos passes afetados)
 
-Re-rodar APENAS os detectores relevantes, APENAS nas issues que foram corrigidas:
+Re-spawnar `up-tester` APENAS com os passes relevantes (`$PASSES` restrito), APENAS nas issues corrigidas:
 
-- Issues VIS-* corrigidas → re-rodar visual critic na pagina afetada
-- Issues INT-* corrigidas → re-rodar exhaustive tester na pagina afetada
-- Issues API-* corrigidas → re-rodar api tester na rota afetada
+- Issues VIS-* corrigidas → re-rodar o pass `visual` na pagina afetada
+- Issues INT-* corrigidas → re-rodar o pass `exhaustive` na pagina afetada
+- Issues API-* corrigidas → re-rodar o pass `api` na rota afetada
 
 **Criterio de saida:**
 - Todas issues critical/high corrigidas → FIM (sucesso)
@@ -408,14 +429,77 @@ Para cada fase anterior com UI (< fase atual):
 Regressoes entram no issue board com prioridade maxima (corrigir antes de issues novas).
 </smoke_regression>
 
+<absorbed_modes>
+## Modos absorvidos (flags de /up:testar)
+
+Estes modos rodam JUNTO do loop DCRV (mesmos detectores, mesmo dispatcher de correcao). Default: todos
+os aplicaveis ao projeto. As flags `--ux/--mobile/--e2e` restringem a um subconjunto.
+
+### Modo E2E (absorve builder-e2e.md)
+
+Ativado por `--e2e`, e SEMPRE no build (scope=phase) e no quality gate (scope=global).
+
+1. **Subir/garantir dev server** (Passo 0.1 ja faz). Manter rodando entre fases (nao matar a cada fase).
+2. **Smoke test de rotas:** navegar cada rota descoberta, capturar erros de console
+   (`browser_console_messages level=error`) e screenshot. Rota que da tela branca/erro -> issue critical.
+3. **Fluxos E2E principais (scope=global):** identificar 2-4 fluxos do dominio (ex: signup -> login ->
+   acao core) e executa-los ponta a ponta via Playwright. Falha de fluxo -> issue high/critical.
+4. **Por fase (scope=phase):** extrair os testes/criterios da fase do SUMMARY e exercitar so o que a
+   fase tocou. Erros de console globais entram no issue board.
+5. As issues E2E entram no ISSUE-BOARD junto das dos detectores e seguem o mesmo loop de correcao.
+6. **Evidencia glue:smoke (Fase 3 - TDD):** o smoke de rotas + a verificacao da integracao (status/console
+   limpos apos exercitar o fluxo) sao a evidencia que o GATE de fase exige para fases de integracao
+   (Asaas/uazapi/etc). Registrar o resultado do smoke no relatorio para o up-revisor confirmar (glue:smoke).
+
+### Modo UX (absorve ux-tester.md)
+
+Ativado por `--ux`. Apos os detectores, navegar o sistema como usuario real e avaliar 6 dimensoes,
+gerando `{$DCRV_DIR}/UX-REPORT.md` com score por dimensao:
+
+1. **Clareza** — proposito de cada tela e obvio? CTAs claros?
+2. **Eficiencia** — numero de cliques pra completar tarefas core; atalhos.
+3. **Feedback** — toda acao tem resposta (loading/sucesso/erro)? (cruza com issues INT-* do exhaustive).
+4. **Consistencia** — padroes visuais/interacao uniformes (cruza com issues VIS-* do visual critic).
+5. **Acessibilidade basica** — foco visivel, labels, contraste, navegacao por teclado.
+6. **Performance percebida** — skeletons, otimismo de UI, ausencia de travas.
+
+Problemas viram issues no board (severidade conforme impacto) e seguem o loop de correcao se `$AUTO_FIX`.
+
+### Modo Mobile (absorve mobile-first.md)
+
+Ativado por `--mobile`. Testar responsividade SEM quebrar desktop:
+
+1. Para cada rota com UI, redimensionar (`browser_resize`) para 375px, 768px, 1024px e capturar.
+2. Detectar: overflow horizontal, texto cortado, alvos de toque < 44x44, menu sem hamburger no mobile,
+   tabelas nao responsivas, modais que estouram a viewport.
+3. Issues entram no board com tipo `responsive`. Correcao via up-executor (dominio `frontend`), com
+   instrucao explicita de preservar o layout desktop (mobile-first aditivo, nunca regressivo).
+4. Re-verificar nos 3 breakpoints apos a correcao.
+
+### Gate UAT (absorve verificar-trabalho.md)
+
+Ativado quando `/up:testar` roda como gate de aceitacao (ou no checkpoint de fim de fase do build):
+
+1. Procurar UAT ativo: `find .plano/fases -name "*-UAT.md"`. Se existe e tem testes `result: [pendente]`,
+   RETOMAR (sobrevive a /clear).
+2. Senao, criar `.plano/fases/XX-nome/{fase_num}-UAT.md` com os testes de aceitacao derivados dos
+   criterios de sucesso da fase / REQUIREMENTS.
+3. Conduzir UAT conversacional com o dono (AskUserQuestion), marcando cada teste como pass/fail e
+   gravando no UAT.md.
+4. Lacunas (testes que falharam) alimentam de volta o planejamento: registrar como pendencias pra
+   `/up:plan` tratar numa proxima fase. NAO ha supervisor aqui (UAT humano ja e autoritativo).
+</absorbed_modes>
+
 <success_criteria>
-- [ ] Projeto classificado (UI, API, ambos, nenhum)
-- [ ] Detectores relevantes executados na ordem correta
+- [ ] Projeto classificado (UI, API, ambos, nenhum) e $PASSES derivado
+- [ ] up-tester (detector unico multi-pass) rodou os passes certos na ordem visual → api → exhaustive
 - [ ] Issues deduplicadas e classificadas por severidade
 - [ ] ISSUE-BOARD.md gerado
-- [ ] Dispatcher diagnosticou e roteou corretamente (se auto_fix)
-- [ ] Especialistas corrigiram issues com commits atomicos (se auto_fix)
-- [ ] Re-verificacao executada nas issues corrigidas (se auto_fix)
+- [ ] Dispatcher diagnosticou e determinou o dominio corretamente (se auto_fix)
+- [ ] up-executor (por contexto/dominio) corrigiu issues com commits atomicos (se auto_fix)
+- [ ] Re-verificacao via up-tester nos passes afetados (se auto_fix)
 - [ ] DCRV-REPORT.md gerado com metricas
 - [ ] Issues pendentes salvas para carryover (se scope=phase)
+- [ ] Nenhuma referencia aos 3 detectores DCRV antigos nem aos specialists de dominio (6 agentes
+      deletados na Onda 2; o detector agora e up-tester e a correcao e up-executor)
 </success_criteria>
