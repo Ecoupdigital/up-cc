@@ -10,9 +10,11 @@
     "agents",
     "commands",
     "workflows",
+    "skills",
     "templates",
     "references",
-    "hooks"
+    "hooks",
+    "CHANGELOG.md"
   ],
   "keywords": [
     "claude",

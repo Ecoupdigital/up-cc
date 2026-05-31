@@ -10,9 +10,11 @@
     "up/agents",
     "up/commands",
     "up/workflows",
+    "up/skills",
     "up/templates",
     "up/references",
-    "up/hooks"
+    "up/hooks",
+    "up/CHANGELOG.md"
   ],
   "keywords": [
     "claude",
