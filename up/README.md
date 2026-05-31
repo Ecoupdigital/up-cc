@@ -8,7 +8,7 @@
    ╚═════╝ ╚═╝</pre>
 </p>
 
-<h3 align="center">Desenvolvimento orientado a especificacao para Claude Code, Gemini CLI e OpenCode</h3>
+<h3 align="center">Desenvolvimento orientado a especificacao para Claude Code, Gemini CLI, OpenCode e Codex</h3>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/up-cc"><img src="https://img.shields.io/npm/v/up-cc.svg" alt="npm version"></a>
@@ -20,9 +20,9 @@
 
 **UP** e um sistema de meta-prompting que transforma seu assistente de IA em um desenvolvedor estruturado. Em vez de pedir "faz X", voce descreve o que quer e o UP cuida do brainstorm, planejamento, execucao, verificacao e rastreamento, tudo via slash commands.
 
-Funciona com **Claude Code**, **Gemini CLI** e **OpenCode**.
+Funciona com **Claude Code**, **Gemini CLI**, **OpenCode** e **Codex**. A invocacao varia por runtime: `/up:X` (Claude, Gemini), `/up-X` (OpenCode), `$up-X` (Codex).
 
-> **v2.0 e um redesign completo (breaking change).** Sao 7 comandos no lugar de 31, 12 agentes no lugar de 52, e o default agora e leve (commit local, sem cerimonia). Veja a [tabela de migracao no CHANGELOG](CHANGELOG.md).
+> **v2.0 e um redesign completo (breaking change).** Sao 7 comandos no lugar de 31, 12 agentes no lugar de 52, e o `/up:build` agora e GitHub-nativo por padrao (worktree, issue, PR e merge por fase, com teste visual antes do merge). Veja a [tabela de migracao no CHANGELOG](CHANGELOG.md). Detalhes completos no [Guia de Uso](../docs/GUIA-DE-USO.md).
 
 ## Por que UP?
 
@@ -33,7 +33,8 @@ Sem UP, voce pede algo ao assistente e torce pra dar certo. Com UP:
 - **Estado persiste entre sessoes** via arquivos em `.plano/`, sobrevive a `/clear` e troca de contexto
 - **Commits atomicos** rastreiam cada mudanca com mensagens descritivas
 - **TDD por tipo de codigo**: logica pede teste red-green, UI pede prova visual, glue pede smoke-test. Nunca "Pronto!" sem evidencia fresca
-- **GitHub-native opt-in**: worktree, issue, PR e merge com `--pr`. Sem isso, commit local na branch atual (`--solo`, o default)
+- **GitHub-nativo por padrao**: cada fase abre worktree, issue e branch `up/fase-NN-slug`, executa, e no fim oferece um menu (merge local, abrir PR, deixar a branch ou descartar). `--solo` e o escape hatch para commit direto na branch atual
+- **Teste visual antes do merge**: se a fase tem UI, o build sobe o dev server dentro da worktree e pergunta se voce quer ver na tela antes de mergear. Producao nao mergeia sem o dono aprovar
 - **Detecta projetos existentes** e adapta o fluxo automaticamente (brownfield)
 
 ## Instalacao
@@ -42,6 +43,7 @@ Sem UP, voce pede algo ao assistente e torce pra dar certo. Com UP:
 npx up-cc@latest --claude --global    # Claude Code
 npx up-cc@latest --gemini --global    # Gemini CLI
 npx up-cc@latest --opencode --global  # OpenCode
+npx up-cc@latest --codex --global     # Codex
 npx up-cc@latest --all --global       # Todos
 ```
 
@@ -66,8 +68,8 @@ Apos instalar, reinicie o CLI e digite `/up` para comecar de onde parou (ou desc
 | Comando | O que faz |
 |---------|-----------|
 | **`/up`** | Porta unica. Sem argumento, continua de onde parou (le `STATE.md` e roteia). Com descricao, dispara o brainstorm escalado e roteia greenfield/brownfield/clone. Tambem e a casa de `estado` e `config` (subverbos). |
-| **`/up:plan`** | Planeja projeto ou fase (deteccao automatica). Research inline + self-check. Gera `PLAN-READY.md` executavel, inclusive em outro runtime. |
-| **`/up:build`** | Executa o que foi planejado. **Default `--solo`** (commit atomico na branch atual). Flags opt-in: `--pr` (worktree+issue+PR), `--board` (espelha Multica), `--auto` (merge automatico se verde). |
+| **`/up:plan`** | Planeja projeto ou fase (deteccao automatica). Research inline + self-check. Quebra fase grande em varios planos por dominio organizados em waves. Gera `PLAN-READY.md` executavel, inclusive em outro runtime. |
+| **`/up:build`** | Executa o que foi planejado. **GitHub-nativo por padrao**: por fase abre worktree + issue + branch, executa, testa o visual e oferece menu de fim de fase (merge local, PR, deixa a branch, descarta). Flags: `--solo` (escape hatch, commit na branch atual sem cerimonia), `--auto` (pula o menu), `--board` (espelha no Multica). |
 | **`/up:testar`** | Loop DCRV unico (detectar, corrigir, reverificar) num passe. Default roda tudo: visual, interacao, API, UX, mobile, E2E. Flags `--ux`/`--mobile`/`--e2e` focam. |
 | **`/up:depurar`** | Depuracao sistematica (causa raiz, hipotese, fix com teste de regressao) com estado persistente entre `/clear`. |
 | **`/up:auditar`** | Auditoria priorizada num passe (UX, performance, modernidade). Flag `--features` ativa pesquisa de mercado para sugerir features novas. |
@@ -81,7 +83,7 @@ Regra de design: **nenhum comando tem mais de 3 subverbos.** A superficie cognit
 
 O UP escala o esforco pelo tamanho da tarefa, sem voce pedir.
 
-### Caminho rapido (o default, ~70% do trabalho)
+### Caminho rapido (tarefa pontual, sem roadmap)
 
 ```
 /up "ajusta o titulo do botao pra X"
@@ -91,7 +93,7 @@ O UP escala o esforco pelo tamanho da tarefa, sem voce pedir.
   -> STATE.md atualizado. FIM.
 ```
 
-Zero worktree, zero issue, zero PR, zero rede. `/up:rapido` faz o mesmo pulando ate o roadmap.
+Zero worktree, zero issue, zero PR, zero rede. `/up:rapido` (ou `--solo` no build) e o escape hatch nomeado para esse modo, pulando ate o roadmap.
 
 ### Caminho medio (feature de 1 subsistema)
 
@@ -99,9 +101,9 @@ Zero worktree, zero issue, zero PR, zero rede. `/up:rapido` faz o mesmo pulando 
 /up "adiciona filtro por data no dashboard"
   -> classify-task: PEQUENA -> 1 pergunta-chave + design em 3 frases
   -> BRIEFING.md curto, commitado
-  -> /up:plan gera PLAN-READY.md
-  -> /up:build: TDD por tipo, commits atomicos na branch atual
-  -> menu de 4 opcoes (merge local / abrir PR / deixa a branch / descarta)
+  -> /up:plan gera PLAN-READY.md (1 plano = 1 agente)
+  -> /up:build (GitHub-nativo): worktree + issue, TDD por tipo, teste visual se tem UI
+  -> menu de fim de fase (merge local / abrir PR / deixa a branch / descarta)
 ```
 
 ### Caminho completo (projeto grande, repo colaborativo)
@@ -109,9 +111,9 @@ Zero worktree, zero issue, zero PR, zero rede. `/up:rapido` faz o mesmo pulando 
 ```
 /up "redesign do gestor com novo modulo de cohorts"
   -> classify-task: GRANDE -> brainstorm full com aprovacao por secao
-  -> BRIEFING.md completo -> /up:plan gera ROADMAP.md + PLAN-READY.md
-  -> /up:build --pr --board   (GitHub-native + Multica ligados, opt-in)
-     por fase: worktree -> issue -> ondas de agentes -> menu 4 opcoes -> PR/merge
+  -> BRIEFING.md completo -> /up:plan gera ROADMAP.md + varios PLAN-READY.md em waves
+  -> /up:build --board   (GitHub-nativo por padrao, Multica ligado via --board)
+     por fase: worktree -> issue -> waves de agentes em paralelo -> teste visual -> menu de fim de fase
   -> .plano/ consolida na main no merge; git-map.json atualizado
 ```
 
@@ -131,27 +133,36 @@ O sistema sabe que CSS pede prova visual. Voce nao precisa pedir licenca, e o ag
 
 ---
 
-## GitHub-native (opt-in)
+## GitHub-nativo (o default do `/up:build`)
 
-O default e `--solo`: commit atomico na branch atual, sem tocar no GitHub. Quando voce quer o fluxo completo, e `--pr`:
+Por padrao (`github_native=true`), cada fase do build abre worktree + branch + issue, executa, testa, e no fim **pergunta** o que fazer:
 
 ```
-/up:build --pr          # worktree -> issue -> PR
-/up:build --pr --auto   # + merge automatico se CI verde e verificador passou
+/up:build           # GitHub-nativo: worktree -> issue -> teste visual -> menu de fim de fase
+/up:build --auto    # mesmo fluxo, mas pula o menu de fim de fase
+/up:build --solo    # ESCAPE HATCH: commit na branch atual, zero cerimonia GitHub
 ```
 
 - Usa a tool nativa `EnterWorktree` do harness quando disponivel (fallback: `git worktree add`)
 - 1 issue por fase, branch `up/fase-NN-slug`, `Closes #N` no corpo do PR
-- No fim da fase, **menu de 4 opcoes** (merge local / abrir PR / deixa a branch / descarta), nunca PR-automatico
+- No fim da fase, **menu de fim de fase** (merge local / abrir PR / deixa a branch / descarta), nunca PR-automatico
 - Mapa de identidade em `.plano/git-map.json` (issue/pr por fase)
 - Fail-open: se algo do GitHub falhar, o build segue
+
+### Teste visual antes do merge (`require_visual_test=true`)
+
+Se a fase tem UI, antes do merge o build sobe o dev server **dentro da worktree** e pergunta "testar primeiro ou pode mergear?". Se voce escolhe testar, o server fica no ar e depois vem "aprovado ou ajustar?". Ajustar manda o `up-executor` corrigir e re-passar pelo gate (loop). Projeto em producao nao mergeia sem o dono ver na tela.
+
+### Waves paralelas
+
+Quando `/up:plan` quebra uma fase em varios planos por dominio, o `/up:build` roda os planos da mesma wave **em paralelo** (varios `up-executor` de uma vez) e as waves em sequencia (por dependencia), depois fecha a fase. Fase pequena = 1 plano = 1 agente.
 
 ## Multica `--board` (opt-in)
 
 Espelha o progresso das fases no board do [Multica](https://multica.ai) (issue tracker para times humano + agente). Opt-in via `--board`:
 
 ```
-/up:build --pr --board
+/up:build --board
 ```
 
 - Status batched no fim de cada onda (todo, in_progress, in_review, done, blocked), nao por microtransicao
@@ -222,11 +233,14 @@ O UP sobrevive a `/clear` e reinicializacoes do CLI. Todo estado fica em disco n
 
 ## Compatibilidade
 
-| Runtime | Status | Formato |
-|---------|--------|---------|
-| Claude Code | Completo | Nativo (Markdown + YAML frontmatter) |
-| Gemini CLI | Completo | Convertido (TOML commands, YAML arrays) |
-| OpenCode | Completo | Convertido (object tools, hex colors) |
+| Runtime | Invocacao | Formato |
+|---------|-----------|---------|
+| Claude Code | `/up:X` | Nativo (Markdown + YAML). Hook SessionStart, 4 skills por contexto, statusLine e context-monitor |
+| Gemini CLI | `/up:X` | Convertido (TOML commands). Brainstorm-first via bootstrap injetado no `GEMINI.md` |
+| OpenCode | `/up-X` | Convertido (`command/up-*.md`, object tools). Bootstrap injetado no `AGENTS.md` |
+| Codex | `$up-X` | Convertido (skills + `config.toml [agents]`). Bootstrap injetado no `AGENTS.md` |
+
+Os 12 agentes sao convertidos para todos os runtimes. Fora do Claude nao ha hook nem skills nativas, mas a doutrina brainstorm-first carrega sempre via arquivo de instrucoes.
 
 Requisitos: Node.js >= 16.7.0
 
