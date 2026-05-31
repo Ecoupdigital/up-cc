@@ -274,58 +274,96 @@ if [ "$BOARD" = "true" ]; then
 fi
 ```
 
-### 3.1 Carregar Plano da Fase
+### 3.1 Descobrir planos + waves da fase (MULTI-PLANO)
+
+Uma fase tem N planos agrupados em WAVES. O motor de waves vive em `up-tools.cjs`; aqui so o consumimos.
+NAO existe mais "1 plano por fase" (era a regressao do `head -1`): descobrimos TODOS os planos e o
+agrupamento por wave do disco.
+
+Os planos vivem DENTRO de `$WORKTREE` (a `.plano/` da fase viaja na branch da fase). Por isso TODA chamada
+de descoberta usa `--cwd "$WORKTREE"` (em `--solo`, `$WORKTREE` = repo principal, entao funciona igual).
 
 ```bash
-# Paths relativos a $WORKTREE (em --solo, $WORKTREE = repo principal).
-PHASE_DIR=$(ls -d "$WORKTREE"/.plano/fases/{phase_number}-* 2>/dev/null)
-PLAN=$(ls "$PHASE_DIR"/*-PLAN.md | head -1)
+# (a) Metadados da fase + flag de paralelizacao (config). Trata @file: (saida > 50KB).
+INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init executar-fase {phase_number} --cwd "$WORKTREE" --raw)
+if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
+# init executar-fase retorna: phase_found, phase_dir, phase_number, phase_name, phase_slug,
+# plans[] (nomes de arquivo), incomplete_plans[], plan_count, incomplete_count, paralelizacao, commit_docs.
+PHASE_DIR="$WORKTREE/$(echo "$INIT" | grep -oE '"phase_dir"[^,}]*' | sed 's/.*: *"//;s/"//')"
+PARALLELIZATION=$(echo "$INIT" | grep -oE '"paralelizacao"[^,}]*' | grep -oE '(true|false)')
+PLAN_COUNT=$(echo "$INIT" | grep -oE '"plan_count"[^,}]*' | grep -oE '[0-9]+')
+[ -z "$PARALLELIZATION" ] && PARALLELIZATION=true
+[ "$PLAN_COUNT" = "0" ] && echo "GATE A FALHOU: sem planos na Fase {phase_number}." && exit 1
+
+# (b) Inventario com agrupamento por WAVE (este e o motor de waves real).
+PLAN_INDEX=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index {phase_number} --cwd "$WORKTREE" --raw)
+if [[ "$PLAN_INDEX" == @file:* ]]; then PLAN_INDEX=$(cat "${PLAN_INDEX#@file:}"); fi
+# phase-plan-index retorna: phase, plans[] (cada: id, wave [int], autonomous [bool], objective,
+# files_modified[], task_count, has_summary [bool]), waves (map wave->[ids]), incomplete[], has_checkpoints.
 ```
 
-### 3.2 Detectar Tipo de Plano (routing por CONTEXTO no executor)
+Parsear de `$PLAN_INDEX`: a lista `plans[]` e o mapa `waves` (chave = numero da wave, valor = ids dos
+planos daquela wave). Ordenar as waves por numero CRESCENTE. Para resolver o arquivo de um plano a partir
+do id: `PLAN="$PHASE_DIR/${id}-PLAN.md"` (fallback `"$PHASE_DIR/PLAN.md"` se id vazio).
 
-Ler o frontmatter do plano pra determinar o TIPO (`frontend`/`backend`/`database`/`misto`). NAO ha mais
-agentes specialist separados (Onda 2 do corte): o agente e SEMPRE `up-executor`. O tipo do plano e passado
-ao executor, que ROTEIA POR CONTEXTO: carrega a skill/ref de dominio sob demanda (UI/CSS, API/server,
-schema/DB) e atua conforme, sem trocar de agente.
+> Por que paralelizar dentro da wave e SEGURO: o agrupamento por wave ja garante que os planos da MESMA
+> wave sao INDEPENDENTES entre si (arquivos disjuntos, sem dependencia mutua). Qualquer plano que dependa
+> de outro cai numa wave POSTERIOR. Entao rodar todos os planos de uma wave em paralelo nunca causa
+> conflito de escrita. Waves rodam SEMPRE em ordem (a wave N+1 so comeca quando a wave N inteira termina).
+
+### 3.2 + 3.3 LOOP DE WAVES: detectar tipo (por plano) + spawnar executor(es)
+
+Iterar as waves em ordem crescente. Para CADA wave:
+
+1. **Selecionar os planos da wave que ainda NAO tem SUMMARY** (resume): pular todo plano com
+   `has_summary: true` no `$PLAN_INDEX` (idempotencia/retomada). Se a wave inteira ja esta concluida,
+   anuncia e pula pra proxima wave.
+
+2. **Para CADA plano selecionado da wave, montar contexto e detectar tipo (PRE-spawn, por plano):**
 
 ```bash
-# Tipo apenas informa o executor qual dominio carregar; o agente nao muda.
-PLAN_TYPE=$(grep -oE '^type:[[:space:]]*[a-z-]+' "$PLAN" | head -1 | sed 's/type:[[:space:]]*//')
-EXECUTOR_DOMAIN="$PLAN_TYPE"   # frontend|backend|database|misto (vazio = misto)
-```
-
-### 3.3 Spawnar Executor (PASSO 1 — Agent SEPARADO)
-
-**Pre-inline de contexto** (economiza ~30k tokens/spawn): montar via `up-tools.cjs context`.
-
-```bash
+# Roda UMA VEZ por plano da wave (PLAN = $PHASE_DIR/<id>-PLAN.md).
 EXECUTOR_AGENT="up-executor"   # SEMPRE up-executor (Onda 2: sem specialists separados)
 
+# 3.2 (por plano): tipo apenas informa o executor qual dominio carregar; o agente nao muda.
+PLAN_TYPE=$(grep -oE '^type:[[:space:]]*[a-z-]+' "$PLAN" | head -1 | sed 's/type:[[:space:]]*//')
+EXECUTOR_DOMAIN="$PLAN_TYPE"   # frontend|backend|database|misto (vazio = misto)
+
+# Pre-inline de contexto (economiza ~30k tokens/spawn), por plano:
 CTX=$(node "$HOME/.claude/up/bin/up-tools.cjs" context \
   --plan "${PLAN}" \
   --state \
   --config \
   --requirements "${PHASE_NUMBER}" \
   --manifest "${EXECUTOR_AGENT}" \
-  --raw)
+  --cwd "$WORKTREE" --raw)
 
 MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" resolve-model-for-plan \
-  "${PLAN}" "${EXECUTOR_AGENT}" --raw)
-CLASSIFY=$(node "$HOME/.claude/up/bin/up-tools.cjs" classify-task "${PLAN}" --raw)
-COMPLEXITY=$(echo "$CLASSIFY" | grep -oE '"complexity"[^,]+' | grep -oE '"(simple|standard|complex)"' | tr -d '"')
+  "${PLAN}" "${EXECUTOR_AGENT}" --cwd "$WORKTREE" --raw)
 ```
+
+3. **Spawnar o(s) executor(es) da wave:**
+   - **Se `PARALLELIZATION=true`:** spawnar TODOS os executores da wave EM PARALELO (multiplos `Agent()`
+     numa UNICA mensagem do orquestrador, um por plano selecionado da wave).
+   - **Se `PARALLELIZATION=false`:** spawnar os executores da wave um por vez (sequencial), esperando cada
+     um antes do proximo.
+
+   O prompt de cada `Agent` e o bloco abaixo, parametrizado POR PLANO (`{PLAN}`, `{EXECUTOR_DOMAIN}`,
+   `{CTX}` daquele plano). Um executor = um plano.
 
 ```python
 Agent(
   subagent_type="up-executor",
   prompt=f"""
-    Executar Plano da Fase {phase_number}.
+    Executar o Plano {PLAN} (Fase {phase_number}, wave {wave}).
 
     Tipo do plano (dominio a carregar por contexto): {EXECUTOR_DOMAIN}
     Roteie POR CONTEXTO conforme o tipo: frontend -> carregar skill/ref de UI/CSS e DESIGN-TOKENS;
     backend -> ref de API/server; database -> ref de schema/migrations; misto -> conforme cada tarefa.
     NAO existem agentes specialist separados: voce e o unico executor e adapta ao dominio.
+
+    Escopo: SOMENTE este plano. Outros planos da mesma wave rodam em paralelo em arquivos disjuntos;
+    NAO toque em arquivos fora dos <files> das tarefas DESTE plano.
 
     <prompt_context>
     {CTX}
@@ -348,32 +386,58 @@ Agent(
     - ./CLAUDE.md (se existir)
     - .plano/fases/{phase_number}/PHASE.md (se existir)
     - .plano/DESIGN-TOKENS.md (so se frontend e existir)
-    - Arquivos referenciados em <files> das tarefas (codigo a editar)
+    - Arquivos referenciados em <files> das tarefas DESTE plano (codigo a editar)
 
     Sob demanda apenas: .plano/PROJECT.md, .plano/SYSTEM-DESIGN.md, .plano/REQUIREMENTS.md
-    NAO refazer Read em PLAN/STATE/config/REQUIREMENTS-SLICE/engineering-principles — ja inline.
+    NAO refazer Read em PLAN/STATE/config/REQUIREMENTS-SLICE/engineering-principles (ja inline).
     </files_to_read>
 
-    Implementar todas as tarefas. Se o plano pedir, gerar tambem artefatos de prod/docs/testes
-    inline (papeis de devops/technical-writer/qa absorvidos pelo executor). Commitar atomicamente.
-    Gerar SUMMARY.md.
+    Implementar todas as tarefas DESTE plano. Se o plano pedir, gerar tambem artefatos de
+    prod/docs/testes inline (papeis de devops/technical-writer/qa absorvidos pelo executor).
+    Commitar atomicamente. Gerar o SUMMARY.md DESTE plano.
   """
 )
 ```
 
-### --- GATE A: artefatos da execucao ---
+4. **Esperar TODOS os executores da wave terminarem** antes de iniciar a proxima wave (`Agent`/`Task`
+   bloqueia ate retornar; a barreira da wave e o ponto onde se espera todos).
+
+5. **--- GATE A (por wave): todos os planos da wave com SUMMARY ---**
 
 ```bash
-echo "=== GATE A: artefatos da execucao (Fase ${PHASE_NUMBER}) ==="
-SUMMARY_COUNT=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
-[ "$SUMMARY_COUNT" -eq 0 ] && echo "GATE A FALHOU: nenhum SUMMARY.md. Re-executar executor." && exit 1
-echo "GATE A OK: ${SUMMARY_COUNT} SUMMARY(s)"
+echo "=== GATE A: artefatos da wave ${wave} (Fase ${PHASE_NUMBER}) ==="
+# Espera-se 1 SUMMARY por plano nao-pulado da wave. Conferir cada id da wave:
+WAVE_MISSING=0
+for PLAN_ID in $WAVE_PLAN_IDS; do   # WAVE_PLAN_IDS = ids dos planos selecionados desta wave
+  [ -f "${PHASE_DIR}/${PLAN_ID}-SUMMARY.md" ] || { echo "GATE A: SUMMARY faltando para plano ${PLAN_ID}"; WAVE_MISSING=$((WAVE_MISSING+1)); }
+done
+[ "$WAVE_MISSING" -gt 0 ] && echo "GATE A FALHOU na wave ${wave}: ${WAVE_MISSING} SUMMARY(s) ausente(s). Re-executar o(s) plano(s) faltante(s)." && exit 1
+echo "GATE A OK (wave ${wave})"
 ```
 
-### 3.4 Re-plan local (so se a execucao revelar plano inviavel)
+   - Se algum SUMMARY da wave faltar: re-spawnar SO o(s) executor(es) do(s) plano(s) faltante(s) (mesmo
+     bloco `Agent`), depois reavaliar o GATE A da wave. Falha real e sistemica (toda a wave falhou) ->
+     parar e alertar o dono (AskUserQuestion).
 
-Se durante a execucao ficar evidente que o plano e fundamentalmente errado/inviavel, o orquestrador
-re-planeja LOCALMENTE (max 2 por projeto). Sem supervisor: o `up-planejador` faz self-check.
+6. **Prosseguir para a proxima wave.** Repetir 1-5 ate a ultima wave.
+
+**Fim do loop de waves:** ao sair do loop, TODOS os planos da fase tem SUMMARY. GATE A consolidado:
+
+```bash
+echo "=== GATE A consolidado (Fase ${PHASE_NUMBER}) ==="
+SUMMARY_COUNT=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
+[ "$SUMMARY_COUNT" -lt "$PLAN_COUNT" ] && echo "GATE A FALHOU: ${SUMMARY_COUNT}/${PLAN_COUNT} SUMMARY(s). Re-executar plano(s) faltante(s)." && exit 1
+echo "GATE A OK: ${SUMMARY_COUNT}/${PLAN_COUNT} SUMMARY(s) (todas as waves)"
+```
+
+> A partir daqui (3.4-3.9) o escopo e a FASE INTEIRA (todos os planos / todos os SUMMARYs), nao mais
+> "o plano". Roda UMA VEZ por fase, depois de TODAS as waves.
+
+### 3.4 Re-plan local (so se um plano especifico se revelar inviavel)
+
+Por-plano: se durante a execucao de UM plano especifico ficar evidente que ele e fundamentalmente
+errado/inviavel, o orquestrador re-planeja SO aquele plano, LOCALMENTE (max 2 por projeto). Sem
+supervisor: o `up-planejador` faz self-check. `{PLAN}` aqui = o plano inviavel especifico (nao a fase).
 
 ```bash
 REPLAN_COUNT=$(cat .plano/governance/replans.log 2>/dev/null | wc -l)
@@ -397,10 +461,13 @@ Agent(subagent_type="up-planejador", prompt=f"""
 ```bash
 mv "$PLAN" "${PLAN%-PLAN.md}-PLAN-v1.md"
 echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | up-planejador | REPLAN | {motivo}" >> .plano/governance/replans.log
-# Voltar pro 3.3 com o novo plano.
+# Voltar pro LOOP DE WAVES (3.2+3.3): re-spawnar o executor SO desse plano, na wave dele, com o plano novo.
 ```
 
-### 3.5 Verificacao (PASSO 2 — Agent SEPARADO)
+### 3.5 Verificacao da FASE (PASSO 2 - Agent SEPARADO)
+
+Roda UMA VEZ por fase, depois de TODAS as waves. O verificador valida a FASE INTEIRA (todos os planos /
+todos os SUMMARYs juntos), nao 1 plano isolado. Um unico VERIFICATION.md cobre a fase.
 
 **Verification ladder deterministica primeiro:**
 
@@ -426,11 +493,13 @@ Se STATIC=fail ou skip: spawnar `up-verificador` com os logs estaticos como cont
 
 ```python
 Agent(subagent_type="up-verificador", prompt=f"""
-  Verificar fase {phase_number}.
+  Verificar a FASE {phase_number} INTEIRA (todos os planos / todos os SUMMARYs juntos, nao 1 plano).
+  Conferir o objetivo da fase contra o codebase real e cruzar os REQUIREMENTS desta fase com o que
+  TODOS os SUMMARYs ({PHASE_DIR}/*-SUMMARY.md) entregaram.
   <static_check_results overall="{STATIC_OVERALL}">
   Logs em .plano/runtime/verify-static-*.log
   </static_check_results>
-  FOCAR no que falhou. Exigir evidencia fresca por tipo de codigo. Gerar VERIFICATION.md.
+  FOCAR no que falhou. Exigir evidencia fresca por tipo de codigo. Gerar UM VERIFICATION.md da fase.
 """)
 ```
 
@@ -453,19 +522,28 @@ SCOPE=phase, PHASE_DIR={PHASE_DIR}, PHASE_NUMBER={phase_number}, AUTO_FIX=true, 
 
 Pular se a fase nao tem UI nem API (infra/schema).
 
-### 3.7 Revisao (PASSO 4 — Agent SEPARADO)
+### 3.7 Revisao da FASE (PASSO 4 - Agent SEPARADO)
 
-**Derivar o tipo de evidencia esperado (Fase 3 - TDD por tipo).** Sai do `type` do frontmatter do plano
-(via classify-task / heuristica). O GATE so aprova com `evidence=<tipo>:<resultado>` do tipo certo:
+Roda UMA VEZ por fase, depois de TODAS as waves. O revisor revisa a FASE consolidada (todos os planos /
+todos os SUMMARYs juntos).
+
+**Derivar o tipo de evidencia esperado (Fase 3 - TDD por tipo).** A fase pode ter VARIOS planos de tipos
+diferentes; agregamos o `type` do frontmatter de TODOS os planos da fase e exigimos a evidencia mais forte
+aplicavel (UI > glue > logic): se QUALQUER plano da fase e UI -> exige `ui:visual`; senao se qualquer plano
+e integracao -> `glue:smoke`; senao `logic:test_pass`. O GATE so aprova com `evidence=<tipo>:<resultado>`
+do tipo certo:
 
 ```bash
-PLAN_TYPE=$(grep -oE '^type:[[:space:]]*[a-z-]+' "$PLAN" | head -1 | sed 's/type:[[:space:]]*//')
-case "$PLAN_TYPE" in
-  frontend|ui|css)             EVIDENCE_TYPE="ui";   EVIDENCE_RESULT="visual" ;;   # UI/CSS -> captura visual antes/depois (Playwright)
-  integration|glue|webhook)    EVIDENCE_TYPE="glue"; EVIDENCE_RESULT="smoke" ;;    # integracao (Asaas/uazapi/etc) -> smoke-test
-  *)                           EVIDENCE_TYPE="logic"; EVIDENCE_RESULT="test_pass" ;; # parser/calculo/API-propria/bugfix -> teste red-green
-esac
-echo "Fase {phase_number}: evidence esperada = ${EVIDENCE_TYPE}:${EVIDENCE_RESULT}"
+# Agrega os tipos de TODOS os planos da fase (nao mais 1 plano via head -1).
+PHASE_TYPES=$(grep -hoE '^type:[[:space:]]*[a-z-]+' ${PHASE_DIR}/*-PLAN.md 2>/dev/null | sed 's/type:[[:space:]]*//')
+if echo "$PHASE_TYPES" | grep -qE '^(frontend|ui|css)$'; then
+  EVIDENCE_TYPE="ui";   EVIDENCE_RESULT="visual"      # UI/CSS -> captura visual antes/depois (Playwright)
+elif echo "$PHASE_TYPES" | grep -qE '^(integration|glue|webhook)$'; then
+  EVIDENCE_TYPE="glue"; EVIDENCE_RESULT="smoke"       # integracao (Asaas/uazapi/etc) -> smoke-test
+else
+  EVIDENCE_TYPE="logic"; EVIDENCE_RESULT="test_pass"  # parser/calculo/API-propria/bugfix -> teste red-green
+fi
+echo "Fase {phase_number}: evidence esperada (agregada da fase) = ${EVIDENCE_TYPE}:${EVIDENCE_RESULT}"
 ```
 
 A evidencia ja foi PRODUZIDA upstream: `logic:test_pass` pelo verificador (red-green); `ui:visual` pela
@@ -486,8 +564,8 @@ Agent(
     STAGE 2 — code-quality: padroes, edge cases, OWASP/security, wiring ponta a ponta.
 
     <files_to_read>
-    - {PLAN}
-    - {PHASE_DIR}/*-SUMMARY.md
+    - {PHASE_DIR}/*-PLAN.md (TODOS os planos da fase)
+    - {PHASE_DIR}/*-SUMMARY.md (TODOS os SUMMARYs da fase)
     - {PHASE_DIR}/*-VERIFICATION.md
     - {PHASE_DIR}/dcrv/DCRV-REPORT.md (se existir)
     - git diff (use Bash)
@@ -548,8 +626,9 @@ fi
 
 **Processar o veredito:**
 - `APPROVE`: prosseguir para 3.8.
-- `REQUEST_CHANGES`: cap de rework 1 round (ver governance.md passo 4). Round 0 -> re-spawn executor
-  com o review; round >= 1 -> forced approval com debito tecnico. Depois re-rodar verificador + revisor.
+- `REQUEST_CHANGES`: cap de rework 1 round (ver governance.md passo 4). Round 0 -> re-spawn do(s)
+  executor(es) do(s) plano(s) apontado(s) no review (mesmo bloco Agent de 3.2+3.3, parametrizado por
+  plano); round >= 1 -> forced approval com debito tecnico. Depois re-rodar verificador da fase + revisor.
 - `BLOCK`: interromper e alertar o dono (AskUserQuestion).
 
 ### 3.8 Fechar a fase: teste visual (pre-merge) + merge
