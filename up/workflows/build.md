@@ -52,27 +52,44 @@ O LLM tende a colapsar passos (mesmo agente executa + verifica). Isso e PROIBIDO
 e um `Agent()` SEPARADO. O enforcement e o GATE deterministico do `approvals.log`
 (ver `@~/.claude/up/workflows/governance.md`), nao uma piramide de supervisores.
 
-**GitHub-nativo e o DEFAULT (v2):**
-- **PADRAO (sem flag):** cada fase abre uma worktree + branch `up/fase-NN-slug` e (se houver `gh` + remote)
-  uma issue do GitHub; no fim da fase, se a fase tem UI, **sobe o dev server e PEDE aprovacao visual antes de
-  mergear** (3.8.0), depois fecha (merge local / PR / deixa / descarta). Isto e o caminho quente.
-  Controlado por `config.github_native=true` (default).
-- `--solo`: ESCAPE HATCH sem cerimonia. Forca `github_native=false` SO nesta execucao. Commit atomico na
-  branch ATUAL. Zero worktree, zero issue, zero PR, zero rede. (Mesmo comportamento de `/up:rapido`.)
+**GitHub-nativo e o DEFAULT (v2): DOIS EIXOS SEPARADOS:**
+
+O GitHub (worktree/branch/issue/PR) e a INTERACAO humana (menu/gate visual/merge) sao eixos
+independentes. As flags mexem so na interacao; o GitHub fica ligado sempre que da.
+
+- **Eixo GitHub:** LIGADO sempre que ha remote E (`gh` autenticado OU MCP do GitHub conectado).
+  Worktree+branch sao git local e SEMPRE acontecem (offline-ok). Issue/PR usam o transporte:
+  `gh` (CLI cria direto) ou `mcp` (o workflow cria via `mcp__...github__*` e grava com
+  `record-issue`/`record-pr`). DESLIGA so com `--local` ou `config.github_native=false`.
+- `--local`: ESCAPE HATCH sem GitHub. Commit atomico na branch ATUAL. Zero worktree/issue/PR/rede.
+  (Mesmo comportamento de `/up:rapido`.) **Este e o unico jeito de pular o GitHub no build.**
+- `--solo`: NAO desliga o GitHub. Solo = autonomo total: GitHub completo (branch/worktree/issue/PR
+  + auto-merge), SEM menu e SEM gate visual. Pra loop/headless onde ninguem aprova nada.
+- `--auto`: pula o MENU de fechamento (auto-merge), MAS o gate visual (3.8.0) ainda roda se
+  `require_visual_test=true`. Mantem GitHub ligado.
 - **Teste visual antes do merge (`require_visual_test`, default true):** fase de UI sobe dev server e exige
-  o dono aprovar na tela ANTES do merge (3.8.0). Projeto em PRODUCAO: deixe ligado (nada sobe sem voce ver).
-- `--auto`: pula o MENU de fechamento. Apos o GATE aprovar, `finish-phase --mode auto` (PR -> merge squash ->
-  cleanup). MAS o teste visual (3.8.0) ainda roda se `require_visual_test=true` (so `false` deixa o --auto
-  mergear UI sem aprovacao). So faz sentido com github_native ligado.
+  o dono aprovar na tela ANTES do merge (3.8.0). `--solo` pula sempre; `--auto` so pula com `require_visual_test=false`.
+  Projeto em PRODUCAO: deixe ligado e nao use `--solo` (nada sobe sem voce ver).
 - `--board`: espelha status no Multica (espelho de board OPT-IN, BATCHED no fim da onda/fase). NAO ha
   stream ao vivo no fluxo local: o board mostra so o status (`todo -> in_progress -> in_review -> done /
   blocked`), nunca cada tool_use. Chamadas via `up-tools.cjs multica {init|sync|board}` (que usa
   `multica.cjs`, deteccao `uname -s` Mac->`ssh server-ecoup`, FAIL-OPEN: se `multica` indisponivel, avisa
   e segue sem board, nunca crasha). So roda quando `--board` ligado.
 
-**FAIL-OPEN universal:** `start-phase`/`finish-phase` detectam `gh` + remote. Faltando qualquer um, degradam
-para git local (worktree local + merge local; issue/PR = null) com aviso, NUNCA crasham. `git worktree` e
-sempre local e funciona offline. Com `--solo` nao ha nem worktree (commit direto na branch atual).
+**Resumo das flags** (GitHub = artefatos; demais = interacao):
+
+| Flag | GitHub | Menu fim | Gate visual | Merge |
+|------|:---:|:---:|:---:|---|
+| (nenhum) | SIM | SIM (4 opcoes) | SIM | conforme menu |
+| `--auto` | SIM | NAO | SIM (a menos require_visual_test=false) | auto squash |
+| `--solo` | SIM | NAO | NAO (pula sempre) | auto squash |
+| `--local` | NAO | NAO | NAO | commit na branch atual |
+
+**FAIL-OPEN universal:** `start-phase`/`finish-phase` detectam remote + transporte (`gh`/`mcp`/`none`).
+Sem remote, degradam para git local (worktree local + merge local; issue/PR = null) com aviso, NUNCA
+crasham. `git worktree` e sempre local e funciona offline. Sem `gh` mas com MCP, o transporte e `mcp`:
+worktree/branch/push acontecem no `.cjs` e o workflow cria issue/PR via MCP. Com `--local` nao ha nem
+worktree (commit direto na branch atual).
 
 **Onde o estado vive:** `git-map.json` e canonico no working dir PRINCIPAL (`.plano/git-map.json`). O `.plano/`
 de cada fase viaja na branch da fase (worktree) e volta pra main no merge. STATE.md permanece a fonte humana
@@ -175,25 +192,31 @@ Projeto planejado em {runtime}.
 Resumo: {N} fases, {M} planos. Planning confidence: {X}/100.
 Pendencias conhecidas: {de PENDING.md}.
 
-Modo git: {GITHUB_MODE}   (GitHub-nativo e o default; --solo desliga; --auto pula o menu)
+Modo git: {GITHUB_MODE}   (GitHub-nativo e o default; --local desliga; --solo/--auto sao autonomia, nao desligam)
 ```
 
-Resolver `GITHUB_MODE` antes do banner:
+Resolver `GITHUB_MODE` antes do banner. `$LOCAL`/`$SOLO`/`$AUTO`/`$BOARD_FLAG` vem das flags da
+invocacao. **`--solo` NAO desliga o GitHub** (so `--local` desliga):
 
 ```bash
-# --solo forca github_native=false SO nesta execucao
-if [ "$SOLO" = "true" ]; then
+# So --local (ou config github_native=false) desliga o GitHub.
+if [ "$LOCAL" = "true" ]; then
   GITHUB_NATIVE=false
 else
   GITHUB_NATIVE=$(node "$HOME/.claude/up/bin/up-tools.cjs" config get github_native --raw 2>/dev/null)
   [ -z "$GITHUB_NATIVE" ] && GITHUB_NATIVE=true   # default TRUE
 fi
 
+# --solo e --auto sao AUTONOMIA (sem menu). --solo tambem pula o gate visual.
+AUTONOMO=false
+{ [ "$SOLO" = "true" ] || [ "$AUTO" = "true" ]; } && AUTONOMO=true
+
 if [ "$GITHUB_NATIVE" = "true" ]; then
   GITHUB_MODE="GitHub-nativo (worktree + issue + PR/menu por fase)"
-  [ "$AUTO" = "true" ] && GITHUB_MODE="GitHub-nativo --auto (PR + merge squash automatico)"
+  [ "$AUTO" = "true" ]  && GITHUB_MODE="GitHub-nativo --auto (PR + merge squash; gate visual ainda roda)"
+  [ "$SOLO" = "true" ]  && GITHUB_MODE="GitHub-nativo --solo (autonomo total: PR + merge, SEM gate visual)"
 else
-  GITHUB_MODE="--solo (commit atomico na branch atual, sem worktree/issue/PR)"
+  GITHUB_MODE="--local (commit atomico na branch atual, sem worktree/issue/PR)"
 fi
 
 # --board liga o espelho Multica (OPT-IN). So tem efeito se passado explicitamente.
@@ -231,26 +254,36 @@ Para cada fase em ROADMAP.md (em ordem):
 
 ### 3.0 Abrir a fase (GitHub-nativo - DEFAULT)
 
-A menos que `--solo` (ou `github_native=false`), abrir worktree + branch + issue ANTES de executar a fase.
+A menos que `--local` (ou `github_native=false`), abrir worktree + branch + issue ANTES de executar a fase.
 
 ```bash
 PHASE_SLUG=$(node "$HOME/.claude/up/bin/up-tools.cjs" slug "{phase_name}" --raw)
 
 if [ "$GITHUB_NATIVE" = "true" ]; then
-  # Cria worktree + branch up/fase-NN-slug; se gh+remote, cria issue. Escreve .plano/git-map.json.
-  # Fail-open: sem gh/remote -> worktree local, issue=null, aviso (nunca crasha).
+  # Cria worktree + branch up/fase-NN-slug SEMPRE (git local). Issue por transporte:
+  #   gh  -> issue criada aqui;  mcp -> retorna pending.issue (workflow cria via MCP);  none -> sem remote.
   START=$(node "$HOME/.claude/up/bin/up-tools.cjs" github start-phase \
     --phase {phase_number} --slug "$PHASE_SLUG" --raw)
   if [[ "$START" == @file:* ]]; then START=$(cat "${START#@file:}"); fi
-  WORKTREE=$(echo "$START" | grep -oE '"worktree"[^,}]*' | sed 's/.*: *"//;s/"//')
-  BRANCH=$(echo "$START"   | grep -oE '"branch"[^,}]*'   | sed 's/.*: *"//;s/"//')
-  ISSUE=$(echo "$START"    | grep -oE '"issue"[^,}]*'    | sed 's/.*: *//')
-  echo "Fase {phase_number}: branch=$BRANCH worktree=$WORKTREE issue=${ISSUE:-null}"
+  WORKTREE=$(echo "$START"  | grep -oE '"worktree"[^,}]*'  | sed 's/.*: *"//;s/"//')
+  BRANCH=$(echo "$START"    | grep -oE '"branch"[^,}]*'    | sed 's/.*: *"//;s/"//')
+  ISSUE=$(echo "$START"     | grep -oE '"issue"[^,}]*'     | sed 's/.*: *//')
+  TRANSPORT=$(echo "$START" | grep -oE '"transport"[^,}]*' | sed 's/.*: *"//;s/"//')
+  echo "Fase {phase_number}: branch=$BRANCH worktree=$WORKTREE issue=${ISSUE:-null} transport=$TRANSPORT"
 else
-  # --solo: sem worktree/issue. Trabalho acontece na branch atual.
-  WORKTREE="$(pwd)"; BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"; ISSUE=""
+  # --local: sem worktree/issue. Trabalho acontece na branch atual.
+  WORKTREE="$(pwd)"; BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"; ISSUE=""; TRANSPORT=none
 fi
 ```
+
+**Issue via MCP (quando `transport=mcp`):** sem `gh` mas com remote, `start-phase` ja criou worktree+branch
+e devolveu `pending.issue {title, body}` no JSON. Se voce (orquestrador) TEM as tools `mcp__...github__*`,
+crie a issue agora e grave o numero de volta:
+
+> Ao detectar `transport=mcp` no `$START`: extraia `pending.issue.title`/`pending.issue.body`, chame
+> `mcp__plugin_github_github__issue_write` (create) no repo do remote, pegue o numero retornado e rode
+> `node "$HOME/.claude/up/bin/up-tools.cjs" github record-issue --phase {phase_number} --issue <num> --url <url>`.
+> Se voce NAO tem MCP do GitHub: siga sem issue (worktree/branch ja existem; PR pode degradar pra merge local no fim).
 
 **Entrar na worktree (so se github_native):** o trabalho da fase (executor, commits) acontece
 DENTRO de `$WORKTREE`. Preferir a tool nativa do harness **EnterWorktree** apontando para `$WORKTREE`; se
@@ -259,7 +292,7 @@ indisponivel, a worktree ja foi criada por `start-phase` (basta usar `--cwd "$WO
 `git-map.json` permanece canonico no working dir principal. Ao terminar a fase usar **ExitWorktree** (ou
 voltar `cd` para o repo principal) antes de atualizar `git-map.json` na main.
 
-> Em `--solo`, IGNORAR EnterWorktree/ExitWorktree: tudo na branch atual.
+> Em `--local`, IGNORAR EnterWorktree/ExitWorktree: tudo na branch atual. Em `--solo` HA worktree (solo nao desliga GitHub).
 
 **Multica: marcar a fase em execucao (so se `--board`, 1 chamada na ENTRADA da fase).**
 Uma transicao por fase (nao por microtransicao): status `in_progress` + metadata `gh_issue`/`branch`.
@@ -281,7 +314,7 @@ NAO existe mais "1 plano por fase" (era a regressao do `head -1`): descobrimos T
 agrupamento por wave do disco.
 
 Os planos vivem DENTRO de `$WORKTREE` (a `.plano/` da fase viaja na branch da fase). Por isso TODA chamada
-de descoberta usa `--cwd "$WORKTREE"` (em `--solo`, `$WORKTREE` = repo principal, entao funciona igual).
+de descoberta usa `--cwd "$WORKTREE"` (em `--local`, `$WORKTREE` = repo principal, entao funciona igual).
 
 ```bash
 # (a) Metadados da fase + flag de paralelizacao (config). Trata @file: (saida > 50KB).
@@ -635,7 +668,7 @@ fi
 
 So apos o GATE aprovar (APPROVE ou forced approval registrado).
 
-**Caso `--solo` (github_native=false):** nada a fazer aqui. Tudo ja foi committado atomicamente na branch
+**Caso `--local` (github_native=false):** nada a fazer aqui. Tudo ja foi committado atomicamente na branch
 atual. Seguir direto para 3.9. (Sem worktree, sem teste-visual-gate, sem merge.)
 
 #### 3.8.0 Checkpoint de teste visual (PRE-MERGE) - so GitHub-nativo
@@ -649,9 +682,10 @@ REQUIRE_VISUAL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config get require_vis
 HAS_DEV=$(node -e "try{const s=require('./package.json').scripts||{};process.stdout.write((s.dev||s.start||s.serve)?'1':'')}catch(e){}" 2>/dev/null)
 ```
 
-**Aplica o gate quando:** (HAS_UI ou HAS_DEV) E NAO (`--auto` E REQUIRE_VISUAL=false).
-Ou seja: por padrao SEMPRE pede aprovacao visual antes do merge em fase de UI. Para PULAR (CI/yolo):
-`--auto` + setar `require_visual_test=false` no config. Para projeto em PRODUCAO: deixe o default (true).
+**Aplica o gate quando:** (HAS_UI ou HAS_DEV) E NAO `--solo` E NAO (`--auto` E REQUIRE_VISUAL=false).
+Ou seja: por padrao SEMPRE pede aprovacao visual antes do merge em fase de UI. `--solo` pula SEMPRE
+(autonomo total). Pra pular sem solo (CI/yolo): `--auto` + `require_visual_test=false`. Projeto em
+PRODUCAO: deixe o default (true) e nao use `--solo`.
 
 Se aplica:
 
@@ -706,32 +740,44 @@ pkill -f "npm run dev" 2>/dev/null || true; pkill -f "npm start" 2>/dev/null || 
 A escolha do checkpoint define a acao de fechamento (3.8.1): "Pode mergear"/"Aprovado" -> MERGE;
 "Deixa a branch" -> nao mergeia; "Descarta" -> remove sem merge.
 
-**Fase SEM UI** (infra/schema/backend puro) ou `--auto` com `require_visual_test=false`: pula 3.8.0.
+**Fase SEM UI** (infra/schema/backend puro), `--solo`, ou `--auto` com `require_visual_test=false`: pula 3.8.0.
 Nesse caso, GitHub-nativo interativo ainda apresenta o mesmo AskUserQuestion de 4 opcoes (sem o passo do
-dev server) pra o dono decidir merge/PR/deixa/descarta. `--auto` com fase sem UI fecha direto (sem perguntar).
+dev server) pra o dono decidir merge/PR/deixa/descarta. **Autonomo (`--solo`/`--auto`)** fecha direto sem
+menu: `ESCOLHA=mergear`.
 
 #### 3.8.1 Merge e avancar
 
 Sair da worktree (**ExitWorktree** ou `cd` de volta ao repo principal) para que `finish-phase` opere e
-atualize `git-map.json` na main. Mapear a escolha de 3.8.0 para `finish-phase`
-(`--mode menu|auto|solo`):
+atualize `git-map.json` na main. **Autonomo (`--solo`/`--auto`):** sem menu, `ESCOLHA=mergear`.
+Mapear a escolha de 3.8.0 para `finish-phase` (`--mode menu|auto|local`):
 
 ```bash
+[ "$AUTONOMO" = "true" ] && [ -z "$ESCOLHA" ] && ESCOLHA=mergear
 case "$ESCOLHA" in
-  # Pode mergear / Aprovado: finish-phase --mode auto faz gh pr create (Closes #N) -> merge squash -> cleanup.
-  # FAIL-OPEN: sem gh/remote, --mode auto degrada para merge LOCAL da branch na base + cleanup (issue/PR=null).
-  mergear|aprovado) node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase --phase {phase_number} --mode auto --strategy squash ;;
+  # Pode mergear / Aprovado: finish-phase --mode auto. Transporte gh: pr create (Closes #N) -> merge -> cleanup.
+  # Transporte mcp (sem gh): faz push e retorna action 'needs-mcp-pr' (ver abaixo). none: merge LOCAL + cleanup.
+  mergear|aprovado) FIN=$(node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase --phase {phase_number} --mode auto --strategy squash --raw) ;;
   # Deixa a branch: nao mergeia; worktree+branch vivos. menu so atualiza git-map.json (status=in_review).
-  deixa)            node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase --phase {phase_number} --mode menu ;;
+  deixa)            FIN=$(node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase --phase {phase_number} --mode menu --raw) ;;
   # Descarta: orquestrador remove worktree + branch (sem merge); reflete em git-map.json via status=cancelled.
-  descarta)         echo "Descartando fase {phase_number}: remover worktree + branch (sem merge)." ;;
+  descarta)         echo "Descartando fase {phase_number}: remover worktree + branch (sem merge)." ; FIN="" ;;
 esac
 ```
 
-`finish-phase --mode auto` faz: gh pr create (body com `Closes #<issue>` quando ha issue) -> merge (squash
-default, ou `--strategy merge|rebase`) -> cleanup worktree+branch, e atualiza `git-map.json`. FAIL-OPEN: sem
-gh/remote, faz merge LOCAL da branch da fase na base e remove a worktree (issue/PR = null). `--mode solo` nao
-faz nada (usado quando ja esta tudo committado na branch atual); em `--solo` o fluxo nem chega aqui.
+**PR via MCP (quando `FIN` traz `"action":"needs-mcp-pr"`):** sem `gh`, o `finish-phase` ja deu `git push` da
+branch e devolveu `pr_payload {base, head, title, body, issue, strategy}`. Se voce TEM `mcp__...github__*`:
+
+> Chame `mcp__plugin_github_github__create_pull_request` (base/head/title/body do `pr_payload`), depois
+> `mcp__plugin_github_github__merge_pull_request` (merge_method=squash). Pegue o numero do PR e rode:
+> `node "$HOME/.claude/up/bin/up-tools.cjs" github record-pr --phase {phase_number} --pr <num> --url <url> --merged`
+> (`--merged` grava o PR, marca a fase merged e limpa worktree+branch). Se NAO tem MCP: rode
+> `github finish-phase --phase {phase_number} --mode local` como degradacao (a branch ja foi pushada; faca o
+> merge no GitHub manualmente depois) OU avise o dono.
+
+`finish-phase --mode auto` (transporte gh) faz: gh pr create (body com `Closes #<issue>`) -> merge (squash
+default, ou `--strategy merge|rebase`) -> cleanup worktree+branch, atualiza `git-map.json`. Sem remote (none),
+faz merge LOCAL da branch na base e remove a worktree (issue/PR=null). `--mode local` nao faz nada (usado em
+`--local`, ja committado na branch atual); em `--local` o fluxo nem chega aqui (tratado em 3.8).
 
 **Multica: sync BATCHED no FIM da fase/onda (so se `--board`).**
 Uma unica chamada que reflete TODAS as transicoes acumuladas da fase de uma vez (nao por microtransicao):
@@ -759,7 +805,7 @@ if [ "$BOARD" = "true" ]; then
 fi
 ```
 
-> Em `--solo` o fluxo nem chega aqui (sem `--board`): nenhuma chamada Multica.
+> Em `--local` o fluxo nem chega aqui (sem `--board`): nenhuma chamada Multica.
 
 ### 3.9 Reassessment de roadmap (pos-fase, inline, ~30s)
 
@@ -845,8 +891,9 @@ final_confidence: [do up-revisor de delivery]
 - [ ] E2E + DCRV rodaram por fase (delegado a dcrv.md)
 - [ ] up-revisor emitiu veredito por fase e LOGOU em approvals.log COM campo evidence=<tipo>:<resultado>
 - [ ] GATE de fase deterministico passou (APPROVE + evidence do tipo certo, ou forced approval com debito)
-- [ ] GitHub-nativo (default): worktree+branch+issue por fase via `github start-phase`; menu 4 opcoes /
-      `github finish-phase` no fim. `--solo` degrada para commit na branch atual (sem worktree/issue/PR)
+- [ ] GitHub-nativo (default): worktree+branch+issue por fase via `github start-phase` (transporte gh OU
+      MCP); menu 4 opcoes / `github finish-phase` no fim. `--solo`/`--auto` mantem GitHub (autonomia, nao
+      desliga). `--local` degrada para commit na branch atual (sem worktree/issue/PR)
 - [ ] Execucao sempre via up-executor (roteia por contexto: frontend/backend/database/misto); SEM agentes
       specialist separados (Onda 2 do corte)
 - [ ] `--board`: Multica init no inicio (project+pai), sync `in_progress` na entrada da fase, sync BATCHED

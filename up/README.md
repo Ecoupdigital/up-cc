@@ -33,7 +33,7 @@ Sem UP, voce pede algo ao assistente e torce pra dar certo. Com UP:
 - **Estado persiste entre sessoes** via arquivos em `.plano/`, sobrevive a `/clear` e troca de contexto
 - **Commits atomicos** rastreiam cada mudanca com mensagens descritivas
 - **TDD por tipo de codigo**: logica pede teste red-green, UI pede prova visual, glue pede smoke-test. Nunca "Pronto!" sem evidencia fresca
-- **GitHub-nativo por padrao**: cada fase abre worktree, issue e branch `up/fase-NN-slug`, executa, e no fim oferece um menu (merge local, abrir PR, deixar a branch ou descartar). `--solo` e o escape hatch para commit direto na branch atual
+- **GitHub-nativo por padrao**: cada fase abre worktree, issue e branch `up/fase-NN-slug` (via `gh` OU MCP do GitHub), executa, e no fim oferece um menu (merge local, abrir PR, deixar a branch ou descartar). `--solo`/`--auto` mantem o GitHub (sao autonomia); `--local` e o escape hatch para commit direto na branch atual sem GitHub
 - **Teste visual antes do merge**: se a fase tem UI, o build sobe o dev server dentro da worktree e pergunta se voce quer ver na tela antes de mergear. Producao nao mergeia sem o dono aprovar
 - **Detecta projetos existentes** e adapta o fluxo automaticamente (brownfield)
 
@@ -69,7 +69,7 @@ Apos instalar, reinicie o CLI e digite `/up` para comecar de onde parou (ou desc
 |---------|-----------|
 | **`/up`** | Porta unica. Sem argumento, continua de onde parou (le `STATE.md` e roteia). Com descricao, dispara o brainstorm escalado e roteia greenfield/brownfield/clone. Tambem e a casa de `estado` e `config` (subverbos). |
 | **`/up:plan`** | Planeja projeto ou fase (deteccao automatica). Research inline + self-check. Quebra fase grande em varios planos por dominio organizados em waves. Gera `PLAN-READY.md` executavel, inclusive em outro runtime. |
-| **`/up:build`** | Executa o que foi planejado. **GitHub-nativo por padrao**: por fase abre worktree + issue + branch, executa, testa o visual e oferece menu de fim de fase (merge local, PR, deixa a branch, descarta). Flags: `--solo` (escape hatch, commit na branch atual sem cerimonia), `--auto` (pula o menu), `--board` (espelha no Multica). |
+| **`/up:build`** | Executa o que foi planejado. **GitHub-nativo por padrao** (via `gh` OU MCP do GitHub): por fase abre worktree + issue + branch, executa, testa o visual e oferece menu de fim de fase (merge local, PR, deixa a branch, descarta). Flags: `--solo` (autonomo total: mantem GitHub, sem menu nem gate visual), `--auto` (pula so o menu), `--local` (escape hatch, commit na branch atual sem GitHub), `--board` (espelha no Multica). |
 | **`/up:testar`** | Loop DCRV unico (detectar, corrigir, reverificar) num passe. Default roda tudo: visual, interacao, API, UX, mobile, E2E. Flags `--ux`/`--mobile`/`--e2e` focam. |
 | **`/up:depurar`** | Depuracao sistematica (causa raiz, hipotese, fix com teste de regressao) com estado persistente entre `/clear`. |
 | **`/up:auditar`** | Auditoria priorizada num passe (UX, performance, modernidade). Flag `--features` ativa pesquisa de mercado para sugerir features novas. |
@@ -93,7 +93,7 @@ O UP escala o esforco pelo tamanho da tarefa, sem voce pedir.
   -> STATE.md atualizado. FIM.
 ```
 
-Zero worktree, zero issue, zero PR, zero rede. `/up:rapido` (ou `--solo` no build) e o escape hatch nomeado para esse modo, pulando ate o roadmap.
+Zero worktree, zero issue, zero PR, zero rede. `/up:rapido` (ou `--local` no build) e o escape hatch nomeado para esse modo, pulando ate o roadmap.
 
 ### Caminho medio (feature de 1 subsistema)
 
@@ -135,14 +135,16 @@ O sistema sabe que CSS pede prova visual. Voce nao precisa pedir licenca, e o ag
 
 ## GitHub-nativo (o default do `/up:build`)
 
-Por padrao (`github_native=true`), cada fase do build abre worktree + branch + issue, executa, testa, e no fim **pergunta** o que fazer:
+Por padrao (`github_native=true`), cada fase do build abre worktree + branch + issue (via `gh` OU MCP do GitHub), executa, testa, e no fim **pergunta** o que fazer. GitHub e a interacao humana sao eixos SEPARADOS: as flags so mexem na interacao, o GitHub fica ligado.
 
 ```
 /up:build           # GitHub-nativo: worktree -> issue -> teste visual -> menu de fim de fase
-/up:build --auto    # mesmo fluxo, mas pula o menu de fim de fase
-/up:build --solo    # ESCAPE HATCH: commit na branch atual, zero cerimonia GitHub
+/up:build --auto    # mantem GitHub, pula so o menu (gate visual ainda roda)
+/up:build --solo    # autonomo total: mantem GitHub, sem menu E sem gate visual (loop/headless)
+/up:build --local   # ESCAPE HATCH sem GitHub: commit na branch atual, zero cerimonia
 ```
 
+- Detecta o transporte: `gh` CLI autenticado OU MCP do GitHub conectado. Worktree/branch sao git local e sempre acontecem; issue/PR usam o transporte disponivel
 - Usa a tool nativa `EnterWorktree` do harness quando disponivel (fallback: `git worktree add`)
 - 1 issue por fase, branch `up/fase-NN-slug`, `Closes #N` no corpo do PR
 - No fim da fase, **menu de fim de fase** (merge local / abrir PR / deixa a branch / descarta), nunca PR-automatico

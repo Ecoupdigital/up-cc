@@ -1,7 +1,7 @@
 ---
 name: up:build
-description: Use quando o usuario quer EXECUTAR um projeto ja planejado (existe .plano/PLAN-READY.md). Default GitHub-nativo por fase (worktree, issue, PR, merge). Flag --solo pula a cerimonia (commit atomico na branch atual); --board espelha no Multica; --auto pula o menu de fim de fase.
-argument-hint: "[--solo] [--board] [--auto]"
+description: Use quando o usuario quer EXECUTAR um projeto ja planejado (existe .plano/PLAN-READY.md). Default GitHub-nativo por fase (worktree, issue, PR, merge) via gh OU MCP. Flag --solo = autonomo total mantendo GitHub (sem menu, sem gate visual); --auto pula so o menu; --local pula o GitHub (commit atomico na branch atual); --board espelha no Multica.
+argument-hint: "[--solo] [--auto] [--local] [--board]"
 allowed-tools:
   - Read
   - Write
@@ -40,11 +40,12 @@ Exemplo: planejou em Claude Code (`/up:plan "X"`), agora roda em OpenCode (`/up-
 <context>
 $ARGUMENTS
 
-**Flags:**
-- (sem flag) = **GitHub-nativo, o DEFAULT** (`config.github_native=true`): cada fase abre worktree + branch `up/fase-NN-slug` + issue, executa, sobe o dev server pra teste visual (se houver UI) e oferece o menu de fim de fase.
-- `--solo` - **ESCAPE HATCH**. Forca `github_native=false` so nesta execucao: commit atomico na branch ATUAL, zero worktree/issue/PR/board.
+**Flags** (GitHub e a interacao humana sao eixos SEPARADOS; as flags so mexem na interacao):
+- (sem flag) = **GitHub-nativo, o DEFAULT** (`config.github_native=true`): cada fase abre worktree + branch `up/fase-NN-slug` + issue (via `gh` OU MCP do GitHub), executa, sobe o dev server pra teste visual (se houver UI) e oferece o menu de fim de fase.
+- `--solo` - **autonomo total**. NAO desliga o GitHub: cria worktree/branch/issue/PR e auto-mergeia, SEM menu e SEM gate visual. Pra loop/headless.
+- `--auto` - pula so o menu de fim de fase (merge automatico). Mantem GitHub. O teste visual ainda roda se `require_visual_test=true`.
+- `--local` - **ESCAPE HATCH sem GitHub**. Commit atomico na branch ATUAL, zero worktree/issue/PR/board. (Mesmo que `/up:rapido`.) Unico jeito de pular o GitHub.
 - `--board` - espelha o progresso das fases no Multica (board opt-in, batched, fail-open).
-- `--auto` - pula o menu de fim de fase (merge automatico). O teste visual ainda roda se `require_visual_test=true`.
 
 O comando le o resto de `.plano/PLAN-READY.md`.
 </context>
@@ -75,23 +76,23 @@ Se algo falta: alertar e oferecer planejamento local OU abortar.
 
 **Sem model routing:** O runtime decide o modelo.
 
-**Parsear flags primeiro:** extrair `--solo`/`--board`/`--auto`. Sem flag = GitHub-nativo (default).
+**Parsear flags primeiro:** extrair `--solo`/`--auto`/`--local`/`--board`. Sem flag = GitHub-nativo (default).
 
 **Modo de orquestracao (resolver antes de comecar):**
-- DEFAULT (sem `--solo`): GitHub-nativo. Por fase: `up-tools.cjs github start-phase` (worktree + branch + issue, fail-open) -> executa as waves -> gate -> teste visual pre-merge (se UI) -> `github finish-phase` (PR -> merge squash -> cleanup) conforme o menu. `--board` adiciona `multica init/sync` (batched). `--auto` pula o menu.
-- `--solo`: executa local, commits atomicos na branch atual. Sem worktree/issue/PR/board.
+- DEFAULT (sem `--local`): GitHub-nativo. Por fase: `up-tools.cjs github start-phase` (worktree + branch + issue via gh OU MCP, fail-open) -> executa as waves -> gate -> teste visual pre-merge (se UI) -> `github finish-phase` (PR -> merge squash -> cleanup) conforme o menu. `--auto` pula o menu (mantem GitHub). `--solo` pula menu E gate visual (autonomo total, mantem GitHub). `--board` adiciona `multica init/sync` (batched).
+- `--local`: executa local, commits atomicos na branch atual. Sem worktree/issue/PR/board.
 
 **Execute the build workflow from @~/.claude/up/workflows/build.md end-to-end.**
 
 Pipeline por fase:
 1. Validacao light
-2. `github start-phase` (worktree + issue; pulado em `--solo`)
+2. `github start-phase` (worktree + issue via gh OU MCP; pulado so em `--local`)
 3. Execucao em WAVES PARALELAS: os planos da mesma wave rodam ao mesmo tempo (varios `up-executor`); waves em sequencia. Re-plan local se algum plano ficar inviavel.
 4. up-verificador emite VERIFICATION.md com evidencia fresca por tipo (TDD-por-tipo: red-green / visual / smoke)
 5. **GATE deterministico** `approvals.log` (governance.md, gate-only; exige `evidence=`)
 6. up-revisor (two-stage: spec-compliance cetico + code-quality) alimenta o gate
 7. **Teste visual pre-merge** (fase de UI e `require_visual_test=true`): sobe o dev server na worktree, "testar primeiro ou pode mergear?", loop de ajuste ate aprovar
-8. **Menu de fim de fase** (GitHub-nativo, fora `--auto`): merge local / abrir PR / deixa a branch / descarta. Em `--solo`, ja committou na branch atual
+8. **Menu de fim de fase** (GitHub-nativo, fora `--auto`/`--solo`): merge local / abrir PR / deixa a branch / descarta. Autonomo (`--solo`/`--auto`) auto-mergeia sem menu. Em `--local`, ja committou na branch atual
 9. Reassessment do roadmap antes da proxima fase
 
 **Re-plan local permitido (max 1 round por fase):**
@@ -102,9 +103,9 @@ Se ficar inviavel, o up-planejador LOCAL refaz a fase. Registrar em `.plano/gove
 
 <success_criteria>
 - [ ] PLAN-READY.md validado
-- [ ] Flags parseadas (default = GitHub-nativo; --solo = escape)
+- [ ] Flags parseadas (default = GitHub-nativo; --solo/--auto = autonomia mantendo GitHub; --local = escape sem GitHub)
 - [ ] Build rodou todas as fases; planos da mesma wave em paralelo
 - [ ] GATE approvals.log respeitado (deterministico, com evidence= por tipo)
-- [ ] Teste visual pre-merge em fase de UI (require_visual_test)
-- [ ] Fechamento por fase: menu (GitHub-nativo) ou commit na branch (--solo)
+- [ ] Teste visual pre-merge em fase de UI (require_visual_test; pulado em --solo)
+- [ ] Fechamento por fase: menu (GitHub-nativo), auto-merge (--solo/--auto) ou commit na branch (--local)
 </success_criteria>

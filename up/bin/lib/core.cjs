@@ -114,8 +114,9 @@ function loadConfig(cwd) {
     auto_advance: false,
     instrumentation: { enabled: true },
     budget_ceiling: null,
-    // Fase 4: GitHub-native e o PADRAO. --solo no comando forca github_native=false
-    // so na execucao (o build.md le a flag e roteia para o modo solo, sem persistir).
+    // GitHub-native e o PADRAO. So --local (ou este flag = false) desliga. --solo NAO
+    // desliga: solo = autonomia (sem menu/gate visual), GitHub segue ligado. Transporte
+    // de issue/PR: gh CLI OU MCP do GitHub (worktree/branch sao git local, sempre rodam).
     github_native: true,
     merge_strategy: 'squash',
     // Fim de fase: se a fase tem UI, sobe dev server e exige aprovacao visual ANTES do merge.

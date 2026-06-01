@@ -25,7 +25,7 @@ O UP ativa por contexto. Nao precisa decorar comando: a skill certa dispara pelo
 
 **Prova por tipo:** logica/bugfix = teste red-green; UI/CSS = captura visual; glue/integracao = smoke-test. Veja `up-tdd`.
 
-**GitHub-nativo e o padrao em repo colaborativo** (worktree -> issue -> PR -> merge), menu de 4 opcoes no fim. Solo usa `--solo` (commit local) ou `/up:rapido` como escape, sem cerimonia.
+**GitHub-nativo e o padrao** (worktree -> issue -> PR -> merge), via `gh` OU MCP do GitHub, menu de 4 opcoes no fim. `--auto` pula o menu; `--solo` e autonomo total (mantem GitHub, sem menu nem gate visual). Pra pular o GitHub de propósito (commit local puro): `--local` no build ou `/up:rapido`. Atencao: `--solo` NAO desliga mais o GitHub.
 
 **Persistencia:** tudo vive em `.plano/` e sobrevive a `/clear`. Leia `.plano/STATE.md` antes de assumir contexto perdido.
 

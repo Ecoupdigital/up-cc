@@ -4,7 +4,7 @@ Executar tarefas pequenas e ad-hoc com garantias UP (commits atomicos, rastreame
 **ESCAPE HATCH PURO (sem cerimonia GitHub).** Diferente de `/up:build` (GitHub-nativo por DEFAULT:
 worktree -> branch `up/fase-NN` -> issue -> PR -> menu), o modo rapido NUNCA cria worktree, NUNCA cria
 issue do GitHub, NUNCA abre PR e NAO toca em `.plano/git-map.json`. Todo o trabalho e committado
-atomicamente na branch ATUAL (mesmo semantica do `--solo` do build). E o caminho quente para
+atomicamente na branch ATUAL (mesma semantica do `--local` do build). E o caminho quente para
 "so faz e commita". Quem quer worktree/issue/PR usa `/up:build`.
 </purpose>
 
