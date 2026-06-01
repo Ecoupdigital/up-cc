@@ -23,6 +23,8 @@ Se voce se pegar pensando uma dessas, PARE. E o sinal de que esta prestes a fura
 | "Marco como Trivial pra ir mais rapido" | Se toca schema/API/auth ou >1 subsistema, NAO e Trivial. Rebaixar o tier e furar o gate disfarcado. |
 | "O usuario tem pressa, pulo a aprovacao" | Pressa muda a PROFUNDIDADE (tier), nunca remove a aprovacao. Ate Trivial anuncia antes de agir. |
 | "Ja sei o que ele quer" | Suposicao nao e aprovacao. Em Pequena+, pergunte a decisao-chave. |
+| "Design aprovado, agora vou codar/criar a fundacao" | NAO. Projeto/feature: o estado terminal e `/up:plan`, nunca implementacao direta. Registre BRIEFING/PROJECT, entregue o handoff e PARE. |
+| "Vou so deixar o scaffold pronto enquanto isso" | Scaffold E implementacao. Sem `.plano/PLAN-READY.md`, nada de codigo/estrutura. |
 
 A unica forma legitima de ir rapido e o tier Trivial, nao furar o gate.
 
@@ -49,6 +51,8 @@ Classifique a tarefa com o `classify-task` do `up-tools.cjs` (tiers: `simple` / 
 
 Principios: uma pergunta por vez, multipla escolha, YAGNI sem piedade, sempre alternativas, validacao incremental.
 
-## Estado terminal
+## Estado terminal (regra dura)
 
-Aprovado o design, transicione para o planejamento (`/up:plan`). Nao invoque skill de implementacao direto a partir daqui.
+Aprovado o design de um PROJETO ou FEATURE, o estado terminal e `/up:plan` (gera `.plano/PLAN-READY.md`). Voce NAO escreve codigo, NAO cria fundacao, NAO faz scaffold a partir daqui: registra os artefatos (BRIEFING/PROJECT), entrega o handoff e PARA. Quem implementa e o `/up:build`, e so depois que existe `PLAN-READY.md`.
+
+Excecao unica: tarefa Trivial pontual declarada via `/up:rapido` pode ir direto, sem plan. Projeto/feature nao-trivial, nunca.
