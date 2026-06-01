@@ -38,6 +38,47 @@ Classifique a tarefa com o `classify-task` do `up-tools.cjs` (tiers: `simple` / 
 | **Pequena** (1 subsistema, 1 escolha de design) | 1 pergunta via AskUserQuestion (a decisao-chave) + design em 3 frases. Aprova e segue. |
 | **Media / Grande** (multi-subsistema, toca schema/API/auth) | Brainstorm full. |
 
+O `classify-task` define o PISO (minimo garantido). O usuario sempre pode SUBIR ou DESCER manualmente (override abaixo). Nunca diminua a profundidade por conta propria; so o usuario rebaixa.
+
+## Override de profundidade (controle do usuario)
+
+O tier automatico e so o default. O usuario manda na profundidade:
+
+| Sinal do usuario | Efeito |
+|------------------|--------|
+| Palavras "a fundo", "detalhado", "explorar", "pensar junto", "completo", "caprichado" OU flag `--deep` | Sobe pra **full** (ou exploracao, se for ideia crua), ignora o score baixo. |
+| Palavras "rapido", "simples", "so faz", "sem perguntas" OU flag `--quick` | Desce pra **trivial** (0 perguntas), mesmo que o score ache complexo. O HARD-GATE continua: anuncia antes de agir. |
+| Nada declarado | Usa o tier do `classify-task` (piso automatico). |
+
+Pressa nunca remove o gate; muda so quantas perguntas.
+
+## Modo exploracao (ideia crua, acima do full)
+
+Quando o usuario tem so uma SEMENTE e quer DESCOBRIR o que e (nao validar um design ja pronto). Gatilhos: "tenho uma ideia", "to pensando em", "e se", "me ajuda a pensar", "queria explorar", `--deep` numa ideia vaga.
+
+Diferenca do full: o full valida um design que o usuario ja tem na cabeca; a exploracao ABRE o espaco antes de fechar.
+
+1. **Nao pule pra solucao.** Primeiro entenda o PORQUE: que problema/desejo move a ideia, pra quem, por que agora.
+2. **Abra alternativas radicais.** Ofereca 3-5 direcoes bem diferentes (nao variacoes da mesma), incluindo uma obvia, uma ousada e uma "e se fizesse o oposto".
+3. **Provoque com "e se".** Tensione premissas: "e se nao precisasse de X?", "e se o publico fosse outro?", "qual a versao 10x menor que ja entrega valor?".
+4. **Uma pergunta por vez**, multipla escolha quando der. Vai estreitando do amplo pro especifico.
+5. **Destile** a ideia num paragrafo claro: o que e, pra quem, por que, o diferencial. Confirme com o usuario.
+6. So ENTAO transicione pro design (full) ou direto pro `BRIEFING.md`, conforme o tamanho do que emergiu.
+
+A exploracao termina numa ideia destilada e aprovada, que vira BRIEFING. Continua valendo o estado terminal: codigo so depois de `/up:plan`.
+
+## Trilha NAO-codigo (documento, relatorio, analise, conteudo, plano de negocio)
+
+Nem todo trabalho e software. Se a tarefa e produzir um ARTEFATO que nao e codigo (documento, proposta, relatorio, analise, roteiro, estrategia, pesquisa), o fluxo muda:
+
+- **Brainstorm igual** (escala por tier + override + modo exploracao valem). A diferenca e o que vem depois.
+- **NAO ha `/up:plan` -> `/up:build` -> worktree/PR.** Sem fases de software, sem TDD-por-tipo, sem GitHub-nativo. Isso e cerimonia de codigo.
+- **Apos o design/escopo aprovado:** produza o artefato direto (escreva o documento/analise). Para conteudo do Jonathan (carrossel, aula, post), use as skills dedicadas (`carrossel-*`, `aula-generator`, etc) quando aplicaveis.
+- **Verificacao por adequacao, nao por teste:** a prova e "o artefato existe, cobre o que foi pedido, sem placeholder/TBD, e bate com o briefing". Aplica a Lei de Ferro adaptada: nao diga "pronto" sem reler o artefato e conferir contra o escopo combinado.
+- **Persistencia leve:** salve o artefato no local certo (vault, pasta do projeto) e registre 1 linha no STATE.md se houver `.plano/`. Sem roadmap.
+
+Como detectar: pedido fala em "documento, proposta, relatorio, analise, texto, roteiro, estrategia, plano, pesquisa" e NAO em codigo/app/feature/sistema. Na duvida, pergunte: "isso e pra virar codigo ou e um documento/analise?".
+
 ## Brainstorm full (media/grande)
 
 1. **Explore o contexto** (arquivos, docs, commits recentes).

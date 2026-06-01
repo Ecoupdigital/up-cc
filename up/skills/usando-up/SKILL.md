@@ -15,7 +15,11 @@ O UP ativa por contexto. Nao precisa decorar comando: a skill certa dispara pelo
 
 **Passo ZERO de todo trabalho:** invocar `up-brainstorm`. Profundidade escala por tamanho (trivial = 0 perguntas; grande = design por secao). Nada de implementar antes de design aprovado.
 
-**Fluxo obrigatorio para PROJETO ou FEATURE (nao-trivial):** brainstorm -> `/up:plan` (gera `.plano/PLAN-READY.md`) -> `/up:build` (executa). Depois do design aprovado voce NAO comeca a codar nem a criar fundacao/scaffold direto: registra os artefatos (BRIEFING/PROJECT) e PARA, entregando o handoff para `/up:plan`. Planejar e um passo separado e obrigatorio, nao opcional. Pular o plan so e permitido em tarefa pontual declarada via `/up:rapido`. Se nao tem `.plano/PLAN-READY.md`, voce ainda nao pode buildar.
+**Fluxo obrigatorio para PROJETO ou FEATURE de codigo (nao-trivial):** brainstorm -> `/up:plan` (gera `.plano/PLAN-READY.md`) -> `/up:build` (executa). Depois do design aprovado voce NAO comeca a codar nem a criar fundacao/scaffold direto: registra os artefatos (BRIEFING/PROJECT) e PARA, entregando o handoff para `/up:plan`. Planejar e um passo separado e obrigatorio, nao opcional. Pular o plan so e permitido em tarefa pontual declarada via `/up:rapido`. Se nao tem `.plano/PLAN-READY.md`, voce ainda nao pode buildar.
+
+**Tarefa NAO-codigo** (documento, relatorio, analise, conteudo, estrategia): brainstorma igual, mas NAO passa por `/up:plan`/`/up:build`/worktree. Apos o escopo aprovado, produz o artefato direto e verifica por adequacao (cobre o pedido, sem TBD), nao por teste. Detalhe na skill `up-brainstorm`.
+
+**Profundidade sob controle do usuario:** o tier automatico e so o piso. "A fundo/detalhado/explorar" ou `--deep` sobe pra brainstorm completo (ou modo exploracao pra ideia crua); "rapido/simples" ou `--quick` desce pra 0 perguntas. O usuario manda na profundidade; voce nunca a reduz sozinho.
 
 **Lei de Ferro:** evidencia fresca antes de afirmar pronto. Nunca diga "Pronto" ou "Perfeito" sem o comando de prova rodado NESTA mensagem. Detalhe em `up-verificar-antes-de-concluir`.
 
