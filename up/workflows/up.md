@@ -290,8 +290,11 @@ Escrever inline (sem CEO):
 **`.plano/config.json`** — defaults (perguntar so na complex):
 
 ```json
-{ "mode": "yolo", "granularity": "standard", "parallelization": true, "commit_docs": true }
+{ "mode": "yolo", "granularity": "standard", "parallelization": true, "commit_docs": true, "github_native": true }
 ```
+
+`github_native: true` explicito torna a intencao visivel no arquivo (o build ja usa true por default, mas
+deixar gravado evita ambiguidade em run autonomo). So vira `false` se o projeto e local sem GitHub.
 
 Commits atomicos:
 
@@ -345,9 +348,10 @@ Apos estruturar, o `/up` NAO planeja nem executa fases sozinho. Ele entrega o ha
 ---
 ```
 
-> `/up:build` aceita `--solo` (default, commit na branch atual), `--pr` (worktree+issue+PR),
-> `--board` (espelho de status no Multica, batched, fail-open) e `--auto` (merge se verde). Para ver o
-> board depois: `/up estado board` (abre a URL no Multica). Aqui so roteamos pro /up:plan.
+> `/up:build` e **GitHub-nativo por padrao** (worktree + issue + PR por fase, via `gh` OU MCP do GitHub).
+> Flags: `--auto` (pula o menu, mantem GitHub), `--solo` (autonomo total: GitHub + auto-merge, sem menu
+> nem gate visual), `--local` (escape sem GitHub: commit na branch atual), `--board` (espelho de status no
+> Multica, batched, fail-open). Para ver o board depois: `/up estado board`. Aqui so roteamos pro /up:plan.
 
 ## Passo 4: CLONE (URL recebida)
 
@@ -394,6 +398,7 @@ escreve o PRD pronto pro planejamento.
 
 ```json
 { "mode": "yolo", "granularity": "standard", "parallelization": true, "commit_docs": true,
+  "github_native": true,
   "builder_type": "clone", "clone_source": "{URL}", "clone_mode": "{exact|improve|inspiration}",
   "clone_data": ".plano/clone/" }
 ```

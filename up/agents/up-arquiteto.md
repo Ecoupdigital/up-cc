@@ -305,11 +305,14 @@ Modo builder ativo. Proxima acao: planejar fase 1.
   "granularity": "standard",
   "parallelization": true,
   "commit_docs": true,
-  "builder_mode": true
+  "builder_mode": true,
+  "github_native": true
 }
 ```
 
-Note: `builder_mode: true` sinaliza que o projeto foi criado em modo autonomo.
+Note: `builder_mode: true` sinaliza que o projeto foi criado em modo autonomo. `github_native: true`
+explicito deixa a intencao gravada no arquivo (o build usa true por default; gravar evita ambiguidade
+em run autonomo/loop). So mude pra `false` se o projeto e local sem GitHub.
 </state_and_config>
 
 <brownfield_mode>

@@ -4,6 +4,55 @@ Todas as mudancas relevantes do `up-cc` ficam documentadas aqui. O formato segue
 o espirito de [Keep a Changelog](https://keepachangelog.com/) e o versionamento
 e [SemVer](https://semver.org/). v2.0.0 e um **major** (breaking change).
 
+## 2.1.0
+
+> GitHub e a interacao humana viram **eixos separados**. Antes, `--solo` desligava o
+> GitHub (zero worktree/issue/PR) E pulava a cerimonia. Num run autonomo/loop isso fazia
+> o projeto inteiro ir pro `main` sem nenhum artefato GitHub, mesmo com remote conectado.
+> Agora `--solo` NAO desliga o GitHub: e so autonomia. Pra pular o GitHub use `--local`.
+
+### Mudado (atencao: semantica de `--solo`)
+
+- **`--solo` agora MANTEM o GitHub-nativo.** Solo virou "autonomo total": cria
+  worktree + branch + issue + PR e auto-mergeia, SEM menu e SEM gate visual (pra
+  loop/headless onde ninguem aprova). Nao desliga mais o GitHub.
+- **`--local` e o novo escape hatch sem GitHub** (o comportamento que `--solo` tinha
+  ate a 2.0.x): commit atomico na branch atual, zero worktree/issue/PR/rede. `/up:rapido`
+  segue como o atalho nomeado pro mesmo modo.
+- **`--auto`** continua igual: pula so o menu de fim de fase, mantem GitHub, e o gate
+  visual ainda roda se `require_visual_test=true`.
+
+### Adicionado
+
+- **Deteccao de GitHub por `gh` CLI OU MCP do GitHub.** O eixo GitHub liga sempre que
+  ha remote + (`gh` autenticado OU MCP do GitHub conectado). Transporte de issue/PR:
+  `gh` (CLI cria direto), `mcp` (o workflow cria via `mcp__...github__*` e grava de
+  volta), `none` (sem remote -> git local). Worktree/branch/push sao git local e
+  acontecem sempre, offline-ok.
+- **Subcomandos `github record-issue` / `github record-pr`** no `up-tools.cjs` pra
+  gravar no `git-map.json` artefatos criados fora do `.cjs` (ex: via MCP). `record-pr
+  --merged` fecha a fase e limpa worktree+branch.
+- **Flag `--local`** no `/up:build` e `start-phase`/`finish-phase` (`--mode local`).
+- **Config builder grava `github_native: true` explicito** (up-arquiteto, workflows/up),
+  deixando a intencao visivel em run autonomo (antes dependia do default implicito).
+- **Testes red-green** do `github.cjs` em `up/bin/lib/github.test.cjs` (10 casos; repo
+  git temp + remote bare local + seam `UP_FORCE_NO_GH`).
+
+### Corrigido
+
+- **Bug de doc em `workflows/up.md`** que dizia `--solo (default, commit na branch atual)`
+  e descrevia `--pr` como o fluxo GitHub (vocabulario v1). Era a unica fonte que podia
+  induzir um agente autonomo a escolher `--solo` e pular o GitHub. Reescrito pro v2.
+- **`--local` numa fase nao polui mais o `github_native` global** do `git-map.json`
+  (poderia degradar fases nao-local seguintes). `finish-phase auto` passou a consultar
+  o config, nao o flag global do mapa.
+
+### Migracao
+
+- Quem usava `--solo` pra **commit local sem GitHub** deve trocar para `--local`.
+- Quem quer **autonomo mantendo GitHub** (loop/headless): use `--solo` (sem gate visual)
+  ou `--auto` (com gate visual se `require_visual_test=true`).
+
 ## 2.0.0
 
 > Redesign completo do UP. **Breaking change.** Os comandos antigos somem (nao ha

@@ -34,8 +34,13 @@ function getRemoteUrl(cwd) {
   return res.exitCode === 0 ? res.stdout.trim() : null;
 }
 
-/** `gh` instalado E autenticado? */
+/**
+ * `gh` instalado E autenticado?
+ * Seam de teste: UP_FORCE_NO_GH=1 forca indisponivel; UP_FORCE_GH=1 forca disponivel.
+ */
 function ghAvailable(cwd) {
+  if (process.env.UP_FORCE_NO_GH === '1') return false;
+  if (process.env.UP_FORCE_GH === '1') return true;
   try {
     execSync('gh auth status', { cwd, stdio: 'pipe' });
     return true;
@@ -69,12 +74,34 @@ function execGh(cwd, args) {
   }
 }
 
-/** github-native ativo? (config.github_native default true) AND gh+remote disponiveis. */
-function githubMode(cwd, solo) {
-  if (solo) return false;
+/**
+ * EIXO A — queremos artefatos GitHub (worktree/branch sempre; issue/PR se remote)?
+ * Ligado a menos que: `--local`, config.github_native=false, ou sem remote origin.
+ * NAO depende de `gh`: gh-vs-MCP e o transporte (eixo separado), nao o liga/desliga.
+ */
+function gitWantsRemote(cwd, local) {
+  if (local) return false;
   const config = loadConfig(cwd);
   if (config.github_native === false) return false;
-  return ghAvailable(cwd) && gitHasRemote(cwd);
+  return gitHasRemote(cwd);
+}
+
+/**
+ * Transporte pra criar issue/PR remoto: 'gh' | 'mcp' | 'none'.
+ * - 'gh':  gh CLI disponivel -> github.cjs cria direto (deterministico).
+ * - 'mcp': remote existe mas sem gh -> o WORKFLOW (LLM) cria via MCP do GitHub,
+ *          porque um subprocesso Node nao chama tools MCP. github.cjs sinaliza e
+ *          grava de volta via recordIssue/recordPr.
+ * - 'none': sem remote (ou --local / config off) -> git local puro, sem issue/PR.
+ */
+function issueTransport(cwd, local) {
+  if (!gitWantsRemote(cwd, local)) return 'none';
+  return ghAvailable(cwd) ? 'gh' : 'mcp';
+}
+
+/** Compat: github-native "classico" = transporte gh disponivel. */
+function githubMode(cwd, local) {
+  return issueTransport(cwd, local) === 'gh';
 }
 
 // =====================================================================
@@ -189,24 +216,27 @@ function phaseKey(phase) {
 // =====================================================================
 
 /**
- * startPhase({cwd, phase, slug, solo})
- * - Cria branch up/fase-NN-slug e worktree FORA do repo.
- * - Se github_native e gh+remote disponiveis: cria gh issue.
- * - Com --solo: degrada (sem worktree, sem issue) — trabalha na branch atual.
- * - Sem gh/remote: cria worktree+branch local, issue=null (fail-open, nunca crasha).
- * - Escreve .plano/git-map.json. Retorna {branch, worktree, issue, issue_url, mode, warnings}.
+ * startPhase({cwd, phase, slug, local, solo})
+ * EIXO A (GitHub) e EIXO B (interacao) sao SEPARADOS:
+ * - `local=true` (flag --local / config off / /up:rapido): SEM worktree/issue, commit
+ *   na branch atual. E o unico jeito de desligar o GitHub aqui.
+ * - `solo` NAO desliga o GitHub: solo so afeta o gate visual e o merge (no build.md).
+ *   Por isso `solo` e aceito mas ignorado neste passo (compat).
+ * - Caso contrario: cria worktree+branch SEMPRE (git local, offline-ok). Issue conforme
+ *   o transporte: 'gh' cria direto; 'mcp' deixa pro workflow criar via MCP (retorna
+ *   `pending.issue` e mode 'github-mcp'); 'none' (sem remote) so git local.
+ * - Escreve .plano/git-map.json. Retorna {branch, worktree, issue, issue_url, mode, transport, warnings, pending?}.
  */
-function startPhase({ cwd, phase, slug, solo = false }) {
+function startPhase({ cwd, phase, slug, local = false, solo = false }) {
+  void solo; // solo nao desliga GitHub (eixo de interacao, tratado no build.md)
   const warnings = [];
   const key = phaseKey(phase);
   const branch = branchName(phase, slug);
-  const ghOn = githubMode(cwd, solo);
 
   const map = readGitMap(cwd);
-  if (solo) map.github_native = false;
 
-  // --- modo SOLO: nada de worktree/issue, trabalha na branch atual ---
-  if (solo) {
+  // --- LOCAL: nada de worktree/issue, trabalha na branch atual ---
+  if (local) {
     const cur = execGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
     const currentBranch = cur.exitCode === 0 ? cur.stdout.trim() : null;
     map.phases[key] = {
@@ -225,22 +255,21 @@ function startPhase({ cwd, phase, slug, solo = false }) {
       worktree: null,
       issue: null,
       issue_url: null,
-      mode: 'solo',
+      mode: 'local',
+      transport: 'none',
       warnings,
     };
   }
 
-  // --- modo GitHub-native ou git-local: criar worktree+branch ---
+  // --- worktree+branch SEMPRE (git local, independe de gh/MCP) ---
   const wt = worktreePath(cwd, phase, slug);
   shieldWorktreeDir(cwd);
 
-  // Worktree e branch existem? (idempotente / recovery)
   const existing = (map.phases[key] && map.phases[key].worktree) || null;
   let worktreeCreated = false;
 
   if (!fs.existsSync(wt)) {
     fs.mkdirSync(path.dirname(wt), { recursive: true });
-    // Branch ja existe? Anexa sem -b. Senao cria com -b.
     const branchExists = execGit(cwd, ['rev-parse', '--verify', '--quiet', branch]).exitCode === 0;
     const wtArgs = branchExists
       ? ['worktree', 'add', wt, branch]
@@ -248,7 +277,6 @@ function startPhase({ cwd, phase, slug, solo = false }) {
     const wtRes = execGit(cwd, wtArgs);
     if (wtRes.exitCode !== 0) {
       warnings.push('worktree_failed: ' + (wtRes.stderr || wtRes.stdout));
-      // FAIL-OPEN: cai pra branch local sem worktree
       const co = execGit(cwd, branchExists ? ['checkout', branch] : ['checkout', '-b', branch]);
       if (co.exitCode !== 0) warnings.push('branch_checkout_failed: ' + (co.stderr || co.stdout));
     } else {
@@ -259,13 +287,16 @@ function startPhase({ cwd, phase, slug, solo = false }) {
   }
   const worktree = worktreeCreated || existing ? wt : null;
 
-  // --- issue (so em github-native) ---
+  // --- issue: depende do transporte (gh | mcp | none) ---
+  const transport = issueTransport(cwd, local);
   let issue = null;
   let issueUrl = null;
-  if (ghOn) {
-    const title = `[fase ${padPhase(phase)}] ${slug || branch}`;
-    const body = buildIssueBody(cwd, phase, slug);
-    const res = execGh(cwd, ['issue', 'create', '--title', title, '--body', body]);
+  let pending = null;
+  const issueTitle = `[fase ${padPhase(phase)}] ${slug || branch}`;
+  const issueBody = buildIssueBody(cwd, phase, slug);
+
+  if (transport === 'gh') {
+    const res = execGh(cwd, ['issue', 'create', '--title', issueTitle, '--body', issueBody]);
     if (res.exitCode === 0) {
       issueUrl = res.stdout.trim().split('\n').pop().trim() || null;
       const m = issueUrl && issueUrl.match(/\/issues\/(\d+)/);
@@ -273,9 +304,13 @@ function startPhase({ cwd, phase, slug, solo = false }) {
     } else {
       warnings.push('issue_create_failed: ' + (res.stderr || res.stdout));
     }
-  } else if (!solo) {
-    if (!ghAvailable(cwd)) warnings.push('gh indisponivel ou nao autenticado: degradando para git local (sem issue/PR)');
-    else if (!gitHasRemote(cwd)) warnings.push('sem remote origin: degradando para git local (sem issue/PR)');
+  } else if (transport === 'mcp') {
+    // Node nao chama MCP: o workflow cria a issue via mcp__...github__issue_write
+    // e grava de volta com `up-tools github record-issue`. Worktree/branch ja existem.
+    pending = { issue: { title: issueTitle, body: issueBody } };
+    warnings.push('gh indisponivel: criar issue via MCP (github-mcp) e gravar com record-issue. worktree/branch ja prontos.');
+  } else {
+    warnings.push('sem remote origin: git local (sem issue/PR).');
   }
 
   map.phases[key] = {
@@ -290,14 +325,10 @@ function startPhase({ cwd, phase, slug, solo = false }) {
   };
   writeGitMap(cwd, map);
 
-  return {
-    branch,
-    worktree,
-    issue,
-    issue_url: issueUrl,
-    mode: ghOn ? 'github' : 'git-local',
-    warnings,
-  };
+  const mode = transport === 'gh' ? 'github' : transport === 'mcp' ? 'github-mcp' : 'git-local';
+  const ret = { branch, worktree, issue, issue_url: issueUrl, mode, transport, warnings };
+  if (pending) ret.pending = pending;
+  return ret;
 }
 
 /** Body da issue: goal + criterios do ROADMAP, se disponiveis. */
@@ -317,12 +348,34 @@ function buildIssueBody(cwd, phase, slug) {
 // finishPhase — solo | menu | auto/pr
 // =====================================================================
 
+/** Remove worktree + branch local (best-effort). Usado por finishPhase e recordPr. */
+function cleanupWorktreeBranch(cwd, worktree, branch, warnings) {
+  if (worktree && fs.existsSync(worktree)) {
+    const rm = execGit(cwd, ['worktree', 'remove', worktree]);
+    if (rm.exitCode !== 0) {
+      const rmF = execGit(cwd, ['worktree', 'remove', '--force', worktree]);
+      if (rmF.exitCode !== 0) warnings.push('worktree_remove_failed: ' + (rmF.stderr || rmF.stdout));
+    }
+    try { if (fs.existsSync(worktree)) fs.rmdirSync(worktree); } catch (e) { /* nao-vazio: ignora */ }
+    try {
+      const parent = path.dirname(worktree);
+      if (fs.existsSync(parent) && fs.readdirSync(parent).length === 0) fs.rmdirSync(parent);
+    } catch (e) { /* ignora */ }
+  }
+  if (branch) {
+    execGit(cwd, ['branch', '-D', branch]); // silencioso: gh/merge ja pode ter removido
+  }
+}
+
 /**
  * finishPhase({cwd, phase, mode, strategy})
- * - solo: nao faz nada (ja committado na branch atual). Marca status=done.
+ * - local (alias 'solo'): nao faz nada (ja committado na branch atual). status=done.
  * - menu: imprime as 4 opcoes pro orquestrador perguntar (nao age).
- * - auto (a.k.a. pr): gh pr create (body "Closes #<issue>") -> merge (squash default)
- *   -> cleanup worktree+branch. Sem remote: merge LOCAL da branch na base, cleanup.
+ * - auto (a.k.a. pr): conforme o transporte ('gh' | 'mcp' | 'none'):
+ *     'gh'   -> push + gh pr create (Closes #issue) + merge + cleanup.
+ *     'mcp'  -> push e PARA: retorna action 'needs-mcp-pr' + pr_payload pro workflow
+ *               criar/mergear o PR via MCP e fechar com `record-pr --merged` (que limpa).
+ *     'none' -> merge LOCAL fail-open + cleanup.
  * Atualiza git-map.json. Retorna estado da operacao.
  */
 function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
@@ -332,12 +385,12 @@ function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
   const entry = map.phases[key] || {};
   const mergeStrategy = strategy || map.merge_strategy || loadConfig(cwd).merge_strategy || 'squash';
 
-  // --- SOLO: nada a fazer, ja committado ---
-  if (mode === 'solo') {
+  // --- LOCAL / SOLO: nada a fazer, ja committado ---
+  if (mode === 'local' || mode === 'solo') {
     entry.status = 'done';
     map.phases[key] = entry;
     writeGitMap(cwd, map);
-    return { mode: 'solo', action: 'none', status: 'done', warnings };
+    return { mode, action: 'none', status: 'done', warnings };
   }
 
   // --- MENU: imprime as 4 opcoes, nao age ---
@@ -361,7 +414,10 @@ function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
   if (mode === 'auto' || mode === 'pr') {
     const branch = entry.branch || branchName(phase, '');
     const worktree = entry.worktree || null;
-    const ghOn = ghAvailable(cwd) && gitHasRemote(cwd) && map.github_native !== false;
+    // mode 'auto' ja significa "quero GitHub": consulta o config (intencao do projeto),
+    // nao o flag global do git-map (que uma fase --local anterior poderia ter mexido).
+    const wants = gitHasRemote(cwd) && loadConfig(cwd).github_native !== false;
+    const transport = wants ? (ghAvailable(cwd) ? 'gh' : 'mcp') : 'none';
 
     // Base de merge (default: branch ativa na main do repo)
     const baseRes = execGit(cwd, ['symbolic-ref', '--short', 'HEAD']);
@@ -370,16 +426,41 @@ function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
     let pr = entry.pr || null;
     let prUrl = entry.pr_url || null;
 
-    if (ghOn) {
-      // push da branch (necessario pro PR). Worktree ja tem a branch checada.
+    const issueRef = entry.issue ? `\n\nCloses #${entry.issue}` : '';
+    const prTitle = `Fase ${padPhase(phase)}` + (entry.branch ? `: ${entry.branch.replace(/^up\/fase-\d+-?/, '')}` : '');
+    const prBody = `Entrega da fase ${padPhase(phase)} (UP github-native).${issueRef}`;
+
+    // push da branch (necessario pro PR, gh OU MCP). Worktree tem a branch checada.
+    if (transport === 'gh' || transport === 'mcp') {
       const pushCwd = worktree && fs.existsSync(worktree) ? worktree : cwd;
       const push = execGit(pushCwd, ['push', '-u', 'origin', branch]);
       if (push.exitCode !== 0) warnings.push('push_failed: ' + (push.stderr || push.stdout));
+    }
 
-      // gh pr create (Closes #issue no body)
-      const issueRef = entry.issue ? `\n\nCloses #${entry.issue}` : '';
-      const prTitle = `Fase ${padPhase(phase)}` + (entry.branch ? `: ${entry.branch.replace(/^up\/fase-\d+-?/, '')}` : '');
-      const prBody = `Entrega da fase ${padPhase(phase)} (UP github-native).${issueRef}`;
+    // --- transporte MCP: push feito, PR fica pro workflow (LLM) via MCP ---
+    if (transport === 'mcp') {
+      map.phases[key] = entry; // status segue in_progress ate record-pr
+      writeGitMap(cwd, map);
+      return {
+        mode,
+        action: 'needs-mcp-pr',
+        transport: 'mcp',
+        pr_payload: {
+          base,
+          head: branch,
+          title: prTitle,
+          body: prBody,
+          issue: entry.issue || null,
+          strategy: mergeStrategy,
+          worktree,
+        },
+        branch,
+        status: entry.status || 'in_progress',
+        warnings,
+      };
+    }
+
+    if (transport === 'gh') {
       const create = execGh(cwd, ['pr', 'create', '--base', base, '--head', branch, '--title', prTitle, '--body', prBody]);
       if (create.exitCode === 0) {
         prUrl = create.stdout.trim().split('\n').pop().trim() || null;
@@ -389,7 +470,6 @@ function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
         warnings.push('pr_create_failed: ' + (create.stderr || create.stdout));
       }
 
-      // merge via gh
       const stratFlag = mergeStrategy === 'merge' ? '--merge' : mergeStrategy === 'rebase' ? '--rebase' : '--squash';
       const mergeTarget = pr ? String(pr) : branch;
       const merge = execGh(cwd, ['pr', 'merge', mergeTarget, stratFlag, '--delete-branch']);
@@ -401,7 +481,6 @@ function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
     } else {
       // FAIL-OPEN: merge LOCAL (sem remote/gh)
       warnings.push('sem gh/remote: merge local da branch ' + branch + ' em ' + base);
-      // Garante base checada no repo principal
       const co = execGit(cwd, ['checkout', base]);
       if (co.exitCode !== 0) warnings.push('checkout_base_failed: ' + (co.stderr || co.stdout));
       const stratArgs = mergeStrategy === 'squash'
@@ -421,35 +500,19 @@ function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
       }
     }
 
-    // cleanup: remove worktree e branch local
-    if (worktree && fs.existsSync(worktree)) {
-      const rm = execGit(cwd, ['worktree', 'remove', worktree]);
-      if (rm.exitCode !== 0) {
-        const rmF = execGit(cwd, ['worktree', 'remove', '--force', worktree]);
-        if (rmF.exitCode !== 0) warnings.push('worktree_remove_failed: ' + (rmF.stderr || rmF.stdout));
-      }
-      // best-effort: remove a casca vazia que git deixa, e o dir-pai .up-worktrees/<repo> se vazio
-      try { if (fs.existsSync(worktree)) fs.rmdirSync(worktree); } catch (e) { /* nao-vazio: ignora */ }
-      try {
-        const parent = path.dirname(worktree);
-        if (fs.existsSync(parent) && fs.readdirSync(parent).length === 0) fs.rmdirSync(parent);
-      } catch (e) { /* ignora */ }
-    }
-    // remove branch local (se ainda existir e nao for a branch ativa)
-    const delBranch = execGit(cwd, ['branch', '-D', branch]);
-    if (delBranch.exitCode !== 0 && !/not found|não encontrad/i.test(delBranch.stderr)) {
-      // silencioso: gh --delete-branch ja pode ter removido
-    }
+    cleanupWorktreeBranch(cwd, worktree, branch, warnings);
 
     entry.pr = pr;
     entry.pr_url = prUrl;
-    if (!entry.status || entry.status === 'in_progress') entry.status = ghOn ? 'merged' : entry.status;
+    entry.worktree = null;
+    if (!entry.status || entry.status === 'in_progress') entry.status = transport === 'gh' ? 'merged' : entry.status;
     map.phases[key] = entry;
     writeGitMap(cwd, map);
 
     return {
-      mode: mode,
+      mode,
       action: 'merged',
+      transport,
       pr,
       pr_url: prUrl,
       branch,
@@ -459,8 +522,45 @@ function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
     };
   }
 
-  warnings.push('modo desconhecido: ' + mode + ' (use solo|menu|auto)');
+  warnings.push('modo desconhecido: ' + mode + ' (use local|menu|auto)');
   return { mode, action: 'noop', warnings };
+}
+
+// =====================================================================
+// recordIssue / recordPr — gravam artefatos criados FORA (via MCP no workflow)
+// =====================================================================
+
+/** Grava no git-map a issue criada externamente (ex: via MCP). */
+function recordIssue({ cwd, phase, issue, url }) {
+  const key = phaseKey(phase);
+  const map = readGitMap(cwd);
+  const entry = map.phases[key] || {};
+  if (issue != null && issue !== '') entry.issue = parseInt(issue, 10);
+  if (url) entry.issue_url = url;
+  map.phases[key] = entry;
+  writeGitMap(cwd, map);
+  return { recorded: true, phase: key, issue: entry.issue ?? null, issue_url: entry.issue_url || null };
+}
+
+/**
+ * Grava no git-map o PR criado externamente (ex: via MCP).
+ * Com `merged=true`: marca status=merged e limpa worktree+branch local.
+ */
+function recordPr({ cwd, phase, pr, url, merged = false }) {
+  const warnings = [];
+  const key = phaseKey(phase);
+  const map = readGitMap(cwd);
+  const entry = map.phases[key] || {};
+  if (pr != null && pr !== '') entry.pr = parseInt(pr, 10);
+  if (url) entry.pr_url = url;
+  if (merged) {
+    entry.status = 'merged';
+    cleanupWorktreeBranch(cwd, entry.worktree, entry.branch, warnings);
+    entry.worktree = null;
+  }
+  map.phases[key] = entry;
+  writeGitMap(cwd, map);
+  return { recorded: true, phase: key, pr: entry.pr ?? null, pr_url: entry.pr_url || null, status: entry.status || null, merged: !!merged, warnings };
 }
 
 // =====================================================================
@@ -470,12 +570,16 @@ function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
 /** status({cwd}) — retorna o git-map.json atual (ou defaults se nao existir). Nunca crasha. */
 function status({ cwd }) {
   const map = readGitMap(cwd);
+  const hasRemote = gitHasRemote(cwd);
+  const ghOk = ghAvailable(cwd);
   return {
     github_native: map.github_native,
     merge_strategy: map.merge_strategy,
-    gh_available: ghAvailable(cwd),
-    has_remote: gitHasRemote(cwd),
+    gh_available: ghOk,
+    has_remote: hasRemote,
     remote: getRemoteUrl(cwd),
+    // transporte efetivo pra issue/PR: 'gh' | 'mcp' | 'none' (assumindo nao-local)
+    transport: hasRemote && map.github_native !== false ? (ghOk ? 'gh' : 'mcp') : 'none',
     phases: map.phases,
   };
 }
@@ -483,13 +587,18 @@ function status({ cwd }) {
 module.exports = {
   startPhase,
   finishPhase,
+  recordIssue,
+  recordPr,
   status,
   // helpers expostos para teste/reuso
   branchName,
   worktreePath,
   gitHasRemote,
   ghAvailable,
+  gitWantsRemote,
+  issueTransport,
   githubMode,
+  cleanupWorktreeBranch,
   readGitMap,
   writeGitMap,
 };
