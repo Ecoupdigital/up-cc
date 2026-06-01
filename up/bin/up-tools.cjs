@@ -352,11 +352,14 @@ function main() {
       if (sub === 'start-phase') {
         const phase = getFlag('--phase');
         const slug = getFlag('--slug');
-        if (!phase) error('Usage: github start-phase --phase N --slug S [--solo]');
+        if (!phase) error('Usage: github start-phase --phase N --slug S [--local]');
+        // --local desliga GitHub (commit na branch atual). --solo NAO desliga mais
+        // (so afeta gate visual/merge no build.md); aceito por compat, ignorado aqui.
         const result = github.startPhase({
           cwd,
           phase,
           slug: slug || '',
+          local: hasFlag('--local'),
           solo: hasFlag('--solo'),
         });
         output(result, raw, JSON.stringify(result));
@@ -364,14 +367,28 @@ function main() {
         const phase = getFlag('--phase');
         const mode = getFlag('--mode') || 'menu';
         const strategy = getFlag('--strategy');
-        if (!phase) error('Usage: github finish-phase --phase N --mode menu|auto|solo [--strategy squash|merge|rebase]');
+        if (!phase) error('Usage: github finish-phase --phase N --mode menu|auto|local [--strategy squash|merge|rebase]');
         const result = github.finishPhase({ cwd, phase, mode, strategy });
+        output(result, raw, JSON.stringify(result));
+      } else if (sub === 'record-issue') {
+        const phase = getFlag('--phase');
+        const issue = getFlag('--issue');
+        const url = getFlag('--url');
+        if (!phase || !issue) error('Usage: github record-issue --phase N --issue <num> [--url <url>]');
+        const result = github.recordIssue({ cwd, phase, issue, url });
+        output(result, raw, JSON.stringify(result));
+      } else if (sub === 'record-pr') {
+        const phase = getFlag('--phase');
+        const pr = getFlag('--pr');
+        const url = getFlag('--url');
+        if (!phase || !pr) error('Usage: github record-pr --phase N --pr <num> [--url <url>] [--merged]');
+        const result = github.recordPr({ cwd, phase, pr, url, merged: hasFlag('--merged') });
         output(result, raw, JSON.stringify(result));
       } else if (sub === 'status') {
         const result = github.status({ cwd });
         output(result, raw, JSON.stringify(result));
       } else {
-        error('Unknown github subcommand. Available: start-phase, finish-phase, status');
+        error('Unknown github subcommand. Available: start-phase, finish-phase, record-issue, record-pr, status');
       }
       break;
     }
