@@ -4,6 +4,36 @@ Todas as mudancas relevantes do `up-cc` ficam documentadas aqui. O formato segue
 o espirito de [Keep a Changelog](https://keepachangelog.com/) e o versionamento
 e [SemVer](https://semver.org/). v2.0.0 e um **major** (breaking change).
 
+## 2.2.0
+
+> O `.plano/` sempre sobreviveu ao `/clear` no DISCO, mas a RETOMADA era pull: o
+> hook reinjetava so a doutrina e o agente tinha que escolher ler o STATE.md. Agora
+> e push: o SessionStart injeta a posicao atual sozinho.
+
+### Corrigido
+
+- **SessionStart agora injeta `.plano/STATE.md`, nao so a doutrina.** O hook
+  `up-session-start.js` le `<cwd>/.plano/STATE.md` (cwd do payload, fallback
+  `process.cwd()`) e injeta um trecho capado (2800 chars) num bloco
+  `<UP-ESTADO-ATUAL>` junto do bootstrap. Resultado: a cada `/clear` (e no
+  startup) a posicao do projeto volta pro contexto **deterministicamente**, sem
+  depender do agente escolher ler. Resolve o "as vezes nao sobrevive ao /clear".
+  Fail-open mantido: sem `.plano`, so a doutrina (comportamento anterior). Head
+  bruto, independe do formato PT/EN do STATE.md.
+
+### Testes
+
+- `up/hooks/up-session-start.test.cjs`: 5 casos red-green invocando o hook como
+  subprocesso (stdin->stdout), cobrindo clear/startup com e sem `.plano`, skip de
+  `resume`, e cap de STATE.md gigante.
+
+### Conhecido (nao corrigido aqui)
+
+- `up-tools state-snapshot` parseia rotulos em INGLES e os STATE.md reais sao em
+  PORTUGUES, entao retorna campos null em projeto real. O hook NAO usa
+  state-snapshot (le STATE.md direto), entao a retomada nao e afetada. Fica
+  registrado pra um fix futuro do parser.
+
 ## 2.1.0
 
 > GitHub e a interacao humana viram **eixos separados**. Antes, `--solo` desligava o
