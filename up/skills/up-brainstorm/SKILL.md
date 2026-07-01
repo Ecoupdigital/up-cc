@@ -35,7 +35,7 @@ Classifique a tarefa com o `classify-task` do `up-tools.cjs` (tiers: `simple` / 
 | Tier | Profundidade |
 |------|--------------|
 | **Trivial** (1 arquivo, sem decisao de arquitetura) | 0 perguntas. Anuncia em 1 linha o que vai fazer e onde. Executa. |
-| **Pequena** (1 subsistema, 1 escolha de design) | 1 pergunta via AskUserQuestion (a decisao-chave) + design em 3 frases. Aprova e segue. |
+| **Pequena** (1 subsistema, 1 escolha de design) | 1 pergunta via AskUserQuestion (a decisao-chave) + checkpoint de fechamento + design em 3 frases. Aprova e segue. |
 | **Media / Grande** (multi-subsistema, toca schema/API/auth) | Brainstorm full. |
 
 O `classify-task` define o PISO (minimo garantido). O usuario sempre pode SUBIR ou DESCER manualmente (override abaixo). Nunca diminua a profundidade por conta propria; so o usuario rebaixa.
@@ -52,6 +52,17 @@ O tier automatico e so o default. O usuario manda na profundidade:
 
 Pressa nunca remove o gate; muda so quantas perguntas.
 
+## Checkpoint de fechamento (toda rodada de perguntas)
+
+Regra transversal aos tiers **Pequena**, **full** e **exploracao**. Tier Trivial fica FORA (0 perguntas, so anuncia e segue).
+
+Toda rodada de perguntas termina com um AskUserQuestion de controle com exatamente 2 opcoes:
+
+- **"Fechar e seguir"**: encerra as perguntas e avanca pro proximo passo do tier (design em 3 frases, propor abordagens ou destilar a ideia).
+- **"Mais perguntas"**: abre nova rodada, mais especifica que a anterior. Essa rodada termina com este mesmo checkpoint. Loop ate o usuario escolher fechar.
+
+Nao adicione opcao de resposta livre: o "Other" nativo do AskUserQuestion ja cobre. Se o usuario responder algo livre, incorpore como novo insumo e feche a rodada seguinte com o mesmo checkpoint.
+
 ## Modo exploracao (ideia crua, acima do full)
 
 Quando o usuario tem so uma SEMENTE e quer DESCOBRIR o que e (nao validar um design ja pronto). Gatilhos: "tenho uma ideia", "to pensando em", "e se", "me ajuda a pensar", "queria explorar", `--deep` numa ideia vaga.
@@ -61,8 +72,8 @@ Diferenca do full: o full valida um design que o usuario ja tem na cabeca; a exp
 1. **Nao pule pra solucao.** Primeiro entenda o PORQUE: que problema/desejo move a ideia, pra quem, por que agora.
 2. **Abra alternativas radicais.** Ofereca 3-5 direcoes bem diferentes (nao variacoes da mesma), incluindo uma obvia, uma ousada e uma "e se fizesse o oposto".
 3. **Provoque com "e se".** Tensione premissas: "e se nao precisasse de X?", "e se o publico fosse outro?", "qual a versao 10x menor que ja entrega valor?".
-4. **Uma pergunta por vez**, multipla escolha quando der. Vai estreitando do amplo pro especifico.
-5. **Destile** a ideia num paragrafo claro: o que e, pra quem, por que, o diferencial. Confirme com o usuario.
+4. **Uma pergunta por vez**, multipla escolha quando der. Vai estreitando do amplo pro especifico. Feche a rodada com o checkpoint de fechamento.
+5. So depois do "Fechar e seguir" do checkpoint, **destile** a ideia num paragrafo claro: o que e, pra quem, por que, o diferencial. Confirme com o usuario.
 6. So ENTAO transicione pro design (full) ou direto pro `BRIEFING.md`, conforme o tamanho do que emergiu.
 
 A exploracao termina numa ideia destilada e aprovada, que vira BRIEFING. Continua valendo o estado terminal: codigo so depois de `/up:plan`.
@@ -83,7 +94,7 @@ Como detectar: pedido fala em "documento, proposta, relatorio, analise, texto, r
 
 1. **Explore o contexto** (arquivos, docs, commits recentes).
 2. **Companion visual:** se o topico tem questao visual (mockup, layout, comparacao), ofereca em mensagem isolada, sozinha. Jonathan e visual: ofereca por default em UI. Metodo de quando/como oferecer e produzir: ver `visual-companion.md` (mesma pasta).
-3. **Perguntas uma por vez.** Multipla escolha preferida. Foco: proposito, restricoes, criterio de sucesso. Se o escopo for multiplos subsistemas independentes, sinalize JA e ajude a decompor em sub-projetos.
+3. **Perguntas uma por vez.** Multipla escolha preferida. Foco: proposito, restricoes, criterio de sucesso. Se o escopo for multiplos subsistemas independentes, sinalize JA e ajude a decompor em sub-projetos. Feche a rodada com o checkpoint de fechamento antes de avancar pro passo 4.
 4. **Proponha 2-3 abordagens** com trade-offs e sua recomendacao.
 5. **Apresente o design por SECAO** (arquitetura / componentes / dados / erros / testes), cada secao escalada a complexidade, aprovacao do usuario apos CADA secao.
 6. **Escreva BRIEFING.md** e commite (`docs(brief): <topico>`).
