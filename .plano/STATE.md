@@ -61,7 +61,13 @@ Fase 10: Integracao com roadmap   [███████████████
 
 Nenhum bloqueio ativo.
 
+### Tarefas Rapidas Completadas
+
+| # | Descricao | Data | Commit | Diretorio |
+|---|-----------|------|--------|-----------|
+| 1 | Adicionar checkpoint de fechamento no brainstorm (seguir ou mais perguntas) | 2026-07-01 | 8ee4fba | [1-adicionar-checkpoint-de-fechamento-no-br](./rapido/1-adicionar-checkpoint-de-fechamento-no-br/) |
+
 ## Continuidade de Sessao
 
-**Ultima sessao**: 2026-03-10 -- Execucao do plano 10-002 (apresentacao interativa e integracao nos workflows)
+**Ultima sessao**: 2026-07-01 -- Completou tarefa rapida 1: checkpoint de fechamento no up-brainstorm (toda rodada de perguntas fecha com "Fechar e seguir" ou "Mais perguntas")
 **Proxima acao**: Todas as fases completas. Projeto concluido.
