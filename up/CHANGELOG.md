@@ -4,6 +4,22 @@ Todas as mudancas relevantes do `up-cc` ficam documentadas aqui. O formato segue
 o espirito de [Keep a Changelog](https://keepachangelog.com/) e o versionamento
 e [SemVer](https://semver.org/). v2.0.0 e um **major** (breaking change).
 
+## 2.3.0
+
+> A rodada de perguntas do brainstorm fechava e o agente seguia sozinho pro
+> design. Agora quem fecha a rodada e o usuario, via checkpoint de controle.
+
+### Adicionado
+
+- **Checkpoint de fechamento no `up-brainstorm`.** Toda rodada de perguntas dos
+  tiers Pequena, full e exploracao termina com um AskUserQuestion de 2 opcoes:
+  "Fechar e seguir" (avanca pro proximo passo do tier) ou "Mais perguntas" (abre
+  nova rodada, mais especifica que a anterior, que fecha com o mesmo checkpoint;
+  loop ate o usuario liberar). O "Other" nativo do AskUserQuestion cobre resposta
+  livre. Tier Trivial fica fora (0 perguntas, so anuncia e segue). Os 3 pontos de
+  fluxo (linha Pequena da tabela de profundidade, passo 3 do brainstorm full,
+  passos 4-5 do modo exploracao) referenciam o checkpoint.
+
 ## 2.2.0
 
 > O `.plano/` sempre sobreviveu ao `/clear` no DISCO, mas a RETOMADA era pull: o
