@@ -114,6 +114,12 @@ const UP_SKILLS = [
   'up-verificar-antes-de-concluir',
 ];
 
+// Command-skills: cada comando UP tambem vira skill (Grok Build le ~/.claude
+// nativo mas NAO importa ~/.claude/commands/; a skill fecha esse furo, tornando
+// os comandos invocaveis no Grok). Nome = up-<comando>. Espelha up/commands/*.md.
+// So o install/uninstall do runtime claude mexe nessas pastas.
+const UP_COMMAND_SKILLS = ['up-up', 'up-plan', 'up-build', 'up-testar', 'up-auditar', 'up-depurar', 'up-rapido'];
+
 // ── Runtime Helpers ──
 
 function getDirName(runtime) {
@@ -742,7 +748,7 @@ function uninstall(targetDir, runtime) {
     const skillsDir = path.join(targetDir, 'skills');
     if (fs.existsSync(skillsDir)) {
       let skillCount = 0;
-      for (const skillName of UP_SKILLS) {
+      for (const skillName of [...UP_SKILLS, ...UP_COMMAND_SKILLS]) {
         const skillPath = path.join(skillsDir, skillName);
         if (fs.existsSync(skillPath)) {
           const count = countFiles(skillPath);
@@ -1114,6 +1120,33 @@ function install(isGlobal, runtime) {
       if (skillCount > 0) {
         console.log(`  ${green}✓${reset} Installed ${skillCount} skills`);
       }
+    }
+  }
+
+  // 4d. Command-skills (Claude Code / Grok Build): cada comando UP tambem vira
+  // skill em <config>/skills/up-<nome>/SKILL.md. Grok Build le ~/.claude nativo
+  // mas nao importa ~/.claude/commands/, entao a skill torna os comandos invocaveis.
+  // Os slash commands do Claude seguem intactos (namespaces distintos).
+  if (runtime === 'claude') {
+    const cmdsSrc = path.join(packageRoot, 'commands');
+    if (fs.existsSync(cmdsSrc)) {
+      const skillsDest = path.join(targetDir, 'skills');
+      fs.mkdirSync(skillsDest, { recursive: true });
+      let count = 0;
+      for (const file of fs.readdirSync(cmdsSrc)) {
+        if (!file.endsWith('.md')) continue;
+        const commandName = file.replace(/\.md$/, '');
+        const skillName = `up-${commandName}`;
+        let content = fs.readFileSync(path.join(cmdsSrc, file), 'utf8');
+        content = replacePaths(content, pathPrefix, runtime);
+        const { skillMd } = convertCommandToCodexSkill(content, commandName); // descarta openaiYaml
+        const skillDir = path.join(skillsDest, skillName);
+        rmDir(skillDir); // idempotente
+        fs.mkdirSync(skillDir, { recursive: true });
+        fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skillMd);
+        count++;
+      }
+      if (count > 0) console.log(`  ${green}✓${reset} Installed ${count} command-skills (Grok Build)`);
     }
   }
 
