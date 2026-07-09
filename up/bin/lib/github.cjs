@@ -369,8 +369,11 @@ function cleanupWorktreeBranch(cwd, worktree, branch, warnings) {
 
 /**
  * finishPhase({cwd, phase, mode, strategy})
- * - local (alias 'solo'): nao faz nada (ja committado na branch atual). status=done.
+ * - local: nao faz nada (ja committado na branch ATUAL, sem worktree). status=done.
  * - menu: imprime as 4 opcoes pro orquestrador perguntar (nao age).
+ * - solo (alias de auto): autonomo total MANTENDO GitHub. startPhase --solo criou
+ *   worktree+branch+issue, entao o commit esta na branch da fase (nao na atual):
+ *   solo cai no caminho auto (PR + merge, sem menu). NAO e no-op como local.
  * - auto (a.k.a. pr): conforme o transporte ('gh' | 'mcp' | 'none'):
  *     'gh'   -> push + gh pr create (Closes #issue) + merge + cleanup.
  *     'mcp'  -> push e PARA: retorna action 'needs-mcp-pr' + pr_payload pro workflow
@@ -385,8 +388,10 @@ function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
   const entry = map.phases[key] || {};
   const mergeStrategy = strategy || map.merge_strategy || loadConfig(cwd).merge_strategy || 'squash';
 
-  // --- LOCAL / SOLO: nada a fazer, ja committado ---
-  if (mode === 'local' || mode === 'solo') {
+  // --- LOCAL: nada a fazer, ja committado na branch atual (escape hatch sem GitHub) ---
+  // solo NAO entra aqui: startPhase --solo criou worktree/branch, entao precisa PR+merge
+  // (cai no ramo auto abaixo). Juntar solo com local era o bug do finish (no-op orfao).
+  if (mode === 'local') {
     entry.status = 'done';
     map.phases[key] = entry;
     writeGitMap(cwd, map);
@@ -410,8 +415,8 @@ function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
     };
   }
 
-  // --- AUTO / PR ---
-  if (mode === 'auto' || mode === 'pr') {
+  // --- AUTO / PR / SOLO (solo = auto sem menu, mantendo GitHub) ---
+  if (mode === 'auto' || mode === 'pr' || mode === 'solo') {
     const branch = entry.branch || branchName(phase, '');
     const worktree = entry.worktree || null;
     // mode 'auto' ja significa "quero GitHub": consulta o config (intencao do projeto),
@@ -522,7 +527,7 @@ function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
     };
   }
 
-  warnings.push('modo desconhecido: ' + mode + ' (use local|menu|auto)');
+  warnings.push('modo desconhecido: ' + mode + ' (use local|menu|auto|solo)');
   return { mode, action: 'noop', warnings };
 }
 
