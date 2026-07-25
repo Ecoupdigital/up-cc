@@ -508,6 +508,35 @@ echo "GATE A OK: ${SUMMARY_COUNT}/${PLAN_COUNT} SUMMARY(s) (todas as waves)"
 > A partir daqui (3.4-3.9) o escopo e a FASE INTEIRA (todos os planos / todos os SUMMARYs), nao mais
 > "o plano". Roda UMA VEZ por fase, depois de TODAS as waves.
 
+### 3.3.5 DECISOES ESCALADAS (execucao)
+
+Espelha o Estagio E de `plan.md`, agora do lado da execucao (fecha o gap que PERG-05 deixava aberto: decisao
+arquitetural nascida na execucao tambem sobe ao dono, nao so a nascida no planejamento). O `up-executor` e
+subagente: ao esbarrar numa decisao de arquitetura (Regra 4 de `up/agents/up-executor.md`) ele nao decide
+sozinho e nao para o build para perguntar - aplica a propria recomendacao como hipotese provisoria, continua
+a tarefa, e devolve o bloco `## DECISOES ESCALADAS` no SUMMARY.md do plano. Aqui esse bloco vira pergunta.
+
+1. Recolher a secao `## DECISOES ESCALADAS` de TODOS os `${PHASE_DIR}/*-SUMMARY.md` desta fase (todas as
+   waves ja terminaram e o GATE A consolidado ja confirmou que todos existem).
+2. Descartar as linhas `Nenhuma.`. Se sobrou zero decisao, declarar em uma linha ("Nenhuma decisao foi
+   escalada na execucao desta fase") e seguir para 3.4 sem perguntar nada.
+3. Ordenar as decisoes restantes por custo de reverter, da maior para a menor.
+4. Perguntar uma por vez, no formato do contrato:
+
+<pergunta id="build.decisoes-escaladas">
+Pergunta: {Decisao do bloco escalado}. Confirma a recomendação (já aplicada como hipótese durante a execução) ou corrige?
+Recomendo: {Recomendo do bloco escalado}
+Porque: {Porque do bloco escalado}
+Opções: {Recomendo} | {cada item de Alternativas} | outro (descreva)
+</pergunta>
+
+5. Registrar cada resposta via `node "$HOME/.claude/up/bin/up-tools.cjs" state add-decision --phase
+   {phase_number} --summary "{decisao}: {resposta do dono}"`.
+6. Resposta que **confirma** a recomendacao: nada e refeito, o executor ja trabalhou sob ela como hipotese.
+   Resposta que **diverge**: re-executar SO o plano cujo trabalho dependia daquela decisao (mesmo bloco
+   `Agent` de 3.2+3.3, parametrizado por esse plano, com a escolha do dono como decisao travada), depois
+   voltar a este passo antes de seguir para 3.4.
+
 ### 3.4 Re-plan local (so se um plano especifico se revelar inviavel)
 
 Por-plano: se durante a execucao de UM plano especifico ficar evidente que ele e fundamentalmente
@@ -949,6 +978,7 @@ final_confidence: [do up-revisor de delivery]
 - [ ] Dono confirmou execucao (orquestrador, sem CEO)
 - [ ] Governance inicializada (.plano/governance/approvals.log)
 - [ ] Todas as fases executadas com SUMMARY.md (GATE A)
+- [ ] Decisoes arquiteturais escaladas pelos executores (Regra 4) recolhidas em 3.3.5 e perguntadas ao dono no formato do contrato antes do fechamento da fase, nunca decididas ou silenciadas
 - [ ] Verificador produziu VERIFICATION.md por fase (GATE B); ladder estatica usada quando possivel
 - [ ] E2E + DCRV rodaram por fase (delegado a dcrv.md)
 - [ ] up-revisor emitiu veredito por fase e LOGOU em approvals.log COM campo evidence=<tipo>:<resultado>

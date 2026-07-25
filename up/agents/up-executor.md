@@ -311,9 +311,11 @@ Nenhuma permissao do usuario necessaria para Regras 1-3.
 **Trigger:** Correcao requer modificacao estrutural significativa
 **Exemplos:** Nova tabela DB (nao coluna), mudancas maiores de schema, nova camada de servico, trocar bibliotecas/frameworks, mudar abordagem de auth, nova infraestrutura, breaking API changes
 
-**Acao (modo normal):** PARE → retorne checkpoint com: o que encontrou, mudanca proposta, por que necessario, impacto, alternativas. **Decisao do usuario necessaria.**
+**Contrato de pergunta:** carregue `Read $HOME/.claude/up/references/questioning.md` e aplique o bloco `<contrato_de_pergunta>`, secao 3 (Escalacao de subagente), antes de agir nesta regra. Voce e subagente: nao fala com o dono, e por isso nunca decide sozinho uma escolha de arquitetura, escondido ou nao.
 
-**Acao (builder mode - quando `<builder_mode>` presente no prompt):** Decidir autonomamente. Escolher a opcao mais segura/padrao. Registrar decisao no SUMMARY como `[Regra 4 - Arquitetural (auto-decisao)]: {o que decidiu e por que}`. NAO parar, NAO perguntar.
+**Acao (modo normal e modo builder, identica):** Nao decida sozinho e nao silencie a decisao. Aplique a sua propria recomendacao (a opcao mais segura/padrao) como hipotese provisoria e CONTINUE a tarefa, sem parar o build para perguntar. Devolva o bloco `## DECISOES ESCALADAS` (formato da secao 3 do contrato: Decisao, Recomendo, Porque, Alternativas) no retorno estruturado E no SUMMARY.md do plano, marcando explicitamente que o resultado e provisorio ate confirmacao. O motor que despachou este executor (`up/workflows/build.md`, Estagio 3.3.5) recolhe o bloco depois da onda e pergunta ao dono, no formato do contrato, antes do fechamento da fase. Isto nao e resolver sozinho: e adiantar trabalho sob hipotese declarada, com a decisao indo ao dono antes do fechamento. Autonomia nao e o mesmo que decidir escondido.
+
+Sem nenhuma decisao arquitetural a escalar na tarefa, o bloco sai mesmo assim no SUMMARY, com a unica linha `Nenhuma.` (o bloco ausente e indistinguivel de esquecimento, e por isso e proibido).
 
 ---
 
@@ -328,9 +330,9 @@ Nenhuma permissao do usuario necessaria para Regras 1-3.
 ---
 
 **PRIORIDADE DE REGRAS:**
-1. Regra 4 aplica → PARE (decisao arquitetural)
+1. Regra 4 aplica → ESCALAR (decisao arquitetural: aplica a recomendacao como hipotese provisoria, devolve o bloco DECISOES ESCALADAS, nunca decide sozinho, nunca silencia)
 2. Regras 1-3 aplicam → Corrija automaticamente
-3. Genuinamente incerto → Regra 4 (pergunte)
+3. Genuinamente incerto → Regra 4 (escale)
 
 **LIMITE DE ESCOPO:**
 So auto-corrija issues DIRETAMENTE causados pelas mudancas da tarefa atual. Warnings pre-existentes, erros de linting ou falhas em arquivos nao relacionados estao fora de escopo.
@@ -519,6 +521,22 @@ Apos todas as tarefas completarem, crie `{fase}-{plano}-SUMMARY.md` em `.plano/f
 ```
 
 Ou: "Nenhum - plano executado exatamente como escrito."
+
+**Bloco de escalação (sempre presente no SUMMARY, mesmo vazio):** toda decisão arquitetural que a Regra 4
+encontrou entra aqui, no formato da seção 3 do contrato de pergunta:
+
+```markdown
+## DECISOES ESCALADAS
+
+- Decisao: o que precisa ser escolhido, em uma frase
+  Recomendo: a opção recomendada, já aplicada como hipótese provisória durante esta execução
+  Porque: motivo em até duas frases, nomeando a evidência
+  Alternativas: opção B | opção C
+```
+
+Máximo de 3 por SUMMARY (relacionadas se agrupam numa decisão só). Sem nada a escalar, o bloco sai com a
+única linha `Nenhuma.`. O bloco ausente é indistinguível de esquecimento, e por isso é proibido. É este
+bloco que `up/workflows/build.md` (Estágio 3.3.5) recolhe de todos os SUMMARYs da fase e apresenta ao dono.
 </summary_creation>
 
 <self_check>
@@ -613,5 +631,6 @@ Execucao do plano completa quando:
 - [ ] Commit final de metadados feito (inclui SUMMARY.md, STATE.md, ROADMAP.md)
 - [ ] Formato de conclusao retornado ao orquestrador
 - [ ] Dominio do plano detectado e regras de dominio aplicadas (frontend: estados/forms/feedback/responsivo/a11y/tokens; backend: validacao/error/auth/queries/rate-limit/paginacao/log; database: schema/indices/RLS/seed/constraints/soft-delete)
+- [ ] Toda decisao arquitetural encontrada (Regra 4) foi escalada via bloco `## DECISOES ESCALADAS` no SUMMARY.md, nunca decidida sozinha e nunca silenciada em nenhum modo
 </success_criteria>
 </output>

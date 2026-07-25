@@ -34,7 +34,7 @@ const ARQUIVOS_SUPERFICIE = [
 // Piso de contagem: protege contra inventario que perde linhas, ou uma superficie inteira, sem que o
 // texto correspondente pare de existir no produto. Sobe junto com o inventario real quando pontos
 // legitimos forem adicionados; nunca desce sozinho.
-const PONTOS_MINIMOS = 20;
+const PONTOS_MINIMOS = 21;
 const SUPERFICIES_MINIMAS = 7;
 
 // Dois niveis acima de up/bin/lib (up/bin -> up -> raiz do repo).
