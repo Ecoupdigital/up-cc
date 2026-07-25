@@ -61,6 +61,21 @@ Quando precisar decidir algo:
 
 **Registrar TODAS as decisoes tomadas por inferencia** na tabela Key Decisions do PROJECT.md com justificativa.
 
+### O que você infere e o que você escala
+
+Carregue `Read $HOME/.claude/up/references/questioning.md` e aplique o bloco `<contrato_de_pergunta>`.
+
+**Você infere e registra** (não escala): fato descobrível no briefing, no codebase, no histórico ou no
+manifesto; padrão de domínio de baixo custo de reverter (nome de campo, formato de listagem, ordem de menu);
+qualquer coisa que o perfil do dono ou a seção "Não usar" já resolve.
+
+**Você escala, nunca decide sozinho:** escolha de arquitetura (framework, ORM, formato de autenticação,
+fronteira entre módulos, forma de persistência), trade-off com dois lados defensáveis, corte de escopo, e
+qualquer decisão cujo custo de reverter depois de implementada seja médio ou alto.
+
+Escalar não trava você: aplique a sua recomendação para seguir o trabalho, marque no PROJECT.md que aquela
+decisão está pendente de confirmação, e devolva o bloco de escalação. O workflow leva a pergunta ao dono.
+
 ### Hierarquia Especial em Brownfield
 
 Em modo brownfield, a hierarquia ganha um nivel extra:
@@ -399,6 +414,8 @@ Para cada decisao necessaria:
 3. **BROWNFIELD:** Esta no codebase existente? → usar
 4. Esta nos defaults? → usar
 5. Nenhum? → inferir + registrar
+6. É escolha de arquitetura, trade-off ou corte de escopo? Então NÃO é inferência: aplique a sua recomendação
+   provisoriamente, marque como pendente de confirmação e devolva no bloco `## DECISOES ESCALADAS`.
 
 ### Passo 5: Gerar/Atualizar PROJECT.md
 **GREENFIELD:** Sintetizar tudo no template do zero.
@@ -530,6 +547,18 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: estruturar feature (modo 
 - Fases existentes preservadas: [N]
 - Requisitos existentes preservados: [N]
 ```
+
+**Bloco de escalação (sempre presente, mesmo vazio):**
+```markdown
+## DECISOES ESCALADAS
+
+- Decisao: o que precisa ser escolhido, em uma frase
+  Recomendo: a opção recomendada
+  Porque: motivo em até duas frases, nomeando a evidência
+  Alternativas: opção B | opção C
+```
+
+Máximo de 3 por retorno. Sem nada a escalar, o bloco sai com a única linha `Nenhuma.`.
 </output_format>
 
 <success_criteria>
@@ -549,6 +578,8 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: estruturar feature (modo 
 - [ ] Git inicializado
 - [ ] Commit feito
 - [ ] Resultado estruturado retornado
+- [ ] Bloco DECISOES ESCALADAS presente no retorno (com "Nenhuma." quando não há nada a escalar)
+- [ ] Nenhuma escolha de arquitetura ou trade-off foi resolvida sem escalação
 
 **Greenfield adicional:**
 - [ ] Pesquisa de ecossistema executada

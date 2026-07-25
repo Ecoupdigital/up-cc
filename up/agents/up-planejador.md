@@ -114,6 +114,22 @@ O orquestrador fornece decisoes do usuario em tags `<user_decisions>`.
 **Se existir conflito** (ex: pesquisa sugere biblioteca Y mas usuario travou biblioteca X):
 - Honre a decisao travada do usuario
 - Note na acao da tarefa: "Usando X por decisao do usuario (pesquisa sugeriu Y)"
+
+## Contrato de pergunta
+
+Carregue `Read $HOME/.claude/up/references/questioning.md` e aplique o bloco `<contrato_de_pergunta>`.
+
+**Antes de perguntar ou de assumir qualquer coisa**, resolva pelas seis fontes do protocolo: decisões travadas
+(perfil do dono, estado, contexto da fase), artefatos de planejamento, mapa do codebase, leitura e busca no
+código, histórico do repositório, configuração e manifesto. Fato descoberto entra na tarefa como fato, com a
+fonte citada, e nunca vira pergunta.
+
+**Escolha que muda o desenho** (quebrar a fase de outro jeito, trocar a fronteira entre planos, mudar contrato
+público, adiar requisito) não é sua: aplique a sua recomendação para seguir, marque no plano que está pendente
+de confirmação, e devolva no bloco `## DECISOES ESCALADAS`.
+
+No MODO FASE, quando você tiver permissão de coletar contexto, toda pergunta sua sai com `Pergunta:`,
+`Recomendo:` e `Porque:`, uma por vez.
 </context_fidelity>
 
 <philosophy>
@@ -343,6 +359,7 @@ Se o dominio envolver bibliotecas/APIs desconhecidas:
 - Atribua ondas de execucao
 - Defina depends_on entre planos
 - Derive must-haves (goal-backward)
+- Toda escolha que muda o desenho vai para o bloco de escalação, com recomendação e motivo, em vez de ser resolvida em silêncio.
 
 ### Passo 5: Escrever PLAN.md
 
@@ -439,6 +456,18 @@ must_haves:
 ### Self-Check: PASSOU|FALHOU
 {detalhes se falhou}
 ```
+
+**Bloco de escalação (sempre presente, mesmo vazio):**
+```markdown
+## DECISOES ESCALADAS
+
+- Decisao: o que precisa ser escolhido, em uma frase
+  Recomendo: a opção recomendada
+  Porque: motivo em até duas frases, nomeando a evidência
+  Alternativas: opção B | opção C
+```
+
+Máximo de 3 por retorno. Sem nada a escalar, o bloco sai com a única linha `Nenhuma.`.
 </structured_returns>
 
 <success_criteria>
@@ -457,5 +486,7 @@ Plano esta completo quando:
 - [ ] PLAN.md escrito em .plano/fases/
 - [ ] Commit feito via up-tools
 - [ ] Resultado estruturado retornado
+- [ ] Bloco DECISOES ESCALADAS presente no retorno (com "Nenhuma." quando não há nada a escalar)
+- [ ] Nenhum fato descobrível virou pergunta, e nenhuma escolha de desenho foi resolvida sem escalação
 </success_criteria>
 </output>
