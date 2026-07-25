@@ -40,9 +40,15 @@ Sete camadas, na ordem em que uma execução as atravessa.
 
 `up`, `plan`, `build`, `dcrv`, `auditar`, `governance`, `mapear-codigo`, `onboarding`, `rapido`, `pausar`, `resetar`, `remover-fase`. Markdown estruturado em `<step>`, com trechos bash que chamam a CLI de ferramentas e blocos que spawnam agentes. O maior é `build.md` (911 linhas), que contém o motor de ondas, os gates e o menu de fechamento de fase.
 
-**Camada 3: Agentes** (`up/agents/up-*.md`, 12 arquivos)
+**Camada 3: Agentes** (`up/agents/up-*.md`, 12 hoje, 13 ao fim do ciclo)
 
-`up-arquiteto`, `up-planejador`, `up-executor`, `up-verificador`, `up-revisor`, `up-tester`, `up-auditor`, `up-depurador`, `up-pesquisador`, `up-mapeador-codigo`, `up-sintetizador`, `up-roteirista`. Cada um roda como subagente com contexto fresco. `up-executor` absorveu a antiga frota de especialistas por domínio; `up-revisor` absorveu a pirâmide CEO, chief e supervisor; `up-tester` absorveu os detectores do laço detectar, corrigir e reverificar.
+**Hoje, 12:** `up-arquiteto`, `up-planejador`, `up-executor`, `up-verificador`, `up-revisor`, `up-tester`, `up-auditor`, `up-depurador`, `up-pesquisador`, `up-mapeador-codigo`, `up-sintetizador`, `up-roteirista`. Cada um roda como subagente com contexto fresco. `up-executor` absorveu a antiga frota de especialistas por domínio; `up-revisor` absorveu a pirâmide CEO, chief e supervisor; `up-tester` absorveu os detectores do laço detectar, corrigir e reverificar.
+
+**Depois da fase 18, 13:** o revisor único é aposentado e dá lugar a **dois agentes de eixo**, um de conformidade com o spec e um de qualidade com segurança, que rodam em paralelo em subagentes isolados. Os demais 11 agentes seguem iguais.
+
+Por que a divisão é forçada e não é preferência: REV-01 exige subagentes isolados, e REV-04 exige que a cegueira ao código do eixo de conformidade venha do **conjunto de ferramentas concedido ao subagente**, não de instrução em texto. Neste sistema o conjunto de ferramentas é declarado no frontmatter do arquivo de agente. Um agente único com sinalizador de modo continuaria carregando as ferramentas de leitura de código nos dois modos, e a cegueira voltaria a ser promessa. Dois arquivos de agente com ferramentas assimétricas é a única forma de a cegueira ser estrutural.
+
+Risco de ordem, conhecido e registrado: as fases 14 e 16 editam o arquivo do revisor único que a fase 18 remove. A fase 14 troca redefinição por citação do glossário, e a fase 16 escreve nele a instrução de confirmação do achado de tautologia, que é o que fecha PROVA-08. Se a fase 18 fechar antes, essa instrução some do produto sem que gate nenhum perceba, porque a prova de PROVA-08 mora no lado da heurística. A serialização declarada no roadmap (14, depois 16, depois 17, depois 18) resolve a ordem, e o tratamento de cada edição é decisão do planejamento das fases envolvidas.
 
 **Camada 4: Skills** (`up/skills/*/SKILL.md`, 4 pastas)
 
@@ -85,6 +91,8 @@ Converte e copia para 4 runtimes: Claude Code (formato nativo, mais statusLine, 
                                                   |
                                             menu de fechamento: merge local, PR, deixar branch, descartar
 ```
+
+Depois da fase 18, o passo do revisor no diagrama passa a ser dois eixos em paralelo (conformidade e qualidade com segurança), com veredito por eixo alimentando o mesmo gate, que é conjuntivo.
 
 `/up:testar` roda o laço detectar, corrigir e reverificar sobre visual, interação, API, experiência, mobile e ponta a ponta. `/up:auditar` faz um passe de auditoria. `/up:depurar` mantém estado de depuração que sobrevive à limpeza de contexto. `/up:rapido` é o escape hatch declarado: tarefa avulsa, commit atômico na branch atual, sem roadmap e sem cerimônia.
 
@@ -158,6 +166,8 @@ Item 7 inverte isso: a aresta de bloqueio vira o dado primário e a onda vira vi
 1. O índice reconhece planos com nome terminando em `-PLAN.md` ou `PLAN.md`. A fase 11 gravou os planos como `PLAN-001.md`, que esse filtro não pega. Verificado por execução: `phase-plan-index 11` devolve lista de planos vazia com o arquivo em disco, e `phase-plan-index 3` devolve `has_summary` falso porque o resumo daquela fase está gravado como `03-001-SUMMARY.md`. São duas convenções de nome em uso no próprio repositório, para plano e para resumo, e a fronteira derivada nasceria cega para a mais recente. É o que PLANO-13 cobre.
 2. Projeto planejado antes deste ciclo não tem aresta declarada. A derivação da fronteira precisa degradar para a onda numerada existente, sem migração destrutiva.
 
+Regra que acompanha a inversão, e que vale antes mesmo de o mecanismo existir: **fronteira liberada não autoriza paralelismo entre dois trabalhos que escrevem no mesmo arquivo**. A fronteira responde quem pode começar, nunca quem pode começar junto. Dependência lógica é aresta; disputa pelo mesmo arquivo é exclusão mútua, e as duas não se misturam no mesmo campo, sob pena de o grafo passar a mentir sobre o motivo da ordem. O roadmap deste ciclo aplica as duas camadas: uma aresta nova (16 antes de 18, por consumo do leitor único) e uma serialização por posse de arquivo entre as fases 14, 16, 17 e 18.
+
 ### 5.3 Mapa git por fase
 
 `git-map.json` guarda, por fase, `branch`, `worktree`, `issue`, `issue_url`, `pr`, `pr_url` e `status`, além de `github_native` e `merge_strategy` no topo. Item 7 pode precisar de campo novo aqui para representar o estado da fronteira. A regra de compatibilidade é a mesma: campo novo opcional, leitura tolerante à ausência.
@@ -180,7 +190,7 @@ Equivalente, neste sistema, à matriz de permissões de um SaaS: quem tem direit
 | `STATE.md` | CLI de ferramentas (subcomando `state`) | Todos, mais o hook de início de sessão | Agentes escrevendo direto |
 | Planos da fase | `up-planejador` | `up-executor`, `up-revisor` | `up-executor` |
 | Resumos da fase | `up-executor` | `up-verificador`, `up-revisor` | Outros agentes |
-| Relatório de revisão | `up-revisor` | Orquestrador | Qualquer outro |
+| Relatório de revisão | `up-revisor` hoje; após a fase 18, os dois agentes de eixo, cada um escrevendo apenas a seção do próprio eixo | Orquestrador | Qualquer outro, e um eixo escrever na seção do outro |
 | `approvals.log` | Orquestrador do build, a partir do veredito | Gate em bash | `up-revisor` escrevendo direto |
 | `git-map.json` | Biblioteca de integração com GitHub | Workflows | Agentes |
 | Glossário do projeto e registros de decisão | Skill de brainstorm (em modo grill) e auditoria, na hora em que o termo ou a decisão cai | Brainstorm, planejamento, auditoria | Escrita em lote no fim da sessão |
@@ -220,7 +230,7 @@ Todo lugar onde o UP faz uma pergunta ao dono. O item 1 do briefing (resposta re
 | 8. Tamanho medido em janela de contexto | 4 | Workflow `plan`, agente planejador | Doutrina | Smoke | 17 |
 | 9. Durabilidade do plano | 4 | Templates de plano, validação de plano na CLI | Doutrina mais código | Lógica, vermelho e verde | 17 |
 | 10. Higiene de contexto e handoff | 5 | Hook de monitor de contexto, template de estado, primitiva nova de handoff | Código mais doutrina | Smoke | 18 |
-| 11. Revisão em dois eixos paralelos | 5 | Agente revisor, workflow `build`, semântica do gate | Doutrina mais contrato | Smoke | 18 |
+| 11. Revisão em dois eixos paralelos | 5 | Agente revisor (que se divide em dois agentes de eixo com ferramentas assimétricas), workflow `build`, semântica do gate | Doutrina mais contrato mais agente novo | Smoke | 18 |
 | 12. Auditoria visual e escopada | 6 | Subcomando de hotspots na CLI, workflow e agente de auditoria, saída HTML | Código mais doutrina | Visual | 19 |
 | Bloco 7. Pedaços do wayfinder | 7 | Workflow `plan` (auto-aborto), template de roadmap (névoa e fora de escopo) | Doutrina mais template | Smoke | 20 |
 
@@ -257,6 +267,8 @@ Decisão registrada: não se cria arquivo de tokens de design para isso. O relat
 | Item 11 muda quando o gate recebe entrada | O gate passa a representar veredito por eixo, e é conjuntivo (decisão D7 do dono): a fase só aprova com os dois eixos aprovados. O eixo já aprovado fica registrado e não é reexecutado na rodada de correção. Assim o estado "spec reprova, qualidade aprova" vira registrável sem que a fase avance |
 | Item 5 é heurística, não prova | A heurística sinaliza e o revisor confirma. Não bloqueia o gate sozinha, porque falso positivo bloqueante em cima de teste honesto é pior que tautologia passando |
 | Três formas no log de aprovações, e o gate quebra em três pontos contra elas (seletor, posição de coluna e vocabulário) | Leitor único que localiza campo por conteúdo: escopo pelo número da fase em qualquer notação, veredito pela palavra de veredito, evidência pelo prefixo, com ou sem coluna de agente. Entrada nova de seams confirmados soma, não substitui. Só descarta linha sem veredito nenhum. Conserta a leitura do histórico, não o escritor |
+| Dezenove arquivos disputados por fases que a dependência lógica autorizaria a paralelizar | Duas camadas separadas: aresta só para dependência lógica (16 antes de 18), e serialização declarada por posse de arquivo para as fases 14, 16, 17 e 18. Rejeitada a alternativa de transformar a disputa em aresta, porque isso faria o grafo mentir sobre o motivo da ordem, e o mecanismo de fronteira que a fase 17 entrega herdaria a mentira |
+| O revisor único é editado pelas fases 14 e 16 e removido pela fase 18 | A serialização (14, depois 16, depois 17, depois 18) garante a ordem. O risco caro é o da fase 16: a instrução de confirmação do achado de tautologia, que fecha PROVA-08, sumiria do produto sem gate perceber, porque a prova de PROVA-08 mora no lado da heurística |
 | Janela entre a publicação do glossário (fase 14) e a derivação da fronteira (fase 17) | O verbete de onda nasce na forma final, e a fase 17 confere o verbete publicado contra o comportamento entregue. A fase 14 escreve, a fase 17 confirma, sem inverter o grafo |
 | Item 6 endurece o gate do plano pronto | Vale para plano gerado a partir deste ciclo. Plano anterior ao ciclo passa no gate e registra a ausência do campo como aviso, sem bloquear, e não é reescrito retroativamente |
 | Nomear a fronteira colide com a proibição de caminho de arquivo | A fronteira é nomeada como contrato público (módulo exportado, interface, comando ou rota), nunca como caminho. Sem essa regra, item 6 e item 9 se anulam dentro do mesmo plano |

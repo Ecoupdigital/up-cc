@@ -220,7 +220,7 @@
 ### Fase 16: Honestidade da prova
 **Objetivo**: O gate de evidência para de aceitar teatro: o teste tem lugar acordado antes e valor esperado de fonte independente
 **Depende de**: Fase 13 (a confirmação das fronteiras com o dono é pergunta com recomendação)
-**Bloqueia**: Nada
+**Bloqueia**: Fase 18, que consome o leitor único do log de aprovações entregue aqui
 **Requisitos**: PROVA-01 a PROVA-08, REG-01, REG-02, REG-03
 **Fora de escopo**: o template do plano pronto carrega sedimento da versão anterior (aprovações de CEO, chiefs e supervisores). Esta fase acrescenta o campo de fronteiras confirmadas e não remove o sedimento, que tem briefing próprio
 **Critérios de Sucesso** (o que deve ser VERDADE):
@@ -255,11 +255,11 @@
   9. O verbete de onda do glossário interno confere com o comportamento entregue nesta fase, fechando a janela aberta entre a publicação do glossário na fase 14 e a derivação da fronteira aqui
   10. Os sete comandos e os quatro runtimes continuam funcionando, e projeto com planejamento anterior a este ciclo continua funcionando sem migração
 **Prova exigida**: lógica, vermelho e verde (critérios 7 e 8 do briefing)
-**Planos**: 0/5 (ondas 0 e 1 em diamante: 001 leitura nas duas convenções e 003 tamanho por janela sem bloqueador; 002 grafo e fronteira derivada e 004 durabilidade na sequência; 005 fechamento e verbete de onda)
+**Planos**: 0/5 (ondas 1 a 3 em diamante: 001 leitura nas duas convenções e 003 tamanho por janela sem bloqueador na onda 1; 002 grafo e fronteira derivada e 004 durabilidade na onda 2; 005 fechamento e verbete de onda na onda 3)
 
 ### Fase 18: Contexto e revisão
 **Objetivo**: O sistema para de empurrar trabalho com contexto degradado e para de esconder problema de qualidade atrás de falha de conformidade
-**Depende de**: Fase 13 (a oferta de handoff e o relatório dos dois eixos falam com o dono no formato novo)
+**Depende de**: Fase 13 (a oferta de handoff e o relatório dos dois eixos falam com o dono no formato novo) e Fase 16 (o leitor único do log de aprovações, que esta fase consome e tem proibição de reimplementar)
 **Bloqueia**: Nada
 **Requisitos**: CTX-01 a CTX-12, REV-01 a REV-09, REG-01, REG-02, REG-03
 **Critérios de Sucesso** (o que deve ser VERDADE):
@@ -316,18 +316,37 @@
 
 ## Grafo de bloqueio do ciclo 2
 
-Declarado como aresta, e não como ordem arbitrária. É o item 7 do briefing sendo aplicado ao próprio roadmap antes de existir.
+Declarado como aresta, e não como ordem arbitrária. É o item 7 do briefing aplicado ao próprio roadmap antes de o mecanismo existir. O grafo tem duas camadas, e elas não se misturam: **dependência lógica**, que vira aresta, e **posse de arquivo**, que é exclusão mútua e não vira aresta.
+
+### Camada 1: arestas de dependência lógica
 
 ```
 13 (formato de pergunta)
  ├──> 14 (memória do projeto) ──> 15 (modo grill) ──> 20 (névoa e fronteira)
  │                            └──> 19 (auditoria)
- ├──> 16 (honestidade da prova)
- ├──> 17 (planejamento por grafo)
- └──> 18 (contexto e revisão)
+ ├──> 16 (honestidade da prova) ──> 18 (contexto e revisão)
+ └──> 17 (planejamento por grafo)
 ```
 
-Fronteira inicial: fase 13, sozinha. Depois dela, 16, 17 e 18 ficam liberadas em paralelo com 14. A fase 20 é a última porque nada depende dela, o que a torna o corte mais barato se o escopo apertar.
+Aresta 16 para 18: a fase 18 consome o leitor único do log de aprovações que a fase 16 entrega, e o trabalho de revisão da 18 tem proibição escrita de reimplementar esse leitor, parando se ele não existir. Era dependência dura declarada por escrito enquanto o grafo tratava as duas como irmãs.
+
+Fronteira inicial: fase 13, sozinha. A fase 20 continua sendo a última, porque nada depende dela, o que a mantém como o corte mais barato se o escopo apertar.
+
+### Camada 2: serialização por posse de arquivo
+
+As fases 14, 16, 17 e 18 escrevem nos mesmos arquivos. O despachante da CLI é escrito por sete das oito fases do ciclo, o motor de execução por onze planos de seis fases, e o instalador, o fluxo de planejamento, a governança e o template do plano pronto por três ou mais fases cada. São 19 arquivos em disputa entre fases que a camada 1 sozinha autorizaria a correr juntas, porque cada planejamento garantiu disjunção dentro da própria fase e ninguém verificou entre fases.
+
+Regra: **as fases 14, 16, 17 e 18 executam em série, nesta ordem**, mesmo quando a fronteira as liberar juntas. Isso não é dependência lógica e por isso não virou aresta: é exclusão mútua. Cada fase corta a própria branch do mesmo ponto e leva a sua cópia dos artefatos, então rodar duas em paralelo troca conflito de merge previsível por corrida de escrita.
+
+As fases 15, 19 e 20 seguem paralelizáveis dentro do que a camada 1 permitir, porque escrevem majoritariamente em superfícies próprias.
+
+### Regra de execução da fronteira derivada
+
+Vale para este ciclo e para o mecanismo que a fase 17 entrega: **fronteira liberada não autoriza paralelismo entre dois trabalhos que escrevem no mesmo arquivo**. A fronteira responde quem pode começar, nunca quem pode começar junto. Quando dois itens da fronteira disputam o mesmo arquivo, a execução os serializa, e o segundo relê o arquivo imediatamente antes de editar.
+
+Corolário para quem toca o despachante da CLI, o motor de execução ou o instalador: edição por âncora, nunca reescrita do arquivo inteiro.
+
+De onde a posse de arquivo passa a vir em tempo de execução, agora que a regra de durabilidade proíbe o plano de citar caminho, é decisão do planejamento da fase 17, registrada como dívida declarada no laudo de auditoria de planejamento.
 
 ## Tabela de Progresso
 

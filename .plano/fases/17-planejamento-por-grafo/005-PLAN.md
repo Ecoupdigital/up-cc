@@ -1,176 +1,181 @@
 ---
 phase: 17-planejamento-por-grafo
-plan: 17-005
+plan: "005"
 type: chore
+wave: 3
+depends_on: ["002", "004"]
 autonomous: true
-plan_format: 2
-wave: 2
-depends_on: [002, 004]
+plan_schema: 2
 requirements: [REG-01, REG-02, REG-03]
+files_modified:
+  - .plano/ROADMAP.md
+  - .plano/STATE.md
+  - .plano/governance/approvals.log
+  - .plano/fases/17-planejamento-por-grafo/evidencia/005-comandos.txt
+  - .plano/fases/17-planejamento-por-grafo/evidencia/005-runtimes.txt
+  - .plano/fases/17-planejamento-por-grafo/evidencia/005-projeto-antigo.txt
+  - .plano/fases/17-planejamento-por-grafo/evidencia/005-suite.txt
+prova: "glue:smoke (regressão de comandos, runtimes e projeto antigo) mais logic:test_pass na passada consolidada"
 must_haves:
   truths:
-    - "O verbete de onda do glossário interno confere com o comportamento entregue nesta fase, ou a divergência está registrada e fechada"
+    - "O verbete de onda do glossário interno confere com o comportamento entregue, ou a divergência está registrada e fechada"
     - "Os sete comandos continuam funcionando ao fim da fase"
     - "Os quatro runtimes suportados continuam instalando e operando ao fim da fase"
     - "Projeto com planejamento anterior a este ciclo continua funcionando, sem migração"
-    - "A suíte de testes desta fase roda inteira e verde numa única passada"
+    - "A suíte de testes do lado UP roda inteira e verde numa única passada"
   artifacts:
-    - surface: "Registro de fechamento da fase (resumo do plano, entrada no log de aprovações, roadmap e documento de estado)"
-      provides: "Evidência do tipo exigido pela fase e posição atualizada do projeto"
-    - surface: "Conferência do verbete de onda do glossário interno"
-      provides: "Fechamento da janela entre a publicação do glossário e a derivação da fronteira"
+    - path: ".plano/fases/17-planejamento-por-grafo/evidencia/"
+      provides: "Saída real de cada conferência de regressão, gravada como evidência da fase"
+    - path: ".plano/ROADMAP.md"
+      provides: "Fase 17 fechada, com contagem de planos e data"
   key_links:
-    - from: "Comportamento de fronteira derivada entregue nesta fase"
-      to: "Verbete de onda do glossário interno"
-      via: "Conferência declarada, com degradação quando o glossário ainda não existe"
-    - from: "Instalação nos quatro runtimes"
-      to: "Sete comandos do produto"
-      via: "Smoke de instalação real seguido de inspeção do que foi emitido"
+    - from: ".plano/governance/approvals.log"
+      to: ".plano/ROADMAP.md"
+      via: "entrada de veredito da fase 17 no formato de seis colunas, com a evidência do tipo exigido"
+    - from: "up/bin/install.js"
+      to: "up/commands/"
+      via: "instalação real nos quatro runtimes, em diretório de configuração temporário"
 ---
 
 # Fase 17 Plano 005: Fechamento, verbete de onda e regressão zero
 
-**Objetivo:** fechar a fase com prova de que nada regrediu e com a janela entre esta fase e a fase irmã de memória do projeto fechada. A fase 14 escreve o verbete de onda na forma derivada, e esta fase confirma que o comportamento entregue é aquele.
+<objective>
+Fechar a fase com prova de que nada regrediu e com a janela entre esta fase e a fase 14 fechada. A fase 14 escreve o verbete de onda na forma derivada, e esta fase confirma que o comportamento entregue é aquele.
+</objective>
 
-**Onda:** 2 (visão de leitura). **Arestas de bloqueio:** planos 002 e 004 desta fase. Motivo real: a conferência do verbete depende do comportamento de fronteira entregue no 002, e a conferência dos planos contra a própria regra depende da checagem entregue no 004. O plano 003 não precisa ser citado aqui, porque ele bloqueia o 004 e já entra por transitividade.
+**Onda:** 3. **Depende de:** planos 002 e 004 desta fase. A conferência do verbete depende do comportamento de fronteira entregue no 002, e a conferência dos planos contra a própria regra depende da checagem entregue no 004. O 003 entra por transitividade, porque bloqueia o 004.
+**Tipo de prova:** smoke para comandos, runtimes e projeto antigo; lógica para a passada consolidada dos testes; conferência documental para o verbete e para o registro de fechamento.
 
-**Estimativa de janela:** plano 3 mil tokens, contexto pré-inlinado 12 mil, leitura dirigida de código 10 mil, escrita e saída 8 mil. Total estimado 33 mil tokens, contra orçamento de 100 mil por plano.
+**Nota sobre a regra que esta fase entrega:** os caminhos aparecem nos campos `<files>` porque o executor depende deles como trava de escopo. O corpo das tarefas descreve contrato de comportamento.
 
-**Requisitos cobertos:** REG-01, REG-02, REG-03. Fecha também os critérios de saída 9 e 10 da fase.
+## Contexto
 
-## Superfícies tocadas (contrato, sem caminho)
-
-1. **Glossário interno do produto**, quando existir: apenas o verbete de onda, e apenas se divergir do comportamento entregue.
-2. **Instalador multi runtime**: nenhuma alteração. É alvo de execução, e não de edição.
-3. **Roadmap, documento de estado e log de aprovações**: registro do fechamento da fase.
-4. **Resumo deste plano**: guarda a evidência de cada conferência, com a saída real.
-
-## Contexto necessário
-
-Resumos dos planos 001 a 004 desta fase, roadmap (bloco da fase 17 e o grafo de bloqueio do ciclo), requisitos do projeto (categoria de planejamento por grafo e categoria de regressão zero), desenho do sistema (seção de riscos de contrato).
+@.plano/ROADMAP.md - bloco da fase 17 e grafo de bloqueio do ciclo
+@.plano/REQUIREMENTS.md - categoria de planejamento por grafo e categoria de regressão zero
+@.plano/SYSTEM-DESIGN.md - seção 11, riscos de contrato e decisões de compatibilidade
+@up/bin/install.js - instalador multi runtime, alvo de execução e não de edição
 
 ## Tarefas
 
-### 1. Conferência do verbete de onda
+<task id="1" type="auto">
+<files>.plano/fases/17-planejamento-por-grafo/evidencia/005-verbete.txt (novo)</files>
+<action>
+Conferir o verbete de onda do glossário interno contra o comportamento de fronteira entregue no plano 002. Três saídas possíveis, e exatamente uma delas é registrada:
 
-**O que muda:** conferência declarada entre o verbete de onda do glossário interno e o comportamento de fronteira entregue no plano 002.
+1. **Glossário existe e o verbete confere.** Registrar a conferência citando a frase do verbete e o comportamento correspondente. Nada é editado.
+2. **Glossário existe e o verbete diverge.** Corrigir apenas o verbete de onda, no máximo duas frases, para descrever a onda como visão derivada da dependência declarada. Nenhum outro verbete é tocado. Registrar como fechamento da janela entre as duas fases.
+3. **Glossário ainda não existe**, porque a fase 14 ainda não fechou. Registrar a pendência no arquivo de evidência e no documento de estado, com a frase que o verbete precisa conter, e não criar o glossário aqui. Criar artefato de outra fase quebraria a matriz de escrita por artefato, que existe para impedir dois donos escrevendo o mesmo arquivo com semânticas diferentes.
 
-Contrato, com as três saídas possíveis:
+A saída 3 não bloqueia o fechamento da fase, porque as fases 14 e 17 são irmãs independentes no grafo do ciclo.
+</action>
+<verify><automated>mkdir -p .plano/fases/17-planejamento-por-grafo/evidencia; { ls up/references/ | grep -i glossar || echo "glossario ausente: pendencia registrada"; } > .plano/fases/17-planejamento-por-grafo/evidencia/005-verbete.txt 2>&1; test -s .plano/fases/17-planejamento-por-grafo/evidencia/005-verbete.txt && echo "verbete conferido"</automated></verify>
+<done>Uma das três saídas está registrada com evidência, e a fase não ficou bloqueada pela ausência do artefato da fase irmã.</done>
+</task>
 
-1. **Glossário existe e o verbete confere.** Registrar a conferência no resumo, citando a frase do verbete e o comportamento correspondente. Nada é editado.
-2. **Glossário existe e o verbete diverge.** Corrigir apenas o verbete de onda, no máximo duas frases, para descrever a onda como visão derivada da dependência declarada. Nenhum outro verbete é tocado. A correção é registrada como fechamento da janela entre as duas fases.
-3. **Glossário ainda não existe**, porque a fase irmã que o publica ainda não fechou. Registrar a pendência explícita no resumo e no documento de estado, com a frase que o verbete precisa conter, e não criar o glossário aqui. Criar o artefato de outra fase quebraria a matriz de escrita por artefato, que existe justamente para impedir dois donos escrevendo o mesmo arquivo com semânticas diferentes.
+<task id="2" type="auto">
+<files>.plano/fases/17-planejamento-por-grafo/evidencia/005-comandos.txt (novo)</files>
+<action>
+Conferir a integridade dos sete comandos.
 
-**Aceite:** uma das três saídas está registrada no resumo, com evidência. A saída 3 não bloqueia o fechamento da fase, porque as duas fases são irmãs independentes no grafo do ciclo.
+Por comando: o frontmatter continua válido, e a referência ao workflow correspondente resolve para arquivo existente. Nos dois fluxos que esta fase alterou, o de planejamento e o de execução de fase, nenhum passo ou gate que existia antes foi removido: a guarda de artefatos por rodada, a verificação da fase, a revisão, o gate visual antes do merge e o menu de fechamento continuam presentes.
 
-**Prova:** conferência documental registrada.
+Referência quebrada por alteração desta fase é regressão desta fase, e é corrigida aqui.
+</action>
+<verify><automated>{ ls up/commands/*.md | wc -l; for c in up/commands/*.md; do w=$(grep -oE "workflows/[a-z-]+\.md" $c | head -1); test -f "up/$w" && echo "ok $c -> $w" || echo "QUEBRADO $c"; done; grep -c "GATE" up/workflows/build.md; } > .plano/fases/17-planejamento-por-grafo/evidencia/005-comandos.txt 2>&1; test $(grep -c "QUEBRADO" .plano/fases/17-planejamento-por-grafo/evidencia/005-comandos.txt) -eq 0 && echo "comandos ok"</automated></verify>
+<done>Os sete comandos resolvem para workflow existente, nenhum gate sumiu dos dois fluxos alterados, e a evidência está gravada.</done>
+</task>
 
-### 2. Regressão dos sete comandos
+<task id="3" type="auto">
+<files>.plano/fases/17-planejamento-por-grafo/evidencia/005-runtimes.txt (novo)</files>
+<action>
+Rodar a instalação real para os quatro runtimes suportados, em diretório de configuração temporário, sem tocar a configuração real da máquina.
 
-**O que muda:** nada. É conferência.
+Conferir, por runtime: os sete comandos foram emitidos no formato daquele runtime; as quatro skills de doutrina continuam presentes; e o bloco de arranque continua sendo injetado onde o runtime não tem gancho nativo. Conferir também que a instalação para o runtime nativo continua emitindo os comandos como skills invocáveis, que foi o que a fase 11 entregou.
 
-Contrato: cada um dos sete comandos do produto é conferido quanto a duas coisas: a definição continua íntegra, com área de metadados válida e referência ao fluxo correspondente resolvível, e nenhum dos fluxos alterados nesta fase perdeu passo que existia antes. Os fluxos alterados nesta fase são o de planejamento e o de execução de fase.
+Nenhuma bandeira nova e nenhum alvo novo de instalação podem aparecer.
+</action>
+<verify><automated>D=$(mktemp -d); for r in claude gemini opencode codex; do HOME=$D node up/bin/install.js --$r --global >> .plano/fases/17-planejamento-por-grafo/evidencia/005-runtimes.txt 2>&1 || echo "FALHOU $r" >> .plano/fases/17-planejamento-por-grafo/evidencia/005-runtimes.txt; done; find $D -name "*.md" | wc -l >> .plano/fases/17-planejamento-por-grafo/evidencia/005-runtimes.txt; test $(grep -c "FALHOU" .plano/fases/17-planejamento-por-grafo/evidencia/005-runtimes.txt) -eq 0 && rm -rf $D && echo "runtimes ok"</automated></verify>
+<done>Os quatro runtimes instalam em diretório temporário, emitem comandos e skills, e a evidência está gravada. A configuração real da máquina não foi tocada.</done>
+</task>
 
-**Aceite:** os sete comandos passam. Qualquer referência quebrada é corrigida dentro desta fase, porque referência quebrada por alteração desta fase é regressão desta fase.
+<task id="4" type="auto">
+<files>.plano/fases/17-planejamento-por-grafo/evidencia/005-projeto-antigo.txt (novo)</files>
+<action>
+Conferir que projeto anterior a este ciclo continua funcionando, sem migração.
 
-**Prova:** smoke, com a saída registrada no resumo.
+1. Sobre as fases já gravadas neste repositório: inventário, índice, progresso e status devolvem resposta coerente com o disco, e a ordem derivada é a mesma de antes desta fase.
+2. Sobre um diretório de planejamento sintético, criado em diretório temporário e gravado no formato anterior ao ciclo, sem dependência declarada, sem seção de fora de escopo, sem linha de estimativa e com caminho de arquivo no corpo do plano: a leitura funciona, a ordem sai pela onda numerada, e as três ausências mais o caminho produzem aviso e nenhuma reprovação.
+3. Nenhuma migração é executada, e nenhum arquivo de projeto antigo é renomeado ou reescrito.
+</action>
+<verify><automated>D=$(mktemp -d); mkdir -p $D/.plano/fases/01-legado; printf -- "---\nphase: 01-legado\nplan: 01-001\nwave: 1\n---\n# Legado\n### 1. editar o modulo\neditar src/a.ts conforme o padrao antigo\n" > $D/.plano/fases/01-legado/001-PLAN.md; node up/bin/up-tools.cjs validate-plan $D/.plano/fases/01-legado/001-PLAN.md > .plano/fases/17-planejamento-por-grafo/evidencia/005-projeto-antigo.txt 2>&1; node up/bin/up-tools.cjs phase-plan-index 1 --cwd $D >> .plano/fases/17-planejamento-por-grafo/evidencia/005-projeto-antigo.txt 2>&1; grep -q "PASS" .plano/fases/17-planejamento-por-grafo/evidencia/005-projeto-antigo.txt && test -z "$(git status --porcelain .plano/fases/03-templates-formatos-padrao .plano/fases/09-comando-ideias .plano/fases/11-suporte-grok-build)" && rm -rf $D && echo "projeto antigo ok"</automated></verify>
+<done>Plano anterior ao ciclo passa com aviso e sem reprovação, a ordem sai pela onda numerada, e nenhum arquivo de fase antiga foi tocado.</done>
+</task>
 
-### 3. Regressão dos quatro runtimes
+<task id="5" type="auto">
+<files>.plano/fases/17-planejamento-por-grafo/evidencia/005-suite.txt (novo)</files>
+<action>
+Rodar a suíte do lado UP inteira numa única passada e gravar a saída: o teste da biblioteca de planos, o do módulo de checagem e o teste já existente da biblioteca de integração com repositório.
 
-**O que muda:** nada. É execução real de instalação.
+Se o corredor de testes do lado UP criado pela fase 16 já existir, usar ele. Se ainda não existir, invocar os três arquivos diretamente, na ordem, somando os códigos de saída. Nenhum teste depende de rede, e cada um cria e apaga o próprio estado temporário.
+</action>
+<verify><automated>{ node up/bin/lib/plans.test.cjs; node up/bin/lib/plan-checks.test.cjs; node up/bin/lib/github.test.cjs; } > .plano/fases/17-planejamento-por-grafo/evidencia/005-suite.txt 2>&1; test $(grep -c "0 failed" .plano/fases/17-planejamento-por-grafo/evidencia/005-suite.txt) -eq 3 && echo "suite ok"</automated></verify>
+<done>Os três arquivos de teste saem verdes na mesma passada, e a contagem total de casos está gravada.</done>
+</task>
 
-Contrato:
+<task id="6" type="auto">
+<files>.plano/fases/17-planejamento-por-grafo/evidencia/005-escrita.txt (novo)</files>
+<action>
+Autoaplicação final e conferência de escrita.
 
-1. Rodar a instalação para cada um dos quatro runtimes suportados, em diretório de configuração temporário, sem tocar a configuração real da máquina.
-2. Conferir, por runtime, que os sete comandos foram emitidos no formato daquele runtime, que as quatro skills de doutrina continuam presentes, e que o bloco de arranque continua sendo injetado onde o runtime não tem gancho nativo.
-3. Conferir que a instalação para o runtime nativo continua emitindo também os comandos como skills invocáveis, que foi o que a fase 11 entregou.
-4. Nenhuma bandeira nova e nenhum alvo novo de instalação aparecem.
+1. A validação de plano roda sobre os cinco planos desta fase e sobre os resumos gerados, e todos passam nas regras entregues nos planos 003 e 004.
+2. Os artefatos escritos nesta fase respeitam as regras de escrita do projeto: português acentuado e nenhuma ocorrência de travessão longo ou médio.
 
-**Aceite:** os quatro runtimes instalam, e as três conferências por runtime passam.
+Qualquer ocorrência é corrigida antes de fechar esta tarefa.
+</action>
+<verify><automated>{ for f in .plano/fases/17-planejamento-por-grafo/*.md; do node up/bin/up-tools.cjs validate-plan "$f" --raw; echo; done; node -e "const fs=require('fs');const alvos=fs.readdirSync('.plano/fases/17-planejamento-por-grafo').filter(n=>n.endsWith('.md')).map(n=>'.plano/fases/17-planejamento-por-grafo/'+n).concat(['up/bin/lib/plans.cjs','up/bin/lib/plan-checks.cjs']);let n=0;for(const a of alvos){let t='';try{t=fs.readFileSync(a,'utf-8')}catch{continue}if(/[\u2014\u2013]/.test(t)){console.log('travessao em '+a);n++}}console.log(n===0?'sem travessao':'travessao encontrado')"; } > .plano/fases/17-planejamento-por-grafo/evidencia/005-escrita.txt 2>&1; grep -q "sem travessao" .plano/fases/17-planejamento-por-grafo/evidencia/005-escrita.txt && test $(grep -c "FAIL" .plano/fases/17-planejamento-por-grafo/evidencia/005-escrita.txt) -eq 0 && echo "escrita ok"</automated></verify>
+<done>Os planos e resumos da fase passam nas próprias regras, e nenhum artefato da fase contém travessão longo ou médio.</done>
+</task>
 
-**Prova:** smoke, com a saída registrada no resumo.
+<task id="7" type="auto">
+<files>.plano/governance/approvals.log (editar), .plano/ROADMAP.md (editar), .plano/STATE.md (editar)</files>
+<action>
+Registrar o fechamento da fase.
 
-### 4. Projeto anterior a este ciclo
-
-**O que muda:** nada. É conferência sobre estado já gravado.
-
-Contrato:
-
-1. Sobre as fases já gravadas neste repositório, o inventário, o índice, o progresso e o status devolvem resposta coerente com o disco, e a ordem de execução derivada é a mesma de antes desta fase.
-2. Sobre um diretório de planejamento sintético, gravado no formato anterior ao ciclo, sem dependência declarada, sem seção de fora de escopo, sem estimativa de janela e com caminho de arquivo no corpo do plano: a leitura funciona, a ordem sai pela onda numerada, e as três ausências produzem aviso e nenhuma reprovação.
-3. Nenhuma migração é executada, e nenhum arquivo de projeto antigo é reescrito.
-
-**Aceite:** as três conferências passam, e a lista de avisos do caso sintético traz exatamente as três ausências esperadas.
-
-**Prova:** smoke, com a saída registrada no resumo.
-
-### 5. Suíte da fase inteira
-
-**O que muda:** nada de código. É execução consolidada.
-
-Contrato: os arquivos de teste criados nesta fase, o da biblioteca de planos e o do módulo de checagem, mais o teste já existente da biblioteca de integração com repositório, rodam numa única passada e saem verdes. Nenhum deles depende de rede, e cada um cria e apaga o próprio estado temporário.
-
-**Aceite:** a passada completa sai com código de saída zero, e a contagem total de casos aparece no resumo.
-
-**Prova:** lógica, com a saída registrada no resumo.
-
-### 6. Autoaplicação final e conferência de escrita
-
-**O que muda:** nada de código.
-
-Contrato:
-
-1. A operação de validação de plano roda sobre os cinco planos desta fase e sobre os resumos gerados, e todos passam nas regras entregues nos planos 003 e 004.
-2. Os artefatos escritos nesta fase respeitam as regras de escrita do projeto: português acentuado, e nenhuma ocorrência de travessão longo nem de travessão médio.
-
-**Aceite:** as duas conferências passam, e qualquer ocorrência encontrada é corrigida antes do fechamento.
-
-**Prova:** execução registrada no resumo.
-
-### 7. Registro do fechamento
-
-**O que muda:** o estado do projeto passa a refletir a fase entregue.
-
-Contrato:
-
-1. Entrada no log de aprovações, no formato documentado de seis colunas emitido pelo escritor oficial, com o escopo da fase e a evidência do tipo exigido pela fase, que é lógica com vermelho e verde.
-2. Roadmap atualizado: a fase 17 marcada como concluída, com a contagem de planos e a data, e a linha da tabela de progresso correspondente.
-3. Documento de estado atualizado com a posição nova, as decisões registradas nos planos desta fase e o próximo comando sugerido.
-4. As pendências que saem desta fase ficam registradas em uma linha cada: a conferência do verbete quando ela caiu na saída 3 da tarefa 1, e o passe de corte de sedimento nos templates.
-
-**Aceite:** as quatro escritas estão feitas, e o log de aprovações tem a entrada da fase legível pelo leitor do gate.
-
-**Prova:** conferência documental registrada.
+1. Entrada no log de aprovações, no formato documentado de seis colunas emitido pelo escritor oficial, com o escopo da fase e a evidência do tipo exigido, que é lógica com vermelho e verde. Não escrever à mão em formato divergente: foi assim que as fases 11 e 12 criaram o problema de leitura que a fase 16 está consertando.
+2. Roadmap: fase 17 marcada como concluída, com a contagem de planos e a data, e a linha correspondente da tabela de progresso.
+3. Documento de estado: posição nova, decisões registradas nos planos desta fase e próximo comando sugerido.
+4. Pendências que saem desta fase, uma linha cada: a conferência do verbete quando ela caiu na saída 3 da tarefa 1, e o passe de corte de sedimento nos templates.
+</action>
+<verify><automated>grep -q "fase=17\|phase-17" .plano/governance/approvals.log && grep -q "Fase 17" .plano/ROADMAP.md && grep -qi "17" .plano/STATE.md && echo "fechamento ok"</automated></verify>
+<done>O log tem a entrada da fase no formato de seis colunas, o roadmap está fechado com contagem e data, e o estado aponta o próximo passo e as pendências.</done>
+</task>
 
 ## Critério de aceite do plano
 
-1. O verbete de onda está conferido, corrigido ou registrado como pendência, conforme a saída aplicável.
-2. Os sete comandos passam na conferência de integridade.
-3. Os quatro runtimes instalam e emitem o que devem emitir.
-4. Projeto anterior a este ciclo continua funcionando, e as ausências de campo novo produzem aviso e não reprovação.
-5. A suíte completa da fase sai verde numa única passada.
-6. Os cinco planos desta fase passam nas próprias regras.
-7. Nenhum artefato desta fase contém travessão longo ou médio.
-8. O fechamento está registrado no log de aprovações, no roadmap e no documento de estado.
-
-## Tipo de prova
-
-Smoke para regressão de comandos, runtimes e projeto antigo. Lógica para a passada consolidada dos testes. Conferência documental para o verbete e para o registro de fechamento.
+- [ ] O verbete de onda está conferido, corrigido ou registrado como pendência
+- [ ] Os sete comandos resolvem para workflow existente e nenhum gate sumiu
+- [ ] Os quatro runtimes instalam e emitem comandos e skills
+- [ ] Projeto anterior a este ciclo continua funcionando, com aviso e sem reprovação
+- [ ] A suíte do lado UP sai verde numa única passada
+- [ ] Nenhum artefato da fase contém travessão longo ou médio
+- [ ] O fechamento está registrado no log, no roadmap e no estado
 
 ## Fora de escopo
 
-1. Escrever o glossário interno. Ele é artefato da fase irmã de memória do projeto, e criar aqui daria dois donos ao mesmo arquivo.
-2. Corrigir verbete diferente do de onda, mesmo que pareça errado. A janela declarada entre as duas fases é a de onda, e alargar a conferência inventaria escopo que não foi acordado.
+1. Escrever o glossário interno. É artefato da fase 14, e criar aqui daria dois donos ao mesmo arquivo.
+2. Corrigir verbete diferente do de onda, mesmo que pareça errado. A janela declarada entre as duas fases é a de onda, e alargar a conferência inventaria escopo não acordado.
 3. Passe de corte de sedimento nos templates. Tem briefing próprio.
 4. Publicar versão nova do pacote. A publicação acontece no fechamento do ciclo, e não por fase.
 5. Alterar instalador ou runtime além do que os artefatos desta fase exigirem. A fronteira do ciclo declara isso.
 
 ## Colisões conhecidas
 
-As fases irmãs de memória do projeto, de honestidade da prova e de contexto e revisão rodam em paralelo com esta no grafo do ciclo. A conferência de regressão desta fase cobre apenas o que esta fase alterou. Achado que venha de fase irmã é registrado e devolvido para ela, e não corrigido aqui, porque corrigir trabalho de fase irmã em paralelo produz conflito no merge e apaga a autoria do defeito.
+As fases 14, 16, 18, 19 e 20 rodam em paralelo com esta no grafo do ciclo. A conferência de regressão desta fase cobre apenas o que a fase 17 alterou. Achado que venha de fase irmã é registrado e devolvido para ela, e não corrigido aqui: corrigir trabalho de fase irmã em paralelo produz conflito no merge e apaga a autoria do defeito.
 
 ## Decisões registradas
 
-**Decisão 1. Ausência do glossário não bloqueia o fechamento desta fase.** Alternativa rejeitada: fazer esta fase depender da fase irmã que publica o glossário. Rejeitada porque inverteria o grafo do ciclo, que declara as duas como irmãs independentes, e serializaria duas fases que não precisam ser serializadas. A janela entre elas é fechada por conferência, e não por dependência.
+**Decisão 1. Ausência do glossário não bloqueia o fechamento desta fase.** Alternativa rejeitada: fazer esta fase depender da fase 14. Rejeitada porque inverteria o grafo do ciclo, que declara as duas como irmãs independentes, e serializaria duas fases que não precisam ser serializadas. A janela entre elas é fechada por conferência, e não por dependência.
 
 **Decisão 2. A correção admitida aqui é apenas no verbete de onda.** Alternativa rejeitada: corrigir o glossário inteiro quando ele existir. Rejeitada porque a matriz de escrita por artefato dá um dono por artefato, e o custo de dois donos é maior que o de uma pendência registrada.
+
+**Decisão 3. O corredor de testes é usado se existir, e não é criado aqui.** Alternativa rejeitada: criar um corredor próprio da fase 17. Rejeitada porque a fase 16 já cria o corredor do lado UP, e dois corredores para a mesma suíte divergem na primeira vez que alguém acrescenta um arquivo de teste.

@@ -1,217 +1,246 @@
 ---
 phase: 17-planejamento-por-grafo
-plan: 17-002
+plan: "002"
 type: feature
+wave: 2
+depends_on: ["001", "003"]
 autonomous: true
-plan_format: 2
-wave: 1
-depends_on: [001, 003]
+plan_schema: 2
 requirements: [PLANO-01, PLANO-02, PLANO-03, PLANO-04, PLANO-05, PLANO-06]
+files_modified:
+  - up/bin/lib/plans.cjs
+  - up/bin/lib/plans.test.cjs
+  - up/bin/up-tools.cjs
+  - up/workflows/build.md
+  - up/agents/up-planejador.md
+  - .plano/fases/17-planejamento-por-grafo/evidencia/002-red.txt
+  - .plano/fases/17-planejamento-por-grafo/evidencia/002-green.txt
+prova: "logic:test_pass (vermelho e verde, visto falhar antes de passar)"
 must_haves:
   truths:
     - "A ordem de execução dos planos de uma fase sai da dependência declarada, recalculada a cada rodada"
     - "Fase sem dependência declarada continua executando pela onda numerada, sem migração"
     - "Plano que falha sai da fronteira, mantém bloqueado quem depende dele, e não impede os demais"
     - "Cadeia totalmente sequencial degrada sozinha, sem caso especial no motor"
-    - "A onda numerada continua sendo devolvida como visão de leitura, ao lado da onda derivada"
+    - "A onda numerada continua sendo devolvida como visão de leitura, ao lado da onda derivada, e onda zero declarada deixa de virar onda um"
   artifacts:
-    - surface: "Biblioteca de planos, função de derivação de fronteira"
-      provides: "Cálculo puro da fronteira, da onda derivada, dos bloqueados, do ciclo e das arestas pendentes"
-    - surface: "Subcomando de índice de planos da fase"
-      provides: "Fronteira, modo de ordenação e estado por plano, em campos aditivos, aceitando a lista de planos falhos"
-    - surface: "Motor de execução de fase"
+    - path: "up/bin/lib/plans.cjs"
+      provides: "Normalização de aresta e derivação pura da fronteira, com onda derivada, bloqueados, ciclo e arestas pendentes"
+    - path: "up/bin/up-tools.cjs"
+      provides: "Fronteira, modo de ordenação e estado por plano no índice, em campos aditivos, com parâmetro de planos falhos"
+    - path: "up/workflows/build.md"
       provides: "Laço de fronteira no lugar do laço de ondas fixas"
   key_links:
-    - from: "Motor de execução de fase"
-      to: "Subcomando de índice de planos da fase"
-      via: "Pedido da fronteira a cada rodada, informando os planos já falhos"
-    - from: "Derivação de fronteira"
-      to: "Canonicalização de identificador"
-      via: "Normalização da aresta declarada antes de resolver o bloqueador"
+    - from: "up/workflows/build.md"
+      to: "up/bin/up-tools.cjs"
+      via: "phase-plan-index chamado a cada rodada, informando os planos já falhos"
+    - from: "up/bin/lib/plans.cjs"
+      to: "up/bin/lib/plan-checks.cjs"
+      via: "contador de tarefas único, exportado pelo plano 003 e consumido pelo índice"
 ---
 
 # Fase 17 Plano 002: Grafo de bloqueio e fronteira derivada
 
-**Objetivo:** trocar a onda numerada por dependência declarada como verdade da ordem de execução. A fronteira, que é o conjunto de planos cujos bloqueadores estão todos prontos, passa a ser recalculada durante a execução. A onda continua existindo como visão de leitura.
+<objective>
+Trocar a onda numerada por dependência declarada como verdade da ordem de execução. A fronteira, que é o conjunto de planos cujos bloqueadores estão todos prontos, passa a ser recalculada durante a execução. A onda continua existindo como visão de leitura.
+</objective>
 
-**Onda:** 1 (visão de leitura). **Arestas de bloqueio:** planos 001 e 003 desta fase. Motivos reais, e não ordem arbitrária. O 001: a fronteira é derivada do inventário da fase, e o inventário só enxerga todos os planos depois da correção do 001, então derivar fronteira sobre inventário cego produziria fronteira cega. O 003: a contagem de tarefas que este plano corrige no índice passa a ser a mesma contagem exportada pelo módulo de checagem criado no 003, e escrever duas contagens seria repetir o defeito que o 001 acabou de eliminar.
+**Onda:** 2. **Depende de:** planos 001 e 003 desta fase. O 001 porque a fronteira é derivada do inventário da fase, e o inventário só enxerga todos os planos depois da correção dele: derivar fronteira sobre inventário cego produz fronteira cega. O 003 porque a contagem de tarefas que este plano corrige no índice passa a ser a mesma função exportada pelo módulo de checagem criado lá, e escrever uma segunda contagem repetiria o defeito que o 001 acabou de eliminar.
+**Tipo de prova:** lógica, vermelho e verde.
 
-**Estimativa de janela:** plano 3 mil tokens, contexto pré-inlinado 12 mil, leitura dirigida de código 16 mil, escrita e saída 10 mil. Total estimado 41 mil tokens, contra orçamento de 100 mil por plano.
+**Nota sobre a regra que esta fase entrega:** a proibição de caminho de arquivo em plano é o que a fase 17 constrói, e não o que ela já obedece. Os caminhos aparecem nos campos `<files>` porque o executor depende deles como trava de escopo.
 
-**Requisitos cobertos:** PLANO-01, PLANO-02, PLANO-03, PLANO-04, PLANO-05, PLANO-06.
+## Dois defeitos verificados por execução que este plano corrige
 
-## Superfícies tocadas (contrato, sem caminho)
+1. **Onda zero vira onda um.** `const wave = parseInt(fm.wave, 10) || 1` trata zero como ausência de valor. Como onda zero é a convenção de infraestrutura do produto, hoje a onda zero e a onda um viram a mesma onda, e planos escritos para rodar em sequência rodam em paralelo. O efeito é silencioso: nada falha, a ordem é que está errada.
+2. **Contagem de tarefas cega a português.** O índice conta por `<task` e por `##\s*Task\s*\d+`, então plano com título de tarefa em português é reportado com zero tarefa.
 
-1. **Biblioteca de planos**, criada no plano 001, ganha a derivação de fronteira como função pura exportada.
-2. **Subcomando de índice de planos da fase**: campos aditivos e um parâmetro novo de planos falhos.
-3. **Motor de execução de fase**: o laço que hoje itera ondas em ordem crescente vira laço de fronteira.
-4. **Doutrina do agente planejador**: a dependência declarada passa a ser descrita como a verdade, e a onda como visão derivada.
-5. **Arquivo de teste da biblioteca de planos**: ganha os casos de fronteira.
+## Contexto
 
-## Contexto necessário
-
-Resumos dos planos 001 e 003 desta fase, desenho do sistema (seção de contratos de dado, índice de planos da fase e mapa por fase), requisitos do projeto (categoria de planejamento por grafo), mapa de convenções do codebase.
+@up/bin/lib/plans.cjs - biblioteca criada no plano 001, que este plano estende
+@up/bin/up-tools.cjs - `cmdPhasePlanIndex`, leitura de `wave` e contagem de tarefas
+@up/workflows/build.md - passo 3.1 (descoberta) e 3.2 mais 3.3 (laço de ondas e GATE A)
+@up/agents/up-planejador.md - doutrina de onda e de dependência
+@.plano/SYSTEM-DESIGN.md - seção 5.2, contrato do índice de planos da fase
 
 ## Tarefas
 
-### 1. A aresta declarada
+<task id="1" type="auto">
+<files>up/bin/lib/plans.test.cjs (editar), .plano/fases/17-planejamento-por-grafo/evidencia/002-red.txt (novo)</files>
+<action>
+Escrever os casos de fronteira ANTES da implementação e VER FALHAR. Bloco novo no arquivo de teste criado no plano 001, mesmo harness, mesma saída.
 
-**O que muda:** o campo de dependência que já existe hoje na área de metadados do plano, e que hoje nenhum consumidor lê, passa a ser o dado primário da ordem de execução. Nenhum campo novo de aresta é criado.
+Casos obrigatórios:
 
-Contrato:
+1. **Cadeia linear.** Três planos, cada um bloqueado pelo anterior: a fronteira traz um plano por vez, nas três rodadas, na ordem da cadeia.
+2. **Leque.** Três planos com dependência declarada vazia: fronteira com os três.
+3. **Plano que falha.** Quatro planos, um bloqueia dois e o quarto é independente. Com o primeiro na lista de falhos: a fronteira traz o independente, os dois dependentes aparecem em bloqueados com o motivo apontando o falho, e a fase não é declarada esgotada.
+4. **Retomada.** Cadeia do caso 1 com o primeiro plano já com resumo: a fronteira começa no segundo.
+5. **Sem aresta declarada.** Fase gravada como as antigas, só com onda: modo onda, fronteira igual aos pendentes da menor onda com pendência, onda derivada igual à declarada.
+6. **Modo misto.** Dois planos declaram aresta e um não declara e está em onda posterior: o que não declara só entra na fronteira depois que os de onda anterior ficam prontos.
+7. **Ciclo.** Dois planos que se bloqueiam mutuamente: fronteira vazia, ciclo reportado com os dois, fase não esgotada.
+8. **Aresta pendente.** Dependência de identificador inexistente: não bloqueia, o plano entra na fronteira, e a aresta aparece na coleção de pendentes.
+9. **Aresta em forma composta.** Dependência declarada com o número da fase junto do identificador resolve contra o plano correspondente.
+10. **Autoaresta.** Plano que declara dependência de si mesmo: descartada e reportada como pendente, sem travar.
+11. **Fase esgotada.** Todos com resumo: fronteira vazia, esgotada verdadeira, ciclo vazio.
+12. **Onda zero preservada.** Dois planos declarando onda zero e um declarando onda um, nenhum com aresta: a primeira fronteira traz os dois de onda zero, e não os três. Este caso falha antes da correção, porque hoje os três caem na mesma onda.
 
-1. O valor é uma lista de identificadores de plano da mesma fase. Lista ausente e lista vazia significam a mesma coisa: nenhuma aresta declarada.
-2. Cada item é normalizado pela canonicalização do plano 001 antes de resolver. Isso faz o identificador composto com o número da fase, já gravado em plano antigo deste repositório, resolver contra o identificador simples devolvido pelo inventário.
-3. Aresta que não resolve para nenhum plano da mesma fase não bloqueia, e é reportada como aresta pendente com o texto original. Bloquear por nome irresolúvel travaria projeto já gravado, que é exatamente o que a compatibilidade proíbe.
-4. Aresta de um plano para ele mesmo é descartada e reportada como aresta pendente.
+Rodar e gravar a saída em `evidencia/002-red.txt`.
+</action>
+<verify><automated>node up/bin/lib/plans.test.cjs > .plano/fases/17-planejamento-por-grafo/evidencia/002-red.txt 2>&1; grep -qE "FAIL|failed" .plano/fases/17-planejamento-por-grafo/evidencia/002-red.txt && echo "RED confirmado"</automated></verify>
+<done>Os 12 casos existem, foram executados e falharam por ausência da derivação de fronteira, com a saída vermelha gravada.</done>
+</task>
 
-**Aceite:** um plano que declara dependência na forma composta resolve contra o plano correspondente da mesma fase. Um plano que declara dependência de nome inexistente não trava a fase e aparece na lista de arestas pendentes.
+<task id="2" type="auto">
+<files>up/bin/lib/plans.cjs (editar)</files>
+<action>
+Normalizar a aresta declarada. O campo `depends_on`, que já existe no frontmatter do plano e que hoje nenhum consumidor lê, passa a ser o dado primário da ordem. Nenhum campo novo de aresta é criado.
 
-**Prova:** lógica, na tarefa 7.
+`normalizeEdges(planEntry, inventory, phaseNumber)` devolve `{ edges, dangling }`. Regras:
 
-### 2. Estado do plano
+1. Valor ausente e lista vazia significam a mesma coisa: nenhuma aresta declarada. A distinção entre "não declarou" e "declarou vazio" é preservada num sinalizador próprio, porque ela decide o modo de ordenação.
+2. Cada item passa pela canonicalização do plano 001 antes de resolver, o que faz a forma composta com o número da fase, já gravada em plano antigo deste repositório, casar com o identificador simples do inventário.
+3. Item que não resolve para nenhum plano da mesma fase não bloqueia, e entra em `dangling` com o texto original. Bloquear por nome irresolúvel travaria projeto já gravado, que é o oposto da compatibilidade prometida.
+4. Aresta de um plano para ele mesmo é descartada e entra em `dangling`.
+</action>
+<verify><automated>node -e "const p=require('./up/bin/lib/plans.cjs'); if(typeof p.normalizeEdges!=='function') throw new Error('normalizeEdges ausente'); console.log('edges ok');"</automated></verify>
+<done>A aresta declarada resolve nas duas formas de identificador, e aresta irresolúvel e autoaresta são reportadas sem bloquear.</done>
+</task>
 
-**O que muda:** a derivação passa a raciocinar sobre três estados, e não sobre presença de arquivo apenas.
+<task id="3" type="auto">
+<files>up/bin/lib/plans.cjs (editar), .plano/fases/17-planejamento-por-grafo/evidencia/002-green.txt (novo)</files>
+<action>
+Implementar a derivação da fronteira e fechar o verde.
 
-1. Pronto: o plano tem resumo pareado, conforme o pareamento do plano 001.
-2. Falho: o identificador do plano consta na lista de falhos informada por quem chama. Não há estado falho persistido em disco.
-3. Pendente: nem pronto nem falho.
+`deriveFrontier({ plans, pairing, failed })` é função pura e devolve `{ frontier, blocked, dangling_edges, cycle, exhausted, ordering_mode, derived_waves }`.
 
-**Aceite:** a mesma fase, chamada com e sem lista de falhos, devolve fronteiras diferentes e coerentes com a lista informada.
-
-**Prova:** lógica, na tarefa 7.
-
-### 3. Derivação da fronteira
-
-**O que muda:** função pura exportada pela biblioteca de planos. Recebe o inventário da fase, o pareamento, as arestas normalizadas, a onda declarada de cada plano e a lista de falhos. Devolve fronteira, bloqueados, arestas pendentes, ciclo, onda derivada por plano e modo de ordenação.
+Estado de cada plano, calculado antes da derivação: `pronto` quando tem resumo pareado; `falho` quando o identificador consta na lista de falhos recebida por parâmetro; `pendente` no restante. Não existe estado falho persistido em disco.
 
 Regras, nesta ordem:
 
-1. **Modo de ordenação.** Se nenhum plano da fase declara aresta, o modo é onda. Se todos declaram, o modo é aresta. Se uns declaram e outros não, o modo é misto.
-2. **Modo aresta.** A fronteira é o conjunto de planos pendentes cujos bloqueadores resolvidos estão todos prontos.
-3. **Modo onda.** A fronteira é o conjunto de planos pendentes da menor onda declarada que ainda tenha plano pendente. Isso reproduz exatamente a ordem que o sistema executa hoje, e é a degradação exigida para projeto planejado antes deste ciclo.
-4. **Modo misto.** Plano que declara aresta usa a regra 2. Plano que não declara herda como bloqueadores todos os planos de onda declarada estritamente menor que a dele. Assim a leitura antiga continua valendo dentro do mesmo conjunto, sem inventar dependência entre irmãos da mesma onda.
-5. **Falha.** Plano falho nunca entra na fronteira, e quem depende dele, direta ou transitivamente, entra na coleção de bloqueados com o motivo apontando o falho. Os demais pendentes cujos bloqueadores estão prontos continuam na fronteira. Nenhuma reordenação manual é necessária.
-6. **Ciclo.** Se restam pendentes, nenhum falho os bloqueia e a fronteira sai vazia, existe ciclo. A resposta traz a coleção de planos envolvidos, e a fronteira permanece vazia. Nunca há laço infinito nem escolha arbitrária de desempate.
-7. **Onda derivada.** Por plano, é o comprimento do caminho de bloqueio mais longo que chega até ele, contado em número de arestas, começando em zero para plano sem bloqueador. No modo onda, a onda derivada é igual à onda declarada, para que a visão não mude em projeto antigo.
-8. **Fase concluída.** Sem pendente e sem falho, a fronteira é vazia e a resposta declara a fase esgotada. Fronteira vazia por conclusão e fronteira vazia por ciclo são distinguíveis por campos diferentes.
+1. **Modo de ordenação.** Nenhum plano declara aresta: modo `onda`. Todos declaram: modo `aresta`. Uns sim e outros não: modo `misto`.
+2. **Modo aresta.** A fronteira é o conjunto de pendentes cujos bloqueadores resolvidos estão todos prontos.
+3. **Modo onda.** A fronteira é o conjunto de pendentes da menor onda declarada que ainda tenha pendência. Reproduz exatamente a ordem executada hoje, e é a degradação exigida para projeto anterior ao ciclo.
+4. **Modo misto.** Plano que declara aresta usa a regra 2. Plano que não declara herda como bloqueadores todos os planos de onda declarada estritamente menor que a dele, sem inventar dependência entre irmãos da mesma onda.
+5. **Falha.** Plano falho nunca entra na fronteira, e quem depende dele, direta ou transitivamente, entra em `blocked` com o motivo apontando o falho. Os demais pendentes com bloqueadores prontos seguem na fronteira.
+6. **Ciclo.** Restam pendentes, nenhum falho os bloqueia e a fronteira sai vazia: `cycle` traz os planos envolvidos e a fronteira fica vazia. Nunca há laço infinito nem desempate arbitrário.
+7. **Onda derivada.** Comprimento do caminho de bloqueio mais longo que chega ao plano, em número de arestas, começando em zero. No modo onda, é igual à onda declarada, para que a visão não mude em projeto antigo.
+8. **Fase esgotada.** Sem pendente e sem falho, fronteira vazia e `exhausted` verdadeiro. Fronteira vazia por conclusão e por ciclo são distinguíveis por campos diferentes.
 
-**Aceite:** cada uma das oito regras tem pelo menos um caso no teste da tarefa 7.
+Rodar o teste até ficar verde e gravar em `evidencia/002-green.txt`. Nenhum caso pode ser afrouxado para chegar ao verde.
+</action>
+<verify><automated>node up/bin/lib/plans.test.cjs > .plano/fases/17-planejamento-por-grafo/evidencia/002-green.txt 2>&1; grep -q "0 failed" .plano/fases/17-planejamento-por-grafo/evidencia/002-green.txt && echo "GREEN confirmado"</automated></verify>
+<done>Os 22 casos do arquivo (10 do plano 001 e 12 deste) passam, e as saídas vermelha e verde estão gravadas lado a lado.</done>
+</task>
 
-**Prova:** lógica, vermelho e verde.
+<task id="4" type="auto">
+<files>up/bin/up-tools.cjs (editar)</files>
+<action>
+Publicar a fronteira no índice e corrigir os dois defeitos de leitura.
 
-### 4. Índice de planos da fase publicando a fronteira
+1. Campos existentes preservados em nome e significado, inclusive `waves` e `incomplete`. Consumidor antigo continua funcionando sem alteração.
+2. Campos acrescentados no topo: `frontier`, `blocked` com motivo, `dangling_edges`, `cycle`, `ordering_mode` e `exhausted`.
+3. Campos acrescentados por plano: `edges`, `derived_wave` e `state`.
+4. Parâmetro novo e opcional `--failed <ids separados por vírgula>`, que alimenta a lista de falhos. Sem ele, nenhum plano é falho.
+5. **Onda zero preservada.** A leitura de `wave` deixa de usar coerção que trata zero como ausência: ausência de campo assume um, e zero declarado vale zero.
+6. **Contagem de tarefas única.** `task_count` passa a usar a função exportada pelo módulo de checagem do plano 003, que reconhece título de tarefa em português e em inglês. Não escrever uma segunda contagem aqui.
+7. Nomes de campo em minúsculas com sublinhado, em inglês, como os que já existem.
+</action>
+<verify><automated>node up/bin/up-tools.cjs phase-plan-index 17 | grep -q '"ordering_mode"' && node up/bin/up-tools.cjs phase-plan-index 17 | grep -q '"frontier"' && test $(node -e "const o=JSON.parse(require('child_process').execSync('node up/bin/up-tools.cjs phase-plan-index 17').toString()); console.log(Object.keys(o.waves).length)") -eq 3 && echo "indice ok"</automated></verify>
+<done>O índice devolve fronteira, modo de ordenação e estado, as três ondas da fase 17 aparecem separadas, e a contagem de tarefas dos planos em português deixa de ser zero.</done>
+</task>
 
-**O que muda:** o subcomando de índice de planos da fase passa a devolver a fronteira, sem perder nada do que devolve hoje.
-
-Contrato:
-
-1. Campos existentes preservados em nome e significado, inclusive o mapa de onda para lista de identificadores e a lista de incompletos. Consumidor antigo continua funcionando sem alteração.
-2. Campos acrescentados no topo da resposta: fronteira, bloqueados com motivo, arestas pendentes, ciclo, modo de ordenação e indicador de fase esgotada.
-3. Campos acrescentados por plano: arestas normalizadas, onda derivada e estado.
-3.1. A onda declarada passa a preservar o valor zero. Fato verificado por execução no planejamento desta fase: um plano que declara onda zero é reportado pelo índice como onda um, por conversão que trata zero como ausência de valor. O efeito é grave e silencioso, porque a onda zero é a convenção de infraestrutura do produto: hoje a onda zero e a onda um viram a mesma onda, e planos escritos para rodar em sequência rodam em paralelo. Ausência de onda declarada continua assumindo o valor um, e zero declarado vale zero.
-3.2. A contagem de tarefas por plano passa a reconhecer título de tarefa escrito em português, consumindo o contador exportado pelo módulo de checagem do plano 003 desta fase. Fato verificado por execução: os cinco planos desta fase são reportados hoje com zero tarefa. Existe uma só contagem no produto, e não duas.
-4. Parâmetro novo e opcional que recebe a lista de identificadores de planos falhos. Sem o parâmetro, nenhum plano é considerado falho.
-5. Nomes de campo em minúsculas com sublinhado, em inglês, como os campos que já existem na resposta.
-
-**Aceite:** a resposta do índice de uma fase já gravada, sem aresta declarada, traz modo de ordenação igual a onda e fronteira igual aos planos pendentes da menor onda com pendência. A resposta continua trazendo todos os campos antigos. Os cinco planos desta fase passam a ser reportados com a onda que declaram, inclusive a onda zero, e com a contagem de tarefas real.
-
-**Prova:** lógica mais execução sobre as fases reais do repositório.
-
-### 5. Laço de fronteira no motor de execução
-
-**O que muda:** o motor de execução de fase para de iterar ondas em ordem crescente e passa a repetir a rodada seguinte enquanto houver plano pendente.
+<task id="5" type="auto">
+<files>up/workflows/build.md (editar)</files>
+<action>
+Trocar o laço de ondas pelo laço de fronteira, no passo 3.2 mais 3.3.
 
 Contrato da rodada:
 
 1. Pedir a fronteira ao índice, informando os planos já falhos nesta execução.
-2. Se a fronteira vier vazia com ciclo declarado, parar a fase e escalar ao dono, sem tentar desempatar sozinho.
-3. Se a fronteira vier vazia com fase esgotada, sair do laço.
-4. Executar em paralelo os planos da fronteira quando a paralelização está ligada, e um por vez quando está desligada. Continua valendo a barreira: a rodada só termina quando todos os planos dela terminam.
-5. Ao fim da rodada, o plano sem resumo entra na lista de falhos da execução depois da política de reexecução já existente. A lista de falhos vive na execução, e não em disco.
-6. Recomeçar em 1. Como a fronteira é recalculada, um plano que ficou pronto agora libera quem dependia dele, e um plano que falhou não trava quem não dependia dele.
-7. A guarda que confere resumo por plano continua existindo, agora por rodada e por plano da rodada.
+2. Fronteira vazia com ciclo declarado: parar a fase e escalar ao dono, sem desempatar sozinho.
+3. Fronteira vazia com fase esgotada: sair do laço.
+4. Executar em paralelo os planos da fronteira quando a paralelização está ligada, e um por vez quando está desligada. A barreira continua valendo: a rodada só termina quando todos os planos dela terminam.
+5. Ao fim da rodada, plano sem resumo entra na lista de falhos da execução, depois da política de reexecução que já existe. A lista vive na execução, e não em disco.
+6. Recomeçar em 1. Um plano que ficou pronto libera quem dependia dele; um que falhou não trava quem não dependia dele.
+7. A guarda de um resumo por plano continua existindo, agora por rodada.
 
-**Aceite:** uma fase de três planos em cadeia executa em três rodadas de um plano cada. Uma fase de três planos sem aresta e com a mesma onda executa em uma rodada de três. Uma fase em que o primeiro plano da cadeia falha para a execução dos dependentes dele e mantém a fase viva para os independentes.
+Atualizar o parágrafo que hoje explica por que paralelizar dentro da onda é seguro: a garantia passa a vir da aresta declarada, e a onda vira visão de leitura. Nenhum gate é removido.
+</action>
+<verify><automated>grep -q "frontier" up/workflows/build.md && grep -q "\-\-failed" up/workflows/build.md && grep -q "cycle" up/workflows/build.md && echo "motor ok"</automated></verify>
+<done>O motor pede a fronteira a cada rodada, trata ciclo e fase esgotada, e não itera mais onda numerada fixa.</done>
+</task>
 
-**Prova:** lógica, na tarefa 7, sobre a derivação. O texto do motor é conferido por leitura na verificação da fase.
+<task id="6" type="auto">
+<files>up/agents/up-planejador.md (editar)</files>
+<action>
+Inverter a doutrina de ordem: a dependência declarada passa a ser a verdade, e a onda numerada passa a ser visão de leitura derivada dela.
 
-### 6. Onda como visão na doutrina
+Duas frases obrigatórias: uma define onda como visão derivada da dependência declarada, outra define dependência declarada como o dado primário. O planejador continua escrevendo a onda, porque ela é a visão publicada, e passa a declarar dependência sempre que houver.
 
-**O que muda:** a doutrina do agente planejador passa a declarar que a dependência declarada é a verdade da ordem, e que a onda numerada é visão de leitura derivada dela. O planejador continua escrevendo a onda, porque ela é a visão publicada, e passa a escrever a dependência sempre que houver.
+Acrescentar a regra de numeração de onda: a menor onda publicada é um. Onda zero não é usada enquanto a leitura antiga do índice existir em projeto instalado, para que plano novo não dependa da correção deste plano já estar distribuída.
 
-Contrato do texto: uma frase define onda como visão derivada da dependência declarada, e uma frase define dependência declarada como o dado primário. As duas frases não contradizem o verbete de onda do glossário interno publicado pela fase irmã, e a conferência entre os dois é feita no plano 005 desta fase.
+As duas frases não podem contradizer o verbete de onda do glossário interno publicado pela fase 14. A conferência entre os dois é feita no plano 005 desta fase.
+</action>
+<verify><automated>grep -qi "visão derivada" up/agents/up-planejador.md && grep -qi "depends_on" up/agents/up-planejador.md && echo "doutrina ok"</automated></verify>
+<done>A doutrina não trata mais a onda como ordem primária, instrui a declaração de dependência, e fixa a menor onda publicada em um.</done>
+</task>
 
-**Aceite:** a doutrina não contém mais instrução que trate a onda como ordem primária de execução, e passa a instruir a declaração de dependência.
+<task id="7" type="auto">
+<files>.plano/fases/17-planejamento-por-grafo/evidencia/002-retrocompat.txt (novo)</files>
+<action>
+Conferir que nenhuma fase já gravada mudou de comportamento.
 
-**Prova:** conferência por leitura no plano 005.
+Para cada fase gravada no diretório de planejamento deste repositório, registrar modo de ordenação, fronteira inicial, ondas e onda derivada, e comparar com o mapa de onda anterior a esta fase. Toda fase anterior ao ciclo tem que aparecer em modo onda, com a mesma ordem de execução de antes.
+</action>
+<verify><automated>for p in 3 4 5 6 7 8 9 10 11; do node up/bin/up-tools.cjs phase-plan-index $p; echo; done > .plano/fases/17-planejamento-por-grafo/evidencia/002-retrocompat.txt 2>&1; test $(grep -c '"ordering_mode": "onda"' .plano/fases/17-planejamento-por-grafo/evidencia/002-retrocompat.txt) -eq 9 && echo "retrocompat ok"</automated></verify>
+<done>As nove fases anteriores ao ciclo aparecem em modo onda, com a mesma ordem de antes, e a evidência está gravada.</done>
+</task>
 
-### 7. Teste vermelho e verde da fronteira
+<task id="8" type="auto">
+<files>.plano/fases/17-planejamento-por-grafo/evidencia/002-regressao.txt (novo)</files>
+<action>
+Conferir que o motor e o fluxo continuam íntegros depois da troca.
 
-**O que muda:** o arquivo de teste da biblioteca de planos ganha os casos de fronteira, escritos antes da implementação e vistos falhar.
-
-Casos obrigatórios:
-
-1. **Cadeia linear.** Três planos, cada um bloqueado pelo anterior. A fronteira tem um plano por vez, nas três rodadas, na ordem da cadeia.
-2. **Leque.** Três planos sem aresta, todos pendentes, modo aresta ligado por declaração vazia explícita em todos: fronteira com os três.
-3. **Plano que falha.** Quatro planos, um bloqueia dois deles e o quarto é independente. Com o primeiro na lista de falhos, a fronteira traz o independente, os dois dependentes aparecem em bloqueados com o motivo apontando o falho, e a fase não é declarada esgotada.
-4. **Retomada.** Mesma fase do caso 1, com o primeiro plano já com resumo: a fronteira começa no segundo.
-5. **Sem aresta declarada.** Fase gravada como as fases antigas do repositório, só com onda: modo onda, fronteira igual aos pendentes da menor onda com pendência, e onda derivada igual à onda declarada.
-6. **Modo misto.** Dois planos declaram aresta e um não declara e está em onda posterior: o que não declara só entra na fronteira depois que os de onda anterior ficam prontos.
-7. **Ciclo.** Dois planos que se bloqueiam mutuamente: fronteira vazia, ciclo reportado com os dois, fase não declarada esgotada.
-8. **Aresta pendente.** Plano que declara dependência de identificador inexistente: não bloqueia, entra na fronteira, e a aresta aparece na coleção de pendentes.
-9. **Aresta em forma composta.** Plano que declara dependência com o número da fase junto do identificador resolve contra o plano correspondente.
-10. **Fase esgotada.** Todos com resumo: fronteira vazia, esgotada verdadeira, ciclo vazio.
-11. **Onda zero preservada.** Dois planos declarando onda zero e um declarando onda um, nenhum com aresta: a fronteira da primeira rodada traz os dois de onda zero, e não os três. Este caso falha antes da correção, porque hoje os três caem na mesma onda.
-12. **Contagem de tarefas em português.** Um plano com sete títulos de tarefa em português é reportado com sete tarefas, e não zero.
-
-**Aceite:** o arquivo de teste roda por invocação direta do interpretador, todos os casos passam depois da implementação, e pelo menos os casos 1, 3, 5, 7 e 11 foram vistos falhar antes dela. A saída do vermelho fica registrada no resumo do plano.
-
-**Prova:** lógica, vermelho e verde.
-
-### 8. Retrocompatibilidade conferida no próprio repositório
-
-**O que muda:** nada de código. É a conferência de que nenhuma fase já gravada mudou de comportamento.
-
-Contrato: para cada fase já gravada no diretório de planejamento deste repositório, a ordem de execução derivada pelo modo onda é igual à ordem que o motor produzia antes desta fase. A conferência registra, por fase, o modo de ordenação, a fronteira inicial e a onda derivada, e compara com o mapa de onda antigo.
-
-**Aceite:** nenhuma fase gravada antes deste ciclo muda de ordem. Toda fase gravada antes deste ciclo aparece em modo onda.
-
-**Prova:** execução do índice sobre as fases reais, com a tabela de antes e depois no resumo do plano.
+1. Os sete comandos continuam com frontmatter válido e referência de workflow resolvível.
+2. Nenhum gate do fluxo de execução sumiu: a guarda de artefatos por rodada, a verificação da fase, a revisão, o gate visual antes do merge e o menu de fechamento continuam presentes.
+3. A suíte do lado UP roda verde.
+</action>
+<verify><automated>{ ls up/commands/*.md | wc -l; grep -l "workflows/" up/commands/*.md | wc -l; grep -c "GATE" up/workflows/build.md; node up/bin/lib/plans.test.cjs; node up/bin/lib/github.test.cjs; } > .plano/fases/17-planejamento-por-grafo/evidencia/002-regressao.txt 2>&1; grep -q "0 failed" .plano/fases/17-planejamento-por-grafo/evidencia/002-regressao.txt && echo "regressao ok"</automated></verify>
+<done>Os sete comandos e todos os gates do fluxo continuam presentes, a suíte roda verde, e a evidência está gravada.</done>
+</task>
 
 ## Critério de aceite do plano
 
-1. A fronteira é recalculada a cada rodada a partir da dependência declarada, e o motor não itera mais onda fixa.
-2. Cadeia linear degrada para sequencial sem caso especial no motor.
-3. Plano falho não trava plano independente, e quem depende dele fica bloqueado com motivo.
-4. Fase sem aresta declarada executa pela onda numerada, com a mesma ordem de antes.
-5. A onda numerada continua na resposta, ao lado da onda derivada, e nenhum campo antigo sumiu, e a onda zero declarada deixa de ser reportada como onda um.
-6. Ciclo é reportado, e a execução para e escala em vez de desempatar sozinha.
-7. Os doze casos de teste passam, e o vermelho de cinco deles está registrado.
-8. Os sete comandos continuam funcionando e projeto anterior a este ciclo continua executando sem migração.
-
-## Tipo de prova
-
-Lógica, vermelho e verde.
+- [ ] A fronteira é recalculada a cada rodada a partir da dependência declarada, e o motor não itera mais onda fixa
+- [ ] Cadeia linear degrada para sequencial sem caso especial no motor
+- [ ] Plano falho não trava plano independente, e quem depende dele fica bloqueado com motivo
+- [ ] Fase sem aresta declarada executa pela onda numerada, com a mesma ordem de antes
+- [ ] Onda zero declarada deixa de ser reportada como onda um
+- [ ] A contagem de tarefas passa a enxergar título em português, usando a função única do plano 003
+- [ ] Ciclo é reportado, e a execução para e escala em vez de desempatar sozinha
+- [ ] Os 12 casos passam, e o vermelho está gravado
 
 ## Fora de escopo
 
-1. Campo novo no mapa por fase para guardar estado de fronteira. A decisão desta fase é não persistir estado de fronteira, porque o único consumidor é o laço da própria execução e persistir criaria uma segunda fonte de verdade ao lado dos resumos em disco.
+1. Campo novo em `git-map.json` para guardar estado de fronteira. A decisão é não persistir estado de fronteira: o único consumidor é o laço da própria execução, e persistir criaria uma segunda fonte de verdade ao lado dos resumos em disco.
 2. Aresta entre planos de fases diferentes. A dependência entre fases mora no roadmap, e misturar os dois níveis criaria duas gramáticas para a mesma palavra.
-3. Reescrever plano já gravado para acrescentar aresta. A degradação existe justamente para dispensar migração.
-4. Sedimento de papéis removidos no template do plano pronto. Passe próprio, com briefing próprio.
-5. Espelho da fronteira no quadro externo. O quadro continua recebendo status por fase, e não por plano.
+3. Reescrever plano já gravado para acrescentar aresta. A degradação existe para dispensar migração.
+4. Publicar plano com onda zero enquanto a correção não estiver distribuída. Ficou de fora por decisão, e a doutrina passa a fixar a menor onda em um.
+5. Sedimento de papéis removidos no template do plano pronto. Passe próprio, com briefing próprio.
 
 ## Colisões conhecidas
 
-Os planos 001 e 003 desta fase fecham antes deste por aresta declarada, então não há escrita concorrente. O 001 escreve na biblioteca de planos, que este plano estende. O 003 escreve no módulo de checagem, do qual este plano apenas lê o contador de tarefas. O 004 escreve no mesmo módulo de checagem que o 003, depois dele, e não toca a biblioteca de planos.
+Os planos 001 e 003 desta fase fecham antes deste por aresta declarada, então não há escrita concorrente. O 001 escreve na biblioteca de planos, que este plano estende. Do 003, este plano apenas lê a função de contagem de tarefas. O 004 escreve no módulo de checagem, depois do 003, e não toca a biblioteca de planos.
 
 ## Decisões registradas
 
-**Decisão 1. Reusar o campo de dependência que já existe, em vez de criar campo novo de aresta.** Alternativas rejeitadas: (a) criar um campo com nome novo, rejeitada porque criaria dois nomes para um conceito só, que é exatamente o que o glossário interno da fase irmã proíbe, e obrigaria migração para os planos que já declaram dependência; (b) derivar aresta da lista de arquivos modificados de cada plano, rejeitada porque inferir dependência de sobreposição de arquivo transforma coincidência em contrato e falha em plano que só lê.
+**Decisão 1. Reusar `depends_on`, em vez de criar campo novo de aresta.** Alternativas rejeitadas: (a) campo com nome novo, rejeitada porque criaria dois nomes para um conceito só, que é o que o glossário interno da fase 14 proíbe, e obrigaria migração de plano que já declara dependência; (b) derivar aresta da sobreposição de arquivos modificados, rejeitada porque transforma coincidência em contrato e falha em plano que só lê.
 
-**Decisão 2. Estado falho vive na execução, e não em disco.** Alternativa rejeitada: gravar estado de plano falho no mapa por fase. Rejeitada porque criaria estado persistido sem dono claro de limpeza, que envelhece entre execuções e passa a mentir.
+**Decisão 2. Estado falho vive na execução, e não em disco.** Alternativa rejeitada: gravar em `git-map.json`. Rejeitada porque criaria estado persistido sem dono de limpeza, que envelhece entre execuções e passa a mentir.
 
-**Decisão 3. Aresta irresolúvel não bloqueia.** Alternativa rejeitada: tratar aresta irresolúvel como bloqueio permanente. Rejeitada porque travaria projeto já gravado por causa de um nome antigo, transformando compatibilidade em regressão.
+**Decisão 3. Aresta irresolúvel não bloqueia.** Alternativa rejeitada: tratar como bloqueio permanente. Rejeitada porque travaria projeto já gravado por causa de um nome antigo, transformando compatibilidade em regressão.
 
 **Decisão 4. Estender o índice existente em vez de criar subcomando novo de fronteira.** Alternativa rejeitada: subcomando próprio. Rejeitada porque a fronteira precisa exatamente dos dados que o índice já carrega, e duas portas para o mesmo inventário voltariam a divergir, que é a origem do defeito consertado no plano 001.
+
+**Decisão 5. A menor onda publicada passa a ser um, e não zero.** Alternativa rejeitada: manter onda zero e confiar na correção deste plano. Rejeitada porque o plano que declara onda zero depende de a correção já estar distribuída no runtime que o executa, e plano não pode depender do conserto que ele mesmo entrega.
