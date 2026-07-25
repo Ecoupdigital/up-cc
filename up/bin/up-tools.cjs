@@ -14,6 +14,7 @@
  *   phase add|remove|find|complete|generate-from-report
  *   config get|set|resolve-model|list-presets
  *   requirements mark-complete
+ *   memoria decisao|fora-de-escopo|glossario|termo <acao>
  *   commit <msg> --files
  *   progress [json|table|bar]
  *   timestamp [full|date|filename]
@@ -173,7 +174,7 @@ function main() {
   const command = args[0];
 
   if (!command) {
-    error('Usage: up-tools <command> [args] [--raw] [--cwd <path>]\nCommands: init, state, roadmap, phase, config, requirements, commit, progress, timestamp, slug');
+    error('Usage: up-tools <command> [args] [--raw] [--cwd <path>]\nCommands: init, state, roadmap, phase, config, requirements, memoria, commit, progress, timestamp, slug');
   }
 
   switch (command) {
@@ -396,6 +397,13 @@ function main() {
     // ==================== MULTICA (Fase 5: board OPT-IN) ====================
     case 'multica': {
       cmdMultica(cwd, args.slice(1), raw);
+      break;
+    }
+
+    // ==================== MEMORIA (Fase 14: memoria do projeto) ====================
+    case 'memoria': {
+      const memoria = require('./lib/memoria.cjs');
+      memoria.run(cwd, args.slice(1), raw);
       break;
     }
 
