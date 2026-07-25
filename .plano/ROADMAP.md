@@ -297,8 +297,8 @@
   8. A árvore de trabalho e o diff continuam limpos depois da auditoria
   9. Os sete comandos e os quatro runtimes continuam funcionando, e projeto com planejamento anterior a este ciclo continua funcionando sem migração
 **Prova exigida**: visual (critério 11 do briefing)
-**Decisão a fechar no planejamento**: o número padrão de commits da janela de concentração de mudança entra como pergunta com recomendação e sai desta fase com número
-**Planos**: 0/?
+**Decisão a fechar no planejamento**: FECHADA no planejamento. A janela padrão de concentração de mudança é de 50 commits, ajustável por flag. Medido neste repositório: com 20 commits só 2 arquivos passam do limiar de quente (o sinal morre), com 100 a janela arrasta arqueologia de ciclo encerrado, com 50 há separação limpa entre topo e cauda
+**Planos**: 0/6 (001 pontos quentes e contrato, 002 renderizador HTML, 003 agente escopado, 004 pipeline e gate duro, 005 rejeição vira memória, 006 prova visual e regressão)
 
 ### Fase 20: Névoa e fronteira do roadmap
 **Objetivo**: A ferramenta pesada se recusa a rodar quando o problema é leve, e a incerteza passa a ter lugar formal para ser escrita
@@ -351,5 +351,5 @@ Fronteira inicial: fase 13, sozinha. Depois dela, 16, 17 e 18 ficam liberadas em
 | 16. Honestidade da prova | 0/5 | Planejada | - |
 | 17. Planejamento por grafo | 0/? | Pendente | - |
 | 18. Contexto e revisão | 0/? | Pendente | - |
-| 19. Auditoria visual e escopada | 0/? | Pendente | - |
+| 19. Auditoria visual e escopada | 0/6 | Planejada | - |
 | 20. Névoa e fronteira do roadmap | 0/? | Pendente | - |
