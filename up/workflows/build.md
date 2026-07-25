@@ -85,6 +85,17 @@ independentes. As flags mexem so na interacao; o GitHub fica ligado sempre que d
 | `--solo` | SIM | NAO | NAO (pula sempre) | auto squash |
 | `--local` | NAO | NAO | NAO | commit na branch atual |
 
+**Contrato de pergunta (obrigatório):** antes da primeira pergunta, carregue
+`Read $HOME/.claude/up/references/questioning.md` e aplique o bloco `<contrato_de_pergunta>`. Nenhuma pergunta
+sai crua: toda pergunta leva recomendação e motivo, com a opção recomendada em primeiro lugar.
+
+**O que este workflow resolve sozinho e NUNCA pergunta:** runtime atual (detectado pelo diretório de
+configuração), modo de repositório e autonomia (resolvidos das flags e da configuração do projeto), estratégia
+de merge (configuração), se a fase tem interface (tipo dos planos e scripts do manifesto), contagem de planos,
+resumos, ondas e veredito do gate (leitura de arquivo), estado do worktree, da branch, da issue e do PR (mapa
+git). Tudo isso é anunciado em uma linha, nunca perguntado. Perguntar qualquer um desses itens é violação do
+contrato.
+
 **FAIL-OPEN universal:** `start-phase`/`finish-phase` detectam remote + transporte (`gh`/`mcp`/`none`).
 Sem remote, degradam para git local (worktree local + merge local; issue/PR = null) com aviso, NUNCA
 crasham. `git worktree` e sempre local e funciona offline. Sem `gh` mas com MCP, o transporte e `mcp`:
@@ -149,12 +160,17 @@ CONFIDENCE=$(grep "planning_confidence:" .plano/PLAN-READY.md | awk '{print $2}'
 CURRENT_RUNTIME="claude-code"
 [ -d ~/.config/opencode ] && CURRENT_RUNTIME="opencode"
 [ -d ~/.gemini ] && CURRENT_RUNTIME="gemini-cli"
-
-if [ "$INTENDED_RUNTIME" != "same" ] && [ "$INTENDED_RUNTIME" != "any" ] && [ "$INTENDED_RUNTIME" != "$CURRENT_RUNTIME" ]; then
-  echo "AVISO: Plano gerado pra $INTENDED_RUNTIME, voce esta em $CURRENT_RUNTIME. Continuar?"
-  # AskUserQuestion sim/nao (output direto, sem CEO)
-fi
 ```
+
+Se `$INTENDED_RUNTIME` for diferente de `same`, de `any` e de `$CURRENT_RUNTIME`, perguntar (ferramenta de
+pergunta do runtime) com este conteúdo:
+
+<pergunta id="build.runtime-divergente">
+Pergunta: O plano foi feito para {INTENDED_RUNTIME} e você está em {CURRENT_RUNTIME}. Sigo assim?
+Recomendo: Seguir neste runtime
+Porque: o plano pronto viaja inteiro no diretório de planejamento e não depende de recurso exclusivo do runtime planejado.
+Opções: Seguir neste runtime | Abortar e executar no runtime planejado
+</pergunta>
 
 ### V.3 Validar Artefatos Esperados
 
@@ -176,8 +192,14 @@ done
 
 ### V.5 Decidir
 
-**Tudo OK:** prosseguir. **Falta algo:** alertar o dono (AskUserQuestion), oferecer re-planejar
-localmente (`/up:plan`) ou abortar.
+**Tudo OK:** prosseguir. **Falta algo:** perguntar ao dono com este conteúdo:
+
+<pergunta id="build.plano-incompleto">
+Pergunta: Falta {lista dos artefatos ausentes} para executar. O que fazer?
+Recomendo: Re-planejar localmente
+Porque: {o que está faltando} não é recuperável na execução, e o re-planejamento local reaproveita o que já existe em vez de refazer a fase.
+Opções: Re-planejar localmente | Abortar
+</pergunta>
 
 ## Estagio C: CONFIRMACAO DO DONO (orquestrador, sem CEO)
 
@@ -225,7 +247,17 @@ BOARD=false
 [ "$BOARD" = "true" ] && GITHUB_MODE="$GITHUB_MODE + Multica board (espelho de status, batched, fail-open)"
 ```
 
-Confirmar via AskUserQuestion ("Iniciar execucao?"). Se recusar: abortar.
+Confirmar com este conteúdo (ferramenta de pergunta do runtime). Se recusar: abortar.
+
+<pergunta id="build.iniciar-execucao">
+Pergunta: Inicio a execução agora?
+Recomendo: Iniciar
+Porque: o plano pronto passou na validação, o modo de repositório resolvido é {GITHUB_MODE} e as pendências conhecidas não bloqueiam a primeira onda.
+Opções: Iniciar | Mudar o modo antes de iniciar | Não iniciar agora
+</pergunta>
+
+Se houver pendência bloqueante em `.plano/PENDING.md`, a recomendação inverte para "Não iniciar agora" e a
+linha Porque nomeia a pendência. A recomendação é calculada, não fixa.
 
 ## Estagio 3: BUILD (loop por fase — com GATE deterministico)
 
@@ -449,8 +481,18 @@ echo "GATE A OK (wave ${wave})"
 ```
 
    - Se algum SUMMARY da wave faltar: re-spawnar SO o(s) executor(es) do(s) plano(s) faltante(s) (mesmo
-     bloco `Agent`), depois reavaliar o GATE A da wave. Falha real e sistemica (toda a wave falhou) ->
-     parar e alertar o dono (AskUserQuestion).
+     bloco `Agent`), depois reavaliar o GATE A da wave. Falha real e sistêmica (toda a onda falhou): parar
+     e perguntar com este conteúdo:
+
+<pergunta id="build.onda-falhou">
+Pergunta: A onda {wave} falhou inteira ({WAVE_MISSING} planos sem resumo). Como sigo?
+Recomendo: Re-executar a onda uma vez
+Porque: {o que o gate encontrou}, e falha de todos os planos ao mesmo tempo aponta para causa de execução (ambiente, limite, interrupção), não para plano errado.
+Opções: Re-executar a onda | Re-planejar a fase | Parar aqui
+</pergunta>
+
+Se a saída dos executores apontar causa de plano (contrato inexistente, dependência que o plano assumiu e não
+existe), a recomendação vira "Re-planejar a fase" e a linha Porque cita o achado. A recomendação é calculada.
 
 6. **Prosseguir para a proxima wave.** Repetir 1-5 ate a ultima wave.
 
@@ -466,6 +508,35 @@ echo "GATE A OK: ${SUMMARY_COUNT}/${PLAN_COUNT} SUMMARY(s) (todas as waves)"
 > A partir daqui (3.4-3.9) o escopo e a FASE INTEIRA (todos os planos / todos os SUMMARYs), nao mais
 > "o plano". Roda UMA VEZ por fase, depois de TODAS as waves.
 
+### 3.3.5 DECISOES ESCALADAS (execucao)
+
+Espelha o Estagio E de `plan.md`, agora do lado da execucao (fecha o gap que PERG-05 deixava aberto: decisao
+arquitetural nascida na execucao tambem sobe ao dono, nao so a nascida no planejamento). O `up-executor` e
+subagente: ao esbarrar numa decisao de arquitetura (Regra 4 de `up/agents/up-executor.md`) ele nao decide
+sozinho e nao para o build para perguntar - aplica a propria recomendacao como hipotese provisoria, continua
+a tarefa, e devolve o bloco `## DECISOES ESCALADAS` no SUMMARY.md do plano. Aqui esse bloco vira pergunta.
+
+1. Recolher a secao `## DECISOES ESCALADAS` de TODOS os `${PHASE_DIR}/*-SUMMARY.md` desta fase (todas as
+   waves ja terminaram e o GATE A consolidado ja confirmou que todos existem).
+2. Descartar as linhas `Nenhuma.`. Se sobrou zero decisao, declarar em uma linha ("Nenhuma decisao foi
+   escalada na execucao desta fase") e seguir para 3.4 sem perguntar nada.
+3. Ordenar as decisoes restantes por custo de reverter, da maior para a menor.
+4. Perguntar uma por vez, no formato do contrato:
+
+<pergunta id="build.decisoes-escaladas">
+Pergunta: {Decisao do bloco escalado}. Confirma a recomendação (já aplicada como hipótese durante a execução) ou corrige?
+Recomendo: {Recomendo do bloco escalado}
+Porque: {Porque do bloco escalado}
+Opções: {Recomendo} | {cada item de Alternativas} | outro (descreva)
+</pergunta>
+
+5. Registrar cada resposta via `node "$HOME/.claude/up/bin/up-tools.cjs" state add-decision --phase
+   {phase_number} --summary "{decisao}: {resposta do dono}"`.
+6. Resposta que **confirma** a recomendacao: nada e refeito, o executor ja trabalhou sob ela como hipotese.
+   Resposta que **diverge**: re-executar SO o plano cujo trabalho dependia daquela decisao (mesmo bloco
+   `Agent` de 3.2+3.3, parametrizado por esse plano, com a escolha do dono como decisao travada), depois
+   voltar a este passo antes de seguir para 3.4.
+
 ### 3.4 Re-plan local (so se um plano especifico se revelar inviavel)
 
 Por-plano: se durante a execucao de UM plano especifico ficar evidente que ele e fundamentalmente
@@ -475,11 +546,18 @@ supervisor: o `up-planejador` faz self-check. `{PLAN}` aqui = o plano inviavel e
 ```bash
 REPLAN_COUNT=$(cat .plano/governance/replans.log 2>/dev/null | wc -l)
 if [ "$REPLAN_COUNT" -ge 2 ]; then
-  echo "Max re-plans atingido. Alertar o dono (AskUserQuestion)."
+  echo "Max re-plans atingido. Perguntar ao dono (build.replan-esgotado)."
 else
   echo "REQUEST_REPLAN. Re-planejando fase {phase_number} localmente..."
 fi
 ```
+
+<pergunta id="build.replan-esgotado">
+Pergunta: O limite de {REPLAN_COUNT} re-planejamentos locais acabou. O que fazer?
+Recomendo: Parar e revisar o plano da fase com você
+Porque: dois re-planejamentos automáticos já falharam no mesmo ponto, então o problema está no plano e não na execução.
+Opções: Parar e revisar comigo | Forçar mais um re-planejamento | Seguir com o plano atual e registrar dívida
+</pergunta>
 
 ```python
 # Re-plan LOCAL — Agent SEPARADO (so up-planejador, sem camada de revisao intermediaria)
@@ -662,7 +740,14 @@ fi
 - `REQUEST_CHANGES`: cap de rework 1 round (ver governance.md passo 4). Round 0 -> re-spawn do(s)
   executor(es) do(s) plano(s) apontado(s) no review (mesmo bloco Agent de 3.2+3.3, parametrizado por
   plano); round >= 1 -> forced approval com debito tecnico. Depois re-rodar verificador da fase + revisor.
-- `BLOCK`: interromper e alertar o dono (AskUserQuestion).
+- `BLOCK`: interromper e perguntar com este conteúdo:
+
+<pergunta id="build.revisor-bloqueou">
+Pergunta: A revisão bloqueou a fase {phase_number}. O que fazer?
+Recomendo: Corrigir o item bloqueante e re-revisar
+Porque: {o motivo registrado pela revisão no log de aprovações}, e é correção dirigida a um item, não retrabalho da fase.
+Opções: Corrigir e re-revisar | Aceitar como dívida técnica e seguir | Parar aqui
+</pergunta>
 
 ### 3.8 Fechar a fase: teste visual (pre-merge) + merge
 
@@ -702,28 +787,24 @@ fi
 echo "Dev server da Fase {phase_number} no ar: http://localhost:${PORT}"
 ```
 
-2. **Perguntar (AskUserQuestion):**
+2. **Perguntar (ferramenta de pergunta do runtime):**
 
-```
-header: "Fase {phase_number}: testar antes de mergear?"
-question: "Subi o dev server em http://localhost:{PORT} com o codigo desta fase. Testar primeiro ou pode mergear?"
-options:
-  - "Testar primeiro (deixo o server no ar)"
-  - "Pode mergear"
-  - "Deixa a branch (nao mergeia agora)"
-  - "Descarta a fase"
-```
+<pergunta id="build.testar-antes-do-merge">
+Pergunta: Subi o servidor em http://localhost:{PORT} com o código desta fase. Testa antes ou já aterrisso?
+Recomendo: Testar primeiro (deixo o servidor no ar)
+Porque: a fase mexeu em interface e este projeto exige aprovação visual antes do merge; a verificação automática não cobre julgamento de tela.
+Opções: Testar primeiro (deixo o servidor no ar) | Pode mergear | Deixa a branch | Descarta a fase
+</pergunta>
 
-3. **Se "Testar primeiro":** MANTEM o dev server no ar, repete a URL, e ESPERA o dono testar. Quando ele
-   voltar, perguntar de novo:
+3. **Se "Testar primeiro":** MANTÉM o servidor no ar, repete a URL e ESPERA o dono testar. Quando ele voltar,
+   perguntar:
 
-```
-header: "Testou a Fase {phase_number}?"
-question: "E ai, pode fechar?"
-options:
-  - "Aprovado, pode mergear"
-  - "Achei problema, quero ajustar"
-```
+<pergunta id="build.aprovou-ou-ajusta">
+Pergunta: Testou. Posso fechar a fase {phase_number}?
+Recomendo: Aprovado, pode mergear
+Porque: a verificação automática passou e o gate registrou o veredito; o que a automação não cobre é o julgamento da tela, que é seu.
+Opções: Aprovado, pode mergear | Achei problema, quero ajustar
+</pergunta>
 
    - **"Achei problema, quero ajustar":** pedir a descricao do problema, re-spawnar `up-executor` pra corrigir
      NA WORKTREE (mesma branch da fase), re-rodar `up-verificador` + GATE (3.6/3.7), e VOLTAR pro 3.8.0
@@ -744,6 +825,16 @@ A escolha do checkpoint define a acao de fechamento (3.8.1): "Pode mergear"/"Apr
 Nesse caso, GitHub-nativo interativo ainda apresenta o mesmo AskUserQuestion de 4 opcoes (sem o passo do
 dev server) pra o dono decidir merge/PR/deixa/descarta. **Autonomo (`--solo`/`--auto`)** fecha direto sem
 menu: `ESCOLHA=mergear`.
+
+<pergunta id="build.fechamento-fase">
+Pergunta: Como aterrisso a fase {phase_number}?
+Recomendo: {Abrir PR e mergear, quando há remote e transporte disponível; Merge local, quando não há remote}
+Porque: {o transporte resolvido: "há remote e a linha de comando do GitHub está autenticada" ou "não há remote, então o merge local é o único desfecho que fecha a fase"}, e a estratégia configurada é {merge_strategy}.
+Opções: {recomendada} | {a outra forma de mergear} | Deixa a branch | Descarta a fase
+</pergunta>
+
+A recomendação é calculada a partir do mapa git e do transporte disponível, nunca fixa. O mapeamento da
+escolha para a operação de fechamento (3.8.1) não muda.
 
 #### 3.8.1 Merge e avancar
 
@@ -887,6 +978,7 @@ final_confidence: [do up-revisor de delivery]
 - [ ] Dono confirmou execucao (orquestrador, sem CEO)
 - [ ] Governance inicializada (.plano/governance/approvals.log)
 - [ ] Todas as fases executadas com SUMMARY.md (GATE A)
+- [ ] Decisoes arquiteturais escaladas pelos executores (Regra 4) recolhidas em 3.3.5 e perguntadas ao dono no formato do contrato antes do fechamento da fase, nunca decididas ou silenciadas
 - [ ] Verificador produziu VERIFICATION.md por fase (GATE B); ladder estatica usada quando possivel
 - [ ] E2E + DCRV rodaram por fase (delegado a dcrv.md)
 - [ ] up-revisor emitiu veredito por fase e LOGOU em approvals.log COM campo evidence=<tipo>:<resultado>

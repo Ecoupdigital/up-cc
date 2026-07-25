@@ -11,6 +11,22 @@ NAO invoque skill de implementacao, NAO escreva codigo, NAO faca scaffold, NAO t
 
 Anti-padrao combatido: "isso e simples demais pra precisar de design". Mesmo um todo list ou mudanca de config passa pelo processo. O design escala, o gate nao.
 
+## Antes de perguntar (contrato de pergunta)
+
+Carregue `Read $HOME/.claude/up/references/questioning.md` antes da primeira pergunta da rodada e aplique o
+bloco `<contrato_de_pergunta>`. Duas regras valem em toda pergunta desta skill, inclusive nas rodadas do
+brainstorm full e do modo exploração, que não têm texto literal aqui:
+
+1. **Nenhuma pergunta crua.** Toda pergunta sai com `Pergunta:`, `Recomendo:` e `Porque:`, uma por vez, com a
+   opção recomendada em primeiro lugar quando a lista é fechada.
+2. **Fato contra decisão.** Antes de perguntar, resolva sozinho pelas seis fontes do protocolo (perfil do
+   dono, artefatos de planejamento, mapa do codebase, leitura e busca no código, histórico do repositório,
+   configuração e manifesto). O que for descoberto vira anúncio de uma linha. Só sobe escolha com mais de uma
+   resposta defensável, ou segredo que só o dono tem.
+
+A pergunta de trilha ("isso é para virar código ou é um documento?") é fato na maioria das vezes: o pedido, a
+extensão dos arquivos citados e o estado do projeto já respondem. Só pergunte se as três fontes forem mudas.
+
 ## Red flags (racionalizacoes proibidas)
 
 Se voce se pegar pensando uma dessas, PARE. E o sinal de que esta prestes a furar o gate.
@@ -35,8 +51,15 @@ Classifique a tarefa com o `classify-task` do `up-tools.cjs` (tiers: `simple` / 
 | Tier | Profundidade |
 |------|--------------|
 | **Trivial** (1 arquivo, sem decisao de arquitetura) | 0 perguntas. Anuncia em 1 linha o que vai fazer e onde. Executa. |
-| **Pequena** (1 subsistema, 1 escolha de design) | 1 pergunta via AskUserQuestion (a decisao-chave) + checkpoint de fechamento + design em 3 frases. Aprova e segue. |
+| **Pequena** (1 subsistema, 1 escolha de design) | 1 pergunta no formato do contrato (ver brainstorm.decisao-chave abaixo) + checkpoint de fechamento + design em 3 frases. Aprova e segue. |
 | **Media / Grande** (multi-subsistema, toca schema/API/auth) | Brainstorm full. |
+
+<pergunta id="brainstorm.decisao-chave">
+Pergunta: {a única decisão de design que muda o resultado desta tarefa}
+Recomendo: {a opção que você escolheria}
+Porque: {a evidência: convenção do codebase, decisão já registrada, ou o trade-off que decide}
+Opções: {recomendada} | {alternativa} | {alternativa}
+</pergunta>
 
 O `classify-task` define o PISO (minimo garantido). O usuario sempre pode SUBIR ou DESCER manualmente (override abaixo). Nunca diminua a profundidade por conta propria; so o usuario rebaixa.
 
@@ -56,12 +79,21 @@ Pressa nunca remove o gate; muda so quantas perguntas.
 
 Regra transversal aos tiers **Pequena**, **full** e **exploracao**. Tier Trivial fica FORA (0 perguntas, so anuncia e segue).
 
-Toda rodada de perguntas termina com um AskUserQuestion de controle com exatamente 2 opcoes:
+Toda rodada de perguntas termina com um AskUserQuestion de controle com exatamente 2 opcoes. "Fechar e seguir"
+encerra as perguntas e avanca pro proximo passo do tier (design em 3 frases, propor abordagens ou destilar a
+ideia). "Mais perguntas" abre nova rodada, mais especifica que a anterior, que termina com este mesmo
+checkpoint; loop ate o usuario escolher fechar.
 
-- **"Fechar e seguir"**: encerra as perguntas e avanca pro proximo passo do tier (design em 3 frases, propor abordagens ou destilar a ideia).
-- **"Mais perguntas"**: abre nova rodada, mais especifica que a anterior. Essa rodada termina com este mesmo checkpoint. Loop ate o usuario escolher fechar.
+<pergunta id="brainstorm.checkpoint">
+Pergunta: Fecho a rodada e sigo, ou faço mais perguntas?
+Recomendo: {Fechar e seguir | Mais perguntas}
+Porque: {quando fecha: "as decisões que mudam o design já foram respondidas, o que resta é detalhe que o plano resolve". Quando abre: nomear a pergunta em aberto que ainda pode mudar o design}
+Opções: {recomendada primeiro} | {a outra}
+</pergunta>
 
-Nao adicione opcao de resposta livre: o "Other" nativo do AskUserQuestion ja cobre. Se o usuario responder algo livre, incorpore como novo insumo e feche a rodada seguinte com o mesmo checkpoint.
+A recomendação deste checkpoint é **calculada**, nunca fixa: se ainda existe pergunta capaz de mudar o
+design, a recomendação é "Mais perguntas" e a linha Porque nomeia qual é a pergunta. Se não existe,
+a recomendação é "Fechar e seguir". Não adicione opção de resposta livre: a saída livre nativa já cobre.
 
 ## Modo exploracao (ideia crua, acima do full)
 

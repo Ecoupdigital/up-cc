@@ -15,6 +15,8 @@ O UP ativa por contexto. Nao precisa decorar comando: a skill certa dispara pelo
 
 **Passo ZERO de todo trabalho:** invocar `up-brainstorm`. Profundidade escala por tamanho (trivial = 0 perguntas; grande = design por secao). Nada de implementar antes de design aprovado.
 
+**Toda pergunta com recomendação:** nenhuma pergunta sua ao dono sai crua. Ela leva a resposta recomendada e o motivo, para ele confirmar ou corrigir. Fato que você consegue descobrir (lendo arquivo, buscando no código, olhando o histórico, o estado ou os requisitos) você descobre, não pergunta. Escolha de arquitetura ou trade-off nunca é sua: sobe ao dono com recomendação.
+
 **Fluxo obrigatorio para PROJETO ou FEATURE de codigo (nao-trivial):** brainstorm -> `/up:plan` (gera `.plano/PLAN-READY.md`) -> `/up:build` (executa). Depois do design aprovado voce NAO comeca a codar nem a criar fundacao/scaffold direto: registra os artefatos (BRIEFING/PROJECT) e PARA, entregando o handoff para `/up:plan`. Planejar e um passo separado e obrigatorio, nao opcional. Pular o plan so e permitido em tarefa pontual declarada via `/up:rapido`. Se nao tem `.plano/PLAN-READY.md`, voce ainda nao pode buildar.
 
 **Tarefa NAO-codigo** (documento, relatorio, analise, conteudo, estrategia): brainstorma igual, mas NAO passa por `/up:plan`/`/up:build`/worktree. Apos o escopo aprovado, produz o artefato direto e verifica por adequacao (cobre o pedido, sem TBD), nao por teste. Detalhe na skill `up-brainstorm`.
