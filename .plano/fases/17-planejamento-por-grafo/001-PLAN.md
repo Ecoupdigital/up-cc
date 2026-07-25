@@ -169,10 +169,12 @@ Em `build.md`, no passo que descobre planos e ondas: o arquivo de cada plano pas
 
 Em `plan.md`, no gate que confere se a fase tem plano: a contagem passa a vir do índice, e não de listagem com curinga de sufixo, que enxerga só uma das convenções.
 
+**Quarto consumidor, emenda RV-013.** No estágio de validação do plano pronto, o passo que valida os planos listados extrai a lista com um padrão que exige dois grupos numéricos no nome do arquivo. Verificado por execução: contra o plano pronto real deste repositório o padrão captura lista vazia, o laço não itera, a variável de falha nunca é marcada, e o estágio conclui aprovado. É pior do que travar, porque parece que passou. A lista de planos passa a ser resolvida pela biblioteca de planos, com a mesma canonicalização das demais tarefas deste plano, e lista vazia com plano pronto presente vira falha explícita, com mensagem dizendo que nenhum plano foi resolvido, em vez de sucesso silencioso. Plano listado que não existe em disco continua sendo falha, como já é hoje.
+
 Nenhum passo é removido dos dois fluxos: a mudança é de origem do dado, não de processo.
 </action>
-<verify><automated>grep -q "phase-plan-index" up/workflows/plan.md && test $(grep -c 'PLAN_COUNT=$(ls' up/workflows/plan.md) -eq 0 && test $(grep -c '{id}-PLAN.md' up/workflows/build.md) -eq 0 && echo "fluxos ok"</automated></verify>
-<done>Os dois fluxos consomem o nome de arquivo e a presença de resumo do índice, e nenhum deles monta nome de plano a partir do identificador.</done>
+<verify><automated>grep -q "phase-plan-index" up/workflows/plan.md && test $(grep -c 'PLAN_COUNT=$(ls' up/workflows/plan.md) -eq 0 && test $(grep -c '{id}-PLAN.md' up/workflows/build.md) -eq 0 && test $(grep -c '0-9]+-\[0-9]+-PLAN' up/workflows/build.md) -eq 0 && grep -qi "nenhum plano resolvido" up/workflows/build.md && echo "fluxos ok"</automated></verify>
+<done>Os dois fluxos consomem o nome de arquivo e a presença de resumo do índice, nenhum deles monta nome de plano a partir do identificador, e o estágio de validação do plano pronto trata lista vazia como falha explícita.</done>
 </task>
 
 <task id="7" type="auto">
@@ -188,6 +190,8 @@ Rodar o índice sobre as fases 3, 9, 10, 11 e 17 e gravar a saída. Conferir, co
 4. Fase 10: resposta idêntica à de antes nos campos que já existiam.
 5. Fase 17: cinco planos listados.
 
+Conferir também o quarto consumidor, da emenda RV-013: rodar o estágio de validação do plano pronto contra o plano pronto real deste repositório e confirmar que ele passa a resolver os planos listados nas três convenções de nome. Rodar ainda contra um plano pronto sintético que não lista plano nenhum, e confirmar que o estágio agora falha com mensagem explícita, em vez de aprovar em silêncio como fazia antes.
+
 Confirmar ainda que nenhum projeto com planejamento anterior a este ciclo precisou de migração: nenhum arquivo em `.plano/fases/` foi renomeado, movido ou reescrito por esta tarefa.
 </action>
 <verify><automated>for p in 3 9 10 11 17; do node up/bin/up-tools.cjs phase-plan-index $p; echo; done > .plano/fases/17-planejamento-por-grafo/evidencia/001-fases-reais.txt 2>&1; test $(grep -c '"has_summary": false' .plano/fases/17-planejamento-por-grafo/evidencia/001-fases-reais.txt) -eq 5 && test -z "$(git status --porcelain .plano/fases/03-templates-formatos-padrao .plano/fases/11-suporte-grok-build)" && echo "fases reais ok"</automated></verify>
@@ -202,6 +206,7 @@ Confirmar ainda que nenhum projeto com planejamento anterior a este ciclo precis
 - [ ] O teste foi visto falhar antes da correção e passa depois, com os 10 casos, e as duas saídas estão gravadas
 - [ ] Nenhum ponto do despachante e nenhum dos dois fluxos decide sozinho o que é nome de plano ou de resumo
 - [ ] Nenhum arquivo de fase anterior a este ciclo foi renomeado ou reescrito
+- [ ] O estágio de validação do plano pronto resolve os planos pela biblioteca e trata lista vazia como falha explícita, em vez de aprovar em silêncio
 
 ## Fora de escopo
 
@@ -213,7 +218,7 @@ Confirmar ainda que nenhum projeto com planejamento anterior a este ciclo precis
 
 ## Decisões registradas
 
-**Decisão 1. Um só lugar decide o que é nome de plano.** Alternativa rejeitada: corrigir o filtro em cada um dos doze pontos onde ele aparece. Rejeitada porque a duplicação é a causa do defeito, e corrigir doze cópias garante que a décima terceira nasça errada.
+**Decisão 1. Um só lugar decide o que é nome de plano.** Alternativa rejeitada: corrigir o filtro em cada um dos doze pontos onde ele aparece. Rejeitada porque a duplicação é a causa do defeito, e corrigir doze cópias garante que a décima terceira nasça errada. A décima terceira já existia: é o padrão do estágio de validação do plano pronto, achado pela revisão, e ele falhava em silêncio desde sempre.
 
 **Decisão 2. Prefixo do número da fase só é removido quando confere com a fase do diretório.** Alternativa rejeitada: remover qualquer segmento numérico inicial. Rejeitada porque colapsaria identificadores legitimamente distintos numa fase que use identificador composto.
 

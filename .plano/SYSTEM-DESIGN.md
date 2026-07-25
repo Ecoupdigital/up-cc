@@ -85,7 +85,9 @@ Converte e copia para 4 runtimes: Claude Code (formato nativo, mais statusLine, 
                                                   |
                                             por onda: N x up-executor em paralelo
                                                   |
-                                            up-verificador -> up-revisor -> GATE approvals.log
+                                            up-verificador -> revisão -> GATE approvals.log
+                                              (hoje: up-revisor, dois estágios em sequência)
+                                              (após a fase 18: dois agentes de eixo em paralelo)
                                                   |
                                             teste visual pré-merge (se há UI)
                                                   |
@@ -140,10 +142,12 @@ Esta é a área de maior risco do ciclo, porque três itens mexem em contrato j�
 Contrato documentado no workflow de governança e na reference de evidência por tipo:
 
 ```
-<timestamp ISO> | <escopo> | up-revisor | <DECISAO> | <motivo> | evidence=<tipo>:<resultado>
+<timestamp ISO> | <escopo> | <agente revisor> | <DECISAO> | <motivo> | evidence=<tipo>:<resultado>
 ```
 
 com `<tipo>` em `{logic, ui, glue}` e `<resultado>` em `{test_pass, visual, smoke}`.
+
+O campo do agente é `up-revisor` hoje. Depois da fase 18 ele passa a ser o agente do eixo que emitiu o veredito, e a linha ganha o campo de eixo exigido pelo gate conjuntivo. Nada disso quebra a leitura, porque o leitor único localiza campo por conteúdo e funciona com ou sem a coluna do agente.
 
 Fato verificado: as duas entradas reais no log deste repositório usam uma variante mais curta (`fase=11 plano=001 | APPROVED | evidence=smoke:pass` e `evidence=test:red-green`), sem a coluna do agente e com vocabulário que não casa com o filtro fechado do gate em nenhum dos dois campos. Há ainda uma terceira forma: as primeiras linhas do arquivo são um fragmento de JSON truncado, que leitor nenhum prevê.
 
@@ -191,11 +195,13 @@ Equivalente, neste sistema, à matriz de permissões de um SaaS: quem tem direit
 | Planos da fase | `up-planejador` | `up-executor`, `up-revisor` | `up-executor` |
 | Resumos da fase | `up-executor` | `up-verificador`, `up-revisor` | Outros agentes |
 | Relatório de revisão | `up-revisor` hoje; após a fase 18, os dois agentes de eixo, cada um escrevendo apenas a seção do próprio eixo | Orquestrador | Qualquer outro, e um eixo escrever na seção do outro |
-| `approvals.log` | Orquestrador do build, a partir do veredito | Gate em bash | `up-revisor` escrevendo direto |
+| `approvals.log` | Dois escritores legítimos: o orquestrador do build, que grava o veredito de fase a partir do relatório de revisão; e o planejamento, que grava a entrada de confirmação de fronteiras sob escopo de planejamento | Gate em bash, pelo leitor único descrito em 5.1 | O agente de revisão escrevendo direto, e o planejamento gravando veredito de fase |
 | `git-map.json` | Biblioteca de integração com GitHub | Workflows | Agentes |
 | Glossário do projeto e registros de decisão | Skill de brainstorm (em modo grill) e auditoria, na hora em que o termo ou a decisão cai | Brainstorm, planejamento, auditoria | Escrita em lote no fim da sessão |
 | Base de rejeições | Skill de brainstorm e auditoria, quando a rejeição é estrutural | Brainstorm, antes de explorar intenção | Registro de item já implementado ou de adiamento |
 | Handoff e relatório HTML | Primitiva de handoff e auditor | Sessão seguinte, navegador do dono | Nada dentro do repositório |
+
+Condição do segundo escritor do log de aprovações: a entrada do planejamento é **aditiva**, usa **escopo de planejamento** (nunca o escopo de fase da execução) e **nunca carrega veredito de fase**. Veredito de fase continua com dono único, o orquestrador do build. A distinção precisa estar escrita aqui: sem ela, a detecção de violação acusaria falso positivo no caminho normal, justamente no artefato que este desenho trata como o mais caro de ter dois donos.
 
 ---
 
@@ -268,6 +274,7 @@ Decisão registrada: não se cria arquivo de tokens de design para isso. O relat
 | Item 5 é heurística, não prova | A heurística sinaliza e o revisor confirma. Não bloqueia o gate sozinha, porque falso positivo bloqueante em cima de teste honesto é pior que tautologia passando |
 | Três formas no log de aprovações, e o gate quebra em três pontos contra elas (seletor, posição de coluna e vocabulário) | Leitor único que localiza campo por conteúdo: escopo pelo número da fase em qualquer notação, veredito pela palavra de veredito, evidência pelo prefixo, com ou sem coluna de agente. Entrada nova de seams confirmados soma, não substitui. Só descarta linha sem veredito nenhum. Conserta a leitura do histórico, não o escritor |
 | Dezenove arquivos disputados por fases que a dependência lógica autorizaria a paralelizar | Duas camadas separadas: aresta só para dependência lógica (16 antes de 18), e serialização declarada por posse de arquivo para as fases 14, 16, 17 e 18. Rejeitada a alternativa de transformar a disputa em aresta, porque isso faria o grafo mentir sobre o motivo da ordem, e o mecanismo de fronteira que a fase 17 entrega herdaria a mentira |
+| Treze arquivos ainda compartilhados entre pares que nenhuma das duas camadas ordena | Aceitos com risco baixo declarado: nesses pontos as fases fazem acréscimo aditivo e não reescrita do mesmo bloco, então o pior caso é conflito de merge previsível. Estender a serialização dura às fases 15, 19 e 20 sequenciaria o ciclo inteiro para comprar pouco. A regra de execução da fronteira continua valendo caso a caso |
 | O revisor único é editado pelas fases 14 e 16 e removido pela fase 18 | A serialização (14, depois 16, depois 17, depois 18) garante a ordem. O risco caro é o da fase 16: a instrução de confirmação do achado de tautologia, que fecha PROVA-08, sumiria do produto sem gate perceber, porque a prova de PROVA-08 mora no lado da heurística |
 | Janela entre a publicação do glossário (fase 14) e a derivação da fronteira (fase 17) | O verbete de onda nasce na forma final, e a fase 17 confere o verbete publicado contra o comportamento entregue. A fase 14 escreve, a fase 17 confirma, sem inverter o grafo |
 | Item 6 endurece o gate do plano pronto | Vale para plano gerado a partir deste ciclo. Plano anterior ao ciclo passa no gate e registra a ausência do campo como aviso, sem bloquear, e não é reescrito retroativamente |

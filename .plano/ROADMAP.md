@@ -338,7 +338,7 @@ As fases 14, 16, 17 e 18 escrevem nos mesmos arquivos. O despachante da CLI é e
 
 Regra: **as fases 14, 16, 17 e 18 executam em série, nesta ordem**, mesmo quando a fronteira as liberar juntas. Isso não é dependência lógica e por isso não virou aresta: é exclusão mútua. Cada fase corta a própria branch do mesmo ponto e leva a sua cópia dos artefatos, então rodar duas em paralelo troca conflito de merge previsível por corrida de escrita.
 
-As fases 15, 19 e 20 seguem paralelizáveis dentro do que a camada 1 permitir, porque escrevem majoritariamente em superfícies próprias.
+As fases 15, 19 e 20 seguem paralelizáveis dentro do que a camada 1 permitir, e isso é escolha e não descuido: entre os pares que nenhuma das duas camadas ordena ainda restam **13 arquivos compartilhados**, incluindo o despachante da CLI, o motor de execução e o fluxo de planejamento, e a fase 15 sozinha disputa quatro arquivos com a fase 18, entre eles o instalador e a skill de bootstrap. A severidade é baixa porque nesses pontos as fases fazem acréscimo aditivo, e não reescrita do mesmo bloco, então o pior caso é conflito de merge previsível. Estender a serialização dura a 15, 19 e 20 sequenciaria o ciclo inteiro para comprar pouco, e por isso não foi feito. A regra de execução da fronteira, logo abaixo, continua valendo para esses casos.
 
 ### Regra de execução da fronteira derivada
 
