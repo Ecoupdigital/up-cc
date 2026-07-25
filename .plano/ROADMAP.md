@@ -255,7 +255,7 @@
   9. O verbete de onda do glossário interno confere com o comportamento entregue nesta fase, fechando a janela aberta entre a publicação do glossário na fase 14 e a derivação da fronteira aqui
   10. Os sete comandos e os quatro runtimes continuam funcionando, e projeto com planejamento anterior a este ciclo continua funcionando sem migração
 **Prova exigida**: lógica, vermelho e verde (critérios 7 e 8 do briefing)
-**Planos**: 0/?
+**Planos**: 0/5 (ondas 0 e 1 em diamante: 001 leitura nas duas convenções e 003 tamanho por janela sem bloqueador; 002 grafo e fronteira derivada e 004 durabilidade na sequência; 005 fechamento e verbete de onda)
 
 ### Fase 18: Contexto e revisão
 **Objetivo**: O sistema para de empurrar trabalho com contexto degradado e para de esconder problema de qualidade atrás de falha de conformidade
@@ -279,7 +279,7 @@
 **Prova exigida**: smoke (critérios 9 e 10 do briefing)
 **Decisão a fechar no planejamento**: o valor padrão do limiar de zona segura, em percentual de janela ocupada, entra como pergunta com recomendação e sai desta fase com número
 **Ordem interna**: os dois blocos são independentes entre si e podem correr em paralelo; o eixo de revisão é o que altera a semântica do gate, então fecha por último
-**Planos**: 0/?
+**Planos**: 0/7 (ondas 1 a 4: 001 ferramentas de higiene e 004 os dois eixos isolados em paralelo; 002 higiene prescrita, 003 fio vivo do estado e 005 limiar de zona segura; 006 orquestração paralela; 007 gate conjuntivo e regressão)
 
 ### Fase 19: Auditoria visual e escopada
 **Objetivo**: A auditoria deixa de despejar lista genérica e passa a chegar escopada, visual e com compromisso de prioridade
@@ -312,7 +312,7 @@
   4. A seção de fora de escopo está separada do que foi feito e do que está por fazer, com uma linha de motivo por item, e não polui o histórico de decisões
   5. Os sete comandos e os quatro runtimes continuam funcionando, e projeto com planejamento anterior a este ciclo continua funcionando sem migração
 **Prova exigida**: smoke
-**Planos**: 0/?
+**Planos**: 0/5 (ondas 1 a 4: 001 seção de névoa; 002 fora de escopo e 003 gate de auto-aborto em paralelo; 004 graduação no fechamento; 005 regressão e prova de ponta a ponta)
 
 ## Grafo de bloqueio do ciclo 2
 
@@ -349,7 +349,7 @@ Fronteira inicial: fase 13, sozinha. Depois dela, 16, 17 e 18 ficam liberadas em
 | 14. Memória do projeto | 0/6 | Planejada | - |
 | 15. Modo grill | 0/4 | Planejada | - |
 | 16. Honestidade da prova | 0/5 | Planejada | - |
-| 17. Planejamento por grafo | 0/? | Pendente | - |
-| 18. Contexto e revisão | 0/? | Pendente | - |
+| 17. Planejamento por grafo | 0/5 | Pendente | - |
+| 18. Contexto e revisão | 0/7 | Pendente | - |
 | 19. Auditoria visual e escopada | 0/6 | Planejada | - |
-| 20. Névoa e fronteira do roadmap | 0/? | Pendente | - |
+| 20. Névoa e fronteira do roadmap | 0/5 | Pendente | - |
