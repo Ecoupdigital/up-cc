@@ -32,8 +32,15 @@ Onda 1              Onda 2                        Onda 3            Onda 4
 Os dois blocos (contexto e revisão) são independentes entre si. O bloco de revisão fecha por último
 porque é ele que altera a semântica do gate.
 
-**Posição no grafo do ciclo**: a fase 18 depende da fase 13 e roda em paralelo com as fases 14, 16 e 17.
-A dependência de leitor aponta para a fase 16, e ela é dura, conforme a decisão D2.
+**Posição no grafo do ciclo**: a fase 18 depende da fase 13 e da fase 16. A dependência com a 16 foi
+resolvida como **aresta explícita**, e não como tolerância: o roadmap declara `16 para 18` na camada de
+dependência lógica, a linha de dependência da fase 18 nomeia o leitor único, e a linha de bloqueio da
+fase 16 nomeia a fase 18. Era o único acoplamento do ciclo declarado como duro e desenhado como irmão.
+
+Além da aresta, vale a **serialização por posse de arquivo** declarada no roadmap: as fases 14, 16, 17 e
+18 executam em série, nesta ordem, mesmo quando a fronteira as liberar juntas. Não é dependência lógica,
+é exclusão mútua: as quatro escrevem no despachante da CLI, no motor de execução e no instalador. A fase
+18 é a última das quatro, o que é o que torna seguro dividir o agente revisor aqui.
 
 **A numeração das ondas começa em um, e não em zero, de propósito.** Verificado por execução: o índice de
 planos da fase lê a onda do frontmatter com uma conversão numérica seguida de valor alternativo, e zero é
@@ -61,10 +68,18 @@ somente edição por âncora, relendo imediatamente antes de editar.
 registrado e não é reexecutado na rodada de correção: volta apenas o reprovado. Com isso, o estado
 "conformidade reprova e qualidade aprova" passa a ser representável no log sem que a fase avance.
 
-**D2. Dependência dura com a fase 16.** A leitura de linha antiga do log de aprovações usa o leitor único
-definido na fase 16, sob o requisito PROVA-04. Nenhum plano desta fase implementa um segundo leitor. Se o
-leitor não existir no momento da execução, o plano 007 para na primeira tarefa e escala, em vez de
-improvisar.
+**D2. Dependência com a fase 16, resolvida como aresta.** A leitura de linha antiga do log de aprovações
+usa o leitor único definido na fase 16, sob o requisito PROVA-04. Nenhum plano desta fase implementa um
+segundo leitor.
+
+A resolução é a aresta `16 para 18` no grafo do roadmap, e não uma tolerância escrita em prosa. Dois
+efeitos práticos. Primeiro, o plano 007 parte do bloco de gate que a fase 16 já religou ao leitor, e não
+do bloco de hoje: partir do bloco antigo reverteria a entrega dela sem que a verificação percebesse.
+Segundo, a autorização que o plano 007 tem de estender o leitor, caso ele não exponha o dado de eixo,
+deixa de ser escrita em arquivo de fase concorrente e passa a ser escrita em arquivo de fase já fechada.
+
+A parada do plano 007 na primeira tarefa continua existindo, como cinto de segurança contra execução fora
+de ordem. Cinto de segurança não substitui aresta: agora há os dois.
 
 **D3. Limiar de zona segura: setenta por cento da janela ocupada.** A pergunta, a recomendação, o motivo
 e as alternativas rejeitadas estão escritos no plano 005, que é o dono do requisito. Não repetir o motivo
@@ -83,6 +98,24 @@ assume os escopos de planejamento e de entrega, que são revisões que leem arte
 rejeitada: manter um agente só com sinalizador de modo, rejeitada porque REV-01 exige subagentes isolados
 e REV-04 exige que a cegueira venha do conjunto de ferramentas concedido, que é declarado por arquivo de
 agente.
+
+**P2.1. Como o agente removido é dividido sem perder o que outras fases escreveram nele.** O arquivo do
+revisor único também é editado pela fase 14, que aponta os termos dele para o glossário, e pela fase 16,
+que acrescenta a instrução de confirmar ou descartar achado de tautologia. Com as duas rodando antes
+desta, dividir o arquivo sem cuidado apagaria o trabalho delas em silêncio, e o caso mais caro é o da
+fase 16: a instrução sumiria do produto e PROVA-08 ficaria meio entregue sem que gate nenhum percebesse.
+
+A resolução tem três partes, todas dentro do plano 004. A ordem é declarada, pela serialização acima.
+A divisão é precedida de inventário: a primeira tarefa lê o arquivo inteiro e grava, em evidência, um
+bloco por linha com origem, eixo de destino e marcador textual de conferência, nomeando explicitamente os
+dois blocos vindos das fases 14 e 16. E a migração é conferida por busca: cada marcador tem de aparecer
+no agente de destino, e marcador que não aparece em lugar nenhum é falha de tarefa, não observação. Se um
+dos dois blocos não estiver no arquivo na hora do inventário, é sinal de execução fora de ordem, e o
+plano para em vez de dividir um arquivo que ainda vai receber escrita de outra fase.
+
+O mapa do sistema entra na lista de arquivos editados do plano 004: as seções de camadas, de matriz de
+escrita e de onde cada item do briefing encosta passam a dizer treze agentes junto com o resto do
+produto.
 
 **P3. Eixo não avaliado escala, e não passa em silêncio.** Sem spec disponível (REV-08), o eixo de
 conformidade não é disparado e o relatório registra a ausência. No gate, isso não vira aprovação
