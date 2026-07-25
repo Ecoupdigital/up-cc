@@ -23,6 +23,10 @@ Profundidade do brainstorm = funcao do `classify-task`, NAO do humor do dia:
 - pequena (score 3-5): 1 pergunta (a decisao-chave) via AskUserQuestion + design em 3 frases.
 - media/grande (score 6+): brainstorm full, perguntas iterativas (1 por vez), aprovacao por secao.
 
+**Contrato de pergunta (obrigatório):** antes da primeira pergunta de qualquer rota, carregue
+`Read $HOME/.claude/up/references/questioning.md` e aplique o bloco `<contrato_de_pergunta>`. Nenhuma
+pergunta sai crua: toda pergunta leva recomendação e motivo. Fato descobrível não vira pergunta.
+
 O ouro e intocavel: STATE.md/ROADMAP.md, commits atomicos (sempre via `up-tools.cjs commit`),
 classify-task, approvals.log. Este workflow nao reimplementa nada disso, so chama.
 </core_principle>
@@ -132,21 +136,16 @@ SUMS=$(ls -1 .plano/fases/[dir-fase-atual]/*-SUMMARY.md 2>/dev/null | wc -l)
 
 **Apresentar a proxima acao recomendada:**
 
-```
----
+<pergunta id="up.proxima-acao">
+Pergunta: Qual o próximo passo agora?
+Recomendo: {acao_primaria}
+Porque: {a contagem que produziu a rota, por exemplo "faltam 2 planos sem resumo na fase 5" ou "a fase 5 não tem plano nenhum"}
+Opções: {acao_primaria} | {acao_alternativa} | Parar por aqui
+</pergunta>
 
-## Proximo
-
-**{fase}-{plano}: [Nome]** -- [objetivo]
-
-`/up:build`        ← executar o que falta
-ou
-`/up:plan {N}`     ← planejar a proxima fase
-
-<sub>`/clear` primeiro -> janela de contexto limpa</sub>
-
----
-```
+A tabela de roteamento que já existe continua sendo quem calcula `{acao_primaria}`. A linha Porque **cita a
+contagem**, não o nome da regra. O atalho de retomada rápida (quando o dono disse literalmente "continuar" ou
+"vai") continua pulando a apresentação: não perguntar é permitido, perguntar cru não é.
 
 **Quick resume:** se o usuario disse literalmente "continuar" / "vai", pular a apresentacao de opcoes,
 carregar estado em silencio e seguir direto pra acao primaria, anunciando "Continuando de [estado]...".
@@ -185,6 +184,20 @@ ls package.json go.mod Cargo.toml requirements.txt pyproject.toml pom.xml build.
 ls -d src/ app/ lib/ cmd/ internal/ pages/ components/ 2>/dev/null | head -15
 ```
 
+### 2.3.0 Protocolo de resolução prévia
+
+Antes de qualquer pergunta do intake, resolva o que der para resolver sozinho, nesta ordem, parando na
+primeira fonte que responde: perfil do dono; estado, requisitos, roadmap, projeto e briefing do planejamento;
+mapa do codebase quando houver; leitura e busca direta no código; histórico do repositório; configuração e
+manifesto de dependências.
+
+O que for resolvido vira anúncio de uma linha ("vi em X que Y, sigo com Y"), nunca pergunta. Só sobe como
+pergunta o que sobrou: escolha com mais de uma resposta defensável, e segredo que só o dono tem. Segredo é
+pedido depois de esbarrar na parede que o exige, nunca por precaução.
+
+Em repositório com planejamento populado, isso normalmente zera o bloco de perguntas sobre stack, convenção,
+estrutura de pastas e histórico. Perguntar isso ali é violação do contrato.
+
 ### 2.3 Classificar a tarefa e escalar o brainstorm/intake
 
 Escrever um plano-rascunho minimo do briefing em arquivo temporario pra classificar
@@ -208,8 +221,16 @@ COMPLEXITY=$(echo "$CLASSIFY" | grep -oE '"complexity"\s*:\s*"[a-z]+"' | grep -o
 - **simple (trivial):** ZERO perguntas. Anunciar em 1 linha o que vai construir e seguir.
   Ex: "Vou criar [X]. Indo." Pular direto pro 2.5 (estruturar) com defaults.
 
-- **standard (pequena):** 1 pergunta (a decisao-chave) via AskUserQuestion + descrever a abordagem
-  em 3 frases. Para UI, oferecer companion visual (Jonathan e visual).
+- **standard (pequena):** UMA pergunta, a decisão-chave, no formato do contrato:
+
+<pergunta id="up.decisao-chave">
+Pergunta: {a decisão de design que muda o resultado desta tarefa}
+Recomendo: {a opção que o agente escolheria}
+Porque: {a evidência: convenção encontrada no codebase, decisão já registrada no estado, ou o trade-off que decide}
+Opções: {recomendada} | {alternativa} | {alternativa}
+</pergunta>
+
+  Depois, descrever a abordagem em 3 frases. Para UI, oferecer o companion visual.
 
 - **complex (media/grande):** brainstorm/intake full. Perguntar inline (freeform pra abrir, depois
   AskUserQuestion seguindo os fios). Cobrir os 5 blocos do intake antigo, AGORA inline e opcionais:
@@ -360,9 +381,20 @@ features + PRD num passe) + `up-verificador` modo clone-fidelity. NAO ha mais 5 
 
 ### 4.1 Intake do clone (inline)
 
-Extrair do $ARGUMENTS: URL (obrigatorio) e modo (`--exact` default | `--improve` | `--inspiration`).
-Perguntar via AskUserQuestion (so o essencial): credenciais de login do app original (se precisar),
-stack desejada do clone, credenciais do banco do clone, e (se improve/inspiration) o que mudar.
+Extrair do $ARGUMENTS: URL (obrigatório) e modo (`--exact` default | `--improve` | `--inspiration`).
+
+A stack é decisão e sobe como pergunta:
+
+<pergunta id="up.clone-intake">
+Pergunta: Com que stack eu recrio este app?
+Recomendo: {stack declarada no perfil do dono}
+Porque: é a stack que o perfil do dono declara, e nada no app original obriga outra.
+Opções: {stack do perfil} | a mesma stack detectada no app original | outra (descreva)
+</pergunta>
+
+Credenciais NÃO são perguntadas de saída: tente o crawl primeiro. Só peça login se o crawl esbarrar numa
+parede de autenticação, e então peça só o que a parede exige. Credencial de banco do clone só é pedida quando
+a stack escolhida exige banco.
 
 ```bash
 mkdir -p .plano/clone
@@ -432,6 +464,13 @@ e detectado por contexto. Operacoes:
 | configurar | Editar `.plano/config.json` (mode/granularity/parallelization) interativamente |
 | onboard | (Re)criar perfil do dono — delegar a `@~/.claude/up/workflows/onboarding.md` |
 | atualizar | `npm update -g up-cc` (ou instrucao equivalente) e reinstalar |
+
+<pergunta id="up.config-editar">
+Pergunta: Qual configuração você quer mudar?
+Recomendo: manter como está
+Porque: os valores atuais vieram do perfil do dono e nenhuma execução falhou por causa deles.
+Opções: manter como está | modo | granularidade | paralelização
+</pergunta>
 
 </process>
 

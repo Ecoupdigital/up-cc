@@ -80,8 +80,8 @@ Reusa `classify-task` (NAO reimplementar):
 node "$HOME/.claude/up/bin/up-tools.cjs" classify-task "<descricao>"
 ```
 - Trivial (1 arquivo, sem decisao de arquitetura): **0 perguntas**, anuncia em 1 linha, roteia.
-- Pequena (1 subsistema, 1 escolha de design): **1 pergunta** via AskUserQuestion + design em 3 frases.
-- Media/Grande (multi-subsistema, schema/API/auth): **brainstorm full** com aprovacao por secao.
+- Pequena (1 subsistema, 1 escolha de design): **1 pergunta** com recomendação e motivo + design em 3 frases.
+- Media/Grande (multi-subsistema, schema/API/auth): **brainstorm full** com aprovacao por secao, toda pergunta com recomendacao e motivo.
 
 Brainstorm gera BRIEFING.md (intake inline, sem CEO). Em seguida roteia:
 - GREENFIELD -> pipeline de novo projeto (pesquisa + sintese), depois `/up:plan`.
