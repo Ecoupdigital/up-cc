@@ -3,7 +3,7 @@ phase: 19-auditoria-visual-escopada
 plan: 19-006
 type: chore
 autonomous: true
-wave: 4
+wave: 5
 depends_on: [19-005]
 requirements: [AUD-01, AUD-02, AUD-03, AUD-04, AUD-05, AUD-06, AUD-07, AUD-08, AUD-09, REG-01, REG-02, REG-03]
 prova: visual
@@ -28,7 +28,7 @@ must_haves:
 
 **Objetivo:** Rodar a auditoria de ponta a ponta neste próprio repositório, coletar a prova visual exigida pela fase (captura do relatório HTML aberto), provar que nada regrediu nos sete comandos, nos quatro runtimes e em projeto com planejamento antigo, e fechar os artefatos da fase. É o plano que transforma "está escrito" em "foi visto funcionando".
 
-**Onda:** 4. Depende do plano 005, que fecha o outro lado do gate. É o último plano da fase.
+**Onda:** 5. Depende do plano 005, que fecha o outro lado do gate. É o último plano da fase.
 
 ## Contexto
 

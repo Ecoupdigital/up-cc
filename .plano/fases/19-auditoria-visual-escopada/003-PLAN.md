@@ -3,7 +3,7 @@ phase: 19-auditoria-visual-escopada
 plan: 19-003
 type: refactor
 autonomous: true
-wave: 1
+wave: 2
 depends_on: [19-001]
 requirements: [AUD-01, AUD-02, AUD-06, AUD-07, AUD-09, AUD-05]
 prova: smoke
@@ -29,7 +29,7 @@ must_haves:
 
 **Objetivo:** Reescrever o agente auditor para que ele pare de varrer o repositório inteiro despejando lista plana, e passe a fazer o oposto: escolher onde aprofundar a partir de onde a mudança continua caindo, matar candidato genérico com um teste falsificador explícito, e entregar um payload no contrato, com força declarada por achado e uma recomendação principal com motivo.
 
-**Onda:** 1. Depende do plano 001, que entrega o subcomando de pontos quentes e a reference do contrato. Roda em paralelo com o plano 002, que escreve o validador e o renderizador do mesmo contrato. Os dois planos programam contra a mesma especificação escrita, por isso podem correr juntos.
+**Onda:** 2. Depende do plano 001, que entrega o subcomando de pontos quentes e a reference do contrato. Roda em paralelo com o plano 002, que escreve o validador e o renderizador do mesmo contrato. Os dois planos programam contra a mesma especificação escrita, por isso podem correr juntos.
 
 ## O que muda em relação ao agente de hoje
 

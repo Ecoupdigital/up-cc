@@ -3,7 +3,7 @@ phase: 19-auditoria-visual-escopada
 plan: 19-005
 type: feature
 autonomous: true
-wave: 3
+wave: 4
 depends_on: [19-004]
 requirements: [AUD-05, AUD-10, AUD-11]
 prova: smoke
@@ -29,7 +29,7 @@ must_haves:
 
 **Objetivo:** Fechar o outro lado do gate. Depois que o dono responde, dois caminhos: ele escolhe um candidato e a auditoria termina apontando a rota, ou ele recusa e a recusa com motivo estrutural vira memória do projeto, para nenhuma auditoria futura sugerir a mesma coisa outra vez. E, no fim de qualquer caminho, provar que a auditoria não sujou a árvore de trabalho.
 
-**Onda:** 3. Depende do plano 004, que entrega os passos 1 a 5 do workflow e a guarda do gate por onde este plano começa.
+**Onda:** 4. Depende do plano 004, que entrega os passos 1 a 5 do workflow e a guarda do gate por onde este plano começa.
 
 ## Decisão fechada aqui, com motivo
 

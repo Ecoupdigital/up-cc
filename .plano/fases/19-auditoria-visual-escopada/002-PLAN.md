@@ -3,7 +3,7 @@ phase: 19-auditoria-visual-escopada
 plan: 19-002
 type: feature
 autonomous: true
-wave: 1
+wave: 2
 depends_on: [19-001]
 requirements: [AUD-03, AUD-04, AUD-05, AUD-06, AUD-07, AUD-09]
 prova: lógica-vermelho-verde
@@ -33,7 +33,7 @@ must_haves:
 
 **Objetivo:** Transformar o payload de auditoria em relatório HTML autocontido, gravado no diretório temporário do sistema operacional, aberto no navegador, com o caminho absoluto devolvido ao chamador. E, no mesmo movimento, tornar o formato do card estrutural: quem valida o contrato e código determinístico, não instrução em prompt. Card sem falsificador não renderiza. Relatório sem recomendação principal não renderiza. Badge fora do ternário não renderiza.
 
-**Onda:** 1. Depende do plano 001, que entrega a reference com o contrato do payload. Roda em paralelo com o plano 003, que escreve o produtor do mesmo contrato.
+**Onda:** 2. Depende do plano 001, que entrega a reference com o contrato do payload. Roda em paralelo com o plano 003, que escreve o produtor do mesmo contrato.
 
 ## Por que a validação mora aqui e não no prompt do agente
 

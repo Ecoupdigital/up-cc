@@ -3,7 +3,7 @@ phase: 19-auditoria-visual-escopada
 plan: 19-001
 type: feature
 autonomous: true
-wave: 0
+wave: 1
 depends_on: []
 requirements: [AUD-01, AUD-02]
 prova: lógica-vermelho-verde
@@ -35,7 +35,7 @@ must_haves:
 
 **Objetivo:** Entregar as duas fundações determinísticas da auditoria escopada. Primeira: uma operação que responde "onde a mudança continua caindo" a partir do histórico de commits, com veredito explícito de concentração e regra de fallback declarada. Segunda: o contrato escrito do achado de auditoria, que o renderizador do plano 002 valida e o agente auditor do plano 003 produz. Sem estas duas peças, os planos seguintes não têm chão.
 
-**Onda:** 0. Nada depende de outro plano desta fase. Os planos 002 e 003 dependem deste.
+**Onda:** 1, sozinho. Nada depende de outro plano desta fase, e os planos 002 e 003 dependem deste. As ondas desta fase são numeradas a partir de 1 porque o índice de planos trata onda zero como onda ausente e a colapsaria com a primeira, o que colocaria este plano correndo em paralelo com quem consome o contrato que ele entrega.
 
 ## Decisão fechada neste plano
 

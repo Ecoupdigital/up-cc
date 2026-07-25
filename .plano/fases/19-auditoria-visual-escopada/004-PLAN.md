@@ -3,7 +3,7 @@ phase: 19-auditoria-visual-escopada
 plan: 19-004
 type: feature
 autonomous: true
-wave: 2
+wave: 3
 depends_on: [19-002, 19-003]
 requirements: [AUD-04, AUD-08]
 prova: smoke
@@ -33,7 +33,7 @@ must_haves:
 
 **Objetivo:** Ligar as peças num pipeline único e, principalmente, colocar a parede: o auditor apresenta os candidatos e PARA, com uma pergunta só. A parede não pode ser promessa em prosa, tem de ser uma guarda que falha quando alguém tenta emendar diagnostico com design.
 
-**Onda:** 2. Depende do plano 002 (renderizador) e do plano 003 (auditor). O tratamento da resposta do dono, a rejeição que vira memória e a higiene da árvore ficam no plano 005, que roda depois deste.
+**Onda:** 3. Depende do plano 002 (renderizador) e do plano 003 (auditor). O tratamento da resposta do dono, a rejeição que vira memória e a higiene da árvore ficam no plano 005, que roda depois deste.
 
 ## Duas decisões fechadas aqui, com motivo
 
