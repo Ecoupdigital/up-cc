@@ -195,7 +195,8 @@
   10. O glossário interno chega aos quatro runtimes suportados na instalação
   11. Os sete comandos e os quatro runtimes continuam funcionando, e projeto com planejamento anterior a este ciclo continua funcionando sem migração
 **Prova exigida**: smoke (critérios 3 e 4 do briefing)
-**Planos**: 0/?
+**Planos**: 0/6 (planejados em 2026-07-25; ondas 1, 2 e 3)
+**Ondas**: onda 1 = glossário interno e registro de decisão; onda 2 = base de rejeições, citação nas superfícies e glossário do projeto; onda 3 = prova ponta a ponta e regressão zero
 
 ### Fase 15: Modo grill
 **Objetivo**: Perguntar de menos deixa de ser o default: tarefa pequena, média e grande entram em questionamento profundo, com saída barata a qualquer momento
@@ -344,7 +345,7 @@ Fronteira inicial: fase 13, sozinha. Depois dela, 16, 17 e 18 ficam liberadas em
 | 11. Suporte a Grok Build | 1/1 | Completa | 2026-07-09 |
 | 12. Correção do encerramento solo | 1/1 | Completa | 2026-07-09 |
 | 13. Formato de pergunta | 0/5 | Planejada | - |
-| 14. Memória do projeto | 0/? | Pendente | - |
+| 14. Memória do projeto | 0/6 | Planejada | - |
 | 15. Modo grill | 0/? | Pendente | - |
 | 16. Honestidade da prova | 0/? | Pendente | - |
 | 17. Planejamento por grafo | 0/? | Pendente | - |
