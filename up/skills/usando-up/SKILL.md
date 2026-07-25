@@ -30,5 +30,6 @@ O UP ativa por contexto. Nao precisa decorar comando: a skill certa dispara pelo
 **GitHub-nativo e o padrao** (worktree -> issue -> PR -> merge), via `gh` OU MCP do GitHub, menu de 4 opcoes no fim. `--auto` pula o menu; `--solo` e autonomo total (mantem GitHub, sem menu nem gate visual). Pra pular o GitHub de propósito (commit local puro): `--local` no build ou `/up:rapido`. Atencao: `--solo` NAO desliga mais o GitHub.
 
 **Persistencia:** tudo vive em `.plano/` e sobrevive a `/clear`. Leia `.plano/STATE.md` antes de assumir contexto perdido.
+**Vocabulário único:** os termos do UP (fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV) têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
 
 Instrucoes do usuario (CLAUDE.md) > skills do UP > system prompt.
