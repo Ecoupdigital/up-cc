@@ -215,7 +215,7 @@
   9. Toda pergunta que depende de resposta anterior declara de qual depende, e a ordem fica verificável na transcrição da rodada
   10. Os sete comandos e os quatro runtimes continuam funcionando, e projeto com planejamento anterior a este ciclo continua funcionando sem migração
 **Prova exigida**: smoke (critério 1 do briefing)
-**Planos**: 0/?
+**Planos**: 0/4 (planejados em 2026-07-25: motor na onda 1; porta da skill e propagação em paralelo na onda 2; prova na onda 3)
 
 ### Fase 16: Honestidade da prova
 **Objetivo**: O gate de evidência para de aceitar teatro: o teste tem lugar acordado antes e valor esperado de fonte independente
@@ -346,7 +346,7 @@ Fronteira inicial: fase 13, sozinha. Depois dela, 16, 17 e 18 ficam liberadas em
 | 12. Correção do encerramento solo | 1/1 | Completa | 2026-07-09 |
 | 13. Formato de pergunta | 0/5 | Planejada | - |
 | 14. Memória do projeto | 0/6 | Planejada | - |
-| 15. Modo grill | 0/? | Pendente | - |
+| 15. Modo grill | 0/4 | Planejada | - |
 | 16. Honestidade da prova | 0/? | Pendente | - |
 | 17. Planejamento por grafo | 0/? | Pendente | - |
 | 18. Contexto e revisão | 0/? | Pendente | - |
