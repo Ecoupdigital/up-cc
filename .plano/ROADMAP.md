@@ -175,7 +175,7 @@
   4. Uma escolha de arquitetura aparece ao dono como pergunta com recomendação, e não é decidida pelo agente
   5. Os sete comandos e os quatro runtimes continuam funcionando, e projeto com planejamento anterior a este ciclo continua funcionando sem migração
 **Prova exigida**: smoke (critérios 1 e 2 do briefing)
-**Planos**: 0/5 (001 doutrina, onda 1; 002 entrada, 003 execução e 004 planejamento e auditoria, onda 2; 005 prova e regressão, onda 3)
+**Planos**: 1/5 (001 doutrina, onda 1, completo; 002 entrada, 003 execução e 004 planejamento e auditoria, onda 2; 005 prova e regressão, onda 3)
 
 ### Fase 14: Memória do projeto
 **Objetivo**: O projeto passa a lembrar do vocabulário que fixou, das decisões difíceis que tomou e do que já recusou
@@ -364,7 +364,7 @@ De onde a posse de arquivo passa a vir em tempo de execução, agora que a regra
 | 10. Integracao com roadmap | 2/2 | Complete   | 2026-03-10 |
 | 11. Suporte a Grok Build | 1/1 | Completa | 2026-07-09 |
 | 12. Correção do encerramento solo | 1/1 | Completa | 2026-07-09 |
-| 13. Formato de pergunta | 0/5 | Planejada | - |
+| 13. Formato de pergunta | 1/5 | Em progresso | - |
 | 14. Memória do projeto | 0/6 | Planejada | - |
 | 15. Modo grill | 0/4 | Planejada | - |
 | 16. Honestidade da prova | 0/5 | Planejada | - |

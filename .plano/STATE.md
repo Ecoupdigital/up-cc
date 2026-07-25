@@ -4,19 +4,19 @@
 
 **Projeto**: UP (up-cc)
 **Valor Central**: Pipeline autônomo confiável exige perguntar o suficiente antes de agir, lembrar do que já foi decidido e recusado, e provar o que afirma
-**Foco Atual**: Ciclo 2 estruturado (fases 13 a 20). Próxima fase a planejar: 13, formato de pergunta
+**Foco Atual**: Ciclo 2 estruturado (fases 13 a 20). Fase 13 (formato de pergunta) planejada em 5 planos e em execucao: plano 001 (onda 1, contrato canonico) concluido
 
 ## Posicao Atual
 
-**Fase**: 13 de 20 (a planejar)
-**Plano**: nenhum ainda
-**Status**: Roadmap e requisitos do ciclo 2 escritos. Nenhuma fase nova planejada nem executada
+**Fase**: 13 de 20 (em execucao)
+**Plano**: 001 concluido (onda 1, contrato canonico de pergunta); proximos 002, 003 e 004 (onda 2, paralelos, aplicam o contrato as superficies); 005 fecha a fase (onda 3, prova e regressao)
+**Status**: Plano 001 executado e commitado (hash 69c10f0): `up/references/questioning.md` ganhou o bloco `<contrato_de_pergunta>` com as quatro secoes e o inventario fechado de 20 pontos de pergunta. PERG-01 a PERG-06 continuam pendentes ate a onda 2 aplicar o contrato as superficies
 **Progresso**:
 ```
 Ciclo 1: fases 1 a 10               [████████████████████] Concluido (detalhe no ROADMAP.md)
 Fase 11: Suporte a Grok Build       [████████████████████] Completa
 Fase 12: Encerramento solo          [████████████████████] Completa
-Fase 13: Formato de pergunta        [░░░░░░░░░░░░░░░░░░░░] Pendente
+Fase 13: Formato de pergunta        [████░░░░░░░░░░░░░░░░] Em andamento (1/5 planos)
 Fase 14: Memoria do projeto         [░░░░░░░░░░░░░░░░░░░░] Pendente
 Fase 15: Modo grill                 [░░░░░░░░░░░░░░░░░░░░] Pendente
 Fase 16: Honestidade da prova       [░░░░░░░░░░░░░░░░░░░░] Pendente
@@ -33,7 +33,7 @@ Fase 20: Nevoa e fronteira          [░░░░░░░░░░░░░░�
 | Fases completas | 12 de 20 |
 | Requisitos do ciclo 1 cobertos | 19/19 |
 | Requisitos do ciclo 2 | 5 completos (fases 11 e 12), 90 pendentes (fases 13 a 20) |
-| Planos executados | 19 |
+| Planos executados | 20 |
 
 ## Contexto Acumulado
 
@@ -84,6 +84,6 @@ Nenhum bloqueio ativo.
 
 ## Continuidade de Sessao
 
-**Ultima sessao**: 2026-07-25 -- Estruturou o ciclo 2 a partir do briefing das disciplinas do aihero: criou SYSTEM-DESIGN.md, estendeu ROADMAP.md (fases 11 e 12 registradas como concluidas, fases 13 a 20 adicionadas com grafo de bloqueio), estendeu REQUIREMENTS.md (categorias DIST, CICLO, PERG, MEM, GRILL, PROVA, PLANO, CTX, REV, AUD, WAY e REG) e atualizou PROJECT.md com as decisoes do dono e do arquiteto. Depois corrigiu os requisitos contra o laudo de validacao (REQUIREMENTS-VALIDATION.md): 4 bloqueadores e 15 gaps de severidade media e baixa.
-**Proxima acao**: planejar a fase 13 (formato de pergunta). Ela bloqueia todas as outras do ciclo, porque muda o formato de toda pergunta do sistema. A trava que a revalidacao pos nas fases 16 e 18 caiu com a correcao R1; nenhuma fase do ciclo esta bloqueada por requisito.
-**Comando sugerido**: `/up:plan fase 13`
+**Ultima sessao**: 2026-07-25 -- Executou o plano 001 da fase 13 (onda 1, unico plano da onda): escreveu o bloco `<contrato_de_pergunta>` em `up/references/questioning.md` com as quatro secoes (formato obrigatorio de pergunta, regra de fato contra decisao com protocolo de seis fontes, escalacao de subagente com bloco DECISOES ESCALADAS, e inventario fechado de 20 pontos de pergunta cobrindo as sete superficies interativas). Resolveu o conflito com o guia em ingles pre-existente por edicao cirurgica. Commit 69c10f0. Nenhuma superficie foi editada: este plano so escreveu o contrato que os planos seguintes aplicam.
+**Proxima acao**: executar a onda 2 da fase 13 (planos 002, 003 e 004, ja planejados e prontos, podem rodar em paralelo por dependerem so do plano 001). Eles fazem as superficies carregarem `up/references/questioning.md` e aplicam o formato de pergunta, fechando PERG-01 a PERG-06. O plano 005 (onda 3) fecha a fase com prova e regressao zero.
+**Comando sugerido**: `/up:build fase 13`
