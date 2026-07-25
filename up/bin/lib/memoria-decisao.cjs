@@ -1,10 +1,10 @@
 /**
- * memoria-decisao.cjs — Registro de decisao deterministico (Fase 14, submodulo `decisao`
+ * memoria-decisao.cjs: registro de decisao deterministico (Fase 14, submodulo `decisao`
  * do espaco de comando `memoria`).
  *
  * So grava decisao que passa o gate das tres condicoes em E logico: dificil de reverter,
  * surpreendente sem contexto e resultado de trade-off real (com alternativas genuinas
- * rejeitadas e o motivo de cada uma). Faltou uma condicao, nao escreve nada — nem o
+ * rejeitadas e o motivo de cada uma). Faltou uma condicao, nao escreve nada. Nem o
  * diretorio de decisoes e criado (criacao preguicosa).
  *
  * Numeracao deterministica: sempre a maior existente mais um, calculada por varredura do
@@ -134,7 +134,7 @@ function criar(cwd, flags) {
   let slug = flags.slug || generateSlugInternal(titulo) || 'decisao';
   slug = slug.slice(0, 48).replace(/^-+|-+$/g, '') || 'decisao';
 
-  // 6. Escrita — so aqui, e so depois de toda regra ter passado.
+  // 6. Escrita: so aqui, e so depois de toda regra ter passado.
   const dir = garantirDir(dirDecisoes(cwd));
   const nomeArquivo = `${numeroFormatado}-${slug}.md`;
   const caminhoAbsoluto = path.join(dir, nomeArquivo);

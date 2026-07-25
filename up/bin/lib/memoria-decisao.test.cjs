@@ -1,11 +1,11 @@
 /**
- * memoria-decisao.test.cjs — testes red-green do registro de decisao deterministico.
+ * memoria-decisao.test.cjs: testes red-green do registro de decisao deterministico.
  * Roda: node up/bin/lib/memoria-decisao.test.cjs
  * Sem framework. Cada caso monta um projeto temporario proprio (diretorio temp do
  * sistema, com .plano/) e o deixa no disco (o SO limpa o /tmp; nao ha estado
  * compartilhado entre casos). Casos de roteamento e de linha de comando invocam o
  * binario real (up-tools.cjs) via child_process, porque testam codigo de saida do
- * processo — chamar essas falhas em processo, via require direto, mataria o proprio
+ * processo: chamar essas falhas em processo, via require direto, mataria o proprio
  * runner de teste (error() do core.cjs chama process.exit).
  */
 const assert = require('assert');
@@ -248,7 +248,7 @@ t('status: registro inexistente falha citando o numero procurado', () => {
 });
 
 // =====================================================================
-// Roteamento do espaco memoria (tarefa 1) — via binario real
+// Roteamento do espaco memoria (tarefa 1), via binario real
 // =====================================================================
 
 t('roteamento: submodulo desconhecido falha com codigo de saida 1', () => {

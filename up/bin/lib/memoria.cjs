@@ -1,5 +1,5 @@
 /**
- * memoria.cjs — Roteador do espaco de memoria do projeto (Fase 14).
+ * memoria.cjs: roteador do espaco de memoria do projeto (Fase 14).
  *
  * Comando de primeiro nivel `memoria`, com quatro submodulos declarados de uma vez
  * (reserva de nome, ainda que so o de decisao exista neste plano):
