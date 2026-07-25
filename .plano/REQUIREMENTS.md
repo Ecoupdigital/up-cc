@@ -107,12 +107,12 @@ comportamento observável, sem citar caminho de arquivo: o mapa de superfícies 
 
 ### Formato de pergunta (PERG)
 
-- [ ] PERG-01: Toda pergunta feita ao dono chega acompanhada de resposta recomendada e do motivo da recomendação, para o dono confirmar ou corrigir em vez de redigir
-- [ ] PERG-02: Nenhuma das sete superfícies interativas emite pergunta crua: brainstorm, planejamento, confirmação de início da execução, fechamento de fase, gate visual antes do merge, roteamento da porta única e handoff da auditoria
-- [ ] PERG-03: Antes de perguntar, o agente tenta resolver por conta própria usando leitura de arquivo, busca no código, histórico do repositório, estado do projeto, requisitos e mapa do codebase
-- [ ] PERG-04: Fato descobrível pelo agente nunca vira pergunta ao dono
-- [ ] PERG-05: Escolha de arquitetura ou trade-off nunca é resolvida pelo agente sozinho: sobe ao dono como pergunta com recomendação
-- [ ] PERG-06: A regra vale também para os agentes de arquitetura e de planejamento, não apenas para a skill de brainstorm
+- [x] PERG-01: Toda pergunta feita ao dono chega acompanhada de resposta recomendada e do motivo da recomendação, para o dono confirmar ou corrigir em vez de redigir
+- [x] PERG-02: Nenhuma das sete superfícies interativas emite pergunta crua: brainstorm, planejamento, confirmação de início da execução, fechamento de fase, gate visual antes do merge, roteamento da porta única e handoff da auditoria
+- [x] PERG-03: Antes de perguntar, o agente tenta resolver por conta própria usando leitura de arquivo, busca no código, histórico do repositório, estado do projeto, requisitos e mapa do codebase
+- [x] PERG-04: Fato descobrível pelo agente nunca vira pergunta ao dono
+- [x] PERG-05: Escolha de arquitetura ou trade-off nunca é resolvida pelo agente sozinho: sobe ao dono como pergunta com recomendação
+- [x] PERG-06: A regra vale também para os agentes de arquitetura e de planejamento, não apenas para a skill de brainstorm
 
 ### Memória do projeto (MEM)
 
@@ -248,7 +248,7 @@ Fronteira declarada pelo dono no briefing. Registrada aqui para não voltar como
 |-----------|------|--------|
 | DIST-01, DIST-02, DIST-03 | Fase 11 | Completo |
 | CICLO-01, CICLO-02 | Fase 12 | Completo |
-| PERG-01 a PERG-06 | Fase 13 | Pendente |
+| PERG-01 a PERG-06 | Fase 13 | Completo |
 | MEM-01 a MEM-12 | Fase 14 | Pendente |
 | GRILL-01 a GRILL-10 | Fase 15 | Pendente |
 | PROVA-01 a PROVA-08 | Fase 16 | Pendente |

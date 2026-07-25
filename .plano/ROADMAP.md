@@ -20,7 +20,7 @@
 - [ ] **Fase 10: Integracao com roadmap** - Geracao de fases e apresentacao interativa de resultados
 - [x] **Fase 11: Suporte a Grok Build** - Comandos UP emitidos como skills invocáveis no runtime nativo do Claude Code
 - [x] **Fase 12: Correção do encerramento solo** - Modo solo com repositório ativo passa a aterrissar a fase de verdade
-- [ ] **Fase 13: Formato de pergunta** - Resposta recomendada em toda pergunta e regra de fato contra decisão
+- [x] **Fase 13: Formato de pergunta** - Resposta recomendada em toda pergunta e regra de fato contra decisão (completed 2026-07-25)
 - [ ] **Fase 14: Memória do projeto** - Glossário, registro de decisão com alternativas rejeitadas e base de rejeições
 - [ ] **Fase 15: Modo grill** - Questionamento profundo como piso automático, com três portas de saída
 - [ ] **Fase 16: Honestidade da prova** - Fronteiras de teste pré-acordadas e regra anti-tautologia
@@ -364,7 +364,7 @@ De onde a posse de arquivo passa a vir em tempo de execução, agora que a regra
 | 10. Integracao com roadmap | 2/2 | Complete   | 2026-03-10 |
 | 11. Suporte a Grok Build | 1/1 | Completa | 2026-07-09 |
 | 12. Correção do encerramento solo | 1/1 | Completa | 2026-07-09 |
-| 13. Formato de pergunta | 1/5 | Em progresso | - |
+| 13. Formato de pergunta | 5/5 | Complete   | 2026-07-25 |
 | 14. Memória do projeto | 0/6 | Planejada | - |
 | 15. Modo grill | 0/4 | Planejada | - |
 | 16. Honestidade da prova | 0/5 | Planejada | - |
