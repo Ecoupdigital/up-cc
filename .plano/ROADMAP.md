@@ -175,7 +175,7 @@
   4. Uma escolha de arquitetura aparece ao dono como pergunta com recomendação, e não é decidida pelo agente
   5. Os sete comandos e os quatro runtimes continuam funcionando, e projeto com planejamento anterior a este ciclo continua funcionando sem migração
 **Prova exigida**: smoke (critérios 1 e 2 do briefing)
-**Planos**: 0/5 (001 doutrina, onda 0; 002 entrada, 003 execução e 004 planejamento e auditoria, onda 1; 005 prova e regressão, onda 2)
+**Planos**: 0/5 (001 doutrina, onda 1; 002 entrada, 003 execução e 004 planejamento e auditoria, onda 2; 005 prova e regressão, onda 3)
 
 ### Fase 14: Memória do projeto
 **Objetivo**: O projeto passa a lembrar do vocabulário que fixou, das decisões difíceis que tomou e do que já recusou

@@ -2,7 +2,7 @@
 phase: 13-formato-de-pergunta
 plan: 001
 type: feature
-wave: 0
+wave: 1
 depends_on: []
 requirements: [PERG-01, PERG-02, PERG-03, PERG-04, PERG-05]
 autonomous: true
@@ -20,11 +20,15 @@ prévia, (c) como um subagente que não fala com o dono escala uma decisão, e (
 vinte pontos de pergunta com texto literal no produto, cada um com identificador estável.
 
 Nenhuma superfície é editada aqui. Este plano só escreve o contrato que os planos 002, 003 e 004 aplicam e
-que o plano 005 verifica. É a onda 0 da fase e a fase inteira depende dele.
+que o plano 005 verifica. É a primeira onda da fase e a fase inteira depende dele.
 
 ## Onda
 
-**Onda 0.** Não depende de nada. Bloqueia os planos 002, 003, 004 e 005 desta fase.
+**Onda 1 (primeira).** Não depende de nada. Bloqueia os planos 002, 003, 004 e 005 desta fase.
+
+> A numeração das ondas começa em 1, e não em 0, porque o índice de planos da fase lê onda zero
+> como ausência de valor e a promove para 1. Numerar a partir de 1 mantém a ordem de execução fiel
+> à dependência declarada.
 
 ## Contrato de comportamento dos artefatos tocados
 

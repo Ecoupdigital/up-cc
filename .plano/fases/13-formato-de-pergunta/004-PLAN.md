@@ -2,7 +2,7 @@
 phase: 13-formato-de-pergunta
 plan: 004
 type: feature
-wave: 1
+wave: 2
 depends_on: [001]
 requirements: [PERG-01, PERG-02, PERG-03, PERG-05, PERG-06]
 autonomous: true
@@ -24,7 +24,7 @@ para os agentes, não só para a skill de brainstorm).
 
 ## Onda
 
-**Onda 1.** Depende do plano 001 (contrato, bloco de escalação e inventário). Roda em paralelo com os planos
+**Onda 2.** Depende do plano 001 (contrato, bloco de escalação e inventário). Roda em paralelo com os planos
 002 e 003: os arquivos tocados são disjuntos.
 
 ## Contrato de comportamento dos artefatos tocados

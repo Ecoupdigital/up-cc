@@ -2,7 +2,7 @@
 phase: 13-formato-de-pergunta
 plan: 003
 type: feature
-wave: 1
+wave: 2
 depends_on: [001]
 requirements: [PERG-01, PERG-02, PERG-03, PERG-04]
 autonomous: true
@@ -20,7 +20,7 @@ estado do gate) e apresentam seus nove pontos de pergunta com identificador, rec
 
 ## Onda
 
-**Onda 1.** Depende do plano 001 (contrato e inventário). Roda em paralelo com os planos 002 e 004: toca um
+**Onda 2.** Depende do plano 001 (contrato e inventário). Roda em paralelo com os planos 002 e 004: toca um
 único arquivo, que nenhum outro plano da fase toca.
 
 ## Contrato de comportamento dos artefatos tocados

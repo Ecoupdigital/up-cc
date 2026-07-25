@@ -2,7 +2,7 @@
 phase: 13-formato-de-pergunta
 plan: 002
 type: feature
-wave: 1
+wave: 2
 depends_on: [001]
 requirements: [PERG-01, PERG-02, PERG-03, PERG-04]
 autonomous: true
@@ -20,7 +20,7 @@ marcados com identificador, recomendação e motivo.
 
 ## Onda
 
-**Onda 1.** Depende do plano 001 (o contrato e o inventário precisam existir). Roda em paralelo com os planos
+**Onda 2.** Depende do plano 001 (o contrato e o inventário precisam existir). Roda em paralelo com os planos
 003 e 004: os arquivos tocados são disjuntos.
 
 ## Contrato de comportamento dos artefatos tocados

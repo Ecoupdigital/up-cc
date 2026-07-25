@@ -2,7 +2,7 @@
 phase: 13-formato-de-pergunta
 plan: 005
 type: test
-wave: 2
+wave: 3
 depends_on: [001, 002, 003, 004]
 requirements: [PERG-01, PERG-02, PERG-03, PERG-04, PERG-05, PERG-06, REG-01, REG-02, REG-03]
 autonomous: true
@@ -22,7 +22,7 @@ ao ciclo.
 
 ## Onda
 
-**Onda 2.** Depende dos planos 001, 002, 003 e 004: só faz sentido verificar depois que o contrato existe e
+**Onda 3.** Depende dos planos 001, 002, 003 e 004: só faz sentido verificar depois que o contrato existe e
 que as superfícies o aplicam.
 
 ## Contrato de comportamento dos artefatos tocados
