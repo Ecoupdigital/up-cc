@@ -11,7 +11,7 @@
  * diretorio a cada chamada (nunca um contador guardado em arquivo). Buraco na sequencia
  * (numero apagado ou nunca usado) nao e preenchido.
  *
- * Acoes: proximo-numero, listar, criar. (status chega na tarefa 4.)
+ * Acoes: proximo-numero, listar, criar, status.
  */
 
 const fs = require('fs');
@@ -46,6 +46,16 @@ function proximoNumero(cwd) {
 
 function formatarNumero(n) {
   return String(n).padStart(4, '0');
+}
+
+function encontrarRegistro(cwd, numeroFormatado) {
+  const dir = dirDecisoes(cwd);
+  if (!fs.existsSync(dir)) return null;
+  const alvo = fs.readdirSync(dir).find(
+    (f) => f.startsWith(`${numeroFormatado}-`) && f.endsWith('.md')
+  );
+  if (!alvo) return null;
+  return { arquivo: alvo, caminho: path.join(dir, alvo) };
 }
 
 function extrairFrontmatterSimples(conteudo) {
@@ -178,6 +188,61 @@ function criar(cwd, flags) {
 }
 
 // =====================================================================
+// Escrita: status
+// =====================================================================
+
+function mudarStatus(cwd, { numero, status, substituidaPor }) {
+  if (!numero) throw new Error('Mudanca de status exige --numero.');
+  const numInt = parseInt(numero, 10);
+  if (!Number.isFinite(numInt)) throw new Error(`Numero invalido: "${numero}".`);
+  const numeroFormatado = formatarNumero(numInt);
+
+  const registro = encontrarRegistro(cwd, numeroFormatado);
+  if (!registro) {
+    throw new Error(`Registro de decisao numero ${numeroFormatado} nao encontrado.`);
+  }
+
+  const statusValidos = ['proposta', 'aceita', 'substituida'];
+  if (!statusValidos.includes(status)) {
+    throw new Error(`Status invalido: "${status}". Valores aceitos: proposta, aceita, substituida.`);
+  }
+
+  let substituidaPorFormatado = null;
+  if (status === 'substituida') {
+    if (!substituidaPor) {
+      throw new Error('Status "substituida" exige --substituida-por com o numero do registro substituto.');
+    }
+    const substNum = parseInt(substituidaPor, 10);
+    if (!Number.isFinite(substNum)) throw new Error(`Numero substituidor invalido: "${substituidaPor}".`);
+    substituidaPorFormatado = formatarNumero(substNum);
+    if (!encontrarRegistro(cwd, substituidaPorFormatado)) {
+      throw new Error(`Registro substituidor numero ${substituidaPorFormatado} nao encontrado.`);
+    }
+  } else if (substituidaPor) {
+    throw new Error(`Status "${status}" nao aceita --substituida-por.`);
+  }
+
+  // Altera so as linhas de status e substituida_por dentro do frontmatter; o resto do
+  // arquivo (incluindo o corpo inteiro) fica byte a byte identico.
+  const conteudo = fs.readFileSync(registro.caminho, 'utf-8');
+  const statusAnteriorMatch = conteudo.match(/^status:\s*(.*)$/m);
+  const statusAnterior = statusAnteriorMatch ? statusAnteriorMatch[1].trim() : null;
+
+  let novoConteudo = conteudo.replace(/^status:\s*.*$/m, `status: ${status}`);
+  const substValorFrontmatter = substituidaPorFormatado === null ? 'null' : substituidaPorFormatado;
+  novoConteudo = novoConteudo.replace(/^substituida_por:\s*.*$/m, `substituida_por: ${substValorFrontmatter}`);
+
+  fs.writeFileSync(registro.caminho, novoConteudo, 'utf-8');
+
+  return {
+    numero: numeroFormatado,
+    status_anterior: statusAnterior,
+    status_novo: status,
+    substituida_por: substituidaPorFormatado,
+  };
+}
+
+// =====================================================================
 // Dispatcher
 // =====================================================================
 
@@ -228,6 +293,18 @@ function run(cwd, args) {
     return { result: resultado, resumo: `Decisao ${resultado.numero} registrada em ${resultado.caminho}.` };
   }
 
+  if (acao === 'status') {
+    const resultado = mudarStatus(cwd, {
+      numero: lerFlag(args, 'numero'),
+      status: lerFlag(args, 'status'),
+      substituidaPor: lerFlag(args, 'substituida-por'),
+    });
+    return {
+      result: resultado,
+      resumo: `Decisao ${resultado.numero}: status ${resultado.status_anterior || '?'} -> ${resultado.status_novo}.`,
+    };
+  }
+
   throw new Error(`Acao desconhecida para memoria decisao: "${acao || ''}". Disponiveis: proximo-numero, listar, criar, status.`);
 }
 
@@ -235,7 +312,9 @@ module.exports = {
   listarRegistros,
   proximoNumero,
   formatarNumero,
+  encontrarRegistro,
   extrairFrontmatterSimples,
   criar,
+  mudarStatus,
   run,
 };
