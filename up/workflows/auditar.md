@@ -18,6 +18,11 @@ analista-codigo + pesquisador-mercado + consolidador-ideias para `/up:ideias`. A
   ICE scoring + anti-features (features), sumario opinativo.
 
 Relatorio e informativo. NAO commitar automaticamente. NAO mexer em STATE.md (auditoria e standalone).
+
+**Contrato de pergunta (obrigatório):** carregue `Read $HOME/.claude/up/references/questioning.md` e aplique o
+bloco `<contrato_de_pergunta>`. **O que este workflow resolve sozinho e nunca pergunta:** stack detectada,
+existência e data do relatório anterior, quantos commits houve desde ele, quais achados estão em cada
+quadrante e qual é o sumário opinativo. Tudo isso é lido ou calculado, nunca perguntado.
 </core_principle>
 
 <process>
@@ -46,7 +51,21 @@ Parse JSON: `planning_exists`, `has_claude_md`, `has_package_json`, `date`, `tim
 mkdir -p .plano/auditar
 ```
 
-Se `.plano/auditar/RELATORIO.md` ja existe: perguntar via AskUserQuestion se sobrescreve ou cancela.
+Se `.plano/auditar/RELATORIO.md` já existe, calcule primeiro há quantos commits ele ficou para trás:
+
+```bash
+COMMITS_DESDE=$(git rev-list --count --since="$(git log -1 --format=%cI -- .plano/auditar/RELATORIO.md)" HEAD 2>/dev/null || echo 0)
+```
+
+E então pergunte:
+
+<pergunta id="auditar.relatorio-existente">
+Pergunta: Já existe relatório de auditoria de {data do relatório}. Sobrescrevo?
+Recomendo: {Sobrescrever quando COMMITS_DESDE for maior que zero; Manter o anterior e cancelar quando for zero}
+Porque: {"o repositório teve {COMMITS_DESDE} commits desde aquela auditoria, então o relatório antigo já não descreve o código atual" ou "nenhum commit entrou desde aquela auditoria, então rodar de novo gasta e devolve o mesmo"}
+Opções: {recomendada} | {a outra}
+</pergunta>
+
 Se cancelar: sair mantendo o relatorio anterior.
 
 Reportar a stack detectada (de `stack_hints`): framework frontend, meta-framework, CSS, ORM, TypeScript.
@@ -223,7 +242,15 @@ Relatorio: .plano/auditar/RELATORIO.md
 
 ## Passo 7: Integracao com roadmap (opcional)
 
-Perguntar via AskUserQuestion se quer converter sugestoes/features aprovadas em fases no ROADMAP.md.
+<pergunta id="auditar.converter-em-fases">
+Pergunta: Converto os achados aprovados em fases do roadmap?
+Recomendo: {Converter os N do quadrante de ganho rápido}
+Porque: {o sumário opinativo do relatório aponta esses como maior impacto por menor esforço}.
+Opções: Converter os {N} do ganho rápido | Escolher item a item | Não converter agora
+</pergunta>
+
+A seleção item a item, quando escolhida, continua como está. O quadrante "evitar" e as anti-features nunca
+entram na recomendação.
 
 Se sim:
 1. Extrair os IDs do RELATORIO.md (`### (MELH-\d+):` para melhorias; `### (IDEA-\d+):` para features,
