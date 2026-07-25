@@ -11,12 +11,13 @@
  * diretorio a cada chamada (nunca um contador guardado em arquivo). Buraco na sequencia
  * (numero apagado ou nunca usado) nao e preenchido.
  *
- * Acoes: proximo-numero, listar. (criar e status chegam nas tarefas 3 e 4.)
+ * Acoes: proximo-numero, listar, criar. (status chega na tarefa 4.)
  */
 
 const fs = require('fs');
 const path = require('path');
-const { dirDecisoes } = require('./memoria.cjs');
+const { generateSlugInternal, toPosixPath } = require('./core.cjs');
+const { dirDecisoes, garantirDir, lerFlag, lerFlags, contarPalavras } = require('./memoria.cjs');
 
 const REGEX_ARQUIVO_REGISTRO = /^(\d{4})-([a-z0-9-]+)\.md$/;
 
@@ -61,8 +62,140 @@ function extrairFrontmatterSimples(conteudo) {
 }
 
 // =====================================================================
+// Escrita: criar
+// =====================================================================
+
+// [chave-da-flag, rotulo-em-portugues-para-mensagem-de-erro]
+const CONDICOES_GATE = [
+  ['dificil-reverter', 'dificil de reverter'],
+  ['surpreendente', 'surpreendente sem contexto'],
+  ['trade-off', 'trade-off real'],
+];
+
+function criar(cwd, flags) {
+  const titulo = flags.titulo;
+  const contexto = flags.contexto;
+  const decisaoTexto = flags.decisao;
+  const motivo = flags.motivo;
+  const alternativasRaw = flags.alternativa || [];
+
+  // 1. Campos de conteudo obrigatorios (texto livre, o modulo nao corta nem reescreve).
+  const camposFaltando = [];
+  if (!titulo) camposFaltando.push('titulo');
+  if (!contexto) camposFaltando.push('contexto');
+  if (!decisaoTexto) camposFaltando.push('decisao');
+  if (!motivo) camposFaltando.push('motivo');
+  if (camposFaltando.length > 0) {
+    throw new Error(`Decisao nao registrada: campo obrigatorio ausente: ${camposFaltando.join(', ')}.`);
+  }
+
+  // 2. Gate das tres condicoes, conjuntivo. Coleta todas as faltas antes de falhar.
+  const faltandoGate = CONDICOES_GATE
+    .filter(([chave]) => contarPalavras(flags[chave]) < 3)
+    .map(([, rotulo]) => rotulo);
+  if (faltandoGate.length > 0) {
+    throw new Error(
+      `Decisao nao registrada: o gate exige as tres condicoes justificadas com pelo menos tres palavras cada. Faltou: ${faltandoGate.join(', ')}.`
+    );
+  }
+
+  // 3. Alternativas rejeitadas: pelo menos uma, no formato "nome :: motivo".
+  if (alternativasRaw.length === 0) {
+    throw new Error('Decisao nao registrada: e preciso pelo menos uma alternativa rejeitada (--alternativa "nome :: motivo").');
+  }
+  const alternativas = alternativasRaw.map((ocorrencia) => {
+    const idx = ocorrencia.indexOf('::');
+    const nome = idx === -1 ? '' : ocorrencia.slice(0, idx).trim();
+    const motivoAlt = idx === -1 ? '' : ocorrencia.slice(idx + 2).trim();
+    if (!nome || !motivoAlt) {
+      throw new Error(`Alternativa em formato invalido: "${ocorrencia}". Use "nome :: motivo".`);
+    }
+    return { nome, motivo: motivoAlt };
+  });
+
+  // 4. Status: uma decisao nasce proposta ou aceita. Substituida so acontece depois.
+  const status = flags.status || 'aceita';
+  if (status !== 'proposta' && status !== 'aceita') {
+    throw new Error(`Status invalido para criacao: "${status}". Uma decisao nasce como "proposta" ou "aceita"; "substituida" so acontece depois, pela acao status.`);
+  }
+
+  // 5. Numero (varredura) e slug.
+  const numeroFormatado = formatarNumero(proximoNumero(cwd));
+  let slug = flags.slug || generateSlugInternal(titulo) || 'decisao';
+  slug = slug.slice(0, 48).replace(/^-+|-+$/g, '') || 'decisao';
+
+  // 6. Escrita — so aqui, e so depois de toda regra ter passado.
+  const dir = garantirDir(dirDecisoes(cwd));
+  const nomeArquivo = `${numeroFormatado}-${slug}.md`;
+  const caminhoAbsoluto = path.join(dir, nomeArquivo);
+  const data = new Date().toISOString().split('T')[0];
+
+  const frontmatter = [
+    '---',
+    `numero: "${numeroFormatado}"`,
+    `slug: ${slug}`,
+    `titulo: ${titulo.trim()}`,
+    `status: ${status}`,
+    'substituida_por: null',
+    `data: ${data}`,
+  ];
+  if (flags.fase) frontmatter.push(`fase: ${flags.fase.trim()}`);
+  frontmatter.push('---', '');
+
+  const linhasAlternativas = alternativas.map((a) => `- ${a.nome}: ${a.motivo}`).join('\n');
+
+  const corpo = [
+    `# ${numeroFormatado}. ${titulo.trim()}`,
+    '',
+    '## Contexto',
+    contexto.trim(),
+    '',
+    '## Decisão',
+    decisaoTexto.trim(),
+    '',
+    '## Motivo',
+    motivo.trim(),
+    '',
+    '## Condições do gate',
+    `- Difícil de reverter: ${flags['dificil-reverter'].trim()}`,
+    `- Surpreendente sem contexto: ${flags.surpreendente.trim()}`,
+    `- Trade-off real: ${flags['trade-off'].trim()}`,
+    '',
+    '## Alternativas rejeitadas',
+    linhasAlternativas,
+    '',
+  ].join('\n');
+
+  fs.writeFileSync(caminhoAbsoluto, frontmatter.join('\n') + '\n' + corpo, 'utf-8');
+
+  return {
+    criado: true,
+    numero: numeroFormatado,
+    caminho: toPosixPath(path.relative(cwd, caminhoAbsoluto)),
+    status,
+    alternativas_count: alternativas.length,
+  };
+}
+
+// =====================================================================
 // Dispatcher
 // =====================================================================
+
+function extrairFlagsCriar(args) {
+  return {
+    titulo: lerFlag(args, 'titulo'),
+    contexto: lerFlag(args, 'contexto'),
+    decisao: lerFlag(args, 'decisao'),
+    motivo: lerFlag(args, 'motivo'),
+    'dificil-reverter': lerFlag(args, 'dificil-reverter'),
+    surpreendente: lerFlag(args, 'surpreendente'),
+    'trade-off': lerFlag(args, 'trade-off'),
+    alternativa: lerFlags(args, 'alternativa'),
+    status: lerFlag(args, 'status'),
+    fase: lerFlag(args, 'fase'),
+    slug: lerFlag(args, 'slug'),
+  };
+}
 
 function run(cwd, args) {
   const acao = args[0];
@@ -90,6 +223,11 @@ function run(cwd, args) {
     };
   }
 
+  if (acao === 'criar') {
+    const resultado = criar(cwd, extrairFlagsCriar(args));
+    return { result: resultado, resumo: `Decisao ${resultado.numero} registrada em ${resultado.caminho}.` };
+  }
+
   throw new Error(`Acao desconhecida para memoria decisao: "${acao || ''}". Disponiveis: proximo-numero, listar, criar, status.`);
 }
 
@@ -98,5 +236,6 @@ module.exports = {
   proximoNumero,
   formatarNumero,
   extrairFrontmatterSimples,
+  criar,
   run,
 };
