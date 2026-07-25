@@ -234,7 +234,8 @@
   8. Os sete comandos e os quatro runtimes continuam funcionando, e projeto com planejamento anterior a este ciclo continua funcionando sem migração
 **Prova exigida**: smoke para fronteiras (critério 6 do briefing) e lógica vermelho e verde para anti-tautologia (critério 5)
 **Ordem interna**: as fronteiras vêm antes da anti-tautologia, porque a regra anti-tautologia só vale no gate depois que existe lugar acordado para o teste
-**Planos**: 0/?
+**Fronteira de teste acordada**: uma só, a superfície pública de subcomandos da CLI de ferramentas do UP (contrato do tipo comando, já existente), invocada como subprocesso com JSON em stdout. É a fronteira mais alta que um teste consegue executar neste sistema, e tanto o leitor do log quanto a heurística de tautologia são alcançáveis por ela
+**Planos**: 0/5 (ondas 1 a 5, sequenciais: leitor único, religar os gates, doutrina e validação das fronteiras, fronteiras no fluxo e no log, anti-tautologia)
 
 ### Fase 17: Planejamento por grafo
 **Objetivo**: A ordem de execução passa a ser derivada de dependência declarada, e o plano passa a ser durável o bastante para ser executado depois, noutro runtime
@@ -347,7 +348,7 @@ Fronteira inicial: fase 13, sozinha. Depois dela, 16, 17 e 18 ficam liberadas em
 | 13. Formato de pergunta | 0/5 | Planejada | - |
 | 14. Memória do projeto | 0/6 | Planejada | - |
 | 15. Modo grill | 0/4 | Planejada | - |
-| 16. Honestidade da prova | 0/? | Pendente | - |
+| 16. Honestidade da prova | 0/5 | Planejada | - |
 | 17. Planejamento por grafo | 0/? | Pendente | - |
 | 18. Contexto e revisão | 0/? | Pendente | - |
 | 19. Auditoria visual e escopada | 0/? | Pendente | - |
