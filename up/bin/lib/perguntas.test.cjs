@@ -37,6 +37,37 @@ const ARQUIVOS_SUPERFICIE = [
 const PONTOS_MINIMOS = 21;
 const SUPERFICIES_MINIMAS = 7;
 
+// Conjunto fechado dos identificadores esperados. O piso de CONTAGEM sozinho e furavel por delecao
+// compensada: apagar as duas linhas de uma superficie e repor dois pontos de enchimento sob outro nome
+// mantem o total em 21 e passa verde, com a superficie inteira fora do produto. Pior, cada ponto novo que
+// uma fase futura adicionar compra permissao para apagar um ponto existente em silencio (erosao do piso).
+// Comparar por IDENTIFICADOR fecha as duas rotas: ponto que existe hoje nao pode desaparecer sem que a
+// lista abaixo mude, e mudar esta lista e um ato deliberado, igual a ARQUIVOS_SUPERFICIE.
+// Fase que acrescentar ponto novo acrescenta o identificador aqui na mesma tarefa.
+const IDENTIFICADORES_ESPERADOS = [
+  'auditar.converter-em-fases',
+  'auditar.relatorio-existente',
+  'brainstorm.checkpoint',
+  'brainstorm.decisao-chave',
+  'build.aprovou-ou-ajusta',
+  'build.decisoes-escaladas',
+  'build.fechamento-fase',
+  'build.iniciar-execucao',
+  'build.onda-falhou',
+  'build.plano-incompleto',
+  'build.replan-esgotado',
+  'build.revisor-bloqueou',
+  'build.runtime-divergente',
+  'build.testar-antes-do-merge',
+  'plan.decisoes-escaladas',
+  'plan.intake-minimo',
+  'plan.revisor-bloqueou',
+  'up.clone-intake',
+  'up.config-editar',
+  'up.decisao-chave',
+  'up.proxima-acao',
+];
+
 // Dois niveis acima de up/bin/lib (up/bin -> up -> raiz do repo).
 const DEFAULT_RAIZ = path.resolve(__dirname, '..', '..', '..');
 
@@ -157,9 +188,24 @@ function verificar(raiz) {
     }
   }
 
-  // Piso de contagem: pontos e superficies sao COMPARADOS com o esperado, nao so reportados. Isto e o que
-  // pega uma superficie inteira desaparecendo do inventario mesmo quando a superficie nao tem mais
-  // nenhuma linha (e por isso nenhuma tag orfa direta): o total cai abaixo do piso e reprova sozinho.
+  // Conjunto fechado: cada identificador esperado tem que estar no inventario, por NOME. Esta e a guarda
+  // que resiste a delecao compensada e a erosao do piso, que a contagem sozinha nao pega.
+  const idsNoInventario = new Set(inventario.map((linha) => linha.id));
+  for (const idEsperado of IDENTIFICADORES_ESPERADOS) {
+    if (!idsNoInventario.has(idEsperado)) {
+      erros.push({
+        tipo: 'id_esperado_ausente',
+        id: idEsperado,
+        arquivo: REFERENCIA,
+        esperado: 'declarado no inventario',
+        encontrado: 'ausente',
+      });
+    }
+  }
+
+  // Piso de contagem: pontos e superficies sao COMPARADOS com o esperado, nao so reportados. Fica como
+  // segunda linha de defesa, cobrindo o caso de inventario que encolhe sem que nenhum id da lista fechada
+  // desapareca (ponto adicionado por fase futura e depois removido antes de entrar na lista).
   if (inventario.length < PONTOS_MINIMOS) {
     erros.push({
       tipo: 'pontos_abaixo_do_piso',
