@@ -1,9 +1,11 @@
 /**
  * perguntas.test.cjs: verificador do contrato de pergunta (up/references/questioning.md).
  * Roda: node up/bin/lib/perguntas.test.cjs [raiz]
- * Sem framework. Le o inventario da referencia, le as superficies declaradas e compara
- * nas duas direcoes. A cada execucao direta (nao via require), roda o proprio caso vermelho
- * contra uma fixture com defeito injetado antes de checar o repositorio real (verde).
+ * Sem framework. Le o inventario da referencia, le as superficies de uma lista FECHADA
+ * (ARQUIVOS_SUPERFICIE, nao derivada do inventario) e compara nas duas direcoes, com piso de
+ * contagem em pontos e em superficies distintas. A cada execucao direta (nao via require), roda
+ * o proprio caso vermelho contra uma fixture com quatro defeitos injetados antes de checar o
+ * repositorio real (verde).
  */
 'use strict';
 const assert = require('assert');
@@ -16,6 +18,24 @@ const ROTULOS_OBRIGATORIOS = ['Pergunta:', 'Recomendo:', 'Porque:'];
 const PLACEHOLDERS = ['TBD', 'TODO', 'FIXME'];
 const REGEX_INVENTARIO = /^\|\s*([a-z]+\.[a-z0-9-]+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|/gm;
 const REGEX_TAG = /<pergunta id="([^"]+)">([\s\S]*?)<\/pergunta>/g;
+
+// Lista fechada dos arquivos de superficie. NAO deriva do inventario: se o inventario perder todas as
+// linhas de um arquivo, este arquivo continua sendo lido e as tags dele continuam entrando nas duas
+// direcoes de comparacao. Atualizar esta lista e um ato deliberado, nao um efeito colateral de editar a
+// tabela do inventario.
+const ARQUIVOS_SUPERFICIE = [
+  'up/workflows/up.md',
+  'up/workflows/plan.md',
+  'up/workflows/build.md',
+  'up/workflows/auditar.md',
+  'up/skills/up-brainstorm/SKILL.md',
+];
+
+// Piso de contagem: protege contra inventario que perde linhas, ou uma superficie inteira, sem que o
+// texto correspondente pare de existir no produto. Sobe junto com o inventario real quando pontos
+// legitimos forem adicionados; nunca desce sozinho.
+const PONTOS_MINIMOS = 20;
+const SUPERFICIES_MINIMAS = 7;
 
 // Dois niveis acima de up/bin/lib (up/bin -> up -> raiz do repo).
 const DEFAULT_RAIZ = path.resolve(__dirname, '..', '..', '..');
@@ -66,17 +86,20 @@ function verificar(raiz) {
     idsVistos.add(linha.id);
   }
 
-  const arquivosDistintos = [...new Set(inventario.map((linha) => linha.arquivo))];
+  // A varredura usa a lista FECHADA acima, nao o que sobrou no inventario. Isto e o que fecha o ponto
+  // cego: um arquivo desta lista e sempre lido, mesmo que o inventario perca a ultima linha que apontava
+  // pra ele.
   const tagsPorArquivo = {};
 
-  for (const arquivo of arquivosDistintos) {
-    if (arquivo === REFERENCIA) {
-      for (const linha of inventario.filter((l) => l.arquivo === arquivo)) {
-        erros.push({ tipo: 'inventario_aponta_para_si', id: linha.id, arquivo });
-      }
-      continue;
+  for (const linha of inventario) {
+    if (linha.arquivo === REFERENCIA) {
+      erros.push({ tipo: 'inventario_aponta_para_si', id: linha.id, arquivo: REFERENCIA });
+    } else if (!ARQUIVOS_SUPERFICIE.includes(linha.arquivo)) {
+      erros.push({ tipo: 'arquivo_fora_da_lista_fechada', id: linha.id, arquivo: linha.arquivo });
     }
+  }
 
+  for (const arquivo of ARQUIVOS_SUPERFICIE) {
     const caminho = path.join(raiz, arquivo);
     let texto;
     let tags;
@@ -97,6 +120,7 @@ function verificar(raiz) {
   // Direcao 1: identificador declarado no inventario, ausente no arquivo.
   for (const linha of inventario) {
     if (linha.arquivo === REFERENCIA) continue;
+    if (!ARQUIVOS_SUPERFICIE.includes(linha.arquivo)) continue; // ja reportado como arquivo_fora_da_lista_fechada
     const tags = tagsPorArquivo[linha.arquivo] || [];
     const achou = tags.some((tag) => tag.id === linha.id);
     if (!achou) {
@@ -133,6 +157,30 @@ function verificar(raiz) {
     }
   }
 
+  // Piso de contagem: pontos e superficies sao COMPARADOS com o esperado, nao so reportados. Isto e o que
+  // pega uma superficie inteira desaparecendo do inventario mesmo quando a superficie nao tem mais
+  // nenhuma linha (e por isso nenhuma tag orfa direta): o total cai abaixo do piso e reprova sozinho.
+  if (inventario.length < PONTOS_MINIMOS) {
+    erros.push({
+      tipo: 'pontos_abaixo_do_piso',
+      id: null,
+      arquivo: REFERENCIA,
+      esperado: PONTOS_MINIMOS,
+      encontrado: inventario.length,
+    });
+  }
+
+  const superficiesDistintas = new Set(inventario.map((linha) => linha.superficie));
+  if (superficiesDistintas.size < SUPERFICIES_MINIMAS) {
+    erros.push({
+      tipo: 'superficies_abaixo_do_piso',
+      id: null,
+      arquivo: REFERENCIA,
+      esperado: SUPERFICIES_MINIMAS,
+      encontrado: superficiesDistintas.size,
+    });
+  }
+
   return { ok: erros.length === 0, erros, pontos: inventario.length };
 }
 
@@ -145,26 +193,25 @@ function copiarArquivo(origemRaiz, destRaiz, relativo) {
 }
 
 /**
- * Monta uma fixture em diretorio temporario copiando a referencia e todos os arquivos do
- * inventario a partir de `raizReal`, e injeta tres defeitos, cada um num arquivo diferente:
- * tag de abertura apagada, linha Recomendo esvaziada, tag extra nao declarada.
- * Devolve { fixtureDir, defeitosEsperados }.
+ * Monta uma fixture em diretorio temporario copiando a referencia e TODOS os arquivos da lista fechada
+ * (ARQUIVOS_SUPERFICIE, nao o que sobrou no inventario) a partir de `raizReal`, e injeta quatro defeitos:
+ * tag de abertura apagada, linha Recomendo esvaziada, tag extra nao declarada, e uma superficie inteira
+ * apagada do inventario com as tags dela intactas no arquivo (o ponto cego que a fase 13 deixou passar).
+ * Devolve { fixtureDir, defeitosEsperados, idsSuperficieRemovida }.
  */
 function construirFixtureComDefeitos(raizReal) {
   const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'perguntas-fixture-'));
   const inventario = lerInventario(raizReal);
-  const arquivosDistintos = [...new Set(inventario.map((linha) => linha.arquivo))].filter(
-    (arquivo) => arquivo !== REFERENCIA
-  );
 
   copiarArquivo(raizReal, fixtureDir, REFERENCIA);
-  for (const arquivo of arquivosDistintos) {
+  for (const arquivo of ARQUIVOS_SUPERFICIE) {
     copiarArquivo(raizReal, fixtureDir, arquivo);
   }
 
+  const arquivosDistintos = ARQUIVOS_SUPERFICIE;
   assert.ok(
     arquivosDistintos.length >= 3,
-    'fixture precisa de pelo menos 3 arquivos de superficie para injetar 3 defeitos distintos'
+    'fixture precisa de pelo menos 3 arquivos de superficie para injetar os defeitos 1 a 3'
   );
 
   const defeitosEsperados = [];
@@ -200,7 +247,38 @@ function construirFixtureComDefeitos(raizReal) {
   fs.appendFileSync(caminho3, tagExtra);
   defeitosEsperados.push('tag_sem_declaracao');
 
-  return { fixtureDir, defeitosEsperados };
+  // Defeito 4: apagar do inventario TODAS as linhas de uma superficie inteira (up/workflows/auditar.md),
+  // mantendo as tags do arquivo intocadas. Este e o ponto cego reproduzido na verificacao da fase 13:
+  // superficie inteira some do inventario, e a comparacao antiga nunca chegava a ler as tags dela porque
+  // a lista de arquivos a varrer vinha do proprio inventario. Com ARQUIVOS_SUPERFICIE fixo, o arquivo
+  // continua sendo lido e as tags orfas viram erro (alem do piso de pontos/superficies cair).
+  const arquivoAlvo4 = 'up/workflows/auditar.md';
+  const linhasAlvo4 = inventario.filter((linha) => linha.arquivo === arquivoAlvo4);
+  assert.ok(
+    linhasAlvo4.length > 0,
+    'fixture precisa de ao menos 1 linha de inventario para "' + arquivoAlvo4 + '" para injetar o defeito 4'
+  );
+  const caminhoReferenciaFixture = path.join(fixtureDir, REFERENCIA);
+  const textoReferenciaAntes = fs.readFileSync(caminhoReferenciaFixture, 'utf-8');
+  let textoReferenciaDepois = textoReferenciaAntes;
+  for (const linha of linhasAlvo4) {
+    const idEscapado = linha.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regexLinha = new RegExp('^\\|[^\\n]*\\b' + idEscapado + '\\b[^\\n]*\\n?', 'm');
+    textoReferenciaDepois = textoReferenciaDepois.replace(regexLinha, '');
+  }
+  assert.notStrictEqual(
+    textoReferenciaDepois,
+    textoReferenciaAntes,
+    'defeito 4: a remocao das linhas de "' + arquivoAlvo4 + '" nao alterou o inventario da fixture'
+  );
+  fs.writeFileSync(caminhoReferenciaFixture, textoReferenciaDepois);
+  defeitosEsperados.push('tag_sem_declaracao');
+  defeitosEsperados.push('pontos_abaixo_do_piso');
+  defeitosEsperados.push('superficies_abaixo_do_piso');
+
+  const idsSuperficieRemovida = linhasAlvo4.map((linha) => linha.id);
+
+  return { fixtureDir, defeitosEsperados, idsSuperficieRemovida };
 }
 
 function main() {
@@ -227,6 +305,22 @@ function main() {
           JSON.stringify(resultadoVermelho.erros)
       );
     }
+
+    // Defeito 4 nao pode passar so pelo tipo bater por coincidencia com o defeito 3: confirma que os IDS
+    // especificos da superficie inteira removida do inventario aparecem como tag_sem_declaracao.
+    const idsComTagSemDeclaracao = new Set(
+      resultadoVermelho.erros.filter((erro) => erro.tipo === 'tag_sem_declaracao').map((erro) => erro.id)
+    );
+    for (const idRemovido of construido.idsSuperficieRemovida) {
+      assert.ok(
+        idsComTagSemDeclaracao.has(idRemovido),
+        'vermelho: defeito 4 (superficie inteira removida do inventario) deveria reprovar o id "' +
+          idRemovido +
+          '", erros encontrados: ' +
+          JSON.stringify(resultadoVermelho.erros)
+      );
+    }
+
     console.log(
       'vermelho: ' +
         resultadoVermelho.erros.length +
@@ -245,7 +339,7 @@ function main() {
     }
 
     console.log(
-      'perguntas: vermelho OK (3 defeitos detectados), verde OK (' +
+      'perguntas: vermelho OK (4 defeitos detectados), verde OK (' +
         resultadoVerde.pontos +
         ' pontos verificados)'
     );
