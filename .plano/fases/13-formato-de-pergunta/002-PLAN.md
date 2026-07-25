@@ -7,16 +7,42 @@ depends_on: [001]
 requirements: [PERG-01, PERG-02, PERG-03, PERG-04]
 autonomous: true
 prova: smoke
+files_modified:
+  - up/workflows/up.md
+  - up/skills/up-brainstorm/SKILL.md
+  - up/skills/usando-up/SKILL.md
+  - up/commands/up.md
+must_haves:
+  truths:
+    - "O roteamento da porta única e o brainstorm carregam o contrato antes da primeira pergunta"
+    - "Os seis pontos de pergunta dessas duas superfícies chegam com recomendação e motivo"
+    - "Em repositório com planejamento populado, o intake não pergunta o que os artefatos já respondem"
+    - "A recomendação do checkpoint de fechamento é calculada, e não fixa"
+  artifacts:
+    - path: "up/workflows/up.md"
+      provides: "Quatro pontos de pergunta marcados e o passo de resolução prévia"
+    - path: "up/skills/up-brainstorm/SKILL.md"
+      provides: "Dois pontos de pergunta marcados e a declaração das duas regras do contrato"
+    - path: "up/skills/usando-up/SKILL.md"
+      provides: "Anúncio da regra em uma linha no bootstrap de sessão"
+  key_links:
+    - from: "up/workflows/up.md"
+      to: "up/references/questioning.md"
+      via: "chamada de leitura da referência antes da primeira pergunta"
+    - from: "up/skills/up-brainstorm/SKILL.md"
+      to: "up/references/questioning.md"
+      via: "chamada de leitura no início da rodada de perguntas"
 ---
 
 # Fase 13, Plano 002: Superfícies de entrada (roteamento da porta única e brainstorm)
 
-## Objetivo
-
+<objective>
 Fazer as duas superfícies por onde o dono entra no UP pararem de emitir pergunta crua. Ao fim deste plano, o
 roteamento da porta única e a skill de brainstorm carregam o contrato canônico antes de perguntar, rodam o
 protocolo de resolução prévia (fato descobrível não vira pergunta) e trazem seus seis pontos de pergunta
 marcados com identificador, recomendação e motivo.
+</objective>
+
 
 ## Onda
 
@@ -41,15 +67,17 @@ com `<pergunta id="...">` e fechado com `</pergunta>`. O texto completo do contr
 
 ## Tarefas
 
-### 1. Carregar o contrato e rodar o protocolo antes de perguntar no roteamento da porta única
-
-**Contrato:** antes da primeira pergunta de qualquer rota, o workflow lê o contrato e varre as fontes onde a
+<task id="1" type="auto">
+<files>up/workflows/up.md</files>
+<contrato>
+Antes da primeira pergunta de qualquer rota, o workflow lê o contrato e varre as fontes onde a
 resposta pode já estar. O que for descoberto vira anúncio de uma linha, não pergunta.
 
-**Arquivo hoje:** `up/workflows/up.md`, no `<core_principle>` (após a linha que fala da profundidade do
+Arquivo hoje: `up/workflows/up.md`, no `<core_principle>` (após a linha que fala da profundidade do
 brainstorm) e no Passo 2.3.
-
-**O que fazer:**
+</contrato>
+<action>
+**Carregar o contrato e rodar o protocolo antes de perguntar no roteamento da porta única**
 
 1. Acrescentar ao `<core_principle>` o parágrafo:
 
@@ -75,21 +103,29 @@ pedido depois de esbarrar na parede que o exige, nunca por precaução.
 Em repositório com planejamento populado, isso normalmente zera o bloco de perguntas sobre stack, convenção,
 estrutura de pastas e histórico. Perguntar isso ali é violação do contrato.
 ```
-
-**Critério de aceite:** o workflow contém a chamada de leitura da referência; o passo 2.3.0 existe com as seis
+</action>
+<verify><automated>grep -q "references/questioning.md" up/workflows/up.md && grep -q "2.3.0" up/workflows/up.md</automated></verify>
+<done>
+O workflow contém a chamada de leitura da referência; o passo 2.3.0 existe com as seis
 fontes; o texto proíbe explicitamente perguntar o que o planejamento já responde.
 
-**Prova:** `grep -n "references/questioning.md" up/workflows/up.md` devolve linha, e leitura do passo 2.3.0.
+Prova registrada no resumo: `grep -n "references/questioning.md" up/workflows/up.md` devolve linha, e leitura do passo 2.3.0.
+</done>
+</task>
 
-### 2. Marcar os quatro pontos de pergunta do roteamento da porta única
-
-**Contrato:** cada um dos quatro pontos onde o roteamento tem texto literal de pergunta passa a sair no
+<task id="2" type="auto">
+<files>up/workflows/up.md</files>
+<contrato>
+Cada um dos quatro pontos onde o roteamento tem texto literal de pergunta passa a sair no
 formato do contrato, com identificador estável.
 
-**Arquivo hoje:** `up/workflows/up.md`, Passo 1 (apresentação da próxima ação), Passo 2.3 (tier pequena),
+Arquivo hoje: `up/workflows/up.md`, Passo 1 (apresentação da próxima ação), Passo 2.3 (tier pequena),
 Passo 4.1 (intake do clone) e Passo 6 (configurar).
+</contrato>
+<action>
+**Marcar os quatro pontos de pergunta do roteamento da porta única**
 
-**O que fazer:** substituir cada trecho pelos blocos abaixo, mantendo o restante do passo intacto.
+Substituir cada trecho pelos blocos abaixo, mantendo o restante do passo intacto.
 
 1. No Passo 1, o bloco que hoje começa com `## Proximo` e lista os comandos vira:
 
@@ -150,22 +186,30 @@ Porque: os valores atuais vieram do perfil do dono e nenhuma execução falhou p
 Opções: manter como está | modo | granularidade | paralelização
 </pergunta>
 ```
-
-**Critério de aceite:** o arquivo contém exatamente quatro tags `<pergunta id=` com os identificadores
+</action>
+<verify><automated>test "$(grep -c '<pergunta id=' up/workflows/up.md)" = "4"</automated></verify>
+<done>
+O arquivo contém exatamente quatro tags `<pergunta id=` com os identificadores
 `up.proxima-acao`, `up.decisao-chave`, `up.clone-intake` e `up.config-editar`; cada bloco tem as linhas
 `Pergunta:`, `Recomendo:` e `Porque:` preenchidas; nenhuma delas contém `TBD`, `TODO` ou reticências soltas.
 
-**Prova:** `grep -c "<pergunta id=" up/workflows/up.md` devolve 4.
+Prova registrada no resumo: `grep -c "<pergunta id=" up/workflows/up.md` devolve 4.
+</done>
+</task>
 
-### 3. Carregar o contrato e declarar a regra na skill de brainstorm
-
-**Contrato:** a skill que mais pergunta no sistema carrega o contrato uma vez, no início da rodada, e declara
+<task id="3" type="auto">
+<files>up/skills/up-brainstorm/SKILL.md</files>
+<contrato>
+A skill que mais pergunta no sistema carrega o contrato uma vez, no início da rodada, e declara
 em texto curto que fato descobrível não vira pergunta. Ela não reescreve o protocolo: aponta para ele.
 
-**Arquivo hoje:** `up/skills/up-brainstorm/SKILL.md`, nova seção logo após o bloco `<HARD-GATE>` e o parágrafo
+Arquivo hoje: `up/skills/up-brainstorm/SKILL.md`, nova seção logo após o bloco `<HARD-GATE>` e o parágrafo
 de anti-padrão.
+</contrato>
+<action>
+**Carregar o contrato e declarar a regra na skill de brainstorm**
 
-**O que fazer:** inserir a seção:
+Inserir a seção:
 
 ```markdown
 ## Antes de perguntar (contrato de pergunta)
@@ -184,22 +228,28 @@ brainstorm full e do modo exploração, que não têm texto literal aqui:
 A pergunta de trilha ("isso é para virar código ou é um documento?") é fato na maioria das vezes: o pedido, a
 extensão dos arquivos citados e o estado do projeto já respondem. Só pergunte se as três fontes forem mudas.
 ```
-
-**Critério de aceite:** a seção existe; contém a chamada de leitura da referência; as duas regras estão
+</action>
+<verify><automated>grep -q "references/questioning.md" up/skills/up-brainstorm/SKILL.md && test "$(wc -l < up/skills/up-brainstorm/SKILL.md)" -lt 160</automated></verify>
+<done>
+A seção existe; contém a chamada de leitura da referência; as duas regras estão
 numeradas; a skill continua com menos de 160 linhas (hoje tem 110).
 
-**Prova:** `grep -n "references/questioning.md" up/skills/up-brainstorm/SKILL.md` e `wc -l` menor que 160.
+Prova registrada no resumo: `grep -n "references/questioning.md" up/skills/up-brainstorm/SKILL.md` e `wc -l` menor que 160.
+</done>
+</task>
 
-### 4. Marcar os dois pontos de pergunta do brainstorm
-
-**Contrato:** os dois lugares da skill com texto literal de pergunta passam ao formato do contrato. No
+<task id="4" type="auto">
+<files>up/skills/up-brainstorm/SKILL.md</files>
+<contrato>
+Os dois lugares da skill com texto literal de pergunta passam ao formato do contrato. No
 checkpoint de fechamento, a recomendação é **computada**, não fixa: ela depende de existir ou não pergunta
 capaz de mudar o design.
 
-**Arquivo hoje:** `up/skills/up-brainstorm/SKILL.md`, tabela de profundidade (linha do tier Pequena) e seção
+Arquivo hoje: `up/skills/up-brainstorm/SKILL.md`, tabela de profundidade (linha do tier Pequena) e seção
 `## Checkpoint de fechamento`.
-
-**O que fazer:**
+</contrato>
+<action>
+**Marcar os dois pontos de pergunta do brainstorm**
 
 1. Na tabela de profundidade, a célula do tier Pequena passa a dizer `1 pergunta no formato do contrato (ver
    brainstorm.decisao-chave abaixo) + checkpoint de fechamento + design em 3 frases. Aprova e segue.` e logo
@@ -228,21 +278,27 @@ A recomendação deste checkpoint é **calculada**, nunca fixa: se ainda existe 
 design, a recomendação é "Mais perguntas" e a linha Porque nomeia qual é a pergunta. Se não existe,
 a recomendação é "Fechar e seguir". Não adicione opção de resposta livre: a saída livre nativa já cobre.
 ```
-
-**Critério de aceite:** o arquivo contém exatamente duas tags `<pergunta id=`, com `brainstorm.decisao-chave`
+</action>
+<verify><automated>test "$(grep -c '<pergunta id=' up/skills/up-brainstorm/SKILL.md)" = "2"</automated></verify>
+<done>
+O arquivo contém exatamente duas tags `<pergunta id=`, com `brainstorm.decisao-chave`
 e `brainstorm.checkpoint`; o texto declara que a recomendação do checkpoint é calculada; as duas opções
 originais (fechar e seguir, mais perguntas) continuam existindo.
 
-**Prova:** `grep -c "<pergunta id=" up/skills/up-brainstorm/SKILL.md` devolve 2.
+Prova registrada no resumo: `grep -c "<pergunta id=" up/skills/up-brainstorm/SKILL.md` devolve 2.
+</done>
+</task>
 
-### 5. Coerência no bootstrap de sessão e no texto do comando da porta única
-
-**Contrato:** o bloco injetado no início de toda sessão anuncia a regra em uma linha, e a documentação do
+<task id="5" type="auto">
+<files>up/skills/usando-up/SKILL.md, up/commands/up.md</files>
+<contrato>
+O bloco injetado no início de toda sessão anuncia a regra em uma linha, e a documentação do
 comando para de descrever pergunta sem recomendação. Sem isso, o produto se contradiz na primeira tela.
 
 **Arquivos hoje:** `up/skills/usando-up/SKILL.md` e `up/commands/up.md`.
-
-**O que fazer:**
+</contrato>
+<action>
+**Coerência no bootstrap de sessão e no texto do comando da porta única**
 
 1. Em `up/skills/usando-up/SKILL.md`, acrescentar **uma única linha**, logo após o parágrafo que começa com
    `**Passo ZERO de todo trabalho:**`:
@@ -253,18 +309,26 @@ comando para de descrever pergunta sem recomendação. Sem isso, o produto se co
 
 2. Em `up/commands/up.md`, na lista que descreve a profundidade do brainstorm, trocar a linha do tier Pequena
    por: `- Pequena (1 subsistema, 1 escolha de design): **1 pergunta** com recomendação e motivo + design em 3 frases.` e a linha do tier Média/Grande por: `- Media/Grande (multi-subsistema, schema/API/auth): **brainstorm full** com aprovacao por secao, toda pergunta com recomendacao e motivo.`
-
-**Critério de aceite:** a linha do bootstrap existe e é uma só; as duas linhas do comando mencionam
+</action>
+<verify><automated>grep -qi "recomenda" up/skills/usando-up/SKILL.md && grep -qi "recomenda" up/commands/up.md</automated></verify>
+<done>
+A linha do bootstrap existe e é uma só; as duas linhas do comando mencionam
 recomendação; nenhum outro trecho desses dois arquivos foi alterado.
 
-**Prova:** `git diff --stat` mostrando poucas linhas nesses dois arquivos, e `grep -n "recomendação" up/skills/usando-up/SKILL.md`.
+Prova registrada no resumo: `git diff --stat` mostrando poucas linhas nesses dois arquivos, e `grep -n "recomendação" up/skills/usando-up/SKILL.md`.
+</done>
+</task>
 
-### 6. Conferência determinística e commit
-
-**Contrato:** os seis pontos declarados no inventário para estas superfícies existem, e nenhum ponto extra foi
+<task id="6" type="auto">
+<files>up/workflows/up.md, up/commands/up.md, up/skills/up-brainstorm/SKILL.md, up/skills/usando-up/SKILL.md</files>
+<contrato>
+Os seis pontos declarados no inventário para estas superfícies existem, e nenhum ponto extra foi
 inventado.
+</contrato>
+<action>
+**Conferência determinística e commit**
 
-**O que fazer:** rodar da raiz do repositório:
+Rodar da raiz do repositório:
 
 ```bash
 node -e "
@@ -296,10 +360,14 @@ Depois commitar em dois commits atômicos:
 node "$HOME/.claude/up/bin/up-tools.cjs" commit "feat(pergunta): roteamento da porta unica com recomendacao e regra de fato" --files up/workflows/up.md up/commands/up.md
 node "$HOME/.claude/up/bin/up-tools.cjs" commit "feat(pergunta): brainstorm com recomendacao e regra de fato" --files up/skills/up-brainstorm/SKILL.md up/skills/usando-up/SKILL.md
 ```
+</action>
+<verify><automated>node -e "const fs=require('fs');let f=0;for(const a of ['up/workflows/up.md','up/skills/up-brainstorm/SKILL.md']){const t=fs.readFileSync(a,'utf-8');for(const b of t.split('<pergunta id=').slice(1)){const c=b.split('</pergunta>')[0];for(const r of ['Pergunta:','Recomendo:','Porque:'])if(!c.includes(r)){console.log('FALTA',r,a);f++}}}process.exit(f?1:0)"</automated></verify>
+<done>
+A saída bate exatamente com a lista acima; nenhuma linha `FALTA`; dois commits.
 
-**Critério de aceite:** a saída bate exatamente com a lista acima; nenhuma linha `FALTA`; dois commits.
-
-**Prova:** saída do comando colada no resumo do plano.
+Prova registrada no resumo: saída do comando colada no resumo do plano.
+</done>
+</task>
 
 ## Critérios de aceite do plano
 

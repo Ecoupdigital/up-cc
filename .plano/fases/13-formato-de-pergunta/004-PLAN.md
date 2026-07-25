@@ -7,12 +7,38 @@ depends_on: [001]
 requirements: [PERG-01, PERG-02, PERG-03, PERG-05, PERG-06]
 autonomous: true
 prova: smoke
+files_modified:
+  - up/workflows/plan.md
+  - up/agents/up-arquiteto.md
+  - up/agents/up-planejador.md
+  - up/workflows/auditar.md
+must_haves:
+  truths:
+    - "O planejamento e a auditoria carregam o contrato e trazem seus cinco pontos com recomendação e motivo"
+    - "Decisão escalada por subagente chega ao dono como pergunta antes do plano pronto ser gerado"
+    - "O agente de arquitetura separa por escrito o que ele infere do que ele escala"
+    - "O agente de planejamento escala escolha que muda o desenho em vez de resolver em silêncio"
+  artifacts:
+    - path: "up/workflows/plan.md"
+      provides: "Dois pontos de pergunta marcados mais o estágio de decisões escaladas"
+    - path: "up/agents/up-arquiteto.md"
+      provides: "Separação entre inferência e escalação, e bloco de escalação no retorno estruturado"
+    - path: "up/agents/up-planejador.md"
+      provides: "Protocolo de resolução prévia e bloco de escalação no retorno estruturado"
+    - path: "up/workflows/auditar.md"
+      provides: "Dois pontos de pergunta com recomendação calculada a partir de dado"
+  key_links:
+    - from: "up/agents/up-arquiteto.md"
+      to: "up/workflows/plan.md"
+      via: "bloco DECISOES ESCALADAS no retorno estruturado, lido pelo estágio de decisões escaladas"
+    - from: "up/agents/up-planejador.md"
+      to: "up/workflows/plan.md"
+      via: "bloco DECISOES ESCALADAS no retorno estruturado, lido pelo estágio de decisões escaladas"
 ---
 
 # Fase 13, Plano 004: Planejamento, agentes de arquitetura e planejamento, e auditoria
 
-## Objetivo
-
+<objective>
 Fechar as duas superfícies interativas restantes (planejamento e auditoria) e estender a regra aos dois agentes
 que hoje decidem arquitetura sozinhos. Ao fim deste plano: o workflow de planejamento carrega o contrato,
 apresenta ao dono as decisões que os agentes escalaram e traz seus três pontos de pergunta no formato; os
@@ -21,6 +47,8 @@ a auditoria apresenta suas duas perguntas com recomendação calculada.
 
 Este é o plano que cumpre PERG-05 (decisão de arquitetura nunca é do agente) e PERG-06 (a regra vale também
 para os agentes, não só para a skill de brainstorm).
+</objective>
+
 
 ## Onda
 
@@ -56,15 +84,17 @@ trabalho aplicando a própria recomendação e marca que aquilo é provisório.
 
 ## Tarefas
 
-### 1. Contrato, protocolo e dois pontos de pergunta no workflow de planejamento
-
-**Contrato:** o planejamento carrega o contrato antes de perguntar, resolve sozinho o que os artefatos já
+<task id="1" type="auto">
+<files>up/workflows/plan.md</files>
+<contrato>
+O planejamento carrega o contrato antes de perguntar, resolve sozinho o que os artefatos já
 respondem, e as duas perguntas que ele já tinha passam ao formato.
 
-**Arquivo hoje:** `up/workflows/plan.md`, `<core_principle>`, Estágio 1 (intake mínimo) e Estágio P
+Arquivo hoje: `up/workflows/plan.md`, `<core_principle>`, Estágio 1 (intake mínimo) e Estágio P
 (processamento do veredito).
-
-**O que fazer:**
+</contrato>
+<action>
+**Contrato, protocolo e dois pontos de pergunta no workflow de planejamento**
 
 1. Acrescentar ao `<core_principle>`:
 
@@ -107,24 +137,32 @@ Porque: {o motivo registrado pela revisão}, e é correção dirigida a um item 
 Opções: Corrigir e re-revisar | Aceitar como dívida e seguir para o plano pronto | Parar o planejamento
 </pergunta>
 ```
-
-**Critério de aceite:** a chamada de leitura da referência está no arquivo; os dois blocos existem com os
+</action>
+<verify><automated>grep -q "references/questioning.md" up/workflows/plan.md && grep -q "plan.intake-minimo" up/workflows/plan.md && grep -q "plan.revisor-bloqueou" up/workflows/plan.md</automated></verify>
+<done>
+A chamada de leitura da referência está no arquivo; os dois blocos existem com os
 identificadores exatos; o Estágio 1 declara que pergunta zero é resultado válido do protocolo.
 
-**Prova:** `grep -n "references/questioning.md\|plan.intake-minimo\|plan.revisor-bloqueou" up/workflows/plan.md`
+Prova registrada no resumo: `grep -n "references/questioning.md\|plan.intake-minimo\|plan.revisor-bloqueou" up/workflows/plan.md`
 devolve três linhas.
+</done>
+</task>
 
-### 2. Passo novo de decisões escaladas no workflow de planejamento
-
-**Contrato:** as decisões que os subagentes escalaram chegam ao dono como pergunta com recomendação, uma por
+<task id="2" type="auto">
+<files>up/workflows/plan.md</files>
+<contrato>
+As decisões que os subagentes escalaram chegam ao dono como pergunta com recomendação, uma por
 vez, antes do plano pronto ser gerado. Confirmar a recomendação não gera retrabalho; divergir gera
 re-execução dirigida só do agente afetado. Sem escalação nenhuma, o passo não pergunta nada e apenas declara
 isso.
 
-**Arquivo hoje:** `up/workflows/plan.md`, passo novo `## Estagio E: DECISOES ESCALADAS`, entre o Estágio 2.5
+Arquivo hoje: `up/workflows/plan.md`, passo novo `## Estagio E: DECISOES ESCALADAS`, entre o Estágio 2.5
 (planejamento exaustivo) e o Estágio P (revisão do planejamento).
+</contrato>
+<action>
+**Passo novo de decisões escaladas no workflow de planejamento**
 
-**O que fazer:** criar o estágio com este conteúdo:
+Criar o estágio com este conteúdo:
 
 ```markdown
 ## Estagio E: DECISOES ESCALADAS
@@ -154,23 +192,29 @@ Opções: {Recomendo} | {cada item de Alternativas} | outro (descreva)
 
 Este estágio roda no MODO PROJETO e no MODO FASE. No MODO FASE, os blocos vêm apenas dos planejadores.
 ```
-
-**Critério de aceite:** o estágio existe entre 2.5 e P; tem os seis passos; declara o caso de zero escalação
+</action>
+<verify><automated>grep -q "Estagio E: DECISOES ESCALADAS" up/workflows/plan.md && grep -q "plan.decisoes-escaladas" up/workflows/plan.md</automated></verify>
+<done>
+O estágio existe entre 2.5 e P; tem os seis passos; declara o caso de zero escalação
 sem pergunta; declara a regra de retrabalho dirigido; a seção de registro no briefing está nomeada.
 
-**Prova:** `grep -n "Estagio E: DECISOES ESCALADAS" up/workflows/plan.md` devolve linha, e leitura dos seis
+Prova registrada no resumo: `grep -n "Estagio E: DECISOES ESCALADAS" up/workflows/plan.md` devolve linha, e leitura dos seis
 passos.
+</done>
+</task>
 
-### 3. Agente de arquitetura: separar inferência de decisão e escalar o que é decisão
-
-**Contrato:** o agente continua inferindo o que é fato e o que é padrão reversível, e para de resolver sozinho
+<task id="3" type="auto">
+<files>up/agents/up-arquiteto.md</files>
+<contrato>
+O agente continua inferindo o que é fato e o que é padrão reversível, e para de resolver sozinho
 escolha de arquitetura e trade-off. O que ele decidiria sozinho e é caro de reverter sobe no bloco de
 escalação, com recomendação e motivo.
 
-**Arquivo hoje:** `up/agents/up-arquiteto.md`, bloco `<decision_hierarchy>`, Passo 4 do `<execution_flow>` e
+Arquivo hoje: `up/agents/up-arquiteto.md`, bloco `<decision_hierarchy>`, Passo 4 do `<execution_flow>` e
 bloco `<output_format>`.
-
-**O que fazer:**
+</contrato>
+<action>
+**Agente de arquitetura: separar inferência de decisão e escalar o que é decisão**
 
 1. Em `<decision_hierarchy>`, logo após a lista de prioridades, inserir:
 
@@ -204,21 +248,27 @@ decisão está pendente de confirmação, e devolva o bloco de escalação. O wo
 4. Em `<success_criteria>`, acrescentar duas linhas:
    `- [ ] Bloco DECISOES ESCALADAS presente no retorno (com "Nenhuma." quando não há nada a escalar)`
    `- [ ] Nenhuma escolha de arquitetura ou trade-off foi resolvida sem escalação`
-
-**Critério de aceite:** as duas listas (infere e escala) existem com os exemplos acima; o item 6 do Passo 4
+</action>
+<verify><automated>grep -q "DECISOES ESCALADAS" up/agents/up-arquiteto.md && grep -q "references/questioning.md" up/agents/up-arquiteto.md</automated></verify>
+<done>
+As duas listas (infere e escala) existem com os exemplos acima; o item 6 do Passo 4
 existe; o bloco de escalação está no formato de retorno; os dois critérios de sucesso novos existem.
 
-**Prova:** `grep -n "DECISOES ESCALADAS" up/agents/up-arquiteto.md` devolve pelo menos duas linhas.
+Prova registrada no resumo: `grep -n "DECISOES ESCALADAS" up/agents/up-arquiteto.md` devolve pelo menos duas linhas.
+</done>
+</task>
 
-### 4. Agente de planejamento: protocolo antes de perguntar e escalação no retorno
-
-**Contrato:** o planejador resolve por leitura o que é fato antes de perguntar ou de assumir, escala a escolha
+<task id="4" type="auto">
+<files>up/agents/up-planejador.md</files>
+<contrato>
+O planejador resolve por leitura o que é fato antes de perguntar ou de assumir, escala a escolha
 que muda o desenho em vez de decidir, e quando pergunta (modo fase) usa o formato do contrato.
 
-**Arquivo hoje:** `up/agents/up-planejador.md`, bloco `<context_fidelity>`, bloco `<execution_flow>` (Passo 4)
+Arquivo hoje: `up/agents/up-planejador.md`, bloco `<context_fidelity>`, bloco `<execution_flow>` (Passo 4)
 e bloco `<structured_returns>`.
-
-**O que fazer:**
+</contrato>
+<action>
+**Agente de planejamento: protocolo antes de perguntar e escalação no retorno**
 
 1. No fim de `<context_fidelity>`, acrescentar:
 
@@ -249,22 +299,28 @@ No MODO FASE, quando você tiver permissão de coletar contexto, toda pergunta s
 4. Em `<success_criteria>`, acrescentar duas linhas:
    `- [ ] Bloco DECISOES ESCALADAS presente no retorno (com "Nenhuma." quando não há nada a escalar)`
    `- [ ] Nenhum fato descobrível virou pergunta, e nenhuma escolha de desenho foi resolvida sem escalação`
-
-**Critério de aceite:** a seção de contrato existe no agente; o bloco de escalação está no retorno
+</action>
+<verify><automated>grep -q "DECISOES ESCALADAS" up/agents/up-planejador.md && grep -q "references/questioning.md" up/agents/up-planejador.md</automated></verify>
+<done>
+A seção de contrato existe no agente; o bloco de escalação está no retorno
 estruturado; os dois critérios novos existem; nada da mecânica de decomposição em tarefas, ondas ou
 must-haves foi alterado.
 
-**Prova:** `grep -n "DECISOES ESCALADAS" up/agents/up-planejador.md` devolve pelo menos duas linhas.
+Prova registrada no resumo: `grep -n "DECISOES ESCALADAS" up/agents/up-planejador.md` devolve pelo menos duas linhas.
+</done>
+</task>
 
-### 5. Superfície de auditoria: contrato e dois pontos de pergunta com recomendação calculada
-
-**Contrato:** as duas perguntas da auditoria chegam com recomendação derivada de dado, não de preferência: a
+<task id="5" type="auto">
+<files>up/workflows/auditar.md</files>
+<contrato>
+As duas perguntas da auditoria chegam com recomendação derivada de dado, não de preferência: a
 de sobrescrever o relatório sai da distância em commits desde o relatório anterior, e a de converter achados
 em fases sai do sumário opinativo que o relatório já produz.
 
-**Arquivo hoje:** `up/workflows/auditar.md`, Passo 2 e Passo 7.
-
-**O que fazer:**
+Arquivo hoje: `up/workflows/auditar.md`, Passo 2 e Passo 7.
+</contrato>
+<action>
+**Superfície de auditoria: contrato e dois pontos de pergunta com recomendação calculada**
 
 1. No `<core_principle>`, acrescentar:
 
@@ -307,19 +363,27 @@ Opções: Converter os {N} do ganho rápido | Escolher item a item | Não conver
 A seleção item a item, quando escolhida, continua como está. O quadrante "evitar" e as anti-features nunca
 entram na recomendação.
 ```
-
-**Critério de aceite:** os dois blocos existem com os identificadores exatos; a recomendação de sobrescrever é
+</action>
+<verify><automated>grep -q "references/questioning.md" up/workflows/auditar.md && test "$(grep -c '<pergunta id=' up/workflows/auditar.md)" = "2"</automated></verify>
+<done>
+Os dois blocos existem com os identificadores exatos; a recomendação de sobrescrever é
 calculada a partir da contagem de commits; a lista do que nunca é perguntado está declarada.
 
-**Prova:** `grep -n "auditar.relatorio-existente\|auditar.converter-em-fases" up/workflows/auditar.md` devolve
+Prova registrada no resumo: `grep -n "auditar.relatorio-existente\|auditar.converter-em-fases" up/workflows/auditar.md` devolve
 duas linhas.
+</done>
+</task>
 
-### 6. Conferência determinística e commits
-
-**Contrato:** os cinco pontos declarados no inventário para estes arquivos existem, os dois agentes carregam o
+<task id="6" type="auto">
+<files>up/workflows/plan.md, up/workflows/auditar.md, up/agents/up-arquiteto.md, up/agents/up-planejador.md</files>
+<contrato>
+Os cinco pontos declarados no inventário para estes arquivos existem, os dois agentes carregam o
 bloco de escalação, e nenhum ponto extra foi inventado.
+</contrato>
+<action>
+**Conferência determinística e commits**
 
-**O que fazer:** rodar da raiz do repositório:
+Rodar da raiz do repositório:
 
 ```bash
 node -e "
@@ -355,10 +419,14 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "feat(pergunta): planejamento co
 node "$HOME/.claude/up/bin/up-tools.cjs" commit "feat(pergunta): arquiteto e planejador escalam decisao em vez de decidir" --files up/agents/up-arquiteto.md up/agents/up-planejador.md
 node "$HOME/.claude/up/bin/up-tools.cjs" commit "feat(pergunta): auditoria com recomendacao calculada" --files up/workflows/auditar.md
 ```
+</action>
+<verify><automated>test "$(grep -c '<pergunta id=' up/workflows/plan.md)" = "3" && node -e "const fs=require('fs');let f=0;for(const a of ['up/workflows/plan.md','up/workflows/auditar.md']){const t=fs.readFileSync(a,'utf-8');for(const b of t.split('<pergunta id=').slice(1)){const c=b.split('</pergunta>')[0];for(const r of ['Pergunta:','Recomendo:','Porque:'])if(!c.includes(r)){console.log('FALTA',r,a);f++}}}process.exit(f?1:0)"</automated></verify>
+<done>
+Saída idêntica à esperada; três commits atômicos.
 
-**Critério de aceite:** saída idêntica à esperada; três commits atômicos.
-
-**Prova:** saída do comando colada no resumo do plano.
+Prova registrada no resumo: saída do comando colada no resumo do plano.
+</done>
+</task>
 
 ## Critérios de aceite do plano
 

@@ -7,16 +7,32 @@ depends_on: [001]
 requirements: [PERG-01, PERG-02, PERG-03, PERG-04]
 autonomous: true
 prova: smoke
+files_modified:
+  - up/workflows/build.md
+must_haves:
+  truths:
+    - "As três superfícies do motor de execução carregam o contrato antes de perguntar"
+    - "Os nove pontos de pergunta do motor chegam com recomendação e motivo"
+    - "Runtime, modo de repositório, estratégia de merge, presença de interface e veredito do gate são resolvidos e anunciados, nunca perguntados"
+    - "A mecânica de onda, gate, worktree e merge continua idêntica à de antes"
+  artifacts:
+    - path: "up/workflows/build.md"
+      provides: "Nove pontos de pergunta marcados e a lista do que o workflow resolve sozinho"
+  key_links:
+    - from: "up/workflows/build.md"
+      to: "up/references/questioning.md"
+      via: "chamada de leitura no princípio central, antes da primeira pergunta"
 ---
 
 # Fase 13, Plano 003: Superfícies da execução (confirmação de início, gate visual e fechamento de fase)
 
-## Objetivo
-
+<objective>
 Fazer as três superfícies interativas que vivem no motor de execução pararem de emitir pergunta crua. Ao fim
 deste plano, a confirmação de início, o gate visual antes do merge e o menu de fechamento de fase carregam o
 contrato canônico, resolvem sozinhos o que é fato (modo de repositório, runtime atual, estratégia de merge,
 estado do gate) e apresentam seus nove pontos de pergunta com identificador, recomendação e motivo.
+</objective>
+
 
 ## Onda
 
@@ -42,15 +58,19 @@ chamada da ferramenta: a instrução em volta continua dizendo qual ferramenta u
 
 ## Tarefas
 
-### 1. Carregar o contrato e declarar a regra de fato no motor de execução
-
-**Contrato:** o workflow lê o contrato antes da primeira pergunta e declara, uma vez, quais dados ele resolve
+<task id="1" type="auto">
+<files>up/workflows/build.md</files>
+<contrato>
+O workflow lê o contrato antes da primeira pergunta e declara, uma vez, quais dados ele resolve
 sozinho e por isso nunca pergunta.
 
-**Arquivo hoje:** `up/workflows/build.md`, dentro do `<core_principle>`, após o bloco que descreve os dois
+Arquivo hoje: `up/workflows/build.md`, dentro do `<core_principle>`, após o bloco que descreve os dois
 eixos de GitHub e interação.
+</contrato>
+<action>
+**Carregar o contrato e declarar a regra de fato no motor de execução**
 
-**O que fazer:** acrescentar:
+Acrescentar:
 
 ```markdown
 **Contrato de pergunta (obrigatório):** antes da primeira pergunta, carregue
@@ -64,20 +84,26 @@ resumos, ondas e veredito do gate (leitura de arquivo), estado do worktree, da b
 git). Tudo isso é anunciado em uma linha, nunca perguntado. Perguntar qualquer um desses itens é violação do
 contrato.
 ```
-
-**Critério de aceite:** a chamada de leitura da referência está no arquivo; a lista do que nunca é perguntado
+</action>
+<verify><automated>grep -q "references/questioning.md" up/workflows/build.md</automated></verify>
+<done>
+A chamada de leitura da referência está no arquivo; a lista do que nunca é perguntado
 inclui runtime, modo de repositório, estratégia de merge, presença de interface e veredito do gate.
 
-**Prova:** `grep -n "references/questioning.md" up/workflows/build.md` devolve linha.
+Prova registrada no resumo: `grep -n "references/questioning.md" up/workflows/build.md` devolve linha.
+</done>
+</task>
 
-### 2. Marcar os três pontos da validação e confirmação de início
-
-**Contrato:** antes de executar, o dono confirma o início, e as duas situações de anomalia (runtime diferente
+<task id="2" type="auto">
+<files>up/workflows/build.md</files>
+<contrato>
+Antes de executar, o dono confirma o início, e as duas situações de anomalia (runtime diferente
 do planejado, artefato faltando) chegam com recomendação em vez de alerta cru.
 
-**Arquivo hoje:** `up/workflows/build.md`, estágios V.2, V.5 e C.
-
-**O que fazer:**
+Arquivo hoje: `up/workflows/build.md`, estágios V.2, V.5 e C.
+</contrato>
+<action>
+**Marcar os três pontos da validação e confirmação de início**
 
 1. Em V.2, o comentário `# AskUserQuestion sim/nao (output direto, sem CEO)` e o `echo` de aviso viram:
 
@@ -120,21 +146,27 @@ Opções: Iniciar | Mudar o modo antes de iniciar | Não iniciar agora
 Se houver pendência bloqueante em `.plano/PENDING.md`, a recomendação inverte para "Não iniciar agora" e a
 linha Porque nomeia a pendência. A recomendação é calculada, não fixa.
 ```
-
-**Critério de aceite:** os três blocos existem com os identificadores exatos; o bloco de início declara que a
+</action>
+<verify><automated>grep -q "build.runtime-divergente" up/workflows/build.md && grep -q "build.plano-incompleto" up/workflows/build.md && grep -q "build.iniciar-execucao" up/workflows/build.md</automated></verify>
+<done>
+Os três blocos existem com os identificadores exatos; o bloco de início declara que a
 recomendação inverte diante de pendência bloqueante; a lógica de abortar em caso de recusa continua escrita.
 
-**Prova:** `grep -n "build.runtime-divergente\|build.plano-incompleto\|build.iniciar-execucao" up/workflows/build.md` devolve três linhas.
+Prova registrada no resumo: `grep -n "build.runtime-divergente\|build.plano-incompleto\|build.iniciar-execucao" up/workflows/build.md` devolve três linhas.
+</done>
+</task>
 
-### 3. Marcar os dois pontos de parada do laço de execução
-
-**Contrato:** quando uma onda inteira falha ou o limite de re-planejamento acaba, o dono decide como seguir, e
+<task id="3" type="auto">
+<files>up/workflows/build.md</files>
+<contrato>
+Quando uma onda inteira falha ou o limite de re-planejamento acaba, o dono decide como seguir, e
 a decisão chega com recomendação e com o diagnóstico que a sustenta, não como aviso de erro.
 
-**Arquivo hoje:** `up/workflows/build.md`, item 5 do estágio 3.3 (falha sistêmica da onda) e estágio 3.4
+Arquivo hoje: `up/workflows/build.md`, item 5 do estágio 3.3 (falha sistêmica da onda) e estágio 3.4
 (limite de re-planejamento).
-
-**O que fazer:**
+</contrato>
+<action>
+**Marcar os dois pontos de parada do laço de execução**
 
 1. Onde hoje se lê `Falha real e sistemica (toda a wave falhou) -> parar e alertar o dono (AskUserQuestion).`,
    colocar:
@@ -165,21 +197,27 @@ Porque: dois re-planejamentos automáticos já falharam no mesmo ponto, então o
 Opções: Parar e revisar comigo | Forçar mais um re-planejamento | Seguir com o plano atual e registrar dívida
 </pergunta>
 ```
-
-**Critério de aceite:** os dois blocos existem com os identificadores exatos; o texto de onda falhou declara
+</action>
+<verify><automated>grep -q "build.onda-falhou" up/workflows/build.md && grep -q "build.replan-esgotado" up/workflows/build.md</automated></verify>
+<done>
+Os dois blocos existem com os identificadores exatos; o texto de onda falhou declara
 que a recomendação é calculada; o contador de re-planejamentos continua sendo lido do log como hoje.
 
-**Prova:** `grep -n "build.onda-falhou\|build.replan-esgotado" up/workflows/build.md` devolve duas linhas.
+Prova registrada no resumo: `grep -n "build.onda-falhou\|build.replan-esgotado" up/workflows/build.md` devolve duas linhas.
+</done>
+</task>
 
-### 4. Marcar os dois pontos do gate visual antes do merge
-
-**Contrato:** com o servidor de desenvolvimento no ar dentro do worktree, o dono decide se testa antes de
+<task id="4" type="auto">
+<files>up/workflows/build.md</files>
+<contrato>
+Com o servidor de desenvolvimento no ar dentro do worktree, o dono decide se testa antes de
 aterrissar e, depois de testar, se aprova ou pede ajuste. As duas perguntas chegam com recomendação e motivo,
 e o laço de ajuste continua existindo.
 
-**Arquivo hoje:** `up/workflows/build.md`, estágio 3.8.0, passos 2 e 3.
-
-**O que fazer:**
+Arquivo hoje: `up/workflows/build.md`, estágio 3.8.0, passos 2 e 3.
+</contrato>
+<action>
+**Marcar os dois pontos do gate visual antes do merge**
 
 1. O passo 2 (bloco com `header:`, `question:` e `options:`) vira:
 
@@ -210,23 +248,29 @@ Opções: Aprovado, pode mergear | Achei problema, quero ajustar
 
 O texto que descreve o laço de ajuste (re-executar o executor no worktree, re-rodar verificação e gate, e
 voltar para 3.8.0) permanece exatamente como está.
-
-**Critério de aceite:** os dois blocos existem; as quatro opções do primeiro e as duas do segundo são as
+</action>
+<verify><automated>grep -q "build.testar-antes-do-merge" up/workflows/build.md && grep -q "build.aprovou-ou-ajusta" up/workflows/build.md</automated></verify>
+<done>
+Os dois blocos existem; as quatro opções do primeiro e as duas do segundo são as
 mesmas de hoje, na mesma ordem, com a recomendada em primeiro lugar; o laço de ajuste continua descrito.
 
-**Prova:** `grep -n "build.testar-antes-do-merge\|build.aprovou-ou-ajusta" up/workflows/build.md` devolve duas
+Prova registrada no resumo: `grep -n "build.testar-antes-do-merge\|build.aprovou-ou-ajusta" up/workflows/build.md` devolve duas
 linhas, e leitura do laço de ajuste intacto.
+</done>
+</task>
 
-### 5. Marcar os dois pontos do fechamento de fase
-
-**Contrato:** fase sem interface, ou fase que pulou o gate visual sem ser autônoma, ainda pergunta ao dono como
+<task id="5" type="auto">
+<files>up/workflows/build.md</files>
+<contrato>
+Fase sem interface, ou fase que pulou o gate visual sem ser autônoma, ainda pergunta ao dono como
 aterrissar, e a recomendação sai do estado real do repositório. Quando a revisão bloqueia a fase, o dono decide
 o rumo com o motivo do bloqueio na mão.
 
-**Arquivo hoje:** `up/workflows/build.md`, parágrafo final de 3.8.0 (fase sem interface) e processamento do
+Arquivo hoje: `up/workflows/build.md`, parágrafo final de 3.8.0 (fase sem interface) e processamento do
 veredito em 3.7.
-
-**O que fazer:**
+</contrato>
+<action>
+**Marcar os dois pontos do fechamento de fase**
 
 1. No parágrafo `**Fase SEM UI** ... GitHub-nativo interativo ainda apresenta o mesmo AskUserQuestion de 4
    opcoes ...`, acrescentar logo depois:
@@ -256,19 +300,27 @@ Porque: {o motivo registrado pela revisão no log de aprovações}, e é correç
 Opções: Corrigir e re-revisar | Aceitar como dívida técnica e seguir | Parar aqui
 </pergunta>
 ```
-
-**Critério de aceite:** os dois blocos existem com os identificadores exatos; o bloco de fechamento declara que
+</action>
+<verify><automated>grep -q "build.fechamento-fase" up/workflows/build.md && grep -q "build.revisor-bloqueou" up/workflows/build.md</automated></verify>
+<done>
+Os dois blocos existem com os identificadores exatos; o bloco de fechamento declara que
 a recomendação vem do mapa git e do transporte; o mapeamento de escolha para operação de fechamento continua
 intacto.
 
-**Prova:** `grep -n "build.fechamento-fase\|build.revisor-bloqueou" up/workflows/build.md` devolve duas linhas.
+Prova registrada no resumo: `grep -n "build.fechamento-fase\|build.revisor-bloqueou" up/workflows/build.md` devolve duas linhas.
+</done>
+</task>
 
-### 6. Conferência determinística e commit
-
-**Contrato:** os nove pontos declarados no inventário para este arquivo existem, com os três rótulos
+<task id="6" type="auto">
+<files>up/workflows/build.md</files>
+<contrato>
+Os nove pontos declarados no inventário para este arquivo existem, com os três rótulos
 preenchidos, e nenhum ponto extra foi inventado.
+</contrato>
+<action>
+**Conferência determinística e commit**
 
-**O que fazer:** rodar da raiz do repositório:
+Rodar da raiz do repositório:
 
 ```bash
 node -e "
@@ -306,11 +358,15 @@ Commitar:
 ```bash
 node "$HOME/.claude/up/bin/up-tools.cjs" commit "feat(pergunta): superficies do build com recomendacao e regra de fato" --files up/workflows/build.md
 ```
-
-**Critério de aceite:** saída `9` sem linha `FALTA`; contagem de mecânica idêntica antes e depois; commit
+</action>
+<verify><automated>test "$(grep -c '<pergunta id=' up/workflows/build.md)" = "9" && node -e "const fs=require('fs');let f=0;for(const a of ['up/workflows/build.md']){const t=fs.readFileSync(a,'utf-8');for(const b of t.split('<pergunta id=').slice(1)){const c=b.split('</pergunta>')[0];for(const r of ['Pergunta:','Recomendo:','Porque:'])if(!c.includes(r)){console.log('FALTA',r,a);f++}}}process.exit(f?1:0)"</automated></verify>
+<done>
+Saída `9` sem linha `FALTA`; contagem de mecânica idêntica antes e depois; commit
 atômico de um único arquivo.
 
-**Prova:** as duas saídas coladas no resumo do plano.
+Prova registrada no resumo: as duas saídas coladas no resumo do plano.
+</done>
+</task>
 
 ## Critérios de aceite do plano
 

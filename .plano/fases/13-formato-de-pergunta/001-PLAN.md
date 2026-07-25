@@ -7,12 +7,26 @@ depends_on: []
 requirements: [PERG-01, PERG-02, PERG-03, PERG-04, PERG-05]
 autonomous: true
 prova: smoke
+files_modified:
+  - up/references/questioning.md
+must_haves:
+  truths:
+    - "Existe uma definição única do formato de pergunta no produto, com os rótulos obrigatórios nomeados"
+    - "A regra de fato contra decisão está escrita, com protocolo de seis fontes em ordem fixa"
+    - "Subagente tem forma declarada de escalar decisão sem falar com o dono"
+    - "O inventário fecha em vinte pontos de pergunta distintos, cobrindo as sete superfícies interativas"
+  artifacts:
+    - path: "up/references/questioning.md"
+      provides: "Contrato de pergunta, regra de fato contra decisão, bloco de escalação e inventário fechado dos pontos de pergunta"
+  key_links:
+    - from: "up/references/questioning.md"
+      to: "as sete superfícies interativas"
+      via: "coluna de arquivo do inventário, que declara onde cada ponto de pergunta vive"
 ---
 
 # Fase 13, Plano 001: Contrato canônico da pergunta
 
-## Objetivo
-
+<objective>
 Criar a fonte única do formato de pergunta do UP. Ao fim deste plano existe um documento de doutrina que
 define, em texto literal e sem margem de interpretação: (a) o formato obrigatório de toda pergunta feita ao
 dono (pergunta, recomendação, motivo), (b) a regra de fato contra decisão com o protocolo de resolução
@@ -21,6 +35,8 @@ vinte pontos de pergunta com texto literal no produto, cada um com identificador
 
 Nenhuma superfície é editada aqui. Este plano só escreve o contrato que os planos 002, 003 e 004 aplicam e
 que o plano 005 verifica. É a primeira onda da fase e a fase inteira depende dele.
+</objective>
+
 
 ## Onda
 
@@ -43,14 +59,18 @@ contrato ali é necessário mas não suficiente. Quem faz o arquivo ser lido sã
 
 ## Tarefas
 
-### 1. Escrever o bloco de formato obrigatório de pergunta
-
-**Contrato:** existe uma definição única do formato de pergunta, com rótulos fixos, regra de renderização
+<task id="1" type="auto">
+<files>up/references/questioning.md</files>
+<contrato>
+Existe uma definição única do formato de pergunta, com rótulos fixos, regra de renderização
 para runtime com e sem ferramenta de opções, e regra de honestidade da recomendação.
 
-**Arquivo hoje:** `up/references/questioning.md`, inserir **antes** da linha 1 atual (`<questioning_guide>`).
+Arquivo hoje: `up/references/questioning.md`, inserir **antes** da linha 1 atual (`<questioning_guide>`).
+</contrato>
+<action>
+**Escrever o bloco de formato obrigatório de pergunta**
 
-**O que fazer:** inserir no topo do arquivo, exatamente este conteúdo:
+Inserir no topo do arquivo, exatamente este conteúdo:
 
 ```markdown
 <contrato_de_pergunta>
@@ -92,22 +112,30 @@ critério disponível, e então a linha Porque declara qual critério de desempa
 Recomendar não é enviesar. Opção enviesada é a que presume a resposta sem dizer por quê. A recomendação
 deste contrato vem sempre com o motivo e com a correção livre, e por isso é o oposto de enviesar.
 ```
-
-**Critério de aceite:** o arquivo começa com `<contrato_de_pergunta>`; contém as três linhas de rótulo
+</action>
+<verify><automated>grep -q "contrato_de_pergunta" up/references/questioning.md && grep -q "Recomendo:" up/references/questioning.md && grep -q "Porque:" up/references/questioning.md</automated></verify>
+<done>
+O arquivo começa com `<contrato_de_pergunta>`; contém as três linhas de rótulo
 obrigatório (`Pergunta:`, `Recomendo:`, `Porque:`) descritas como obrigatórias; contém a regra de opção
 recomendada em primeiro lugar; contém a regra de honestidade nomeando evidência.
 
-**Prova:** `grep -c "Recomendo:" up/references/questioning.md` maior que zero e leitura da seção.
+Prova registrada no resumo: `grep -c "Recomendo:" up/references/questioning.md` maior que zero e leitura da seção.
+</done>
+</task>
 
-### 2. Escrever a regra de fato contra decisão com o protocolo de resolução prévia
-
-**Contrato:** antes de qualquer pergunta o agente varre, em ordem fixa, as fontes onde a resposta pode já
+<task id="2" type="auto">
+<files>up/references/questioning.md</files>
+<contrato>
+Antes de qualquer pergunta o agente varre, em ordem fixa, as fontes onde a resposta pode já
 estar escrita. Fato descoberto não vira pergunta, vira anúncio de uma linha. Decisão nunca é resolvida pelo
 agente sozinho.
 
-**Arquivo hoje:** `up/references/questioning.md`, dentro do bloco `<contrato_de_pergunta>`, após a seção 1.
+Arquivo hoje: `up/references/questioning.md`, dentro do bloco `<contrato_de_pergunta>`, após a seção 1.
+</contrato>
+<action>
+**Escrever a regra de fato contra decisão com o protocolo de resolução prévia**
 
-**O que fazer:** acrescentar exatamente:
+Acrescentar exatamente:
 
 ```markdown
 ## 2. Fato contra decisão
@@ -153,22 +181,30 @@ Aplicar a cada pergunta candidata, antes de emiti-la:
 - Proibido o agente resolver sozinho uma escolha de arquitetura ou um trade-off.
 - Proibido perguntar duas coisas na mesma pergunta para economizar rodada.
 ```
-
-**Critério de aceite:** o protocolo tem as seis fontes numeradas na ordem acima; o teste de classificação
+</action>
+<verify><automated>grep -q "Protocolo de resolução prévia" up/references/questioning.md && grep -q "Teste de classificação" up/references/questioning.md</automated></verify>
+<done>
+O protocolo tem as seis fontes numeradas na ordem acima; o teste de classificação
 tem os três casos; o bloco de proibições tem as três linhas.
 
-**Prova:** leitura da seção e `grep -c "^[1-6]\." ` sobre o trecho do protocolo devolvendo 6.
+Prova registrada no resumo: leitura da seção e `grep -c "^[1-6]\." ` sobre o trecho do protocolo devolvendo 6.
+</done>
+</task>
 
-### 3. Escrever a regra de escalação de subagente
-
-**Contrato:** subagente não fala com o dono. Ao esbarrar numa decisão, ele devolve um bloco de formato fixo
+<task id="3" type="auto">
+<files>up/references/questioning.md</files>
+<contrato>
+Subagente não fala com o dono. Ao esbarrar numa decisão, ele devolve um bloco de formato fixo
 no retorno estruturado, segue provisoriamente pela própria recomendação, e o workflow que o despachou
 apresenta a pergunta ao dono. Resposta que confirma a recomendação não gera retrabalho; resposta que diverge
 gera re-execução dirigida só do que dependia daquela decisão.
 
-**Arquivo hoje:** `up/references/questioning.md`, dentro do bloco `<contrato_de_pergunta>`, após a seção 2.
+Arquivo hoje: `up/references/questioning.md`, dentro do bloco `<contrato_de_pergunta>`, após a seção 2.
+</contrato>
+<action>
+**Escrever a regra de escalação de subagente**
 
-**O que fazer:** acrescentar exatamente:
+Acrescentar exatamente:
 
 ```markdown
 ## 3. Escalação de subagente
@@ -195,24 +231,32 @@ Regras:
   dono antes do fechamento.
 - Confirmada a recomendação, nada é refeito. Divergindo, refaz-se apenas o que dependia daquela decisão.
 ```
-
-**Critério de aceite:** o bloco literal `## DECISOES ESCALADAS` está no arquivo com os quatro rótulos
+</action>
+<verify><automated>grep -q "DECISOES ESCALADAS" up/references/questioning.md && grep -q "Alternativas:" up/references/questioning.md</automated></verify>
+<done>
+O bloco literal `## DECISOES ESCALADAS` está no arquivo com os quatro rótulos
 (`Decisao`, `Recomendo`, `Porque`, `Alternativas`); o limite de 3 está escrito como número; a linha
 `Nenhuma.` está prevista.
 
-**Prova:** `grep -n "DECISOES ESCALADAS" up/references/questioning.md` devolve linha.
+Prova registrada no resumo: `grep -n "DECISOES ESCALADAS" up/references/questioning.md` devolve linha.
+</done>
+</task>
 
-### 4. Escrever o inventário fechado dos pontos de pergunta
-
-**Contrato:** ponto de pergunta é todo lugar do produto onde existe texto literal de pergunta ao dono. Cada
+<task id="4" type="auto">
+<files>up/references/questioning.md</files>
+<contrato>
+Ponto de pergunta é todo lugar do produto onde existe texto literal de pergunta ao dono. Cada
 um é marcado no arquivo da superfície com uma tag de identificador estável, e a lista dos identificadores é
 fechada e mora no contrato. Ponto novo só existe depois de entrar nessa lista. Isso torna possível uma
 verificação de mão dupla: nenhum identificador declarado sem tag, nenhuma tag sem identificador declarado.
 
-**Arquivo hoje:** `up/references/questioning.md`, dentro do bloco `<contrato_de_pergunta>`, após a seção 3, e
+Arquivo hoje: `up/references/questioning.md`, dentro do bloco `<contrato_de_pergunta>`, após a seção 3, e
 fechando com `</contrato_de_pergunta>`.
+</contrato>
+<action>
+**Escrever o inventário fechado dos pontos de pergunta**
 
-**O que fazer:** acrescentar exatamente (a tabela é literal, não resumir nem reordenar):
+Acrescentar exatamente (a tabela é literal, não resumir nem reordenar):
 
 ```markdown
 ## 4. Inventário dos pontos de pergunta
@@ -260,43 +304,57 @@ Esta é a lista fechada:
 
 </contrato_de_pergunta>
 ```
-
-**Critério de aceite:** a tabela tem exatamente 20 linhas de dado; as sete superfícies do inventário são
+</action>
+<verify><automated>node -e "const fs=require('fs');const t=fs.readFileSync('up/references/questioning.md','utf-8');const ids=[...t.matchAll(/^\|\s*([a-z]+\.[a-z0-9-]+)\s*\|/gm)].map(m=>m[1]);if(ids.length!==20||new Set(ids).size!==20)process.exit(1);console.log(ids.length,new Set(ids).size)"</automated></verify>
+<done>
+A tabela tem exatamente 20 linhas de dado; as sete superfícies do inventário são
 roteamento da porta única, brainstorm, planejamento, confirmação de início, gate visual pré-merge,
 fechamento de fase e auditoria; nenhuma linha aponta para a própria referência de questionamento; o bloco
 fecha com `</contrato_de_pergunta>`.
 
-**Prova:** comando determinístico que conta as linhas da tabela e devolve 20 (ver tarefa 6).
+Prova registrada no resumo: comando determinístico que conta as linhas da tabela e devolve 20 (ver tarefa 6).
+</done>
+</task>
 
-### 5. Resolver o conflito com o guia em inglês que já existe no arquivo
-
-**Contrato:** o mesmo arquivo não pode dizer que recomendar é ruim e obrigar a recomendar. O texto anterior
+<task id="5" type="auto">
+<files>up/references/questioning.md</files>
+<contrato>
+O mesmo arquivo não pode dizer que recomendar é ruim e obrigar a recomendar. O texto anterior
 continua valendo no que não conflita, e a linha conflitante passa a ser explícita sobre o que é proibido.
 
-**Arquivo hoje:** `up/references/questioning.md`, seção `<using_askuserquestion>`, item da lista `Bad options`,
+Arquivo hoje: `up/references/questioning.md`, seção `<using_askuserquestion>`, item da lista `Bad options`,
 hoje escrito como `- Leading options that presume an answer`.
-
-**O que fazer:**
+</contrato>
+<action>
+**Resolver o conflito com o guia em inglês que já existe no arquivo**
 
 1. Trocar aquela linha por: `- Leading options that presume an answer **without stating why** (a recommendation with a stated reason is required, see contrato_de_pergunta section 1)`.
 2. Acrescentar, na primeira linha do bloco `<questioning_guide>`, a frase: `Este guia é subordinado ao contrato_de_pergunta acima: onde houver conflito, o contrato vence.`
 
 Não traduzir, não reescrever e não podar o resto do guia em inglês. Corte de sedimento é passe separado com
 briefing próprio, declarado fora do escopo do ciclo.
-
-**Critério de aceite:** o arquivo não contém mais a proibição genérica de opção enviesada sem a ressalva; a
+</action>
+<verify><automated>grep -q "without stating why" up/references/questioning.md</automated></verify>
+<done>
+O arquivo não contém mais a proibição genérica de opção enviesada sem a ressalva; a
 frase de subordinação está presente.
 
-**Prova:** `grep -n "without stating why" up/references/questioning.md` devolve linha.
+Prova registrada no resumo: `grep -n "without stating why" up/references/questioning.md` devolve linha.
+</done>
+</task>
 
-### 6. Verificar a parseabilidade do inventário e commitar
-
-**Contrato:** o inventário precisa ser legível por máquina, porque o plano 005 vai compará-lo com as tags
+<task id="6" type="auto">
+<files>up/references/questioning.md</files>
+<contrato>
+O inventário precisa ser legível por máquina, porque o plano 005 vai compará-lo com as tags
 encontradas nas superfícies. Se o comando abaixo não devolver 20 identificadores, a tabela está malformada.
 
-**Arquivo hoje:** `up/references/questioning.md`.
+Arquivo hoje: `up/references/questioning.md`.
+</contrato>
+<action>
+**Verificar a parseabilidade do inventário e commitar**
 
-**O que fazer:** rodar, a partir da raiz do repositório:
+Rodar, a partir da raiz do repositório:
 
 ```bash
 node -e "
@@ -316,10 +374,14 @@ Depois commitar apenas este arquivo:
 ```bash
 node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs(pergunta): contrato canonico de pergunta e inventario dos pontos" --files up/references/questioning.md
 ```
+</action>
+<verify><automated>node -e "const fs=require('fs');const t=fs.readFileSync('up/references/questioning.md','utf-8');const ids=[...t.matchAll(/^\|\s*([a-z]+\.[a-z0-9-]+)\s*\|/gm)].map(m=>m[1]);if(ids.length!==20||new Set(ids).size!==20)process.exit(1);console.log(ids.length,new Set(ids).size)" && git log -1 --name-only --format= | grep -q "up/references/questioning.md"</automated></verify>
+<done>
+Comando devolve `20 20`; commit atômico com um único arquivo.
 
-**Critério de aceite:** comando devolve `20 20`; commit atômico com um único arquivo.
-
-**Prova:** saída do comando colada no resumo do plano, mais o hash do commit.
+Prova registrada no resumo: saída do comando colada no resumo do plano, mais o hash do commit.
+</done>
+</task>
 
 ## Critérios de aceite do plano
 
