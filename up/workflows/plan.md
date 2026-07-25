@@ -32,6 +32,13 @@ Default fixo: Opus planeja, Sonnet executa. `default` -> nao passar model=.
 
 **SEPARACAO RIGIDA DE AGENTES:** cada passo e um `Agent()` SEPARADO. O enforcement e o GATE
 deterministico do `approvals.log` (ver `@~/.claude/up/workflows/governance.md`), nao supervisores.
+
+**Contrato de pergunta (obrigatório):** antes da primeira pergunta, carregue
+`Read $HOME/.claude/up/references/questioning.md` e aplique o bloco `<contrato_de_pergunta>`. Nenhuma pergunta
+sai crua. **O que este workflow resolve sozinho e nunca pergunta:** modo projeto ou fase (vem do argumento),
+modo greenfield ou brownfield (detecção de arquivos), stack e convenções (mapa do codebase ou manifesto),
+runtime de planejamento (diretório de configuração), requisitos e fases já registrados (leitura dos
+artefatos). Fato descoberto vira anúncio de uma linha.
 </core_principle>
 
 <process>
@@ -67,10 +74,19 @@ Entrada esperada = `.plano/BRIEFING.md` (gerado pelo `/up`).
 [ -f .plano/BRIEFING.md ] && cat .plano/BRIEFING.md
 ```
 
-**Se BRIEFING.md NAO existe** (plan chamado direto): fazer um intake minimo inline. Ler owner-profile
-pra tom; perguntar o essencial via AskUserQuestion (briefing, design, credenciais criticas); gerar
-`.plano/BRIEFING.md`, `.plano/PENDING.md`, `.plano/DESIGN-TOKENS.md` (custom ou placeholder shadcn).
-Sem CEO, sem 5 blocos cerimoniais — so o que falta pra planejar.
+**Se BRIEFING.md NÃO existe** (plan chamado direto): antes de perguntar qualquer coisa, rode o protocolo de
+resolução prévia sobre projeto, requisitos, roadmap, estado, mapa do codebase e manifesto. Só o que sobrar
+vira pergunta, uma por vez:
+
+<pergunta id="plan.intake-minimo">
+Pergunta: {o único dado que falta para planejar}
+Recomendo: {o valor inferido dos artefatos existentes, ou o padrão do perfil do dono}
+Porque: {o arquivo, a decisão registrada ou o padrão que sustenta o valor}
+Opções: {recomendado} | outro (descreva)
+</pergunta>
+
+Se o protocolo resolveu tudo, não pergunte nada: anuncie em uma linha o que foi lido e siga direto para o
+Estágio 2.
 
 ## Estagio 2: ARQUITETURA
 
@@ -211,6 +227,33 @@ echo "OK: ${PLAN_COUNT} planos para fase ${phase_number}"
 
 **Repetir para cada fase (MODO PROJETO).**
 
+## Estagio E: DECISOES ESCALADAS
+
+Os subagentes não falam com o dono. Quando esbarram numa decisão de arquitetura ou num trade-off, eles seguem
+aplicando a própria recomendação e devolvem o bloco `## DECISOES ESCALADAS` no retorno. Aqui esse bloco vira
+pergunta.
+
+1. Recolher os blocos `## DECISOES ESCALADAS` de todos os retornos desta rodada (arquiteto e planejadores).
+2. Descartar as linhas `Nenhuma.`. Se sobrou zero decisão, declarar em uma linha
+   ("Nenhuma decisão foi escalada nesta rodada") e seguir para o Estágio P sem perguntar nada.
+3. Ordenar as decisões restantes por custo de reverter, da maior para a menor.
+4. Perguntar uma por vez, no formato do contrato:
+
+<pergunta id="plan.decisoes-escaladas">
+Pergunta: {Decisao do bloco escalado}. Confirma a recomendação ou corrige?
+Recomendo: {Recomendo do bloco escalado}
+Porque: {Porque do bloco escalado}
+Opções: {Recomendo} | {cada item de Alternativas} | outro (descreva)
+</pergunta>
+
+5. Registrar cada resposta em `.plano/BRIEFING.md`, na seção `## Decisões confirmadas no planejamento`
+   (criar a seção se não existir), com uma linha por decisão: a escolha, quem escolheu (dono) e a data.
+6. Resposta que **confirma** a recomendação: nada é refeito, porque o agente já trabalhou sob ela.
+   Resposta que **diverge**: re-executar apenas o agente cujo trabalho dependia daquela decisão, passando a
+   escolha do dono como decisão travada, e só depois seguir para o Estágio P.
+
+Este estágio roda no MODO PROJETO e no MODO FASE. No MODO FASE, os blocos vêm apenas dos planejadores.
+
 ## Estagio P: PLANNING REVIEW (up-revisor)
 
 Spawnar `up-revisor` para a revisao consolidada do planejamento. Substitui planning-auditor +
@@ -259,7 +302,14 @@ DECISION=$(echo "$REVISOR_ENTRY" | awk -F'|' '{gsub(/ /,"",$4); print $4}')
 - `APPROVE`: prosseguir pro Estagio PR.
 - `REQUEST_CHANGES`: cap de rework 1 round (governance.md). Re-spawn planejador/arquiteto com o review;
   apos 1 round, forced approval com debito tecnico.
-- `BLOCK`: alertar o dono (AskUserQuestion).
+- `BLOCK`: perguntar com este conteúdo:
+
+<pergunta id="plan.revisor-bloqueou">
+Pergunta: A revisão do planejamento bloqueou. O que fazer?
+Recomendo: Corrigir o item bloqueante e re-revisar
+Porque: {o motivo registrado pela revisão}, e é correção dirigida a um item do planejamento, não replanejamento inteiro.
+Opções: Corrigir e re-revisar | Aceitar como dívida e seguir para o plano pronto | Parar o planejamento
+</pergunta>
 
 ## Estagio PR: PLAN READY
 
