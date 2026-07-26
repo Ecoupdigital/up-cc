@@ -29,7 +29,11 @@
 const fs = require('fs');
 const path = require('path');
 const { generateSlugInternal, toPosixPath, escapeRegex } = require('./core.cjs');
-const { dirForaDeEscopo, garantirDir, resolverCaminhoContido, lerFlag, lerFlags } = require('./memoria.cjs');
+const {
+  dirForaDeEscopo, garantirDir, resolverCaminhoContido,
+  rejeitarQuebraDeLinha, serializarValorFrontmatter, parseValorFrontmatterSimples,
+  lerFlag, lerFlags,
+} = require('./memoria.cjs');
 
 const PALAVRAS_VAZIAS = new Set([
   'de', 'da', 'do', 'das', 'dos', 'e', 'ou', 'um', 'uma', 'o', 'a', 'os', 'as',
@@ -131,7 +135,7 @@ function extrairFrontmatter(conteudo) {
     if (lendoAliases) {
       const itemMatch = linha.match(/^\s*-\s*(.+)$/);
       if (itemMatch) {
-        aliases.push(itemMatch[1].trim());
+        aliases.push(parseValorFrontmatterSimples(itemMatch[1]));
         continue;
       }
       lendoAliases = false;
@@ -142,7 +146,7 @@ function extrairFrontmatter(conteudo) {
     }
     const chaveMatch = linha.match(/^([a-zA-Z0-9_]+):\s*(.*)$/);
     if (chaveMatch) {
-      campos[chaveMatch[1]] = chaveMatch[2].trim();
+      campos[chaveMatch[1]] = parseValorFrontmatterSimples(chaveMatch[2]);
     }
   }
 
@@ -238,6 +242,13 @@ function registrar(cwd, flags) {
     throw new Error(`Rejeicao nao registrada: campo obrigatorio ausente: ${faltando.join(', ')}.`);
   }
 
+  // 1b. Serializacao segura do titulo e de cada apelido (RV-002): falha cedo, antes de tocar
+  // disco, se algum tiver quebra de linha. Sem isso, quebra de linha crua no titulo injeta
+  // campo forjado no frontmatter ou fecha o bloco cedo se a linha seguinte comecar com "---".
+  const tituloSerializado = serializarValorFrontmatter(titulo.trim(), 'titulo');
+  for (const alias of aliases) rejeitarQuebraDeLinha(alias, 'alias');
+  const aliasesSerializados = aliases.map((a) => serializarValorFrontmatter(a, 'alias'));
+
   // 2. As duas guardas de admissao, antes de qualquer escrita.
   verificarGuardaImplementado(motivo);
   verificarGuardaAdiamento(motivo);
@@ -270,9 +281,9 @@ function registrar(cwd, flags) {
   const frontmatter = [
     '---',
     `conceito: ${conceito}`,
-    `titulo: ${titulo.trim()}`,
+    `titulo: ${tituloSerializado}`,
     'aliases:',
-    ...aliases.map((a) => `  - ${a}`),
+    ...aliasesSerializados.map((a) => `  - ${a}`),
     `registrado_em: ${data}`,
     'tipo_motivo: estrutural',
     '---',
@@ -323,7 +334,7 @@ function reescreverAliasesFrontmatter(conteudo, aliasesFinal) {
     if (/^aliases:\s*$/.test(linha)) {
       linhasNovas.push('aliases:');
       for (const alias of aliasesFinal) {
-        linhasNovas.push(`  - ${alias}`);
+        linhasNovas.push(`  - ${serializarValorFrontmatter(alias, 'alias')}`);
       }
       dentroDeAliases = true;
       continue;
@@ -342,6 +353,9 @@ function adicionarAlias(cwd, { conceito: conceitoBruto, aliases: novosAliases })
   if (novos.length === 0) {
     throw new Error('Apelido nao registrado: e preciso pelo menos um --alias.');
   }
+  // Falha cedo, antes de ler ou escrever qualquer arquivo, se algum apelido novo tiver
+  // quebra de linha (RV-002).
+  for (const alias of novos) rejeitarQuebraDeLinha(alias, 'alias');
 
   const conceito = generateSlugInternal(conceitoBruto);
   const caminhoArquivo = resolverCaminhoContido(dirForaDeEscopo(cwd), `${conceito}.md`);

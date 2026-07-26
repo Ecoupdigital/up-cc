@@ -125,6 +125,52 @@ function comLockDiretorio(caminhoLock, fn, opts) {
   }
 }
 
+// =====================================================================
+// Serializacao segura de valor de frontmatter (RV-002)
+// =====================================================================
+//
+// Interpolacao crua de texto livre do dono (titulo, fase, alias) direto numa linha de
+// frontmatter YAML tem duas falhas: quebra de linha crua no valor injeta campo forjado antes
+// dos campos reais, ou fecha o bloco de frontmatter cedo se a linha seguinte comecar com
+// "---", deixando o registro ingerenciavel (status volta null, por exemplo). Dois pontos no
+// meio do texto (um titulo comum tipo "Fila: Redis vs RabbitMQ") tambem produz YAML invalido
+// para qualquer parser padrao de chave-valor.
+
+/** Lanca se valor contiver quebra de linha (LF ou CR). Chamada antes de qualquer valor de
+ * texto livre entrar num campo de frontmatter: falha cedo, antes de tocar disco, em vez de
+ * deixar o valor quebrar o bloco na escrita. */
+function rejeitarQuebraDeLinha(valor, nomeCampo) {
+  if (/[\r\n]/.test(valor)) {
+    throw new Error(`Campo "${nomeCampo}" nao pode conter quebra de linha.`);
+  }
+}
+
+/** Serializa um valor de texto livre para uma linha de frontmatter: aspas e escape via
+ * JSON.stringify (cobre dois-pontos, aspas e barra invertida no meio do texto), com a
+ * quebra de linha rejeitada antes, nunca apenas escapada em silencio. */
+function serializarValorFrontmatter(valor, nomeCampo) {
+  rejeitarQuebraDeLinha(valor, nomeCampo);
+  return JSON.stringify(valor);
+}
+
+/** Interpreta o valor bruto (ja sem a chave) de uma linha simples "chave: valor" de
+ * frontmatter. Reconhece "null" como ausencia e string entre aspas duplas como JSON, pra
+ * fazer o caminho de volta do que serializarValorFrontmatter grava. Valor sem aspas volta
+ * como texto puro, pra nao quebrar frontmatter gravado antes desta correcao (retrocompativel
+ * com arquivo legado). */
+function parseValorFrontmatterSimples(valorBruto) {
+  const limpo = String(valorBruto).trim();
+  if (limpo === 'null') return null;
+  if (/^".*"$/.test(limpo)) {
+    try {
+      return JSON.parse(limpo);
+    } catch {
+      return limpo.replace(/^"(.*)"$/, '$1');
+    }
+  }
+  return limpo;
+}
+
 // --- Flags ---
 
 /** Le --nome valor ou --nome=valor. Espacos das pontas removidos. Nulo se ausente ou vazio. */
@@ -208,6 +254,9 @@ module.exports = {
   garantirDir,
   resolverCaminhoContido,
   comLockDiretorio,
+  rejeitarQuebraDeLinha,
+  serializarValorFrontmatter,
+  parseValorFrontmatterSimples,
   lerFlag,
   lerFlags,
   contarPalavras,

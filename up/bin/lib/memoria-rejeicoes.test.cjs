@@ -211,6 +211,57 @@ t('registrar: campos obrigatorios ausentes falham citando os campos', () => {
 });
 
 // =====================================================================
+// Injecao no frontmatter via --titulo e --alias (RV-002, rework critico)
+// =====================================================================
+
+t('titulo com dois-pontos gera frontmatter valido e volta identico na leitura', () => {
+  const dir = mkProjeto();
+  const r = rejeicoes.registrar(dir, {
+    conceito: 'fila de mensagens',
+    titulo: 'Fila: Redis vs RabbitMQ',
+    motivo: 'O produto ja delega fila para o proprio broker do provedor de nuvem contratado.',
+  });
+  const encontrada = rejeicoes.listarRejeicoes(dir).find((x) => x.conceito === r.conceito);
+  assert.strictEqual(encontrada.titulo, 'Fila: Redis vs RabbitMQ');
+});
+
+t('alias com dois-pontos volta identico na leitura', () => {
+  const dir = mkProjeto();
+  const r = rejeicoes.registrar(dir, {
+    conceito: 'notificacao por email',
+    titulo: 'Notificacao por email',
+    motivo: 'O produto usa apenas notificacao push por decisao de custo de infraestrutura.',
+    alias: ['aviso: por email'],
+  });
+  const encontrada = rejeicoes.listarRejeicoes(dir).find((x) => x.conceito === r.conceito);
+  assert.deepStrictEqual(encontrada.aliases, ['aviso: por email']);
+});
+
+t('titulo com quebra de linha seguida de "---" e rejeitado sem tocar disco', () => {
+  const dir = mkProjeto();
+  const payload = 'Titulo qualquer\n---\nconceito: forjado\ntipo_motivo: forjado';
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'conceito de teste', titulo: payload, motivo: 'Motivo estrutural qualquer aqui para o teste.' }),
+    /quebra de linha/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)), 'nao deveria ter criado a base de rejeicoes');
+});
+
+t('alias com quebra de linha e rejeitado sem tocar disco', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, {
+      conceito: 'conceito de teste dois',
+      titulo: 'Titulo valido',
+      motivo: 'Motivo estrutural qualquer aqui para o teste.',
+      alias: ['apelido normal', 'apelido\ncom quebra'],
+    }),
+    /quebra de linha/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)), 'nao deveria ter criado a base de rejeicoes');
+});
+
+// =====================================================================
 // Apelido (tarefa 3)
 // =====================================================================
 

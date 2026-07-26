@@ -214,7 +214,11 @@ t('criar: campo de fase so aparece no frontmatter quando a flag foi passada', ()
 
   const comFase = decisao.criar(dir, flagsValidas({ titulo: 'Outra decisao com fase', fase: '14' }));
   const conteudoComFase = fs.readFileSync(path.join(dir, comFase.caminho), 'utf-8');
-  assert.match(conteudoComFase, /^fase: 14$/m);
+  // Serializado com aspas (RV-002: serializarValorFrontmatter via JSON.stringify), mas volta
+  // identico ("14") na leitura por listar().
+  assert.match(conteudoComFase, /^fase: "14"$/m);
+  const listado = decisao.run(dir, ['listar']).result.registros.find((x) => x.numero === comFase.numero);
+  assert.strictEqual(listado.titulo, 'Outra decisao com fase');
 });
 
 // =====================================================================
@@ -246,6 +250,46 @@ t('slug com travessia de diretorio e so pontos e barras cai no slug padrao', () 
   const caminhoReal = path.join(dir, r.caminho);
   const dentroDoDiretorio = path.resolve(caminhoReal).startsWith(path.resolve(dirDecisoes(dir)) + path.sep);
   assert.ok(dentroDoDiretorio, `o registro deveria ter nascido dentro de .plano/decisoes, nasceu em ${r.caminho}`);
+});
+
+// =====================================================================
+// Injecao no frontmatter via --titulo e --fase (RV-002, rework critico)
+// =====================================================================
+
+t('titulo com dois-pontos gera frontmatter valido e volta identico na leitura', () => {
+  const dir = mkProjeto();
+  const r = decisao.criar(dir, flagsValidas({ titulo: 'Fila: Redis vs RabbitMQ' }));
+  const listado = decisao.run(dir, ['listar']).result.registros.find((x) => x.numero === r.numero);
+  assert.strictEqual(listado.titulo, 'Fila: Redis vs RabbitMQ', 'titulo com dois-pontos deveria voltar identico na leitura');
+});
+
+t('titulo com quebra de linha seguida de "---" (payload que fechava o frontmatter cedo) e rejeitado sem tocar disco', () => {
+  const dir = mkProjeto();
+  // Antes da correcao, este exato payload truncava o titulo em "Titulo qualquer", forjava os
+  // campos "status: null" e "forjado: sim" como se fossem do frontmatter e deixava o registro
+  // ingerenciavel: `memoria decisao listar` devolvia status null pro registro. Confirmado por
+  // execucao direta contra o codigo anterior a este rework.
+  const payload = 'Titulo qualquer\n---\nstatus: null\nforjado: sim';
+  assert.throws(() => decisao.criar(dir, flagsValidas({ titulo: payload })), /quebra de linha/);
+  assert.ok(!fs.existsSync(dirDecisoes(dir)), 'nao deveria ter criado o diretorio de decisoes');
+});
+
+t('titulo com quebra de linha falha e nao registra nada', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => decisao.criar(dir, flagsValidas({ titulo: 'Linha 1\nstatus: substituida' })),
+    /quebra de linha/
+  );
+  assert.ok(!fs.existsSync(dirDecisoes(dir)), 'nao deveria ter criado o diretorio de decisoes');
+});
+
+t('fase com quebra de linha falha e nao registra nada', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => decisao.criar(dir, flagsValidas({ fase: '14\nstatus: substituida' })),
+    /quebra de linha/
+  );
+  assert.ok(!fs.existsSync(dirDecisoes(dir)), 'nao deveria ter criado o diretorio de decisoes');
 });
 
 // =====================================================================

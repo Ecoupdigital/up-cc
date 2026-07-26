@@ -17,7 +17,11 @@
 const fs = require('fs');
 const path = require('path');
 const { generateSlugInternal, toPosixPath } = require('./core.cjs');
-const { dirDecisoes, garantirDir, resolverCaminhoContido, comLockDiretorio, lerFlag, lerFlags, contarPalavras } = require('./memoria.cjs');
+const {
+  dirDecisoes, garantirDir, resolverCaminhoContido, comLockDiretorio,
+  serializarValorFrontmatter, parseValorFrontmatterSimples,
+  lerFlag, lerFlags, contarPalavras,
+} = require('./memoria.cjs');
 
 // Tentativas maximas de recalcular o numero em caso de EEXIST dentro do lock (RV-003). O
 // lock ja deveria impedir a corrida sozinho; isto e so uma segunda camada de defesa.
@@ -69,8 +73,7 @@ function extrairFrontmatterSimples(conteudo) {
   for (const linha of match[1].split('\n')) {
     const m = linha.match(/^([a-zA-Z0-9_]+):\s*(.*)$/);
     if (!m) continue;
-    let valor = m[2].trim().replace(/^"(.*)"$/, '$1');
-    campos[m[1]] = valor === 'null' ? null : valor;
+    campos[m[1]] = parseValorFrontmatterSimples(m[2]);
   }
   return campos;
 }
@@ -102,6 +105,13 @@ function criar(cwd, flags) {
   if (camposFaltando.length > 0) {
     throw new Error(`Decisao nao registrada: campo obrigatorio ausente: ${camposFaltando.join(', ')}.`);
   }
+
+  // 1b. Serializacao segura do titulo e da fase (RV-002): falha cedo, antes de tocar disco,
+  // se algum dos dois tiver quebra de linha. Sem isso, quebra de linha crua no titulo injeta
+  // campo forjado no frontmatter, ou fecha o bloco cedo se a linha seguinte comecar com
+  // "---", deixando o registro ingerenciavel (status volta null na leitura).
+  const tituloSerializado = serializarValorFrontmatter(titulo.trim(), 'titulo');
+  const faseSerializada = flags.fase ? serializarValorFrontmatter(flags.fase.trim(), 'fase') : null;
 
   // 2. Gate das tres condicoes, conjuntivo. Coleta todas as faltas antes de falhar.
   const faltandoGate = CONDICOES_GATE
@@ -163,12 +173,12 @@ function criar(cwd, flags) {
         '---',
         `numero: "${numeroFormatado}"`,
         `slug: ${slug}`,
-        `titulo: ${titulo.trim()}`,
+        `titulo: ${tituloSerializado}`,
         `status: ${status}`,
         'substituida_por: null',
         `data: ${data}`,
       ];
-      if (flags.fase) frontmatter.push(`fase: ${flags.fase.trim()}`);
+      if (faseSerializada) frontmatter.push(`fase: ${faseSerializada}`);
       frontmatter.push('---', '');
 
       const corpo = [
