@@ -14,6 +14,8 @@ e `/up:plan`. Este roteador so a referencia (subverbo `estado board` abre a URL 
 real acontece no build/plan; aqui o foco e roteamento + intake.
 </purpose>
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 <core_principle>
 O orquestrador (voce) conduz tudo. NAO existe mais CEO: intake, confirmacao do dono e apresentacao
 viram prompts inline (AskUserQuestion). A personalidade/perfil do dono vem de `~/.claude/up/owner-profile.md`.

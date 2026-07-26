@@ -8,6 +8,8 @@ Este e o MOTOR UNICO de execucao do redesign v2. Absorveu executar-fase.md, exec
 parte de execucao do modo-builder (builder.md, que foi deletado).
 </purpose>
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 <migrado_de_builder>
 O antigo builder.md (3416 linhas) foi deletado. Capacidades reais migradas para ca (ou pro up.md/plan.md),
 SEM trazer governanca hierarquica/supervisores/CEO:

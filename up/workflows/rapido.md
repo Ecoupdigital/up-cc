@@ -8,6 +8,8 @@ atomicamente na branch ATUAL (mesma semantica do `--local` do build). E o caminh
 "so faz e commita". Quem quer worktree/issue/PR usa `/up:build`.
 </purpose>
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 <process>
 **Passo 1: Parsear argumentos e obter descricao da tarefa**
 

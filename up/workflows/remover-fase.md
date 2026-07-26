@@ -2,6 +2,8 @@
 Remover fase futura nao iniciada do roadmap do projeto, deletar seu diretorio, renumerar todas as fases subsequentes para manter sequencia linear limpa e commitar a mudanca. O commit git serve como registro historico da remocao.
 </purpose>
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 <required_reading>
 Ler todos os arquivos referenciados pelo execution_context do prompt invocador antes de comecar.
 </required_reading>

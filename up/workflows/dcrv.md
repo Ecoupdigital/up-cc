@@ -50,6 +50,8 @@ O up-revisor (build 3.7) le esses artefatos e carimba o campo `evidence` no appr
 a evidencia sao os relatorios/screenshots ja gerados aqui.
 </purpose>
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 <process>
 
 ## Passo 0: Setup

@@ -3,6 +3,8 @@ name: up-verificar-antes-de-concluir
 description: "Use quando estiver prestes a afirmar que um trabalho esta completo, corrigido, funcionando ou passando. Exige rodar o comando de prova e confirmar a saida ANTES de qualquer afirmacao de sucesso. Evidencia antes de afirmacao, sempre."
 ---
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 # UP Verificar Antes de Concluir
 
 **Lei de Ferro:** NENHUMA AFIRMACAO DE CONCLUSAO SEM EVIDENCIA FRESCA NESTA MENSAGEM.
