@@ -44,11 +44,14 @@ const PALAVRAS_VAZIAS = new Set([
 // Listas fechadas de marca. Ampliar exige decisao registrada, nao palpite do executor.
 const MARCAS_IMPLEMENTADO = [
   'ja implementado',
+  'ja esta implementado',
+  'ja foi implementado',
   'ja existe',
   'ja foi feito',
   'ja esta pronto',
   'ja temos',
   'ja tem',
+  'ja entregamos',
   'duplicata do que existe',
 ];
 
@@ -68,6 +71,8 @@ const MARCAS_ADIAMENTO = [
   'deixar para depois',
   'adiado',
   'adiar',
+  'nao e prioridade',
+  'postergar',
   'proxima versao',
   'versao 2',
 ];

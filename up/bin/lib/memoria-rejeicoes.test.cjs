@@ -172,6 +172,56 @@ t('registrar: forma "deixar para depois" continua barrada apos a normalizacao de
   assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
 });
 
+// =====================================================================
+// Flexao natural das marcas lexicas (rework critico): a lista ja tinha
+// "ja implementado" e "ja esta pronto", provando que a flexao estava no radar
+// =====================================================================
+
+t('registrar: "ja esta implementado" (flexao de "ja implementado") falha como item ja implementado', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'exportacao csv', titulo: 'Exportacao em CSV', motivo: 'Isso ja esta implementado no modulo de relatorios.' }),
+    /ja implementado/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('registrar: "ja foi implementado" falha como item ja implementado', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'busca avancada', titulo: 'Busca avancada', motivo: 'Ja foi implementado na versao anterior do produto.' }),
+    /ja implementado/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('registrar: "ja entregamos" falha como item ja implementado', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'relatorio semanal', titulo: 'Relatorio semanal', motivo: 'Ja entregamos isso na fase 3 do projeto.' }),
+    /ja implementado/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('registrar: "nao e prioridade" falha como adiamento', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'modo escuro automatico', titulo: 'Modo escuro automatico', motivo: 'Nao e prioridade neste momento para o time.' }),
+    /adiamento/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('registrar: "postergar" falha como adiamento', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'integracao com erp', titulo: 'Integracao com ERP', motivo: 'Vamos postergar essa entrega para o proximo trimestre.' }),
+    /adiamento/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
 t('registrar: palavra solta "depois" em prosa legitima nao produz recusa falsa', () => {
   const dir = mkProjeto();
   const r = rejeicoes.registrar(dir, {
