@@ -116,18 +116,18 @@ comportamento observável, sem citar caminho de arquivo: o mapa de superfícies 
 
 ### Memória do projeto (MEM)
 
-- [ ] MEM-01: Existe glossário interno com os termos do próprio UP, cobrindo no mínimo os nove termos do sistema listados no briefing (fase, onda, plano, gate, evidência, worktree, escape hatch, verificação e o laço de detectar, corrigir e reverificar), cada verbete com definição de uma a duas frases e lista explícita de sinônimos proibidos. O verbete de onda já nasce na forma final, como visão derivada da dependência declarada, e não como ordem primária de execução. O glossário é distribuído nos quatro runtimes suportados, porque sem distribuição ele não é fonte única
-- [ ] MEM-02: Cada termo do glossário interno tem no máximo uma definição no produto: as superfícies que usam o termo apontam para o verbete. A verificação conta as redefinições remanescentes dos termos do glossário e o aceite é zero. Redação fora dos termos do glossário não é tocada, porque poda de texto é passe separado
-- [ ] MEM-03: O glossário do projeto, o diretório de registros de decisão e a base de rejeições são criados apenas quando o primeiro conteúdo real existe, nunca como scaffold vazio
-- [ ] MEM-04: O glossário do projeto declara no próprio arquivo a regra de admissão (só conceito específico do domínio) e a regra de higiene (nenhum detalhe de implementação)
-- [ ] MEM-05: Um registro de decisão só é criado quando as três condições valem ao mesmo tempo: difícil de reverter, surpreendente sem contexto, e resultado de trade-off real com alternativas genuínas
-- [ ] MEM-06: O registro de decisão contém título curto, contexto, decisão e motivo em até três frases, e a lista de alternativas rejeitadas com o porquê de cada rejeição
-- [ ] MEM-07: A numeração dos registros de decisão é determinística: varre os registros existentes, toma o maior número e incrementa
-- [ ] MEM-08: O registro de decisão aceita status opcional entre proposta, aceita e substituída por outro registro
-- [ ] MEM-09: A base de rejeições é indexada por conceito de domínio, não por palavra-chave, e é consultada antes de explorar a intenção de um pedido novo
-- [ ] MEM-10: Ao detectar semelhança com rejeição anterior, o sistema traz o motivo original à tona e pergunta se o dono ainda pensa assim
-- [ ] MEM-11: Item já implementado não entra na base de rejeições
-- [ ] MEM-12: Motivo temporário, do tipo falta de tempo agora, não entra na base de rejeições
+- [x] MEM-01: Existe glossário interno com os termos do próprio UP, cobrindo no mínimo os nove termos do sistema listados no briefing (fase, onda, plano, gate, evidência, worktree, escape hatch, verificação e o laço de detectar, corrigir e reverificar), cada verbete com definição de uma a duas frases e lista explícita de sinônimos proibidos. O verbete de onda já nasce na forma final, como visão derivada da dependência declarada, e não como ordem primária de execução. O glossário é distribuído nos quatro runtimes suportados, porque sem distribuição ele não é fonte única
+- [x] MEM-02: Cada termo do glossário interno tem no máximo uma definição no produto: as superfícies que usam o termo apontam para o verbete. A verificação conta as redefinições remanescentes dos termos do glossário e o aceite é zero. Redação fora dos termos do glossário não é tocada, porque poda de texto é passe separado
+- [x] MEM-03: O glossário do projeto, o diretório de registros de decisão e a base de rejeições são criados apenas quando o primeiro conteúdo real existe, nunca como scaffold vazio
+- [x] MEM-04: O glossário do projeto declara no próprio arquivo a regra de admissão (só conceito específico do domínio) e a regra de higiene (nenhum detalhe de implementação)
+- [x] MEM-05: Um registro de decisão só é criado quando as três condições valem ao mesmo tempo: difícil de reverter, surpreendente sem contexto, e resultado de trade-off real com alternativas genuínas
+- [x] MEM-06: O registro de decisão contém título curto, contexto, decisão e motivo em até três frases, e a lista de alternativas rejeitadas com o porquê de cada rejeição
+- [x] MEM-07: A numeração dos registros de decisão é determinística: varre os registros existentes, toma o maior número e incrementa
+- [x] MEM-08: O registro de decisão aceita status opcional entre proposta, aceita e substituída por outro registro
+- [x] MEM-09: A base de rejeições é indexada por conceito de domínio, não por palavra-chave, e é consultada antes de explorar a intenção de um pedido novo
+- [x] MEM-10: Ao detectar semelhança com rejeição anterior, o sistema traz o motivo original à tona e pergunta se o dono ainda pensa assim
+- [x] MEM-11: Item já implementado não entra na base de rejeições
+- [x] MEM-12: Motivo temporário, do tipo falta de tempo agora, não entra na base de rejeições
 
 ### Modo grill (GRILL)
 
