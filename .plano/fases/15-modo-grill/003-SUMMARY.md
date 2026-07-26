@@ -41,27 +41,27 @@ que falha, porque o subcomando le caminho de arquivo.
 
 ## O que foi feito
 
-**Tarefa 1** — `up/skills/usando-up/SKILL.md` (bootstrap injetado no inicio de toda sessao Claude):
+**Tarefa 1** - `up/skills/usando-up/SKILL.md` (bootstrap injetado no inicio de toda sessao Claude):
 o parenteses do passo zero trocou a escala antiga por "trivial fica em zero pergunta, pequena/media/
 grande entram em modo grill"; o paragrafo de profundidade sob controle do usuario ganhou o gatilho
 `--grill`/"me grelha"/"vai fundo"/"pergunta mais" (precedencia do pedido manual mesmo em trivial), a
 palavra de parada sem confirmacao, e o ponteiro pro motor. Arquivo manteve as mesmas 35 linhas (zero
 crescimento, dentro do limite de cinco).
 
-**Tarefa 2** — `up/workflows/up.md`: o principio central foi de tres tiers (0/1/full) pra dois
+**Tarefa 2** - `up/workflows/up.md`: o principio central foi de tres tiers (0/1/full) pra dois
 (`simple`=0, `standard`+`complex`=grill); o passo de profundidade do intake fundiu `standard` e
 `complex` no grill, preservando integralmente os cinco blocos do intake antigo (briefing, design
 system, credenciais, referencias, restricoes) como conteudo das perguntas do grill em vez de cadencia
 propria; o checklist de sucesso passou a cobrar "0 em trivial, grill nos demais" mais a precedencia do
 pedido manual. O trecho de bash que grava a descricao em arquivo temporario ficou intocado.
 
-**Tarefa 3** — `up/commands/up.md`: a tabela de tres linhas virou duas (trivial=0, resto=grill com
+**Tarefa 3** - `up/commands/up.md`: a tabela de tres linhas virou duas (trivial=0, resto=grill com
 ponteiro pro motor) e a invocacao da classificacao foi corrigida pra gravar a descricao num arquivo
 temporario com frontmatter minimo antes de chamar `classify-task`, copiando a forma que o workflow ja
 usa. Essa segunda correcao nao e desvio: e a entrada automatica do grill, e a forma antiga documentada
 nunca rodou de verdade.
 
-**Tarefa 4** — `up/bin/install.js` (bloco de bootstrap injetado em GEMINI.md/AGENTS.md pros runtimes
+**Tarefa 4** - `up/bin/install.js` (bloco de bootstrap injetado em GEMINI.md/AGENTS.md pros runtimes
 sem hook): a linha de escala do item 1 (BRAINSTORM-FIRST) foi trocada pela formulacao do piso novo
 (trivial=0; pequena/media/grande=grill com resposta recomendada; saida por palavra de parada sem
 confirmacao, checkpoint a cada 3, ou auto-convergencia; gate do design continua), mantendo a
@@ -69,17 +69,17 @@ referencia a SKILL.md e acrescentando a referencia a grill.md com a mesma variav
 caminho. Instalacao real em diretorio temporario confirmou o texto novo em GEMINI.md e idempotencia
 (reinstalar nao duplica o bloco).
 
-**Tarefa 5** — `up/README.md`: caminho medio passou a anunciar modo grill (perguntas ilimitadas, uma
+**Tarefa 5** - `up/README.md`: caminho medio passou a anunciar modo grill (perguntas ilimitadas, uma
 por vez, resposta recomendada, ate parada/checkpoint/auto-convergencia); caminho completo cita que o
 brainstorm full tambem roda em modo grill; prosa nova explica a troca (perguntar de menos custa mais
 caro, saida e barata) e aponta pro motor pelo nome.
 
-**Tarefa 6** — `up/references/questioning.md`: bloco indice "Modo grill" (7 linhas, dentro do limite
+**Tarefa 6** - `up/references/questioning.md`: bloco indice "Modo grill" (7 linhas, dentro do limite
 de oito) inserido logo abaixo da secao "## 1. Nenhuma pergunta crua" (fase 13), citando-a
 explicitamente e apontando pro motor, sem copiar regra do laco, frases proibidas ou tabela de
 destilacao.
 
-**Tarefa 7** — varredura final: busca por "pequena...1 pergunta" nas seis superficies do plano voltou
+**Tarefa 7** - varredura final: busca por "pequena...1 pergunta" nas seis superficies do plano voltou
 vazia; as cinco superficies deste plano citam `grill` e apontam pro motor pelo nome do arquivo
 (`grep -q "grill.md"` passou nas cinco); nenhuma copia frase proibida ou tabela de destilacao; contagem
 de travessao/meia-risca nao subiu em nenhum arquivo tocado (conferido via `git diff` linha a linha
