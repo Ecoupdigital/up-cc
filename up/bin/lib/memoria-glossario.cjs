@@ -15,7 +15,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { toPosixPath } = require('./core.cjs');
+const { toPosixPath, escapeRegex } = require('./core.cjs');
+const { lerFlag, contarPalavras } = require('./memoria.cjs');
 
 const NOME_ARQUIVO_GLOSSARIO = 'glossario-up.md';
 const PASTAS_PADRAO = ['agents', 'workflows', 'skills', 'commands', 'references', 'templates'];
@@ -152,6 +153,215 @@ function linhasUteis(conteudo) {
   });
 }
 
+// =====================================================================
+// Helpers de tabela (usados pela Forma 3)
+// =====================================================================
+
+function ehLinhaTabela(texto) {
+  return /^\s*\|.+\|\s*$/.test(texto);
+}
+
+function ehLinhaSeparadorTabela(texto) {
+  return /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(texto) && /-/.test(texto);
+}
+
+function celulasDaLinha(texto) {
+  let t = texto.trim();
+  if (t.startsWith('|')) t = t.slice(1);
+  if (t.endsWith('|')) t = t.slice(0, -1);
+  return t.split('|').map((c) => c.trim());
+}
+
+// =====================================================================
+// Os tres cortes (aplicados sobre as quatro formas)
+// =====================================================================
+
+function passaCorteTamanho(prosa) {
+  return contarPalavras(prosa) >= 8;
+}
+
+function passaCorteCitacao(...textos) {
+  return !textos.some((t) => t && t.includes(NOME_ARQUIVO_GLOSSARIO));
+}
+
+// =====================================================================
+// As quatro formas estruturais fechadas declaradas no glossario
+// =====================================================================
+
+/** Forma 1: rotulo em negrito com o termo (dois pontos dentro ou fora do fechamento), + prosa. */
+function casarForma1(texto, variante) {
+  const escapada = escapeRegex(variante);
+  const dentro = new RegExp(`^\\s*\\*\\*\\s*${escapada}\\s*:\\s*\\*\\*\\s*(.*)$`, 'i');
+  const fora = new RegExp(`^\\s*\\*\\*\\s*${escapada}\\s*\\*\\*\\s*:\\s*(.*)$`, 'i');
+  const m = texto.match(dentro) || texto.match(fora);
+  return m ? { prosa: m[1] } : null;
+}
+
+/** Forma 2: item de lista cujo rotulo (sem negrito) e o termo, seguido de dois pontos e prosa. */
+function casarForma2(texto, variante) {
+  const escapada = escapeRegex(variante);
+  const re = new RegExp(`^\\s*[-*]\\s+${escapada}\\s*:\\s*(.*)$`, 'i');
+  const m = texto.match(re);
+  return m ? { prosa: m[1] } : null;
+}
+
+/** Forma 3: linha de tabela cuja primeira celula e exatamente o termo (sem negrito, sem espaco). */
+function casarForma3(texto, variante) {
+  if (!ehLinhaTabela(texto)) return null;
+  const celulas = celulasDaLinha(texto);
+  if (celulas.length === 0) return null;
+  if (celulas[0].toLowerCase() !== variante.toLowerCase()) return null;
+  return { prosa: celulas.slice(1).join(' ') };
+}
+
+/** Forma 4: cabecalho cujo texto e exatamente o termo, ou exatamente "O que e <termo>". */
+function extrairTituloCabecalho(texto) {
+  const m = texto.match(/^#{1,6}\s+(.+?)\s*$/);
+  return m ? m[1].trim() : null;
+}
+
+function casarForma4(titulo, variante) {
+  if (titulo.toLowerCase() === variante.toLowerCase()) return true;
+  const perguntaRe = new RegExp(`^o que [ée]\\s+${escapeRegex(variante)}$`, 'i');
+  return perguntaRe.test(titulo);
+}
+
+function primeiroParagrafoAposHeader(linhasBrutas, indiceHeader) {
+  const paragrafo = [];
+  for (let i = indiceHeader + 1; i < linhasBrutas.length; i++) {
+    const t = linhasBrutas[i];
+    if (t.trim() === '') break;
+    if (/^#{1,6}\s+/.test(t)) break;
+    paragrafo.push(t);
+  }
+  return paragrafo.join(' ');
+}
+
+function cortarTrecho(texto) {
+  const limpo = (texto || '').trim();
+  return limpo.length > 120 ? limpo.slice(0, 120) : limpo;
+}
+
+// =====================================================================
+// Varredura de um arquivo contra todos os termos
+// =====================================================================
+
+function verificarArquivo(caminhoAbsoluto, raiz, termos) {
+  const conteudo = fs.readFileSync(caminhoAbsoluto, 'utf-8');
+  const linhasBrutas = conteudo.split('\n');
+  const info = linhasUteis(conteudo);
+  const relativo = toPosixPath(path.relative(raiz, caminhoAbsoluto));
+  const achados = [];
+
+  const cabecalhosDeTabela = new Set();
+  for (let i = 0; i < linhasBrutas.length - 1; i++) {
+    if (!info[i].dentroBloco && ehLinhaTabela(linhasBrutas[i]) && ehLinhaSeparadorTabela(linhasBrutas[i + 1])) {
+      cabecalhosDeTabela.add(i);
+    }
+  }
+
+  for (const termoInfo of termos) {
+    for (const variante of termoInfo.formas) {
+      for (let i = 0; i < linhasBrutas.length; i++) {
+        if (info[i].dentroBloco) continue;
+        const texto = linhasBrutas[i];
+
+        const m1 = casarForma1(texto, variante);
+        if (m1 && passaCorteTamanho(m1.prosa) && passaCorteCitacao(texto)) {
+          achados.push({ caminho: relativo, linha: i + 1, termo: termoInfo.termo, forma: 'forma-1-rotulo-negrito', trecho: cortarTrecho(texto) });
+          continue;
+        }
+
+        const m2 = casarForma2(texto, variante);
+        if (m2 && passaCorteTamanho(m2.prosa) && passaCorteCitacao(texto)) {
+          achados.push({ caminho: relativo, linha: i + 1, termo: termoInfo.termo, forma: 'forma-2-item-lista', trecho: cortarTrecho(texto) });
+          continue;
+        }
+
+        if (!cabecalhosDeTabela.has(i)) {
+          const m3 = casarForma3(texto, variante);
+          if (m3 && passaCorteTamanho(m3.prosa) && passaCorteCitacao(texto)) {
+            achados.push({ caminho: relativo, linha: i + 1, termo: termoInfo.termo, forma: 'forma-3-linha-tabela', trecho: cortarTrecho(texto) });
+            continue;
+          }
+        }
+
+        const titulo = extrairTituloCabecalho(texto);
+        if (titulo !== null && casarForma4(titulo, variante)) {
+          const paragrafo = primeiroParagrafoAposHeader(linhasBrutas, i);
+          if (passaCorteTamanho(paragrafo) && passaCorteCitacao(texto, paragrafo)) {
+            achados.push({ caminho: relativo, linha: i + 1, termo: termoInfo.termo, forma: 'forma-4-cabecalho', trecho: cortarTrecho(paragrafo) });
+          }
+        }
+      }
+    }
+  }
+
+  return achados;
+}
+
+// =====================================================================
+// Acao: check
+// =====================================================================
+
+function check(cwd, flags) {
+  const termos = lerTermos(caminhoGlossario(flags.glossario));
+  const raiz = raizPacote(flags.raiz);
+  const arquivos = arquivosVarridos(raiz, flags.pastas);
+
+  let achados = [];
+  for (const arquivo of arquivos) {
+    achados = achados.concat(verificarArquivo(arquivo, raiz, termos));
+  }
+  achados.sort((a, b) => a.caminho.localeCompare(b.caminho) || a.linha - b.linha);
+
+  const resultado = {
+    termos_count: termos.length,
+    arquivos_count: arquivos.length,
+    achados,
+    total: achados.length,
+    aprovado: achados.length === 0,
+  };
+
+  if (flags.estrito && !resultado.aprovado) {
+    const listagem = achados
+      .map((a) => `${a.caminho}:${a.linha} [${a.termo} / ${a.forma}] "${a.trecho}"`)
+      .join('\n');
+    throw new Error(`Redefinicao encontrada (${resultado.total}) em modo estrito:\n${listagem}`);
+  }
+
+  return resultado;
+}
+
+// =====================================================================
+// Dispatcher (por enquanto, so a acao check; a tarefa 3 acrescenta citacao)
+// =====================================================================
+
+function extrairFlagsComuns(args) {
+  const pastasRaw = lerFlag(args, 'pastas');
+  return {
+    estrito: args.includes('--estrito'),
+    pastas: pastasRaw ? pastasRaw.split(',').map((p) => p.trim()).filter(Boolean) : null,
+    raiz: lerFlag(args, 'raiz'),
+    glossario: lerFlag(args, 'glossario'),
+  };
+}
+
+function run(cwd, args) {
+  const acao = args[0];
+  const flags = extrairFlagsComuns(args);
+
+  if (acao === 'check') {
+    const resultado = check(cwd, flags);
+    return {
+      result: resultado,
+      resumo: `Redefinicoes encontradas: ${resultado.total} (termos=${resultado.termos_count}, arquivos=${resultado.arquivos_count}).`,
+    };
+  }
+
+  throw new Error(`Acao desconhecida para memoria glossario: "${acao || ''}". Disponiveis: check.`);
+}
+
 module.exports = {
   NOME_ARQUIVO_GLOSSARIO,
   PASTAS_PADRAO,
@@ -160,5 +370,7 @@ module.exports = {
   lerTermos,
   arquivosVarridos,
   linhasUteis,
+  check,
+  run,
   toPosixPath,
 };
