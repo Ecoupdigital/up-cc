@@ -107,7 +107,7 @@ Zero worktree, zero issue, zero PR, zero rede. `/up:rapido` (ou `--local` no bui
   -> menu de fim de fase (merge local / abrir PR / deixa a branch / descarta)
 ```
 
-O UP passou a perguntar por padrao porque perguntar de menos custa mais caro que perguntar demais: uma decisao errada assumida sem pergunta vira retrabalho depois. A saida e barata, uma palavra encerra as perguntas na hora, sem confirmacao, e quem manda na profundidade e sempre voce.
+O UP passou a perguntar por padrao porque perguntar de menos custa mais caro que perguntar demais: uma decisao errada assumida sem pergunta vira retrabalho depois. A saida e barata, uma palavra encerra as perguntas na hora, sem confirmacao, e quem manda na profundidade e sempre voce. Motor completo do modo grill em `up/skills/up-brainstorm/grill.md`.
 
 ### Caminho completo (projeto grande, repo colaborativo)
 
