@@ -70,6 +70,61 @@ function resolverCaminhoContido(dir, nomeArquivo) {
   return caminho;
 }
 
+// =====================================================================
+// Lock de diretorio (RV-003): serializa leitura-modificacao-escrita entre processos
+// =====================================================================
+//
+// O UP roda planos da mesma onda em paralelo por design: varios executores podem chamar
+// `memoria decisao criar` ou `memoria termo registrar` ao mesmo tempo, cada um num processo
+// Node separado. fs.mkdirSync e atomico no sistema operacional (so um processo consegue
+// criar um diretorio de um dado nome; os demais recebem EEXIST), o que da um mutex real
+// entre processos sem dependencia externa.
+
+const LOCK_TENTATIVAS_PADRAO = 400;
+const LOCK_ESPERA_MS_PADRAO = 15;
+
+/** Pausa sincrona real (bloqueia a thread por ms milissegundos) via Atomics.wait sobre um
+ * SharedArrayBuffer descartavel. Usada so para o espera-ocupada do lock: sem uma pausa
+ * sincrona verdadeira, o loop de tentativas giraria sem ceder CPU nenhuma. */
+function esperarSincrono(ms) {
+  const ia = new Int32Array(new SharedArrayBuffer(4));
+  Atomics.wait(ia, 0, 0, ms);
+}
+
+/**
+ * Executa fn() com um lock exclusivo no caminho caminhoLock, obtido por fs.mkdirSync (que
+ * falha com EEXIST se o diretorio ja existe, atomicamente no SO). Espera ocupada com pausa
+ * curta entre tentativas ate obter o lock ou esgotar as tentativas. Libera o lock no
+ * finally, mesmo se fn() lancar, para uma excecao de regra de negocio no meio da secao
+ * critica nao deixar o proximo processo travado pra sempre.
+ */
+function comLockDiretorio(caminhoLock, fn, opts) {
+  const tentativas = (opts && opts.tentativas) || LOCK_TENTATIVAS_PADRAO;
+  const esperaMs = (opts && opts.esperaMs) || LOCK_ESPERA_MS_PADRAO;
+
+  fs.mkdirSync(path.dirname(caminhoLock), { recursive: true });
+
+  let obtido = false;
+  for (let tentativa = 0; tentativa < tentativas && !obtido; tentativa++) {
+    try {
+      fs.mkdirSync(caminhoLock);
+      obtido = true;
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      esperarSincrono(esperaMs);
+    }
+  }
+  if (!obtido) {
+    throw new Error(`Nao foi possivel obter o lock de escrita em "${caminhoLock}" apos ${tentativas} tentativas (concorrencia excessiva ou lock orfao).`);
+  }
+
+  try {
+    return fn();
+  } finally {
+    fs.rmdirSync(caminhoLock);
+  }
+}
+
 // --- Flags ---
 
 /** Le --nome valor ou --nome=valor. Espacos das pontas removidos. Nulo se ausente ou vazio. */
@@ -152,6 +207,7 @@ module.exports = {
   arquivoGlossarioProjeto,
   garantirDir,
   resolverCaminhoContido,
+  comLockDiretorio,
   lerFlag,
   lerFlags,
   contarPalavras,

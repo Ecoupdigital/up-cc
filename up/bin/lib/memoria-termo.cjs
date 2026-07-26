@@ -27,7 +27,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { arquivoGlossarioProjeto, lerFlag } = require('./memoria.cjs');
+const { arquivoGlossarioProjeto, comLockDiretorio, lerFlag } = require('./memoria.cjs');
 
 const CAMINHO_TEMPLATE = path.join(__dirname, '..', '..', 'templates', 'glossary.md');
 
@@ -217,68 +217,79 @@ function registrar(cwd, flags) {
     justificativaForcada = flags.justificativa;
   }
 
-  // 3. So agora, com as duas guardas passadas, o arquivo pode nascer ou ser lido.
+  // 3. So agora, com as duas guardas passadas, o arquivo pode nascer ou ser lido. Do
+  // reconhecimento do estado atual (existe ou nao, quais verbetes ja tem) ate a escrita
+  // final, tudo roda dentro de um lock de diretorio (RV-003). Sem isso, dois processos
+  // registrando termo ao mesmo tempo leem o MESMO conteudo atual, cada um monta a lista
+  // final por cima dele e o ultimo a escrever apaga o verbete (e ate o cabecalho com as
+  // duas regras) que o outro tinha acabado de gravar: leitura-modificacao-escrita
+  // concorrente sem lock perde escrita em silencio, e o UP roda planos da mesma onda em
+  // paralelo por design, entao isto nao e hipotetico.
   const caminhoArquivo = arquivoGlossarioProjeto(cwd);
-  const existiaAntes = fs.existsSync(caminhoArquivo);
+  const caminhoLock = path.join(path.dirname(caminhoArquivo), '.memoria-termo.lock');
 
-  let cabecalho;
-  let avisoTemplate = null;
-  let verbetesExistentes = [];
+  return comLockDiretorio(caminhoLock, () => {
+    const existiaAntes = fs.existsSync(caminhoArquivo);
 
-  if (existiaAntes) {
-    const conteudoAtual = fs.readFileSync(caminhoArquivo, 'utf-8');
-    const secao = extrairSecaoTermos(conteudoAtual);
-    cabecalho = secao.cabecalho;
-    verbetesExistentes = parseVerbetes(secao.textoVerbetes);
-  } else {
-    const lido = lerCabecalhoTemplate();
-    cabecalho = lido.cabecalho;
-    if (lido.templateAusente) {
-      avisoTemplate = 'template de glossario ausente no pacote; cabecalho embutido usado no lugar.';
+    let cabecalho;
+    let avisoTemplate = null;
+    let verbetesExistentes = [];
+
+    if (existiaAntes) {
+      const conteudoAtual = fs.readFileSync(caminhoArquivo, 'utf-8');
+      const secao = extrairSecaoTermos(conteudoAtual);
+      cabecalho = secao.cabecalho;
+      verbetesExistentes = parseVerbetes(secao.textoVerbetes);
+    } else {
+      const lido = lerCabecalhoTemplate();
+      cabecalho = lido.cabecalho;
+      if (lido.templateAusente) {
+        avisoTemplate = 'template de glossario ausente no pacote; cabecalho embutido usado no lugar.';
+      }
     }
-  }
 
-  const chaveTermo = normalizar(termo);
-  const indiceExistente = verbetesExistentes.findIndex((v) => normalizar(v.termo) === chaveTermo);
+    const chaveTermo = normalizar(termo);
+    const indiceExistente = verbetesExistentes.findIndex((v) => normalizar(v.termo) === chaveTermo);
 
-  let listaFinal;
-  let posicaoInsercao;
-  let atualizado = false;
+    let listaFinal;
+    let posicaoInsercao;
+    let atualizado = false;
 
-  if (indiceExistente !== -1) {
-    if (!flags.atualizar) {
-      const definicaoAtual = extrairDefinicaoAtual(verbetesExistentes[indiceExistente].bloco);
-      throw new Error(
-        `Termo nao registrado: "${termo}" ja existe no glossario do projeto, com a definicao: ` +
-        `"${definicaoAtual}". Use --atualizar para substituir.`
-      );
+    if (indiceExistente !== -1) {
+      if (!flags.atualizar) {
+        const definicaoAtual = extrairDefinicaoAtual(verbetesExistentes[indiceExistente].bloco);
+        throw new Error(
+          `Termo nao registrado: "${termo}" ja existe no glossario do projeto, com a definicao: ` +
+          `"${definicaoAtual}". Use --atualizar para substituir.`
+        );
+      }
+      const novoBloco = montarBlocoVerbete({ termo, definicao, evitar: flags.evitar, justificativaForcada });
+      listaFinal = verbetesExistentes.slice();
+      listaFinal[indiceExistente] = { termo, bloco: novoBloco };
+      posicaoInsercao = indiceExistente + 1;
+      atualizado = true;
+    } else {
+      const novoVerbete = { termo, bloco: montarBlocoVerbete({ termo, definicao, evitar: flags.evitar, justificativaForcada }) };
+      const { lista, posicao } = inserirOrdenado(verbetesExistentes, novoVerbete);
+      listaFinal = lista;
+      posicaoInsercao = posicao + 1;
     }
-    const novoBloco = montarBlocoVerbete({ termo, definicao, evitar: flags.evitar, justificativaForcada });
-    listaFinal = verbetesExistentes.slice();
-    listaFinal[indiceExistente] = { termo, bloco: novoBloco };
-    posicaoInsercao = indiceExistente + 1;
-    atualizado = true;
-  } else {
-    const novoVerbete = { termo, bloco: montarBlocoVerbete({ termo, definicao, evitar: flags.evitar, justificativaForcada }) };
-    const { lista, posicao } = inserirOrdenado(verbetesExistentes, novoVerbete);
-    listaFinal = lista;
-    posicaoInsercao = posicao + 1;
-  }
 
-  // 4. Escrita. Diretorio garantido aqui, so depois de tudo ter passado.
-  fs.mkdirSync(path.dirname(caminhoArquivo), { recursive: true });
-  fs.writeFileSync(caminhoArquivo, montarConteudoArquivo(cabecalho, listaFinal), 'utf-8');
+    // 4. Escrita. Diretorio garantido aqui, so depois de tudo ter passado.
+    fs.mkdirSync(path.dirname(caminhoArquivo), { recursive: true });
+    fs.writeFileSync(caminhoArquivo, montarConteudoArquivo(cabecalho, listaFinal), 'utf-8');
 
-  const resultado = {
-    termo,
-    criado_agora: !existiaAntes,
-    atualizado,
-    posicao_insercao: posicaoInsercao,
-    total_termos: listaFinal.length,
-  };
-  if (avisoTemplate) resultado.aviso = avisoTemplate;
-  if (justificativaForcada) resultado.justificativa_forcada = justificativaForcada;
-  return resultado;
+    const resultado = {
+      termo,
+      criado_agora: !existiaAntes,
+      atualizado,
+      posicao_insercao: posicaoInsercao,
+      total_termos: listaFinal.length,
+    };
+    if (avisoTemplate) resultado.aviso = avisoTemplate;
+    if (justificativaForcada) resultado.justificativa_forcada = justificativaForcada;
+    return resultado;
+  });
 }
 
 // =====================================================================

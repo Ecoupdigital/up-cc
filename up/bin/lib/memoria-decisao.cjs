@@ -17,7 +17,11 @@
 const fs = require('fs');
 const path = require('path');
 const { generateSlugInternal, toPosixPath } = require('./core.cjs');
-const { dirDecisoes, garantirDir, resolverCaminhoContido, lerFlag, lerFlags, contarPalavras } = require('./memoria.cjs');
+const { dirDecisoes, garantirDir, resolverCaminhoContido, comLockDiretorio, lerFlag, lerFlags, contarPalavras } = require('./memoria.cjs');
+
+// Tentativas maximas de recalcular o numero em caso de EEXIST dentro do lock (RV-003). O
+// lock ja deveria impedir a corrida sozinho; isto e so uma segunda camada de defesa.
+const MAX_TENTATIVAS_NUMERO = 30;
 
 const REGEX_ARQUIVO_REGISTRO = /^(\d{4})-([a-z0-9-]+)\.md$/;
 
@@ -129,67 +133,84 @@ function criar(cwd, flags) {
     throw new Error(`Status invalido para criacao: "${status}". Uma decisao nasce como "proposta" ou "aceita"; "substituida" so acontece depois, pela acao status.`);
   }
 
-  // 5. Numero (varredura) e slug. O slug SEMPRE passa pela slugificacao real, nunca aceita
-  // o valor cru de --slug (RV-001): sem isso, um `--slug "../../../ROADMAP"` sobrevive ao
-  // corte de 48 caracteres e ao trim de hifen, e o `path.join` normaliza o `..` pra fora do
-  // diretorio de decisoes na escrita, sobrescrevendo arquivo alheio em silencio.
-  const numeroFormatado = formatarNumero(proximoNumero(cwd));
+  // 5. Slug: SEMPRE passa pela slugificacao real, nunca aceita o valor cru de --slug
+  // (RV-001): sem isso, um `--slug "../../../ROADMAP"` sobrevive ao corte de 48 caracteres e
+  // ao trim de hifen, e o `path.join` normaliza o `..` pra fora do diretorio de decisoes na
+  // escrita, sobrescrevendo arquivo alheio em silencio.
   let slug = generateSlugInternal(flags.slug || titulo) || 'decisao';
   slug = slug.slice(0, 48).replace(/^-+|-+$/g, '') || 'decisao';
 
-  // 6. Escrita: so aqui, e so depois de toda regra ter passado. resolverCaminhoContido e o
-  // ultimo portao: mesmo que o slug acima tivesse algum jeito de escapar, a escrita nao
-  // aconteceria fora de .plano/decisoes.
-  const dir = garantirDir(dirDecisoes(cwd));
-  const nomeArquivo = `${numeroFormatado}-${slug}.md`;
-  const caminhoAbsoluto = resolverCaminhoContido(dir, nomeArquivo);
-  const data = new Date().toISOString().split('T')[0];
-
-  const frontmatter = [
-    '---',
-    `numero: "${numeroFormatado}"`,
-    `slug: ${slug}`,
-    `titulo: ${titulo.trim()}`,
-    `status: ${status}`,
-    'substituida_por: null',
-    `data: ${data}`,
-  ];
-  if (flags.fase) frontmatter.push(`fase: ${flags.fase.trim()}`);
-  frontmatter.push('---', '');
-
   const linhasAlternativas = alternativas.map((a) => `- ${a.nome}: ${a.motivo}`).join('\n');
+  const data = new Date().toISOString().split('T')[0];
+  const dir = garantirDir(dirDecisoes(cwd));
 
-  const corpo = [
-    `# ${numeroFormatado}. ${titulo.trim()}`,
-    '',
-    '## Contexto',
-    contexto.trim(),
-    '',
-    '## Decisão',
-    decisaoTexto.trim(),
-    '',
-    '## Motivo',
-    motivo.trim(),
-    '',
-    '## Condições do gate',
-    `- Difícil de reverter: ${flags['dificil-reverter'].trim()}`,
-    `- Surpreendente sem contexto: ${flags.surpreendente.trim()}`,
-    `- Trade-off real: ${flags['trade-off'].trim()}`,
-    '',
-    '## Alternativas rejeitadas',
-    linhasAlternativas,
-    '',
-  ].join('\n');
+  // 6. Numero + escrita: dentro de um lock de diretorio (RV-003). O UP roda planos da mesma
+  // onda em paralelo por design, entao dois processos podem chegar aqui ao mesmo tempo; sem
+  // serializar a secao "varre o numero mais alto, escreve o arquivo", dois processos podem
+  // varrer o MESMO numero antes de qualquer um escrever (a varredura le o disco, nao um
+  // contador), produzindo numero duplicado (com slug diferente, nao ha colisao de nome de
+  // arquivo pra acusar) ou, com o mesmo titulo, a MESMA combinacao numero+slug, destruindo o
+  // registro do outro processo em silencio. O lock serializa entre processos; a escrita
+  // exclusiva (`wx`) mais o retry no EEXIST sao a segunda camada de defesa, caso o lock em
+  // si tenha ficado orfao por um processo morto no meio da secao critica.
+  return comLockDiretorio(path.join(dir, '.lock'), () => {
+    for (let tentativa = 0; tentativa < MAX_TENTATIVAS_NUMERO; tentativa++) {
+      const numeroFormatado = formatarNumero(proximoNumero(cwd));
+      const nomeArquivo = `${numeroFormatado}-${slug}.md`;
+      const caminhoAbsoluto = resolverCaminhoContido(dir, nomeArquivo);
 
-  fs.writeFileSync(caminhoAbsoluto, frontmatter.join('\n') + '\n' + corpo, 'utf-8');
+      const frontmatter = [
+        '---',
+        `numero: "${numeroFormatado}"`,
+        `slug: ${slug}`,
+        `titulo: ${titulo.trim()}`,
+        `status: ${status}`,
+        'substituida_por: null',
+        `data: ${data}`,
+      ];
+      if (flags.fase) frontmatter.push(`fase: ${flags.fase.trim()}`);
+      frontmatter.push('---', '');
 
-  return {
-    criado: true,
-    numero: numeroFormatado,
-    caminho: toPosixPath(path.relative(cwd, caminhoAbsoluto)),
-    status,
-    alternativas_count: alternativas.length,
-  };
+      const corpo = [
+        `# ${numeroFormatado}. ${titulo.trim()}`,
+        '',
+        '## Contexto',
+        contexto.trim(),
+        '',
+        '## Decisão',
+        decisaoTexto.trim(),
+        '',
+        '## Motivo',
+        motivo.trim(),
+        '',
+        '## Condições do gate',
+        `- Difícil de reverter: ${flags['dificil-reverter'].trim()}`,
+        `- Surpreendente sem contexto: ${flags.surpreendente.trim()}`,
+        `- Trade-off real: ${flags['trade-off'].trim()}`,
+        '',
+        '## Alternativas rejeitadas',
+        linhasAlternativas,
+        '',
+      ].join('\n');
+
+      try {
+        fs.writeFileSync(caminhoAbsoluto, frontmatter.join('\n') + '\n' + corpo, { encoding: 'utf-8', flag: 'wx' });
+      } catch (e) {
+        if (e.code === 'EEXIST') continue; // outro processo levou este numero+slug primeiro
+        throw e;
+      }
+
+      return {
+        criado: true,
+        numero: numeroFormatado,
+        caminho: toPosixPath(path.relative(cwd, caminhoAbsoluto)),
+        status,
+        alternativas_count: alternativas.length,
+      };
+    }
+
+    throw new Error(`Decisao nao registrada: nao foi possivel obter um numero livre apos ${MAX_TENTATIVAS_NUMERO} tentativas (concorrencia excessiva).`);
+  });
 }
 
 // =====================================================================

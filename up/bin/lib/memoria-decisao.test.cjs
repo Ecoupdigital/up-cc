@@ -12,7 +12,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { spawnSync, spawn } = require('child_process');
 const decisao = require('./memoria-decisao.cjs');
 
 const UP_TOOLS = path.join(__dirname, '..', 'up-tools.cjs');
@@ -64,6 +64,28 @@ let pass = 0, fail = 0;
 function t(name, fn) {
   try { fn(); console.log('  ok  -', name); pass++; }
   catch (e) { console.error('  FAIL -', name, '\n     ', e.message); fail++; }
+}
+
+/** Versao assincrona de t(), para o teste de corrida entre processos (RV-003): precisa de
+ * verdadeira concorrencia entre processos do SO, que so acontece com spawn (nao spawnSync)
+ * mais Promise.all, nunca com um loop sincrono de espera. */
+async function tAsync(name, fn) {
+  try { await fn(); console.log('  ok  -', name); pass++; }
+  catch (e) { console.error('  FAIL -', name, '\n     ', e.message); fail++; }
+}
+
+/** Dispara o binario real sem esperar (child_process.spawn), devolvendo uma promessa que
+ * resolve no fechamento do processo. Usado so pelo teste de corrida: spawnSync serializaria
+ * as chamadas e nunca produziria concorrencia real entre processos. */
+function spawnCliAsync(argsArr, cwd) {
+  return new Promise((resolve) => {
+    const filho = spawn(process.execPath, [UP_TOOLS, ...argsArr, '--cwd', cwd]);
+    let stdout = '';
+    let stderr = '';
+    filho.stdout.on('data', (d) => { stdout += d; });
+    filho.stderr.on('data', (d) => { stderr += d; });
+    filho.on('close', (status) => resolve({ status, stdout, stderr }));
+  });
 }
 
 // =====================================================================
@@ -349,5 +371,80 @@ t('linha de comando: criar aprovado sai com codigo 0 e grava o arquivo', () => {
   assert.ok(fs.existsSync(path.join(dir, parsed.caminho)));
 });
 
-console.log(`\n${pass} passed, ${fail} failed`);
-process.exit(fail ? 1 : 0);
+// =====================================================================
+// Corrida entre processos concorrentes (RV-003, rework critico)
+// =====================================================================
+
+function argsDecisaoConcorrente(indice) {
+  return [
+    'memoria', 'decisao', 'criar',
+    '--titulo', `Decisao concorrente numero ${indice}`,
+    '--contexto', 'contexto minimo com mais de tres palavras aqui para o teste de corrida',
+    '--decisao', 'decisao tomada com mais de tres palavras aqui para o teste de corrida',
+    '--motivo', 'motivo real com mais de tres palavras aqui para o teste de corrida',
+    '--dificil-reverter', 'dificil reverter isso depois de decidido definitivamente',
+    '--surpreendente', 'ninguem esperaria essa escolha especifica de jeito nenhum',
+    '--trade-off', 'ganha um lado qualquer perde outro lado qualquer',
+    '--alternativa', 'Outra opcao :: motivo de ter sido rejeitada nesse caso',
+  ];
+}
+
+async function testeCorridaTitulosDistintos() {
+  const dir = mkProjeto();
+  const N = 12;
+  const promessas = [];
+  for (let i = 0; i < N; i++) {
+    promessas.push(spawnCliAsync(argsDecisaoConcorrente(i), dir));
+  }
+  const resultados = await Promise.all(promessas);
+
+  const aceitas = resultados.filter((r) => r.status === 0);
+  assert.strictEqual(aceitas.length, N, `todas as ${N} deveriam ter sido aceitas, saidas: ${JSON.stringify(resultados.map((r) => r.status))}`);
+
+  const numeros = aceitas.map((r) => JSON.parse(r.stdout).numero);
+  const numerosUnicos = new Set(numeros);
+  assert.strictEqual(numerosUnicos.size, N, `deveria haver ${N} numeros UNICOS entre ${N} decisoes de titulo distinto, veio ${numerosUnicos.size}: ${JSON.stringify(numeros.sort())}`);
+
+  const arquivosFinal = fs.readdirSync(dirDecisoes(dir)).filter((a) => a.endsWith('.md'));
+  assert.strictEqual(arquivosFinal.length, N, `deveriam existir ${N} arquivos no disco ao final, existem ${arquivosFinal.length}`);
+}
+
+async function testeCorridaMesmoTitulo() {
+  const dir = mkProjeto();
+  const N = 10;
+  const args = [
+    'memoria', 'decisao', 'criar',
+    '--titulo', 'Mesma decisao disparada em paralelo',
+    '--contexto', 'contexto minimo com mais de tres palavras aqui para o teste de corrida',
+    '--decisao', 'decisao tomada com mais de tres palavras aqui para o teste de corrida',
+    '--motivo', 'motivo real com mais de tres palavras aqui para o teste de corrida',
+    '--dificil-reverter', 'dificil reverter isso depois de decidido definitivamente',
+    '--surpreendente', 'ninguem esperaria essa escolha especifica de jeito nenhum',
+    '--trade-off', 'ganha um lado qualquer perde outro lado qualquer',
+    '--alternativa', 'Outra opcao :: motivo de ter sido rejeitada nesse caso',
+  ];
+  const promessas = [];
+  for (let i = 0; i < N; i++) {
+    promessas.push(spawnCliAsync(args, dir));
+  }
+  const resultados = await Promise.all(promessas);
+
+  const aceitas = resultados.filter((r) => r.status === 0);
+  assert.strictEqual(aceitas.length, N, `todas as ${N} deveriam ter sido aceitas mesmo com o MESMO titulo (mesmo slug), saidas: ${JSON.stringify(resultados.map((r) => r.status))}`);
+
+  const numeros = aceitas.map((r) => JSON.parse(r.stdout).numero);
+  assert.strictEqual(new Set(numeros).size, N, `deveria haver ${N} numeros UNICOS mesmo com titulo repetido, veio ${new Set(numeros).size}: ${JSON.stringify(numeros.sort())}`);
+
+  const arquivosFinal = fs.readdirSync(dirDecisoes(dir)).filter((a) => a.endsWith('.md'));
+  assert.strictEqual(arquivosFinal.length, N, `deveriam existir ${N} arquivos DISTINTOS no disco (mesmo titulo nao pode destruir arquivo alheio), existem ${arquivosFinal.length}`);
+}
+
+async function main() {
+  await tAsync(`corrida: ${12} decisoes concorrentes de titulo distinto produzem ${12} numeros unicos e ${12} arquivos`, testeCorridaTitulosDistintos);
+  await tAsync(`corrida: ${10} decisoes concorrentes do MESMO titulo produzem ${10} numeros unicos, nenhum arquivo destruido`, testeCorridaMesmoTitulo);
+
+  console.log(`\n${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+}
+
+main();

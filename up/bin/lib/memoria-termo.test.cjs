@@ -12,7 +12,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { spawnSync, spawn } = require('child_process');
 const termo = require('./memoria-termo.cjs');
 
 const UP_TOOLS = path.join(__dirname, '..', 'up-tools.cjs');
@@ -36,6 +36,25 @@ let pass = 0, fail = 0;
 function t(name, fn) {
   try { fn(); console.log('  ok  -', name); pass++; }
   catch (e) { console.error('  FAIL -', name, '\n     ', e.message); fail++; }
+}
+
+/** Versao assincrona de t(), so para o teste de corrida entre processos (RV-003). */
+async function tAsync(name, fn) {
+  try { await fn(); console.log('  ok  -', name); pass++; }
+  catch (e) { console.error('  FAIL -', name, '\n     ', e.message); fail++; }
+}
+
+/** Dispara o binario real sem esperar (spawn, nunca spawnSync): concorrencia real entre
+ * processos do SO so acontece assim. */
+function spawnCliAsync(argsArr, cwd) {
+  return new Promise((resolve) => {
+    const filho = spawn(process.execPath, [UP_TOOLS, ...argsArr, '--cwd', cwd]);
+    let stdout = '';
+    let stderr = '';
+    filho.stdout.on('data', (d) => { stdout += d; });
+    filho.stderr.on('data', (d) => { stderr += d; });
+    filho.on('close', (status) => resolve({ status, stdout, stderr }));
+  });
 }
 
 // =====================================================================
@@ -276,5 +295,39 @@ t('linha de comando: registrar aprovado sai com codigo 0 e grava o arquivo', () 
   assert.ok(fs.existsSync(arquivoGlossario(dir)));
 });
 
-console.log(`\n${pass} passed, ${fail} failed`);
-process.exit(fail ? 1 : 0);
+// =====================================================================
+// Corrida entre processos concorrentes (RV-003, rework critico)
+// =====================================================================
+
+async function testeCorridaTermosDistintos() {
+  const dir = mkProjeto();
+  const N = 10;
+  const promessas = [];
+  for (let i = 0; i < N; i++) {
+    promessas.push(spawnCliAsync([
+      'memoria', 'termo', 'registrar',
+      '--termo', `termo concorrente ${i}`,
+      '--definicao', `definicao de teste para o termo concorrente numero ${i}, usada so no teste de corrida.`,
+    ], dir));
+  }
+  const resultados = await Promise.all(promessas);
+
+  const aceitos = resultados.filter((r) => r.status === 0);
+  assert.strictEqual(aceitos.length, N, `todos os ${N} deveriam ter sido aceitos, saidas: ${JSON.stringify(resultados.map((r) => r.status))}`);
+
+  const listaFinal = JSON.parse(runCli(['memoria', 'termo', 'listar'], dir).stdout);
+  assert.strictEqual(listaFinal.termos.length, N, `deveriam existir ${N} termos no glossario ao final, existem ${listaFinal.termos.length}`);
+
+  const conteudo = fs.readFileSync(arquivoGlossario(dir), 'utf-8');
+  assert.ok(conteudo.includes('Regra de admiss'), 'cabecalho do glossario (regra de admissao) nao pode ser apagado por uma corrida');
+  assert.ok(conteudo.includes('Regra de higiene'), 'cabecalho do glossario (regra de higiene) nao pode ser apagado por uma corrida');
+}
+
+async function main() {
+  await tAsync(`corrida: ${10} registros de termo concorrentes de nome distinto produzem ${10} verbetes, cabecalho intacto`, testeCorridaTermosDistintos);
+
+  console.log(`\n${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+}
+
+main();
