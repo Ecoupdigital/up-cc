@@ -21,9 +21,10 @@ O orquestrador (voce) conduz tudo. NAO existe mais CEO: intake, confirmacao do d
 viram prompts inline (AskUserQuestion). A personalidade/perfil do dono vem de `~/.claude/up/owner-profile.md`.
 
 Profundidade do brainstorm = funcao do `classify-task`, NAO do humor do dia:
-- trivial (score 0-2): 0 perguntas, anuncia em 1 linha, executa.
-- pequena (score 3-5): 1 pergunta (a decisao-chave) via AskUserQuestion + design em 3 frases.
-- media/grande (score 6+): brainstorm full, perguntas iterativas (1 por vez), aprovacao por secao.
+- `simple` (trivial, score 0-2): 0 perguntas, anuncia em 1 linha, executa.
+- `standard` (pequena, score 3-5) e `complex` (media/grande, score 6+): entram em modo grill
+  (perguntas ilimitadas, uma por vez, ate uma das tres portas de saida). Motor em
+  `up/skills/up-brainstorm/grill.md`, este workflow nao redefine a cadencia.
 
 **Contrato de pergunta (obrigatório):** antes da primeira pergunta de qualquer rota, carregue
 `Read $HOME/.claude/up/references/questioning.md` e aplique o bloco `<contrato_de_pergunta>`. Nenhuma
@@ -223,19 +224,11 @@ COMPLEXITY=$(echo "$CLASSIFY" | grep -oE '"complexity"\s*:\s*"[a-z]+"' | grep -o
 - **simple (trivial):** ZERO perguntas. Anunciar em 1 linha o que vai construir e seguir.
   Ex: "Vou criar [X]. Indo." Pular direto pro 2.5 (estruturar) com defaults.
 
-- **standard (pequena):** UMA pergunta, a decisão-chave, no formato do contrato:
-
-<pergunta id="up.decisao-chave">
-Pergunta: {a decisão de design que muda o resultado desta tarefa}
-Recomendo: {a opção que o agente escolheria}
-Porque: {a evidência: convenção encontrada no codebase, decisão já registrada no estado, ou o trade-off que decide}
-Opções: {recomendada} | {alternativa} | {alternativa}
-</pergunta>
-
-  Depois, descrever a abordagem em 3 frases. Para UI, oferecer o companion visual.
-
-- **complex (media/grande):** brainstorm/intake full. Perguntar inline (freeform pra abrir, depois
-  AskUserQuestion seguindo os fios). Cobrir os 5 blocos do intake antigo, AGORA inline e opcionais:
+- **standard (pequena) e complex (media/grande):** entram em modo grill (motor em
+  `up/skills/up-brainstorm/grill.md`, perguntas ilimitadas, uma por vez, ate uma das tres portas de
+  saida). Este workflow nao redefine a cadencia do grill, so aponta pra ela. O que sobra especifico
+  do intake e o CONTEUDO a cobrir (os 5 blocos do intake antigo), que agora sao assunto das perguntas
+  do grill em vez de uma cadencia propria:
   1. Briefing (o que construir; ja temos $ARGUMENTS, aprofundar so se vago).
   2. Design system (cores/tipografia/componentes ou link; se nao tem, gerar placeholder shadcn neutro
      em `.plano/DESIGN-TOKENS.md` e registrar pendencia em `.plano/PENDING.md`).
@@ -243,6 +236,8 @@ Opções: {recomendada} | {alternativa} | {alternativa}
      o que faltar vira pendencia blocker/non_blocker em PENDING.md).
   4. Referencias ("igual ao Linear", screenshots, brand book). Se URL + intencao de clonar -> Passo 4.
   5. Restricoes (features/tecnologias banidas). Tudo opcional, enter pula.
+
+  Para UI, oferecer o companion visual.
 
 **Validacao de briefing:** se vago/inviavel, repergunte (max 2 vezes). Apos isso, o orquestrador
 assume escopo minimo razoavel e segue. Brownfield: perguntar tambem o que NAO deve mudar e a dor maior.
@@ -479,7 +474,7 @@ Opções: manter como está | modo | granularidade | paralelização
 <success_criteria>
 - [ ] Branch de roteamento escolhido corretamente pelo $ARGUMENTS
 - [ ] Sem arg: STATE.md carregado (ou reconstruido), trabalho incompleto detectado, proxima acao clara
-- [ ] Com descricao: modo detectado, classify-task rodou, brainstorm escalado (0/1/full)
+- [ ] Com descricao: modo detectado, classify-task rodou, brainstorm escalado (0 em trivial, grill nos demais), e o pedido manual do dono tem precedencia sobre a classificacao automatica
 - [ ] Intake inline cobriu briefing + (design/credenciais/refs/restricoes na complex), SEM CEO
 - [ ] Greenfield: pesquisa inline com 4x up-pesquisador (modo dominio) + up-sintetizador (quando util)
 - [ ] BRIEFING/PROJECT/config gerados e committados atomicamente
