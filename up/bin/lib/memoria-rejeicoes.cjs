@@ -11,7 +11,12 @@
  * Duas guardas fecham a porta de entrada, antes de qualquer escrita: item ja implementado e
  * motivo temporario nao entram na base, porque envenenariam a consulta com falsa rejeicao ou
  * confundiriam adiamento com recusa. Criacao preguicosa: nenhum diretorio nasce antes da
- * primeira rejeicao estrutural passar nas duas guardas.
+ * primeira rejeicao estrutural passar nas duas guardas. As duas guardas aceitam --forcar junto
+ * com --justificativa (mesmo escape hatch que `memoria termo registrar` ja usa para o termo
+ * generico de programacao): motivo estrutural legitimo pode conter uma marca da lista fechada
+ * por coincidencia de linguagem ("ja temos um principio de arquitetura que proibe X", por
+ * exemplo), e sem escape a guarda distorce o motivo gravado em vez de so filtrar descuido. A
+ * guarda continua ligada por padrao; --forcar sem --justificativa nao basta.
  *
  * A acao alias faz leitura-modificacao-escrita do frontmatter inteiro do conceito, protegida
  * por um lock de diretorio por conceito (comLockDiretorio, mesmo mecanismo do RV-003 ja
@@ -106,6 +111,12 @@ function normalizar(texto) {
  * dependem da forma neutra sem esse colapso. */
 function normalizarGuarda(texto) {
   return normalizar(texto).replace(/\bpra\b/g, 'para');
+}
+
+/** Flag booleana, so presenca (sem valor associado). Mesma convencao ja usada em
+ * memoria-termo.cjs para --forcar. */
+function temFlag(args, nome) {
+  return args.includes(`--${nome}`);
 }
 
 /** Normaliza, quebra por espaco, descarta palavra vazia e token com menos de quatro
@@ -214,27 +225,57 @@ function listarRejeicoes(cwd) {
 // Escrita: registrar (tarefa 2)
 // =====================================================================
 
-function verificarGuardaImplementado(motivo) {
+/**
+ * Verifica a guarda de item ja implementado. Devolve a marca encontrada (ou null se nenhuma
+ * marca casou). Reversivel com --forcar mais --justificativa (DEB-1, mesmo escape hatch que
+ * `memoria termo registrar` ja usa para o termo generico): motivo estrutural legitimo pode
+ * conter uma destas marcas por coincidencia de linguagem, e sem escape a guarda distorce o
+ * motivo gravado. flags.forcar sozinho nao basta: sem flags.justificativa a escrita continua
+ * recusada, para o escape nao virar bypass silencioso.
+ */
+function verificarGuardaImplementado(motivo, flags) {
   const normalizado = normalizarGuarda(motivo);
   const marca = MARCAS_IMPLEMENTADO.find((m) => normalizado.includes(m));
-  if (marca) {
+  if (!marca) return null;
+  if (!flags.forcar) {
     throw new Error(
       `Rejeicao nao registrada: o motivo indica item ja implementado (marca "${marca}"). ` +
       'Isso nao entra na base porque envenenaria a consulta com falsa rejeicao para pedidos futuros parecidos. ' +
-      'O lugar certo desse registro e o documento de estado do projeto.'
+      'O lugar certo desse registro e o documento de estado do projeto. Se o motivo e estrutural de verdade e a ' +
+      'marca apareceu por coincidencia de linguagem, use --forcar junto com --justificativa.'
     );
   }
+  if (!flags.justificativa) {
+    throw new Error(
+      'Rejeicao nao registrada: --forcar exige --justificativa explicando por que este motivo estrutural legitimo ' +
+      `contem a marca "${marca}" por coincidencia.`
+    );
+  }
+  return marca;
 }
 
-function verificarGuardaAdiamento(motivo) {
+/**
+ * Mesma logica de verificarGuardaImplementado, para a guarda de adiamento. Devolve a marca
+ * encontrada (ou null). Mesmo escape hatch --forcar mais --justificativa.
+ */
+function verificarGuardaAdiamento(motivo, flags) {
   const normalizado = normalizarGuarda(motivo);
   const marca = MARCAS_ADIAMENTO.find((m) => normalizado.includes(m));
-  if (marca) {
+  if (!marca) return null;
+  if (!flags.forcar) {
     throw new Error(
       `Rejeicao nao registrada: o motivo indica adiamento (marca "${marca}"), e adiamento nao e rejeicao. ` +
-      'O lugar certo desse registro e a secao de pendencias do documento de estado do projeto.'
+      'O lugar certo desse registro e a secao de pendencias do documento de estado do projeto. Se o motivo e ' +
+      'estrutural de verdade e a marca apareceu por coincidencia de linguagem, use --forcar junto com --justificativa.'
     );
   }
+  if (!flags.justificativa) {
+    throw new Error(
+      'Rejeicao nao registrada: --forcar exige --justificativa explicando por que este motivo estrutural legitimo ' +
+      `contem a marca "${marca}" por coincidencia.`
+    );
+  }
+  return marca;
 }
 
 function registrar(cwd, flags) {
@@ -260,9 +301,12 @@ function registrar(cwd, flags) {
   for (const alias of aliases) rejeitarQuebraDeLinha(alias, 'alias');
   const aliasesSerializados = aliases.map((a) => serializarValorFrontmatter(a, 'alias'));
 
-  // 2. As duas guardas de admissao, antes de qualquer escrita.
-  verificarGuardaImplementado(motivo);
-  verificarGuardaAdiamento(motivo);
+  // 2. As duas guardas de admissao, antes de qualquer escrita. Reversiveis com --forcar mais
+  // --justificativa (DEB-1); ver o comentario de verificarGuardaImplementado.
+  const marcaImplementado = verificarGuardaImplementado(motivo, flags);
+  const marcaAdiamento = verificarGuardaAdiamento(motivo, flags);
+  const marcaForcada = marcaImplementado || marcaAdiamento;
+  const justificativaForcada = marcaForcada ? flags.justificativa.trim() : null;
 
   // 3. Conceito normalizado para slug, e checagem de duplicata.
   const conceito = generateSlugInternal(conceitoBruto);
@@ -304,6 +348,9 @@ function registrar(cwd, flags) {
   const corpo = [
     `# ${titulo.trim()}`,
     '',
+    ...(justificativaForcada
+      ? [`<!-- guarda de admissao forcada (marca "${marcaForcada}"): ${justificativaForcada} -->`, '']
+      : []),
     '## Motivo da recusa',
     motivo.trim(),
     '',
@@ -314,12 +361,17 @@ function registrar(cwd, flags) {
 
   fs.writeFileSync(caminhoArquivo, frontmatter.join('\n') + '\n' + corpo, 'utf-8');
 
-  return {
+  const resultado = {
     conceito,
     caminho: toPosixPath(path.relative(cwd, caminhoArquivo)),
     aliases_count: aliases.length,
     base_criada_agora: !baseExistiaAntes,
   };
+  if (justificativaForcada) {
+    resultado.guarda_forcada = marcaForcada;
+    resultado.justificativa_forcada = justificativaForcada;
+  }
+  return resultado;
 }
 
 // =====================================================================
@@ -527,6 +579,8 @@ function run(cwd, args) {
       motivo: lerFlag(args, 'motivo'),
       alias: lerFlags(args, 'alias'),
       'reabre-se': lerFlag(args, 'reabre-se'),
+      forcar: temFlag(args, 'forcar'),
+      justificativa: lerFlag(args, 'justificativa'),
     });
     return {
       result: resultado,

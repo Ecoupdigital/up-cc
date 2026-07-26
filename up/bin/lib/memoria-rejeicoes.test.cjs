@@ -243,6 +243,89 @@ t('registrar: "postergar" falha como adiamento', () => {
   assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
 });
 
+// =====================================================================
+// Escape hatch --forcar mais --justificativa (DEB-1, correcao final): mesmo precedente que
+// `memoria termo registrar` ja usa para o termo generico de programacao. As cinco frases
+// abaixo sao motivo estrutural legitimo que so por coincidencia de linguagem contem uma marca
+// da lista fechada (tres delas, "ja tem", "ja temos" e "ja existe", sao da lista ORIGINAL; as
+// outras duas, "ja entregamos" e "nao e prioridade", entraram no alargamento por flexao).
+// =====================================================================
+
+const FRASES_ESTRUTURAIS_BARRADAS_POR_COINCIDENCIA = [
+  {
+    conceito: 'caminho pela integracao nativa',
+    titulo: 'Caminho pela integracao nativa',
+    motivo: 'O produto ja tem um caminho melhor pela integracao nativa, entao um recurso a parte para isso duplicaria manutencao.',
+  },
+  {
+    conceito: 'estado global proibido por arquitetura',
+    titulo: 'Estado global proibido por arquitetura',
+    motivo: 'Ja temos um principio de arquitetura que proibe estado global, e esse pedido contraria esse principio direto.',
+  },
+  {
+    conceito: 'seis anos sem o recurso',
+    titulo: 'Seis anos sem o recurso',
+    motivo: 'A empresa ja existe ha seis anos sem esse recurso e o publico nunca pediu por ele nesse tempo todo.',
+  },
+  {
+    conceito: 'muda o publico alvo da empresa',
+    titulo: 'Muda o publico alvo da empresa',
+    motivo: 'Nao e prioridade da empresa e nunca vai ser, porque muda o publico-alvo que a empresa decidiu atender.',
+  },
+  {
+    conceito: 'valor suficiente pelo caminho atual',
+    titulo: 'Valor suficiente pelo caminho atual',
+    motivo: 'Ja entregamos valor suficiente pelo caminho atual e mudar de rota agora dilui o foco do produto.',
+  },
+];
+
+for (const [indice, caso] of FRASES_ESTRUTURAIS_BARRADAS_POR_COINCIDENCIA.entries()) {
+  t(`escape hatch ${indice + 1}/5: "${caso.titulo}" e barrado sem --forcar (motivo estrutural, marca por coincidencia)`, () => {
+    const dir = mkProjeto();
+    assert.throws(() => rejeicoes.registrar(dir, caso));
+    assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+  });
+
+  t(`escape hatch ${indice + 1}/5: "${caso.titulo}" com --forcar e --justificativa e aceito e grava a justificativa`, () => {
+    const dir = mkProjeto();
+    const r = rejeicoes.registrar(dir, {
+      ...caso,
+      forcar: true,
+      justificativa: 'motivo estrutural confirmado pelo dono; a marca apareceu por coincidencia de linguagem, nao por adiamento ou item ja pronto.',
+    });
+    assert.strictEqual(r.base_criada_agora || fs.existsSync(path.join(dir, r.caminho)), true);
+    assert.ok(r.guarda_forcada, 'deveria informar qual marca foi forcada');
+    assert.strictEqual(r.justificativa_forcada, 'motivo estrutural confirmado pelo dono; a marca apareceu por coincidencia de linguagem, nao por adiamento ou item ja pronto.');
+    const conteudo = fs.readFileSync(path.join(dir, r.caminho), 'utf-8');
+    assert.ok(conteudo.includes('motivo estrutural confirmado pelo dono'), 'a justificativa deveria ficar gravada no arquivo');
+  });
+}
+
+t('escape hatch: --forcar sem --justificativa continua falhando (nao vira bypass silencioso)', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, {
+      conceito: 'caminho pela integracao nativa dois',
+      titulo: 'Caminho pela integracao nativa dois',
+      motivo: 'O produto ja tem um caminho melhor pela integracao nativa, decisao estrutural do dono.',
+      forcar: true,
+    }),
+    /justificativa/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('escape hatch: --forcar em motivo sem nenhuma marca nao exige --justificativa (nao muda o caminho feliz)', () => {
+  const dir = mkProjeto();
+  const r = rejeicoes.registrar(dir, {
+    conceito: 'busca por imagem',
+    titulo: 'Busca por imagem',
+    motivo: 'O produto delega busca visual para o provedor de nuvem contratado, por decisao de custo de infraestrutura.',
+    forcar: true,
+  });
+  assert.strictEqual(r.guarda_forcada, undefined, 'sem marca nenhuma, nao ha o que forcar');
+});
+
 t('registrar: palavra solta "depois" em prosa legitima nao produz recusa falsa', () => {
   const dir = mkProjeto();
   const r = rejeicoes.registrar(dir, {
@@ -532,6 +615,35 @@ t('linha de comando: registrar aprovado sai com codigo 0 e grava o arquivo', () 
   const parsed = JSON.parse(r.stdout);
   assert.strictEqual(parsed.conceito, 'modo-offline');
   assert.ok(fs.existsSync(path.join(dir, parsed.caminho)));
+});
+
+t('linha de comando: registrar com marca por coincidencia mais --forcar e --justificativa sai com codigo 0', () => {
+  const dir = mkProjeto();
+  const r = runCli([
+    'memoria', 'fora-de-escopo', 'registrar',
+    '--conceito', 'ja tem via linha de comando',
+    '--titulo', 'Ja tem via linha de comando',
+    '--motivo', 'O produto ja tem um caminho melhor pela integracao nativa, decisao estrutural do dono.',
+    '--forcar',
+    '--justificativa', 'confirmado pelo dono que e estrutural; a marca apareceu por coincidencia de linguagem.',
+  ], dir);
+  assert.strictEqual(r.status, 0);
+  const parsed = JSON.parse(r.stdout);
+  assert.ok(parsed.guarda_forcada);
+  assert.ok(fs.existsSync(path.join(dir, parsed.caminho)));
+});
+
+t('linha de comando: registrar com marca por coincidencia mais --forcar sem --justificativa sai com codigo 1', () => {
+  const dir = mkProjeto();
+  const r = runCli([
+    'memoria', 'fora-de-escopo', 'registrar',
+    '--conceito', 'ja tem via linha de comando dois',
+    '--titulo', 'Ja tem via linha de comando dois',
+    '--motivo', 'O produto ja tem um caminho melhor pela integracao nativa, decisao estrutural do dono.',
+    '--forcar',
+  ], dir);
+  assert.strictEqual(r.status, 1);
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
 });
 
 // =====================================================================
