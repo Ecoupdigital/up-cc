@@ -1,6 +1,6 @@
 ---
 name: up-brainstorm
-description: "Use antes de QUALQUER trabalho criativo: criar feature, montar componente, adicionar funcionalidade, mudar comportamento, iniciar projeto ou tarefa. Explora intencao, requisitos e design antes de implementar. Aplica a todo projeto, por mais simples que pareca. Cobre tambem o modo grill (--grill, 'me grelha', 'vai fundo', 'pergunta mais')."
+description: "Use antes de QUALQUER trabalho criativo: criar feature, montar componente, adicionar funcionalidade, mudar comportamento, iniciar projeto ou tarefa. Explora intencao, requisitos e design antes de implementar. Aplica a todo projeto, por mais simples que pareca. Cobre tambem o modo grill (--grill, 'me grelha', 'vai fundo', 'pergunta mais', 'me pergunta', 'quero pensar junto')."
 ---
 
 # UP Brainstorm
@@ -102,7 +102,7 @@ O tier automatico e so o default. O usuario manda na profundidade:
 
 | Sinal do usuario | Efeito |
 |------------------|--------|
-| Flag `--grill` ou palavras "me grelha", "vai fundo", "pergunta mais" | Entra em grill, inclusive em tarefa classificada como Trivial: o pedido do dono vence a classificação automática. |
+| Flag `--grill` ou palavras "me grelha", "vai fundo", "pergunta mais", "me pergunta", "quero pensar junto" | Entra em grill, inclusive em tarefa classificada como Trivial: o pedido do dono vence a classificação automática. |
 | Palavras "rapido", "simples", "so faz", "sem perguntas" OU flag `--quick` | Desce pra **trivial** (0 perguntas), mesmo que o score ache complexo. O HARD-GATE continua: anuncia antes de agir. Quando a tarefa está classificada como Média ou Grande, anuncie o desencontro e o risco em uma linha antes de seguir, sem perguntar. |
 | Nada declarado | Usa o piso automático: grill fora de Trivial. |
 
