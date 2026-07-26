@@ -832,6 +832,7 @@ function buildUpBootstrapBlock(runtime, pathPrefix) {
   const cmd = runtime === 'opencode' ? '/up-' : runtime === 'codex' ? '$up-' : '/up:';
   const entry = runtime === 'opencode' ? '/up-up' : runtime === 'codex' ? '$up-up' : '/up:up';
   const skills = toHomePrefix(pathPrefix) + 'up/skills';
+  const refs = toHomePrefix(pathPrefix) + 'up/references';
   return [
     UP_BOOTSTRAP_START,
     '# UP (up-cc): doutrina sempre-ativa',
@@ -847,6 +848,8 @@ function buildUpBootstrapBlock(runtime, pathPrefix) {
     '   glue/integracao = smoke-test. Ref: ' + skills + '/up-tdd/SKILL.md',
     '4. GitHub-nativo e o padrao no ' + cmd + 'build (worktree -> issue -> PR -> merge); ' + cmd + 'rapido pula a cerimonia.',
     '5. O estado vive em .plano/ e sobrevive a reset de contexto. Persistencia e o coracao do UP.',
+    '6. VOCABULÁRIO ÚNICO: os termos do UP (fase, plano, onda, gate, evidência, worktree, escape hatch,',
+    '   verificação, laço DCRV) têm definição única. Ref: ' + refs + '/glossario-up.md. Use o termo, não redefina.',
     '',
     'Porta unica: ' + entry + ' "sua ideia". Comandos: ' + cmd + 'up, ' + cmd + 'plan, ' + cmd + 'build, ' + cmd + 'testar, ' + cmd + 'auditar, ' + cmd + 'depurar, ' + cmd + 'rapido.',
     UP_BOOTSTRAP_END,
