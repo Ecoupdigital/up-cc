@@ -35,7 +35,7 @@ Se voce se pegar pensando uma dessas, PARE. E o sinal de que esta prestes a fura
 |------------|-----------|
 | "Isso e simples demais pra brainstorm" | O gate nao e opcional. Tier Trivial ja e a saida leve (0 perguntas). Anuncie e siga, mas pelo gate. |
 | "Vou so escrever o codigo, depois explico" | Implementar antes de apresentar o design fura o HARD-GATE. Apresente primeiro. |
-| "Preciso de mais contexto antes de decidir o tier" | Classifique com `classify-task` AGORA. O tier sai dos sinais (nº arquivos, arquitetura, schema/API/auth), nao do seu humor. O piso automatico e grill fora de Trivial. |
+| "Preciso de mais contexto antes de decidir o tier" | Aplique a heuristica de prosa AGORA (nº arquivos, arquitetura, schema/API/auth, tabela em `grill.md`). O tier sai dos sinais, nao do seu humor. O piso automatico e grill fora de Trivial. |
 | "Marco como Trivial pra ir mais rapido" | Se toca schema/API/auth ou >1 subsistema, NAO e Trivial. Rebaixar o tier e furar o gate disfarcado. |
 | "O usuario tem pressa, pulo a aprovacao" | Pressa muda a PROFUNDIDADE (tier), nunca remove a aprovacao. Ate Trivial anuncia antes de agir. |
 | "Ja sei o que ele quer" | Suposicao nao e aprovacao. Pequena entra em grill: pergunte, nao suponha. |
@@ -78,7 +78,13 @@ abaixo).
 
 ## Profundidade escalada por tamanho
 
-Classifique a tarefa com o `classify-task` do `up-tools.cjs` (tiers: `simple` / `standard` / `complex`). Heuristica equivalente quando ainda nao ha plano: nº de arquivos provaveis, palavra de arquitetura, toca schema/API/auth.
+Classifique a descrição do dono por HEURÍSTICA DE PROSA, aplicada direto no texto: nº de arquivos
+prováveis, palavra de arquitetura, toca schema/API/auth (regras completas e tabela em `grill.md`,
+mesma pasta, seção "## Quando o grill entra"). NÃO rode o `classify-task` da CLI aqui: essa operação
+lê ARQUIVO DE PLANO (frontmatter de lista fechada, contagem de tarefas, tamanho em bytes, regex em
+inglês), não descrição livre em português, e por isso devolve `simple`/score baixo pra quase toda
+prosa, mesmo pedindo reescrita de arquitetura inteira. `classify-task` continua sendo a ferramenta
+certa depois, quando `/up:plan` já escreveu um plano em disco.
 
 | Tier | Profundidade |
 |------|--------------|
@@ -88,7 +94,7 @@ Classifique a tarefa com o `classify-task` do `up-tools.cjs` (tiers: `simple` / 
 O que separa Pequena de Média e Grande agora é só a destilação (design em três frases contra design
 por seção); a contagem de perguntas deixou de ser o eixo.
 
-O `classify-task` define o PISO (minimo garantido). O usuario sempre pode SUBIR ou DESCER manualmente (override abaixo). Nunca diminua a profundidade por conta propria; so o usuario rebaixa.
+A heurística de prosa define o PISO (minimo garantido). O usuario sempre pode SUBIR ou DESCER manualmente (override abaixo). Nunca diminua a profundidade por conta propria; so o usuario rebaixa.
 
 ## Override de profundidade (controle do usuario)
 

@@ -70,7 +70,7 @@ claude
 /up "app web de controle de gastos: lança despesa, categoriza, mostra gráfico mensal. Next.js + Supabase"
 ```
 
-O UP roda `classify-task` para medir o tamanho e escala o brainstorm:
+O UP aplica uma heuristica de prosa (nº de arquivos, palavra de arquitetura, toca schema/API/auth) direto na descricao para medir o tamanho e escala o brainstorm. Isso nao roda `classify-task` da CLI: essa operacao le arquivo de plano, nao descricao livre em portugues.
 
 - **Tarefa trivial** (1 arquivo): 0 perguntas, anuncia em 1 linha e segue.
 - **Pequena, média e grande**: entram em modo grill (perguntas ilimitadas, uma por vez, cada uma com

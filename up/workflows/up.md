@@ -20,11 +20,15 @@ real acontece no build/plan; aqui o foco e roteamento + intake.
 O orquestrador (voce) conduz tudo. NAO existe mais CEO: intake, confirmacao do dono e apresentacao
 viram prompts inline (AskUserQuestion). A personalidade/perfil do dono vem de `~/.claude/up/owner-profile.md`.
 
-Profundidade do brainstorm = funcao do `classify-task`, NAO do humor do dia:
-- `simple` (trivial, score 0-2): 0 perguntas, anuncia em 1 linha, executa.
-- `standard` (pequena, score 3-5) e `complex` (media/grande, score 6+): entram em modo grill
-  (perguntas ilimitadas, uma por vez, ate uma das tres portas de saida). Motor em
-  `up/skills/up-brainstorm/grill.md`, este workflow nao redefine a cadencia.
+Profundidade do brainstorm = funcao da HEURISTICA DE PROSA aplicada na descricao (NAO do
+`classify-task` da CLI, que le ARQUIVO DE PLANO e nao discrimina descricao livre em portugues; nem
+do humor do dia):
+- Nenhum sinal de grill na descricao (1 arquivo, sem decisao de arquitetura): 0 perguntas, anuncia
+  em 1 linha, executa.
+- 1+ sinal de grill (mais de um arquivo/subsistema, palavra de arquitetura, toca schema/API/auth):
+  entra em modo grill (perguntas ilimitadas, uma por vez, ate uma das tres portas de saida). Motor e
+  tabela completa de sinais em `up/skills/up-brainstorm/grill.md`, este workflow nao redefine a
+  cadencia nem os sinais.
 
 **Contrato de pergunta (obrigatório):** antes da primeira pergunta de qualquer rota, carregue
 `Read $HOME/.claude/up/references/questioning.md` e aplique o bloco `<contrato_de_pergunta>`. Nenhuma
@@ -203,28 +207,24 @@ estrutura de pastas e histórico. Perguntar isso ali é violação do contrato.
 
 ### 2.3 Classificar a tarefa e escalar o brainstorm/intake
 
-Escrever um plano-rascunho minimo do briefing em arquivo temporario pra classificar
-(classify-task le frontmatter + padroes de conteudo):
+Classificar a descricao por HEURISTICA DE PROSA, aplicada direto no texto de `$ARGUMENTS`, sem rodar
+comando nenhum: nº de arquivos/subsistemas provaveis, palavra de arquitetura (refatorar, redesenhar,
+reescrever, migrar), toca schema/dado persistido, API/endpoint novo ou autenticacao/autorizacao.
+Tabela completa dos sinais em `up/skills/up-brainstorm/grill.md`, secao "## Quando o grill entra":
+este workflow nao redefine os sinais, so aplica.
 
-```bash
-mkdir -p .plano
-cat > /tmp/up-brief-classify.md <<EOF
----
-type: feature
-brownfield: ${BROWNFIELD:-false}
----
-${ARGUMENTS}
-EOF
-CLASSIFY=$(node "$HOME/.claude/up/bin/up-tools.cjs" classify-task /tmp/up-brief-classify.md --raw)
-COMPLEXITY=$(echo "$CLASSIFY" | grep -oE '"complexity"\s*:\s*"[a-z]+"' | grep -oE '(simple|standard|complex)')
-```
+**NAO rode `classify-task` aqui.** Essa operacao le ARQUIVO DE PLANO (frontmatter de lista fechada,
+contagem de tarefas, tamanho em bytes, regex em ingles como `refactor`/`auth`/`payment`) e nao mede
+descricao livre em portugues: toda prosa de brainstorm pontua perto de zero nela, mesmo pedindo
+reescrita de arquitetura inteira. Ela continua correta para o uso dela: um plano ja escrito, depois
+que `/up:plan` roda.
 
-**Profundidade do intake/brainstorm conforme COMPLEXITY:**
+**Profundidade do intake/brainstorm conforme a heuristica:**
 
-- **simple (trivial):** ZERO perguntas. Anunciar em 1 linha o que vai construir e seguir.
-  Ex: "Vou criar [X]. Indo." Pular direto pro 2.5 (estruturar) com defaults.
+- **Nenhum sinal de grill (Trivial):** ZERO perguntas. Anunciar em 1 linha o que vai construir e
+  seguir. Ex: "Vou criar [X]. Indo." Pular direto pro 2.5 (estruturar) com defaults.
 
-- **standard (pequena) e complex (media/grande):** entram em modo grill (motor em
+- **1+ sinal de grill (Pequena, Media ou Grande):** entram em modo grill (motor em
   `up/skills/up-brainstorm/grill.md`, perguntas ilimitadas, uma por vez, ate uma das tres portas de
   saida). Este workflow nao redefine a cadencia do grill, so aponta pra ela. O que sobra especifico
   do intake e o CONTEUDO a cobrir (os 5 blocos do intake antigo), que agora sao assunto das perguntas

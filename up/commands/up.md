@@ -75,21 +75,17 @@ Execute the up router workflow from @~/.claude/up/workflows/up.md end-to-end.
 3. Descricao em texto livre: rota `brainstorm`.
 
 **Brainstorm escalado por tamanho (quando ha descricao):**
-Reusa `classify-task` (NAO reimplementar). A operacao le CAMINHO DE ARQUIVO, nao texto direto: grave a
-descricao num arquivo temporario com frontmatter minimo antes de classificar, igual ao workflow:
-```bash
-mkdir -p .plano
-cat > /tmp/up-brief-classify.md <<EOF
----
-type: feature
----
-<descricao>
-EOF
-node "$HOME/.claude/up/bin/up-tools.cjs" classify-task /tmp/up-brief-classify.md --raw
-```
-- Trivial (1 arquivo, sem decisao de arquitetura): **0 perguntas**, anuncia em 1 linha, roteia.
-- Pequena, Media e Grande (1+ subsistema, qualquer decisao de design): **modo grill** (perguntas
-  ilimitadas, uma por vez, ate uma das tres portas de saida). Motor em `up/skills/up-brainstorm/grill.md`.
+Classifica por HEURISTICA DE PROSA, aplicada direto na descricao. NAO rode `classify-task` da CLI
+para isso: essa operacao le ARQUIVO DE PLANO, com frontmatter de lista fechada e regex em ingles, e
+nao discrimina descricao livre em portugues. Toda prosa de brainstorm cai perto de zero nela, mesmo
+pedindo reescrita de arquitetura. `classify-task` continua correto para o uso dela: um plano ja
+escrito, depois que `/up:plan` roda. Sinais aplicados direto no texto: nº de arquivos/subsistemas
+provaveis, palavra de arquitetura, toca schema/API/auth. Tabela completa em
+`up/skills/up-brainstorm/grill.md`, secao "## Quando o grill entra".
+- Trivial (1 arquivo, sem decisao de arquitetura, nenhum sinal acima): **0 perguntas**, anuncia em 1
+  linha, roteia.
+- Pequena, Media e Grande (1+ sinal acima): **modo grill** (perguntas ilimitadas, uma por vez, ate
+  uma das tres portas de saida). Motor em `up/skills/up-brainstorm/grill.md`.
 
 Brainstorm gera BRIEFING.md (intake inline, sem CEO). Em seguida roteia:
 - GREENFIELD -> pipeline de novo projeto (pesquisa + sintese), depois `/up:plan`.

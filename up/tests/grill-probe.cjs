@@ -1,6 +1,6 @@
 /**
  * grill-probe.cjs: sonda de comportamento do modo grill (fase 15, plano 004).
- * Roda: node up/tests/grill-probe.cjs --caso <parada|entrada|precedencia> [--doutrina <caminho>]
+ * Roda: node up/tests/grill-probe.cjs --caso <parada|entrada|precedencia|classifica-grill|classifica-trivial> [--doutrina <caminho>]
  *
  * Monta um prompt com (a) o conteudo integral da doutrina sob teste, (b) uma linha de
  * enquadramento, (c) uma transcricao fabricada do caso escolhido, e (d) a instrucao final pedindo
@@ -83,6 +83,23 @@ periodo especifico.`,
 
 Dono: Troca o texto do botao "Enviar" pra "Confirmar pedido". Me grelha nessa, quero pensar bem
 antes de mexer.`,
+
+  // Caso 4 (RV-001): descricao de projeto que toca schema, API e autenticacao, sem nenhum gatilho
+  // manual de grill e sem classificacao previa declarada. Prova que a heuristica de prosa embutida
+  // no motor (nao o classify-task da CLI) sobe sozinha pra grill.
+  'classifica-grill': `A conversa abaixo ja aconteceu. Continue exatamente a partir do ultimo turno
+do dono, sem repetir nada do que ja foi dito.
+
+Dono: Preciso refatorar a arquitetura inteira do modulo de pagamentos: muda o schema do banco, troca
+a API de cobranca e adiciona autenticacao nova pra quem pode disparar reembolso.`,
+
+  // Caso 5 (RV-001): tarefa de um arquivo, sem nenhuma decisao de arquitetura, schema, API ou auth.
+  // Prova que a mesma heuristica de prosa continua em zero pergunta pra esse caso.
+  'classifica-trivial': `A conversa abaixo ja aconteceu. Continue exatamente a partir do ultimo turno
+do dono, sem repetir nada do que ja foi dito.
+
+Dono: No arquivo components/Button.tsx, troca o texto do botao de "Enviar" pra "Confirmar pedido".
+So isso, nada mais muda.`,
 };
 
 function parseArgs(argv) {
@@ -189,6 +206,40 @@ function assertivas(caso, saida) {
           saida
         ),
         razao: 'saída anuncia execução direta em vez de perguntar primeiro',
+      },
+    ];
+  }
+
+  if (caso === 'classifica-grill') {
+    return [
+      {
+        nome: 'entra em grill: contém [Q1] com linha de dependência',
+        ok: /\[Q1\]/.test(saida) && /depende de:/i.test(saida),
+        razao: 'faltou "[Q1]" e/ou "Depende de:" (deveria ter subido pra grill: descrição toca schema, API e autenticação)',
+      },
+      {
+        nome: 'sem anúncio de execução direta (não ficou em zero pergunta)',
+        ok: !/vou (refatorar|mudar|trocar|implementar|migrar|fazer)|j[aá] (refatorei|troquei|implementei|mudei|migrei|fiz)|\bpronto\b|\bfeito\b|executando agora/i.test(
+          saida
+        ),
+        razao: 'saída anuncia execução direta em vez de perguntar primeiro (ficou em zero pergunta)',
+      },
+    ];
+  }
+
+  if (caso === 'classifica-trivial') {
+    return [
+      {
+        nome: 'não entra em grill: sem [Q1] e sem linha de dependência',
+        ok: !/\[Q1\]/.test(saida) && !/depende de:/i.test(saida),
+        razao: 'saída contém "[Q1]" e/ou "Depende de:" (deveria ter ficado em zero pergunta: 1 arquivo, sem decisão de arquitetura)',
+      },
+      {
+        nome: 'anuncia e executa em uma linha',
+        ok: /zero pergunta|sigo direto|vou (trocar|mudar|alterar|atualizar)|\btroc(o|hei)\b|\balter(o|ei)\b|\batualiz(o|ei)\b|\bpronto\b|\bfeito\b/i.test(
+          saida
+        ),
+        razao: 'saída não anuncia execução direta (esperado: anúncio de 1 linha seguido de execução, sem pergunta)',
       },
     ];
   }

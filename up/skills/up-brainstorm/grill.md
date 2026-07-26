@@ -6,23 +6,35 @@ no turno em que o grill entra.
 
 ## Quando o grill entra
 
-| Sinal | Efeito |
-|-------|--------|
-| Classificação automática devolve `simple` (Trivial) | Zero pergunta. Anuncia em uma linha e segue. O grill NÃO entra |
-| Classificação automática devolve `standard` (Pequena) ou `complex` (Média ou Grande) | Grill entra automaticamente |
-| Flag `--grill` ou palavras "me grelha", "vai fundo", "pergunta mais", "me pergunta", "quero pensar junto" | Grill entra, mesmo em tarefa classificada como Trivial |
-| Palavras "rápido", "simples", "só faz", "sem perguntas", flag `--quick`, ou o comando de tarefa avulsa | Desce para zero pergunta, mesmo em tarefa classificada como Média ou Grande |
+A classificação vem de HEURÍSTICA DE PROSA, aplicada direto na descrição do dono, sem rodar comando
+nenhum. O `classify-task` da CLI (`up-tools.cjs classify-task <arquivo>`) mede um ARQUIVO DE PLANO já
+escrito (frontmatter de lista fechada, contagem de tarefas, tamanho em bytes, regex em inglês como
+`refactor`/`auth`/`payment`): não serve pra prosa em português no momento do brainstorm, porque uma
+descrição livre não carrega nenhum desses sinais e sempre pontua perto de zero, mesmo pedindo uma
+reescrita inteira de arquitetura. `classify-task` continua correto pra o que ele mede: um plano já
+escrito em disco, depois que `/up:plan` roda.
 
-**Regra de precedência**: o pedido do dono vence a classificação automática nas duas direções,
-porque a classificação é piso e não teto. Quando o mesmo pedido carrega sinal de subir e sinal de
-descer ao mesmo tempo, sobe: subir é reversível com uma palavra e descer não é. Quando o dono manda
-descer numa tarefa classificada como `complex`, anuncie em UMA linha o desencontro e o risco
-assumido, e siga sem perguntar. Isso é aviso, não pergunta.
+Aplique estes quatro sinais direto na descrição do dono:
 
-A classificação vem da operação de classificação de tarefa da CLI, que lê um arquivo. Durante o
-brainstorm ainda não existe plano em disco, então a descrição do dono é gravada num arquivo
-temporário antes de classificar. Mapeamento de vocabulário: `simple` igual a Trivial, `standard`
-igual a Pequena, `complex` igual a Média ou Grande.
+| Sinal presente na descrição | Efeito |
+|------------------------------|--------|
+| Toca mais de um arquivo/subsistema provável | Sobe pra grill |
+| Palavra de arquitetura (refatorar, redesenhar, reescrever, migrar, "arquitetura inteira", trocar framework/biblioteca) | Sobe pra grill |
+| Toca schema/dado persistido, API/endpoint novo, ou autenticação/autorização | Sobe pra grill |
+| Nenhum dos sinais acima: muda um arquivo conhecido, sem decisão de design | Fica em Trivial |
+
+| Resultado da heurística | Efeito |
+|--------------------------|--------|
+| Nenhum sinal de grill encontrado (Trivial) | Zero pergunta. Anuncia em uma linha e segue. O grill NÃO entra |
+| Um ou mais sinais de grill encontrados (Pequena, Média ou Grande) | Grill entra automaticamente |
+| Flag `--grill` ou palavras "me grelha", "vai fundo", "pergunta mais", "me pergunta", "quero pensar junto" | Grill entra, mesmo sem nenhum sinal de grill na descrição |
+| Palavras "rápido", "simples", "só faz", "sem perguntas", flag `--quick`, ou o comando de tarefa avulsa | Desce para zero pergunta, mesmo com sinal de grill na descrição |
+
+**Regra de precedência**: o pedido do dono vence a heurística nas duas direções, porque a heurística
+é piso e não teto. Quando o mesmo pedido carrega sinal de subir e sinal de descer ao mesmo tempo,
+sobe: subir é reversível com uma palavra e descer não é. Quando o dono manda descer numa descrição
+com sinal de grill, anuncie em UMA linha o desencontro e o risco assumido, e siga sem perguntar.
+Isso é aviso, não pergunta.
 
 ## O laço
 
