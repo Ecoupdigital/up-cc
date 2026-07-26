@@ -136,10 +136,8 @@ Esta é a lista fechada:
 | id | Superfície | Arquivo hoje | O que pergunta |
 |----|-----------|--------------|----------------|
 | up.proxima-acao | Roteamento da porta única | up/workflows/up.md | Qual a próxima ação depois de restaurar o estado |
-| up.decisao-chave | Roteamento da porta única | up/workflows/up.md | A decisão-chave da tarefa classificada como pequena |
 | up.clone-intake | Roteamento da porta única | up/workflows/up.md | Com que stack o app clonado é recriado |
 | up.config-editar | Roteamento da porta única | up/workflows/up.md | Qual opção de configuração mudar |
-| brainstorm.decisao-chave | Brainstorm | up/skills/up-brainstorm/SKILL.md | A decisão-chave do tier pequena |
 | brainstorm.checkpoint | Brainstorm | up/skills/up-brainstorm/SKILL.md | Fechar a rodada ou continuar perguntando |
 | plan.intake-minimo | Planejamento | up/workflows/plan.md | O que falta para planejar quando não há briefing |
 | plan.decisoes-escaladas | Planejamento | up/workflows/plan.md | As decisões que os agentes escalaram |
