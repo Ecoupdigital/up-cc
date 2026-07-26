@@ -280,7 +280,84 @@ function registrar(cwd, flags) {
 }
 
 // =====================================================================
-// Dispatcher (cresce a cada tarefa; por ora listar e registrar)
+// Escrita: alias (tarefa 3)
+// =====================================================================
+
+/** Reescreve so o bloco de aliases do frontmatter, preservando o resto do arquivo (incluindo
+ * o corpo inteiro) byte a byte. */
+function reescreverAliasesFrontmatter(conteudo, aliasesFinal) {
+  const match = conteudo.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  if (!match) {
+    throw new Error('Arquivo de rejeicao sem frontmatter valido: nao foi possivel atualizar os apelidos.');
+  }
+  const corpo = match[2];
+  const linhasNovas = [];
+  let dentroDeAliases = false;
+
+  for (const linha of match[1].split('\n')) {
+    if (dentroDeAliases) {
+      if (/^\s*-\s*.+$/.test(linha)) continue;
+      dentroDeAliases = false;
+    }
+    if (/^aliases:\s*$/.test(linha)) {
+      linhasNovas.push('aliases:');
+      for (const alias of aliasesFinal) {
+        linhasNovas.push(`  - ${alias}`);
+      }
+      dentroDeAliases = true;
+      continue;
+    }
+    linhasNovas.push(linha);
+  }
+
+  return `---\n${linhasNovas.join('\n')}\n---\n${corpo}`;
+}
+
+function adicionarAlias(cwd, { conceito: conceitoBruto, aliases: novosAliases }) {
+  if (!conceitoBruto) {
+    throw new Error('Apelido nao registrado: e preciso informar --conceito.');
+  }
+  const novos = (novosAliases || []).map((a) => a.trim()).filter(Boolean);
+  if (novos.length === 0) {
+    throw new Error('Apelido nao registrado: e preciso pelo menos um --alias.');
+  }
+
+  const conceito = generateSlugInternal(conceitoBruto);
+  const caminhoArquivo = path.join(dirForaDeEscopo(cwd), `${conceito}.md`);
+
+  if (!fs.existsSync(caminhoArquivo)) {
+    throw new Error(`Apelido nao registrado: o conceito "${conceito}" nao foi encontrado na base de rejeicoes.`);
+  }
+
+  const conteudo = fs.readFileSync(caminhoArquivo, 'utf-8');
+  const { frontmatter } = extrairFrontmatter(conteudo);
+  const aliasesAtuais = frontmatter.aliases || [];
+  const normalizadosAtuais = new Set(aliasesAtuais.map((a) => normalizar(a)));
+
+  const aliasesFinal = [...aliasesAtuais];
+  let acrescentados = 0;
+  for (const alias of novos) {
+    const normalizado = normalizar(alias);
+    if (normalizadosAtuais.has(normalizado)) continue;
+    normalizadosAtuais.add(normalizado);
+    aliasesFinal.push(alias);
+    acrescentados++;
+  }
+
+  if (acrescentados > 0) {
+    const novoConteudo = reescreverAliasesFrontmatter(conteudo, aliasesFinal);
+    fs.writeFileSync(caminhoArquivo, novoConteudo, 'utf-8');
+  }
+
+  return {
+    conceito,
+    aliases: aliasesFinal,
+    aliases_acrescentados: acrescentados,
+  };
+}
+
+// =====================================================================
+// Dispatcher (cresce a cada tarefa; por ora listar, registrar e alias)
 // =====================================================================
 
 function run(cwd, args) {
@@ -314,7 +391,18 @@ function run(cwd, args) {
     };
   }
 
-  throw new Error(`Acao desconhecida para memoria fora-de-escopo: "${acao || ''}". Disponiveis: listar, registrar.`);
+  if (acao === 'alias') {
+    const resultado = adicionarAlias(cwd, {
+      conceito: lerFlag(args, 'conceito'),
+      aliases: lerFlags(args, 'alias'),
+    });
+    return {
+      result: resultado,
+      resumo: `Conceito "${resultado.conceito}": ${resultado.aliases_acrescentados} apelido(s) acrescentado(s).`,
+    };
+  }
+
+  throw new Error(`Acao desconhecida para memoria fora-de-escopo: "${acao || ''}". Disponiveis: listar, registrar, alias.`);
 }
 
 module.exports = {
@@ -325,5 +413,6 @@ module.exports = {
   tokensSignificativos,
   listarRejeicoes,
   registrar,
+  adicionarAlias,
   run,
 };
