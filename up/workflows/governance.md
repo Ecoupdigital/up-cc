@@ -9,6 +9,8 @@ modelo-burro). O que sobra e o mecanismo deterministico que importa: o GATE de f
 intacta, apenas tira a camada de supervisores/chiefs/CEO que decidia em volta dele.
 </purpose>
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 <core_principle>
 A seguranca do UP nunca foram os agentes de governanca; era (1) o `approvals.log` deterministico que
 um GATE em bash verifica, e (2) os detectores que rodam o app de verdade (DCRV). Este workflow define

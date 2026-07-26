@@ -1,0 +1,307 @@
+/**
+ * memoria.cjs: roteador do espaco de memoria do projeto (Fase 14).
+ *
+ * Comando de primeiro nivel `memoria`, com quatro submodulos declarados de uma vez
+ * (reserva de nome, ainda que so o de decisao exista neste plano):
+ *
+ *   memoria decisao <acao>          -> ./memoria-decisao.cjs   (plano 002, este)
+ *   memoria fora-de-escopo <acao>   -> ./memoria-rejeicoes.cjs (plano 003)
+ *   memoria glossario <acao>        -> ./memoria-glossario.cjs (plano 004)
+ *   memoria termo <acao>            -> ./memoria-termo.cjs     (plano 005)
+ *
+ * Todo submodulo exporta run(cwd, args) e devolve { result, resumo }; quem imprime
+ * e este roteador. Falha de regra do submodulo e uma excecao com mensagem em
+ * portugues; este roteador a converte em erro fatal (saida 1), sem rastro de pilha.
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { output, error } = require('./core.cjs');
+
+const SUBMODULOS = {
+  'decisao': './memoria-decisao.cjs',
+  'fora-de-escopo': './memoria-rejeicoes.cjs',
+  'glossario': './memoria-glossario.cjs',
+  'termo': './memoria-termo.cjs',
+};
+
+const NOMES_VALIDOS = Object.keys(SUBMODULOS);
+
+// --- Caminhos (nenhuma destas funcoes cria nada) ---
+
+function dirPlano(cwd) {
+  return path.join(cwd, '.plano');
+}
+
+function dirDecisoes(cwd) {
+  return path.join(dirPlano(cwd), 'decisoes');
+}
+
+function dirForaDeEscopo(cwd) {
+  return path.join(dirPlano(cwd), 'fora-de-escopo');
+}
+
+function arquivoGlossarioProjeto(cwd) {
+  // Nome de arquivo fixo (nunca vem de flag do usuario), mas passa pelo mesmo portao de
+  // contencao dos demais caminhos do espaco de memoria, como defesa em profundidade (RV-001).
+  return resolverCaminhoContido(dirPlano(cwd), 'GLOSSARY.md');
+}
+
+/** Unica funcao do modulo autorizada a criar diretorio. So chamada apos a regra de admissao passar. */
+function garantirDir(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+/**
+ * Resolve nomeArquivo dentro de dir e garante que o caminho final continua dentro do
+ * diretorio esperado. Ultimo portao antes de qualquer escrita em disco (RV-001): mesmo que o
+ * nome do arquivo ja tenha passado por slugificacao rio acima, esta funcao lanca excecao se o
+ * caminho resolvido escapar do diretorio, em vez de deixar `path.join` normalizar um `..` pra
+ * fora e sobrescrever arquivo alheio em silencio.
+ */
+function resolverCaminhoContido(dir, nomeArquivo) {
+  const dirResolvido = path.resolve(dir);
+  const caminho = path.resolve(dirResolvido, nomeArquivo);
+  const prefixo = dirResolvido.endsWith(path.sep) ? dirResolvido : dirResolvido + path.sep;
+  if (caminho !== dirResolvido && !caminho.startsWith(prefixo)) {
+    throw new Error(`Caminho resolvido fora do diretorio esperado: "${nomeArquivo}" escaparia de "${dirResolvido}".`);
+  }
+  return caminho;
+}
+
+// =====================================================================
+// Lock de diretorio (RV-003): serializa leitura-modificacao-escrita entre processos
+// =====================================================================
+//
+// O UP roda planos da mesma onda em paralelo por design: varios executores podem chamar
+// `memoria decisao criar` ou `memoria termo registrar` ao mesmo tempo, cada um num processo
+// Node separado. fs.mkdirSync e atomico no sistema operacional (so um processo consegue
+// criar um diretorio de um dado nome; os demais recebem EEXIST), o que da um mutex real
+// entre processos sem dependencia externa.
+
+const LOCK_TENTATIVAS_PADRAO = 400;
+const LOCK_ESPERA_MS_PADRAO = 15;
+// Lock mais velho que este limite e considerado orfao (dono provavelmente morto no meio da
+// secao critica) e pode ser roubado por quem estiver esperando. A secao critica real deste
+// modulo e leitura e escrita de um arquivo pequeno (poucos milissegundos), entao um lock vivo
+// nunca chega perto deste valor; so um dono morto deixa o lock parado por tanto tempo (DEB-2).
+const LOCK_ORFAO_LIMIAR_MS_PADRAO = 5000;
+
+/** Pausa sincrona real (bloqueia a thread por ms milissegundos) via Atomics.wait sobre um
+ * SharedArrayBuffer descartavel. Usada so para o espera-ocupada do lock: sem uma pausa
+ * sincrona verdadeira, o loop de tentativas giraria sem ceder CPU nenhuma. */
+function esperarSincrono(ms) {
+  const ia = new Int32Array(new SharedArrayBuffer(4));
+  Atomics.wait(ia, 0, 0, ms);
+}
+
+/** Remove um lock ja identificado como orfao (mtime alem do limiar) e registra o roubo em
+ * stderr, com o caminho e a idade, para o incidente ficar visivel a quem operar o processo.
+ * Tolera ENOENT (outro processo ja removeu o mesmo lock orfao entre a checagem de idade e
+ * esta remocao, corrida rara mas possivel entre dois processos esperando o mesmo lock);
+ * qualquer outro erro sobe, porque nao e uma condicao esperada desta corrida. */
+function roubarLockOrfao(caminhoLock, idadeMs) {
+  try {
+    fs.rmdirSync(caminhoLock);
+    console.error(
+      `[memoria] lock orfao roubado: "${caminhoLock}" estava parado ha ${Math.round(idadeMs)}ms, ` +
+      'mais velho que o limite de orfandade. O dono original provavelmente morreu no meio da escrita.'
+    );
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+}
+
+/**
+ * Executa fn() com um lock exclusivo no caminho caminhoLock, obtido por fs.mkdirSync (que
+ * falha com EEXIST se o diretorio ja existe, atomicamente no SO). Espera ocupada com pausa
+ * curta entre tentativas ate obter o lock ou esgotar as tentativas. Libera o lock no
+ * finally, mesmo se fn() lancar, para uma excecao de regra de negocio no meio da secao
+ * critica nao deixar o proximo processo travado pra sempre.
+ *
+ * Lock orfao (DEB-2): um processo que morre segurando o lock (kill -9 no meio da secao
+ * critica) deixava toda escrita seguinte falhando para sempre, porque o loop so contava
+ * tentativas e nunca considerava a idade do lock. A cada EEXIST, agora compara o mtime do
+ * lock contra opts.limiarOrfaoMs (padrao alguns segundos): mais velho que isso, o lock e
+ * roubado (removido e o roubo registrado) e a tentativa seguinte volta a competir por ele
+ * normalmente; mais novo, continua respeitado exatamente como antes.
+ */
+function comLockDiretorio(caminhoLock, fn, opts) {
+  const tentativas = (opts && opts.tentativas) || LOCK_TENTATIVAS_PADRAO;
+  const esperaMs = (opts && opts.esperaMs) || LOCK_ESPERA_MS_PADRAO;
+  const limiarOrfaoMs = (opts && opts.limiarOrfaoMs) || LOCK_ORFAO_LIMIAR_MS_PADRAO;
+
+  fs.mkdirSync(path.dirname(caminhoLock), { recursive: true });
+
+  let obtido = false;
+  for (let tentativa = 0; tentativa < tentativas && !obtido; tentativa++) {
+    try {
+      fs.mkdirSync(caminhoLock);
+      obtido = true;
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      let estatisticas;
+      try {
+        estatisticas = fs.statSync(caminhoLock);
+      } catch (erroStat) {
+        estatisticas = null; // ja sumiu entre o EEXIST e agora; so retentar mkdirSync
+      }
+      if (estatisticas) {
+        const idadeMs = Date.now() - estatisticas.mtimeMs;
+        if (idadeMs > limiarOrfaoMs) {
+          roubarLockOrfao(caminhoLock, idadeMs);
+          continue; // retenta mkdirSync no proximo giro, sem esperar: o lock acabou de abrir
+        }
+      }
+      esperarSincrono(esperaMs);
+    }
+  }
+  if (!obtido) {
+    throw new Error(`Nao foi possivel obter o lock de escrita em "${caminhoLock}" apos ${tentativas} tentativas (concorrencia excessiva ou lock orfao).`);
+  }
+
+  try {
+    return fn();
+  } finally {
+    fs.rmdirSync(caminhoLock);
+  }
+}
+
+// =====================================================================
+// Serializacao segura de valor de frontmatter (RV-002)
+// =====================================================================
+//
+// Interpolacao crua de texto livre do dono (titulo, fase, alias) direto numa linha de
+// frontmatter YAML tem duas falhas: quebra de linha crua no valor injeta campo forjado antes
+// dos campos reais, ou fecha o bloco de frontmatter cedo se a linha seguinte comecar com
+// "---", deixando o registro ingerenciavel (status volta null, por exemplo). Dois pontos no
+// meio do texto (um titulo comum tipo "Fila: Redis vs RabbitMQ") tambem produz YAML invalido
+// para qualquer parser padrao de chave-valor.
+
+/** Lanca se valor contiver quebra de linha (LF ou CR). Chamada antes de qualquer valor de
+ * texto livre entrar num campo de frontmatter: falha cedo, antes de tocar disco, em vez de
+ * deixar o valor quebrar o bloco na escrita. */
+function rejeitarQuebraDeLinha(valor, nomeCampo) {
+  if (/[\r\n]/.test(valor)) {
+    throw new Error(`Campo "${nomeCampo}" nao pode conter quebra de linha.`);
+  }
+}
+
+/** Serializa um valor de texto livre para uma linha de frontmatter: aspas e escape via
+ * JSON.stringify (cobre dois-pontos, aspas e barra invertida no meio do texto), com a
+ * quebra de linha rejeitada antes, nunca apenas escapada em silencio. */
+function serializarValorFrontmatter(valor, nomeCampo) {
+  rejeitarQuebraDeLinha(valor, nomeCampo);
+  return JSON.stringify(valor);
+}
+
+/** Interpreta o valor bruto (ja sem a chave) de uma linha simples "chave: valor" de
+ * frontmatter. Reconhece "null" como ausencia e string entre aspas duplas como JSON, pra
+ * fazer o caminho de volta do que serializarValorFrontmatter grava. Valor sem aspas volta
+ * como texto puro, pra nao quebrar frontmatter gravado antes desta correcao (retrocompativel
+ * com arquivo legado). */
+function parseValorFrontmatterSimples(valorBruto) {
+  const limpo = String(valorBruto).trim();
+  if (limpo === 'null') return null;
+  if (/^".*"$/.test(limpo)) {
+    try {
+      return JSON.parse(limpo);
+    } catch {
+      return limpo.replace(/^"(.*)"$/, '$1');
+    }
+  }
+  return limpo;
+}
+
+// --- Flags ---
+
+/** Le --nome valor ou --nome=valor. Espacos das pontas removidos. Nulo se ausente ou vazio. */
+function lerFlag(args, nome) {
+  const prefixoIgual = `--${nome}=`;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === `--${nome}`) {
+      const valor = args[i + 1];
+      if (valor === undefined || valor.startsWith('--')) return null;
+      const limpo = valor.trim();
+      return limpo === '' ? null : limpo;
+    }
+    if (args[i].startsWith(prefixoIgual)) {
+      const limpo = args[i].slice(prefixoIgual.length).trim();
+      return limpo === '' ? null : limpo;
+    }
+  }
+  return null;
+}
+
+/** Mesma leitura de lerFlag, para flag repetivel. Devolve lista na ordem de aparicao. */
+function lerFlags(args, nome) {
+  const prefixoIgual = `--${nome}=`;
+  const valores = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === `--${nome}`) {
+      const valor = args[i + 1];
+      if (valor !== undefined && !valor.startsWith('--')) {
+        const limpo = valor.trim();
+        if (limpo !== '') valores.push(limpo);
+      }
+    } else if (args[i].startsWith(prefixoIgual)) {
+      const limpo = args[i].slice(prefixoIgual.length).trim();
+      if (limpo !== '') valores.push(limpo);
+    }
+  }
+  return valores;
+}
+
+/** Conta sequencias separadas por espaco em branco. Zero para nulo ou vazio. */
+function contarPalavras(texto) {
+  if (!texto) return 0;
+  return String(texto).trim().split(/\s+/).filter(Boolean).length;
+}
+
+// --- Roteamento ---
+
+function run(cwd, args, raw) {
+  const nome = args[0];
+
+  if (!nome || !SUBMODULOS[nome]) {
+    error(`Submodulo de memoria desconhecido: "${nome || ''}". Disponiveis: ${NOMES_VALIDOS.join(', ')}.`);
+    return;
+  }
+
+  let submodulo;
+  try {
+    submodulo = require(SUBMODULOS[nome]);
+  } catch (e) {
+    error(`O submodulo "${nome}" ainda nao esta instalado neste pacote.`);
+    return;
+  }
+
+  let saida;
+  try {
+    saida = submodulo.run(cwd, args.slice(1));
+  } catch (e) {
+    error(e.message);
+    return;
+  }
+
+  output(saida.result, raw, saida.resumo);
+}
+
+module.exports = {
+  SUBMODULOS,
+  dirPlano,
+  dirDecisoes,
+  dirForaDeEscopo,
+  arquivoGlossarioProjeto,
+  garantirDir,
+  resolverCaminhoContido,
+  comLockDiretorio,
+  rejeitarQuebraDeLinha,
+  serializarValorFrontmatter,
+  parseValorFrontmatterSimples,
+  lerFlag,
+  lerFlags,
+  contarPalavras,
+  run,
+};

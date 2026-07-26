@@ -41,8 +41,40 @@ Se voce se pegar pensando uma dessas, PARE. E o sinal de que esta prestes a fura
 | "Ja sei o que ele quer" | Suposicao nao e aprovacao. Em Pequena+, pergunte a decisao-chave. |
 | "Design aprovado, agora vou codar/criar a fundacao" | NAO. Projeto/feature: o estado terminal e `/up:plan`, nunca implementacao direta. Registre BRIEFING/PROJECT, entregue o handoff e PARE. |
 | "Vou so deixar o scaffold pronto enquanto isso" | Scaffold E implementacao. Sem `.plano/PLAN-READY.md`, nada de codigo/estrutura. |
+| "Vou anotar tudo no fim da conversa" | O lote perde o contexto em que o termo ou a decisão caiu e, na prática, costuma simplesmente não acontecer. |
+| "Essa escolha é obviamente importante, já registro" | O gate das três condições é conjuntivo por definição: existe justamente para o histórico não virar lista de tudo que foi falado. |
 
 A unica forma legitima de ir rapido e o tier Trivial, nao furar o gate.
+
+## Consulta à memória antes de explorar
+
+Primeiro passo de toda rodada, inclusive no tier Trivial que não faz pergunta: consultar a base
+de rejeições do projeto (espaço de comando `memoria`, submódulo `fora-de-escopo`) com o texto do
+pedido do dono, antes de explorar a intenção. Base inexistente devolve vazio e o fluxo segue
+normalmente, sem criar nada: a própria consulta nunca cria arquivo.
+
+Rode exatamente este comando, com o texto literal do pedido do dono em `--pedido`:
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" memoria fora-de-escopo buscar --pedido "<texto do pedido do dono>"
+```
+
+A saída é um JSON com `achados` (lista) e `base_existe` (booleano). Leia `achados`: lista vazia
+segue a regra de silêncio abaixo. Lista não vazia, pegue o primeiro item (maior pontuação primeiro)
+e use o campo `pergunta` dele, verbatim, como a pergunta ao dono descrita a seguir.
+
+Sem achado (`achados` vazio), nada é dito ao dono. Essa é a regra de silêncio: a consulta é barata
+e invisível quando não encontra nada.
+
+Achado, apresente a pergunta pronta que a busca devolve, já com a semelhança citada, o motivo
+original da recusa e a recomendação com o porquê dela, antes de montar qualquer design. A
+pergunta acontece antes de explorar a intenção, não depois do design montado, porque o custo de
+descobrir a recusa no fim é o design inteiro.
+
+A resposta do dono decide o desfecho. Manter a recusa encerra o assunto ali, e a intenção
+explorada passa a ser outra. Mudar de ideia segue o fluxo normal da rodada, e a mudança vira
+decisão registrável quando passar no gate das três condições (ver "Memória gravada no instante",
+abaixo).
 
 ## Profundidade escalada por tamanho
 
@@ -94,6 +126,63 @@ Opções: {recomendada primeiro} | {a outra}
 A recomendação deste checkpoint é **calculada**, nunca fixa: se ainda existe pergunta capaz de mudar o
 design, a recomendação é "Mais perguntas" e a linha Porque nomeia qual é a pergunta. Se não existe,
 a recomendação é "Fechar e seguir". Não adicione opção de resposta livre: a saída livre nativa já cobre.
+
+## Memória gravada no instante
+
+Termo de domínio que o dono fixa durante a conversa é gravado na hora, com a ação de registro de
+termo (espaço de comando `memoria`, submódulo `termo`). Nunca acumular para gravar em lote no fim:
+o lote perde o contexto em que o termo caiu e, na prática, costuma simplesmente não acontecer.
+
+A regra de admissão, em uma linha: só entra conceito específico do domínio, conceito geral de
+programação fica de fora. A regra de higiene, em uma linha: zero detalhe de implementação. As duas
+moram dentro do próprio arquivo do glossário do projeto e podem ser lidas pela ação de regras, sem
+que o agente precise inventar a redação.
+
+Rode exatamente este comando assim que o termo for fixado na conversa, com o texto literal do
+termo e da definição:
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" memoria termo registrar \
+  --termo "ondulação de cardápio" \
+  --definicao "Variação sazonal do cardápio do restaurante conforme o clima."
+```
+
+Decisão que aparece durante a conversa passa pelo gate das três condições, em E lógico: difícil de
+reverter, surpreendente sem contexto e resultado de um trade-off real, com alternativas genuínas
+rejeitadas. Faltou uma condição, não se escreve nada. Passou nas três, grava na hora, com as
+alternativas rejeitadas e o motivo de cada uma.
+
+Rode exatamente este comando quando as três condições do gate passarem, com pelo menos uma
+`--alternativa` no formato `"nome :: motivo"`:
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" memoria decisao criar \
+  --titulo "Onda passa a ser visão derivada, não campo solto" \
+  --contexto "A onda hoje é um número solto sem explicação no histórico do projeto." \
+  --decisao "A onda passa a ser calculada a partir do plano em vez de armazenada em campo solto." \
+  --motivo "Evita número de onda desalinhado do que os planos realmente declaram nos arquivos." \
+  --dificil-reverter "Reverter exige migrar todo o histórico de fases já rodadas." \
+  --surpreendente "Ninguém esperaria que a onda fosse derivada, e não um campo solto." \
+  --trade-off "Ganha consistência mas perde a liberdade de forçar uma onda manual às vezes." \
+  --alternativa "Campo manual :: mais simples mas propenso a erro humano"
+```
+
+Recusa do dono com motivo estrutural vira registro na base de rejeições, também na hora. Duas
+coisas nunca entram nessa base: item já implementado (envenena a consulta com falsa rejeição e
+pertence ao documento de estado) e motivo temporário (é adiamento e pertence às pendências).
+
+Rode exatamente este comando assim que o dono recusar algo com motivo estrutural:
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" memoria fora-de-escopo registrar \
+  --conceito "painel de controle do usuário" \
+  --titulo "Painel de controle do usuário" \
+  --motivo "O escopo do MVP não inclui um painel administrativo separado; a gestão acontece direto na tela principal do operador." \
+  --alias "painel admin"
+```
+
+Nenhum dos três artefatos (glossário do projeto, registro de decisão, base de rejeições) nasce
+vazio, em nenhuma hipótese. Sem conteúdo real, não existe arquivo.
 
 ## Modo exploracao (ideia crua, acima do full)
 

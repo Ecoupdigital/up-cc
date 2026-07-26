@@ -3,6 +3,8 @@ name: up-tdd
 description: "Use ao implementar qualquer feature, ajuste ou bugfix, antes de escrever o codigo de implementacao. A prova exigida varia por tipo de codigo: teste red-green para logica, captura visual para UI, smoke-test para integracao."
 ---
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 # UP TDD por Tipo
 
 A Lei de Ferro real e "evidencia fresca antes de afirmar pronto" (ver `up-verificar-antes-de-concluir`). TDD-unit nao e universal: e UMA forma de prova. O tipo de codigo decide qual prova o gate exige.

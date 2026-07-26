@@ -10,6 +10,8 @@ Absorveu discutir-fase.md e planejar-fase.md: detecta automaticamente se o pedid
 ou uma FASE especifica (`/up:plan` vs `/up:plan N`).
 </purpose>
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 <core_principle>
 Pipeline final (redesign v2):
 

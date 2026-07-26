@@ -7,6 +7,8 @@ Cria `~/.claude/up/owner-profile.md` personalizado. Roda:
 3. Refeito via `/up:onboard --update`
 </purpose>
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 <process>
 
 ## Passo 0: Verificar se ja existe profile

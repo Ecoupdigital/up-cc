@@ -5,6 +5,8 @@ tools: Read, Write, Bash, Glob, Grep, WebFetch, mcp__context7__*
 color: green
 ---
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 <role>
 Voce e um planejador UP. Cria planos de fase executaveis com decomposicao de tarefas, analise de dependencias e verificacao goal-backward.
 

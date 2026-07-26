@@ -6,6 +6,8 @@ Cada agente tem contexto fresco, explora uma area de foco especifica, e **escrev
 Output: Pasta .plano/codebase/ com 7 documentos estruturados sobre o estado do codebase.
 </purpose>
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 <philosophy>
 **Por que agentes mapeadores dedicados:**
 - Contexto fresco por dominio (sem contaminacao de tokens)

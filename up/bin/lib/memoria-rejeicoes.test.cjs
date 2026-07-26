@@ -1,0 +1,688 @@
+/**
+ * memoria-rejeicoes.test.cjs: testes red-green da base de rejeicoes por conceito de dominio.
+ * Roda: node up/bin/lib/memoria-rejeicoes.test.cjs
+ * Sem framework. Cada caso monta um projeto temporario proprio (diretorio temp do sistema,
+ * com .plano/). Casos de roteamento e de linha de comando invocam o binario real
+ * (up-tools.cjs) via child_process, porque testam codigo de saida do processo: chamar essas
+ * falhas em processo, via require direto, mataria o proprio runner de teste (error() do
+ * core.cjs chama process.exit).
+ */
+const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { spawnSync, spawn } = require('child_process');
+const rejeicoes = require('./memoria-rejeicoes.cjs');
+
+const UP_TOOLS = path.join(__dirname, '..', 'up-tools.cjs');
+
+function mkProjeto() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'up-mem-rejeicoes-'));
+  fs.mkdirSync(path.join(dir, '.plano'), { recursive: true });
+  return dir;
+}
+
+function dirForaDeEscopo(dir) {
+  return path.join(dir, '.plano', 'fora-de-escopo');
+}
+
+/** Escreve um arquivo de rejeicao a mao, no formato do contrato, sem passar pelo modulo. */
+function escreverRejeicaoAMao(dir, { conceito, titulo, aliases, registradoEm, motivo, gatilho }) {
+  const alvo = dirForaDeEscopo(dir);
+  fs.mkdirSync(alvo, { recursive: true });
+  const linhasAliases = (aliases || []).map((a) => `  - ${a}`).join('\n');
+  const conteudo = [
+    '---',
+    `conceito: ${conceito}`,
+    `titulo: ${titulo}`,
+    'aliases:',
+    linhasAliases,
+    `registrado_em: ${registradoEm}`,
+    'tipo_motivo: estrutural',
+    '---',
+    '',
+    `# ${titulo}`,
+    '',
+    '## Motivo da recusa',
+    motivo,
+    '',
+    '## O que faria isso voltar a mesa',
+    gatilho || 'Nenhum gatilho de reabertura foi declarado.',
+    '',
+  ].filter((l) => l !== '').join('\n') + '\n';
+  fs.writeFileSync(path.join(alvo, `${conceito}.md`), conteudo, 'utf-8');
+}
+
+function runCli(argsArr, cwd) {
+  return spawnSync(process.execPath, [UP_TOOLS, ...argsArr, '--cwd', cwd], { encoding: 'utf-8' });
+}
+
+let pass = 0, fail = 0;
+function t(name, fn) {
+  try { fn(); console.log('  ok  -', name); pass++; }
+  catch (e) { console.error('  FAIL -', name, '\n     ', e.message); fail++; }
+}
+
+/** Versao assincrona de t(), so para o teste de corrida entre processos (DEB-3): precisa de
+ * concorrencia real entre processos do SO, que so acontece com spawn (nao spawnSync) mais
+ * Promise.all, nunca com um loop sincrono de espera. */
+async function tAsync(name, fn) {
+  try { await fn(); console.log('  ok  -', name); pass++; }
+  catch (e) { console.error('  FAIL -', name, '\n     ', e.message); fail++; }
+}
+
+/** Dispara o binario real sem esperar (spawn, nunca spawnSync): concorrencia real entre
+ * processos do SO so acontece assim. */
+function spawnCliAsync(argsArr, cwd) {
+  return new Promise((resolve) => {
+    const filho = spawn(process.execPath, [UP_TOOLS, ...argsArr, '--cwd', cwd]);
+    let stdout = '';
+    let stderr = '';
+    filho.stdout.on('data', (d) => { stdout += d; });
+    filho.stderr.on('data', (d) => { stderr += d; });
+    filho.on('close', (status) => resolve({ status, stdout, stderr }));
+  });
+}
+
+// =====================================================================
+// Normalizacao e tokens (base deterministica do modulo)
+// =====================================================================
+
+t('normalizar: minusculas, sem acento, so letra/digito, espacos colapsados', () => {
+  assert.strictEqual(rejeicoes.normalizar('  Painel   de MÉTRICAS!! em-Tempo, Real?? '), 'painel de metricas em tempo real');
+});
+
+t('tokensSignificativos: descarta palavra vazia e token curto, sem repeticao', () => {
+  assert.deepStrictEqual(
+    rejeicoes.tokensSignificativos('painel de metricas em tempo real e o painel de novo'),
+    ['painel', 'metricas', 'tempo', 'real']
+  );
+});
+
+// =====================================================================
+// Criacao preguicosa (tarefa 1 e 4): base ausente nao cria nada
+// =====================================================================
+
+t('listarRejeicoes: base ausente devolve lista vazia e nao cria diretorio', () => {
+  const dir = mkProjeto();
+  const r = rejeicoes.listarRejeicoes(dir);
+  assert.deepStrictEqual(r, []);
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('acao listar: base ausente devolve lista vazia, booleano falso, sem criar diretorio', () => {
+  const dir = mkProjeto();
+  const r = rejeicoes.run(dir, ['listar']);
+  assert.deepStrictEqual(r.result.rejeicoes, []);
+  assert.strictEqual(r.result.base_existe, false);
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('acao buscar: base ausente devolve lista vazia sem erro e sem criar diretorio', () => {
+  const dir = mkProjeto();
+  const r = rejeicoes.run(dir, ['buscar', '--pedido', 'qualquer coisa aqui']);
+  assert.deepStrictEqual(r.result.achados, []);
+  assert.strictEqual(r.result.base_existe, false);
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('listarRejeicoes: dois arquivos gravados a mao voltam com conceito, titulo, apelidos e motivo', () => {
+  const dir = mkProjeto();
+  escreverRejeicaoAMao(dir, {
+    conceito: 'painel-de-metricas-em-tempo-real',
+    titulo: 'Painel de metricas em tempo real',
+    aliases: ['dashboard ao vivo', 'metricas em tempo real'],
+    registradoEm: '2026-07-25',
+    motivo: 'O produto ja tem um painel de acompanhamento e outro painel duplicaria esforco de manutencao.',
+  });
+  escreverRejeicaoAMao(dir, {
+    conceito: 'exportar-para-excel',
+    titulo: 'Exportar relatorio para Excel',
+    aliases: ['exportar planilha'],
+    registradoEm: '2026-07-20',
+    motivo: 'O publico do produto usa apenas visualizacao web e planilha fugiria do escopo combinado.',
+  });
+
+  const r = rejeicoes.listarRejeicoes(dir);
+  assert.strictEqual(r.length, 2);
+  assert.strictEqual(r[0].conceito, 'exportar-para-excel');
+  assert.strictEqual(r[1].conceito, 'painel-de-metricas-em-tempo-real');
+  assert.strictEqual(r[1].titulo, 'Painel de metricas em tempo real');
+  assert.deepStrictEqual(r[1].aliases, ['dashboard ao vivo', 'metricas em tempo real']);
+  assert.match(r[1].motivo, /painel de acompanhamento/);
+  assert.strictEqual(r[1].registrado_em, '2026-07-25');
+});
+
+// =====================================================================
+// Guardas de admissao (tarefa 2)
+// =====================================================================
+
+t('registrar: motivo com marca de implementado falha e nao cria a base', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'painel novo', titulo: 'Painel novo', motivo: 'Isso ja esta pronto no modulo de relatorios.' }),
+    /ja implementado/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('registrar: motivo com marca de adiamento falha e nao cria a base', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'exportacao pdf', titulo: 'Exportacao em PDF', motivo: 'Por enquanto nao entra, focamos em outra coisa agora.' }),
+    /adiamento/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('registrar: contracao "pra" da marca "deixar pra depois" falha igual a "deixar para depois"', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'busca por voz', titulo: 'Busca por voz', motivo: 'Isso a gente pode deixar pra depois, sem problema.' }),
+    /adiamento/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('registrar: forma "deixar para depois" continua barrada apos a normalizacao de contracao', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'busca por voz dois', titulo: 'Busca por voz dois', motivo: 'Isso a gente pode deixar para depois, sem problema.' }),
+    /adiamento/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+// =====================================================================
+// Flexao natural das marcas lexicas (rework critico): a lista ja tinha
+// "ja implementado" e "ja esta pronto", provando que a flexao estava no radar
+// =====================================================================
+
+t('registrar: "ja esta implementado" (flexao de "ja implementado") falha como item ja implementado', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'exportacao csv', titulo: 'Exportacao em CSV', motivo: 'Isso ja esta implementado no modulo de relatorios.' }),
+    /ja implementado/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('registrar: "ja foi implementado" falha como item ja implementado', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'busca avancada', titulo: 'Busca avancada', motivo: 'Ja foi implementado na versao anterior do produto.' }),
+    /ja implementado/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('registrar: "ja entregamos" falha como item ja implementado', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'relatorio semanal', titulo: 'Relatorio semanal', motivo: 'Ja entregamos isso na fase 3 do projeto.' }),
+    /ja implementado/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('registrar: "nao e prioridade" falha como adiamento', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'modo escuro automatico', titulo: 'Modo escuro automatico', motivo: 'Nao e prioridade neste momento para o time.' }),
+    /adiamento/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('registrar: "postergar" falha como adiamento', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'integracao com erp', titulo: 'Integracao com ERP', motivo: 'Vamos postergar essa entrega para o proximo trimestre.' }),
+    /adiamento/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+// =====================================================================
+// Escape hatch --forcar mais --justificativa (DEB-1, correcao final): mesmo precedente que
+// `memoria termo registrar` ja usa para o termo generico de programacao. As cinco frases
+// abaixo sao motivo estrutural legitimo que so por coincidencia de linguagem contem uma marca
+// da lista fechada (tres delas, "ja tem", "ja temos" e "ja existe", sao da lista ORIGINAL; as
+// outras duas, "ja entregamos" e "nao e prioridade", entraram no alargamento por flexao).
+// =====================================================================
+
+const FRASES_ESTRUTURAIS_BARRADAS_POR_COINCIDENCIA = [
+  {
+    conceito: 'caminho pela integracao nativa',
+    titulo: 'Caminho pela integracao nativa',
+    motivo: 'O produto ja tem um caminho melhor pela integracao nativa, entao um recurso a parte para isso duplicaria manutencao.',
+  },
+  {
+    conceito: 'estado global proibido por arquitetura',
+    titulo: 'Estado global proibido por arquitetura',
+    motivo: 'Ja temos um principio de arquitetura que proibe estado global, e esse pedido contraria esse principio direto.',
+  },
+  {
+    conceito: 'seis anos sem o recurso',
+    titulo: 'Seis anos sem o recurso',
+    motivo: 'A empresa ja existe ha seis anos sem esse recurso e o publico nunca pediu por ele nesse tempo todo.',
+  },
+  {
+    conceito: 'muda o publico alvo da empresa',
+    titulo: 'Muda o publico alvo da empresa',
+    motivo: 'Nao e prioridade da empresa e nunca vai ser, porque muda o publico-alvo que a empresa decidiu atender.',
+  },
+  {
+    conceito: 'valor suficiente pelo caminho atual',
+    titulo: 'Valor suficiente pelo caminho atual',
+    motivo: 'Ja entregamos valor suficiente pelo caminho atual e mudar de rota agora dilui o foco do produto.',
+  },
+];
+
+for (const [indice, caso] of FRASES_ESTRUTURAIS_BARRADAS_POR_COINCIDENCIA.entries()) {
+  t(`escape hatch ${indice + 1}/5: "${caso.titulo}" e barrado sem --forcar (motivo estrutural, marca por coincidencia)`, () => {
+    const dir = mkProjeto();
+    assert.throws(() => rejeicoes.registrar(dir, caso));
+    assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+  });
+
+  t(`escape hatch ${indice + 1}/5: "${caso.titulo}" com --forcar e --justificativa e aceito e grava a justificativa`, () => {
+    const dir = mkProjeto();
+    const r = rejeicoes.registrar(dir, {
+      ...caso,
+      forcar: true,
+      justificativa: 'motivo estrutural confirmado pelo dono; a marca apareceu por coincidencia de linguagem, nao por adiamento ou item ja pronto.',
+    });
+    assert.strictEqual(r.base_criada_agora || fs.existsSync(path.join(dir, r.caminho)), true);
+    assert.ok(r.guarda_forcada, 'deveria informar qual marca foi forcada');
+    assert.strictEqual(r.justificativa_forcada, 'motivo estrutural confirmado pelo dono; a marca apareceu por coincidencia de linguagem, nao por adiamento ou item ja pronto.');
+    const conteudo = fs.readFileSync(path.join(dir, r.caminho), 'utf-8');
+    assert.ok(conteudo.includes('motivo estrutural confirmado pelo dono'), 'a justificativa deveria ficar gravada no arquivo');
+  });
+}
+
+t('escape hatch: --forcar sem --justificativa continua falhando (nao vira bypass silencioso)', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, {
+      conceito: 'caminho pela integracao nativa dois',
+      titulo: 'Caminho pela integracao nativa dois',
+      motivo: 'O produto ja tem um caminho melhor pela integracao nativa, decisao estrutural do dono.',
+      forcar: true,
+    }),
+    /justificativa/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('escape hatch: --forcar em motivo sem nenhuma marca nao exige --justificativa (nao muda o caminho feliz)', () => {
+  const dir = mkProjeto();
+  const r = rejeicoes.registrar(dir, {
+    conceito: 'busca por imagem',
+    titulo: 'Busca por imagem',
+    motivo: 'O produto delega busca visual para o provedor de nuvem contratado, por decisao de custo de infraestrutura.',
+    forcar: true,
+  });
+  assert.strictEqual(r.guarda_forcada, undefined, 'sem marca nenhuma, nao ha o que forcar');
+});
+
+t('registrar: palavra solta "depois" em prosa legitima nao produz recusa falsa', () => {
+  const dir = mkProjeto();
+  const r = rejeicoes.registrar(dir, {
+    conceito: 'notificacao push',
+    titulo: 'Notificacao push nativa',
+    motivo: 'Depois de conversar com o time de suporte, ficou claro que o publico do produto so usa o navegador e nunca instala aplicativo nativo.',
+  });
+  assert.strictEqual(r.conceito, 'notificacao-push');
+  assert.ok(fs.existsSync(path.join(dir, r.caminho)));
+});
+
+t('registrar: motivo estrutural cria a base e o arquivo', () => {
+  const dir = mkProjeto();
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+  const r = rejeicoes.registrar(dir, {
+    conceito: 'chat ao vivo com humano',
+    titulo: 'Chat ao vivo com atendente humano',
+    motivo: 'O produto e self-service por decisao de custo operacional e atendimento humano ao vivo inverteria esse modelo.',
+  });
+  assert.strictEqual(r.base_criada_agora, true);
+  assert.ok(fs.existsSync(dirForaDeEscopo(dir)));
+  assert.ok(fs.existsSync(path.join(dir, r.caminho)));
+});
+
+t('registrar: mesmo conceito duas vezes falha na segunda', () => {
+  const dir = mkProjeto();
+  rejeicoes.registrar(dir, { conceito: 'tema escuro', titulo: 'Tema escuro', motivo: 'O publico alvo do produto e majoritariamente corporativo e pediu consistencia visual unica.' });
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'tema escuro', titulo: 'Tema escuro de novo', motivo: 'Outro motivo qualquer para o mesmo conceito repetido aqui.' }),
+    /ja existe/
+  );
+});
+
+t('registrar: campos obrigatorios ausentes falham citando os campos', () => {
+  const dir = mkProjeto();
+  assert.throws(() => rejeicoes.registrar(dir, { titulo: 'X', motivo: 'Y estrutural qualquer' }), /conceito/);
+});
+
+// =====================================================================
+// Injecao no frontmatter via --titulo e --alias (RV-002, rework critico)
+// =====================================================================
+
+t('titulo com dois-pontos gera frontmatter valido e volta identico na leitura', () => {
+  const dir = mkProjeto();
+  const r = rejeicoes.registrar(dir, {
+    conceito: 'fila de mensagens',
+    titulo: 'Fila: Redis vs RabbitMQ',
+    motivo: 'O produto ja delega fila para o proprio broker do provedor de nuvem contratado.',
+  });
+  const encontrada = rejeicoes.listarRejeicoes(dir).find((x) => x.conceito === r.conceito);
+  assert.strictEqual(encontrada.titulo, 'Fila: Redis vs RabbitMQ');
+});
+
+t('alias com dois-pontos volta identico na leitura', () => {
+  const dir = mkProjeto();
+  const r = rejeicoes.registrar(dir, {
+    conceito: 'notificacao por email',
+    titulo: 'Notificacao por email',
+    motivo: 'O produto usa apenas notificacao push por decisao de custo de infraestrutura.',
+    alias: ['aviso: por email'],
+  });
+  const encontrada = rejeicoes.listarRejeicoes(dir).find((x) => x.conceito === r.conceito);
+  assert.deepStrictEqual(encontrada.aliases, ['aviso: por email']);
+});
+
+t('titulo com quebra de linha seguida de "---" e rejeitado sem tocar disco', () => {
+  const dir = mkProjeto();
+  const payload = 'Titulo qualquer\n---\nconceito: forjado\ntipo_motivo: forjado';
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'conceito de teste', titulo: payload, motivo: 'Motivo estrutural qualquer aqui para o teste.' }),
+    /quebra de linha/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)), 'nao deveria ter criado a base de rejeicoes');
+});
+
+t('alias com quebra de linha e rejeitado sem tocar disco', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, {
+      conceito: 'conceito de teste dois',
+      titulo: 'Titulo valido',
+      motivo: 'Motivo estrutural qualquer aqui para o teste.',
+      alias: ['apelido normal', 'apelido\ncom quebra'],
+    }),
+    /quebra de linha/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)), 'nao deveria ter criado a base de rejeicoes');
+});
+
+// =====================================================================
+// Apelido (tarefa 3)
+// =====================================================================
+
+t('alias: acrescentar dois apelidos grava os dois e preserva o corpo', () => {
+  const dir = mkProjeto();
+  const r0 = rejeicoes.registrar(dir, {
+    conceito: 'relatorio financeiro consolidado',
+    titulo: 'Relatorio financeiro consolidado',
+    motivo: 'O produto delega relatorio financeiro para a ferramenta contabil ja usada pelo cliente.',
+  });
+  const caminho = path.join(dir, r0.caminho);
+  const conteudoAntes = fs.readFileSync(caminho, 'utf-8');
+  const corpoAntes = conteudoAntes.split(/^---\n[\s\S]*?\n---\n/m)[1];
+
+  const r = rejeicoes.adicionarAlias(dir, { conceito: 'relatorio financeiro consolidado', aliases: ['relatorio contabil', 'balanco geral'] });
+  assert.strictEqual(r.aliases_acrescentados, 2);
+  assert.deepStrictEqual(r.aliases, ['relatorio contabil', 'balanco geral']);
+
+  const conteudoDepois = fs.readFileSync(caminho, 'utf-8');
+  const corpoDepois = conteudoDepois.split(/^---\n[\s\S]*?\n---\n/m)[1];
+  assert.strictEqual(corpoAntes, corpoDepois, 'corpo deveria ficar identico');
+});
+
+t('alias: apelido repetido devolve zero acrescentados, sem erro', () => {
+  const dir = mkProjeto();
+  rejeicoes.registrar(dir, { conceito: 'login social', titulo: 'Login social com terceiros', motivo: 'O produto exige autenticacao unica e federada por regra de seguranca do cliente.' });
+  rejeicoes.adicionarAlias(dir, { conceito: 'login social', aliases: ['entrar com google'] });
+  const r = rejeicoes.adicionarAlias(dir, { conceito: 'login social', aliases: ['entrar com google'] });
+  assert.strictEqual(r.aliases_acrescentados, 0);
+  assert.deepStrictEqual(r.aliases, ['entrar com google']);
+});
+
+t('alias: conceito inexistente falha citando o conceito procurado', () => {
+  const dir = mkProjeto();
+  assert.throws(() => rejeicoes.adicionarAlias(dir, { conceito: 'conceito fantasma', aliases: ['x'] }), /conceito-fantasma/);
+});
+
+// =====================================================================
+// Casamento por conceito de dominio (tarefa 4) - o coracao do plano
+// =====================================================================
+
+t('buscar: pedido que compartilha uma unica palavra com o conceito NAO casa', () => {
+  const dir = mkProjeto();
+  escreverRejeicaoAMao(dir, {
+    conceito: 'painel-de-metricas-em-tempo-real',
+    titulo: 'Painel de metricas em tempo real',
+    aliases: ['dashboard ao vivo'],
+    registradoEm: '2026-07-25',
+    motivo: 'A equipe ja usa uma ferramenta de observabilidade externa para isso.',
+  });
+  const r = rejeicoes.run(dir, ['buscar', '--pedido', 'painel de controle do usuario']);
+  assert.strictEqual(r.result.achados.length, 0);
+});
+
+t('buscar: pedido que contem todos os tokens significativos do titulo casa', () => {
+  const dir = mkProjeto();
+  escreverRejeicaoAMao(dir, {
+    conceito: 'painel-de-metricas-em-tempo-real',
+    titulo: 'Painel de metricas em tempo real',
+    aliases: ['dashboard ao vivo'],
+    registradoEm: '2026-07-25',
+    motivo: 'A equipe ja usa uma ferramenta de observabilidade externa para isso.',
+  });
+  const r = rejeicoes.run(dir, ['buscar', '--pedido', 'quero ver o painel de metricas em tempo real de novo']);
+  assert.strictEqual(r.result.achados.length, 1);
+  assert.strictEqual(r.result.achados[0].conceito, 'painel-de-metricas-em-tempo-real');
+  assert.strictEqual(r.result.achados[0].pontuacao, 4);
+});
+
+t('buscar: apelido de duas palavras casa em ordem trocada', () => {
+  const dir = mkProjeto();
+  escreverRejeicaoAMao(dir, {
+    conceito: 'painel-de-metricas-em-tempo-real',
+    titulo: 'Painel de metricas em tempo real',
+    aliases: ['dashboard ao vivo'],
+    registradoEm: '2026-07-25',
+    motivo: 'A equipe ja usa uma ferramenta de observabilidade externa para isso.',
+  });
+  const r = rejeicoes.buscar(dir, { pedido: 'quero um vivo dashboard para acompanhar tudo', limite: 3 });
+  assert.strictEqual(r.achados.length, 1);
+  assert.strictEqual(r.achados[0].chave_casada, 'dashboard ao vivo');
+});
+
+t('buscar: forma contigua de apelido de uma palavra casa', () => {
+  const dir = mkProjeto();
+  escreverRejeicaoAMao(dir, {
+    conceito: 'painel-de-metricas-em-tempo-real',
+    titulo: 'Painel de metricas em tempo real',
+    aliases: ['metricas'],
+    registradoEm: '2026-07-25',
+    motivo: 'A equipe ja usa uma ferramenta de observabilidade externa para isso.',
+  });
+  const r = rejeicoes.buscar(dir, { pedido: 'as metricas de hoje ja chegaram', limite: 3 });
+  assert.strictEqual(r.achados.length, 1);
+  assert.strictEqual(r.achados[0].chave_casada, 'metricas');
+});
+
+t('buscar: resultado ordenado por pontuacao decrescente e cortado no limite', () => {
+  const dir = mkProjeto();
+  escreverRejeicaoAMao(dir, {
+    conceito: 'painel-de-metricas-em-tempo-real',
+    titulo: 'Painel de metricas em tempo real',
+    aliases: [],
+    registradoEm: '2026-07-25',
+    motivo: 'Motivo qualquer aqui.',
+  });
+  escreverRejeicaoAMao(dir, {
+    conceito: 'painel-de-controle-do-usuario',
+    titulo: 'Painel de controle do usuario',
+    aliases: [],
+    registradoEm: '2026-07-24',
+    motivo: 'Outro motivo qualquer aqui.',
+  });
+  const r = rejeicoes.buscar(dir, {
+    pedido: 'quero o painel de controle do usuario e tambem o painel de metricas em tempo real',
+    limite: 1,
+  });
+  assert.strictEqual(r.achados.length, 1);
+});
+
+// =====================================================================
+// Pergunta sugerida (tarefa 5)
+// =====================================================================
+
+t('pergunta: traz as tres partes, semelhanca, motivo original e recomendacao com pergunta', () => {
+  const dir = mkProjeto();
+  escreverRejeicaoAMao(dir, {
+    conceito: 'chat-ao-vivo-com-humano',
+    titulo: 'Chat ao vivo com atendente humano',
+    aliases: [],
+    registradoEm: '2026-07-10',
+    motivo: 'O produto e self-service por decisao de custo operacional.',
+  });
+  const r = rejeicoes.buscar(dir, { pedido: 'quero um chat ao vivo com atendente humano', limite: 3 });
+  assert.strictEqual(r.achados.length, 1);
+  const pergunta = r.achados[0].pergunta;
+  assert.match(pergunta, /Chat ao vivo com atendente humano/);
+  assert.match(pergunta, /2026-07-10/);
+  assert.match(pergunta, /self-service por decisao de custo operacional/);
+  assert.match(pergunta, /Recomendo manter a recusa/);
+  assert.match(pergunta, /Mantemos a recusa ou revisamos/);
+});
+
+t('pergunta: achado com gatilho de reabertura declarado traz o gatilho no texto', () => {
+  const dir = mkProjeto();
+  escreverRejeicaoAMao(dir, {
+    conceito: 'exportar-para-excel',
+    titulo: 'Exportar relatorio para Excel',
+    aliases: [],
+    registradoEm: '2026-06-01',
+    motivo: 'O publico do produto usa apenas visualizacao web.',
+    gatilho: 'Se o cliente enterprise pedir integracao contabil formalmente, revisitar.',
+  });
+  const r = rejeicoes.buscar(dir, { pedido: 'quero exportar para excel', limite: 3 });
+  assert.strictEqual(r.achados.length, 1);
+  assert.match(r.achados[0].pergunta, /integracao contabil formalmente/);
+});
+
+// =====================================================================
+// Roteamento do espaco memoria (via binario real)
+// =====================================================================
+
+t('roteamento: memoria fora-de-escopo listar (base ausente) via CLI sai com codigo 0', () => {
+  const dir = mkProjeto();
+  const r = runCli(['memoria', 'fora-de-escopo', 'listar'], dir);
+  assert.strictEqual(r.status, 0);
+  const parsed = JSON.parse(r.stdout);
+  assert.strictEqual(parsed.base_existe, false);
+});
+
+// =====================================================================
+// Linha de comando real (tarefa 6)
+// =====================================================================
+
+t('linha de comando: registrar recusado (marca de implementado) sai com codigo 1', () => {
+  const dir = mkProjeto();
+  const r = runCli([
+    'memoria', 'fora-de-escopo', 'registrar',
+    '--conceito', 'busca global',
+    '--titulo', 'Busca global no topo',
+    '--motivo', 'Isso ja existe na barra lateral do produto.',
+  ], dir);
+  assert.strictEqual(r.status, 1);
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('linha de comando: registrar aprovado sai com codigo 0 e grava o arquivo', () => {
+  const dir = mkProjeto();
+  const r = runCli([
+    'memoria', 'fora-de-escopo', 'registrar',
+    '--conceito', 'modo offline',
+    '--titulo', 'Modo offline completo',
+    '--motivo', 'O produto depende de sincronizacao em tempo real com o servidor central por contrato de dados.',
+    '--alias', 'funcionar sem internet',
+  ], dir);
+  assert.strictEqual(r.status, 0);
+  const parsed = JSON.parse(r.stdout);
+  assert.strictEqual(parsed.conceito, 'modo-offline');
+  assert.ok(fs.existsSync(path.join(dir, parsed.caminho)));
+});
+
+t('linha de comando: registrar com marca por coincidencia mais --forcar e --justificativa sai com codigo 0', () => {
+  const dir = mkProjeto();
+  const r = runCli([
+    'memoria', 'fora-de-escopo', 'registrar',
+    '--conceito', 'ja tem via linha de comando',
+    '--titulo', 'Ja tem via linha de comando',
+    '--motivo', 'O produto ja tem um caminho melhor pela integracao nativa, decisao estrutural do dono.',
+    '--forcar',
+    '--justificativa', 'confirmado pelo dono que e estrutural; a marca apareceu por coincidencia de linguagem.',
+  ], dir);
+  assert.strictEqual(r.status, 0);
+  const parsed = JSON.parse(r.stdout);
+  assert.ok(parsed.guarda_forcada);
+  assert.ok(fs.existsSync(path.join(dir, parsed.caminho)));
+});
+
+t('linha de comando: registrar com marca por coincidencia mais --forcar sem --justificativa sai com codigo 1', () => {
+  const dir = mkProjeto();
+  const r = runCli([
+    'memoria', 'fora-de-escopo', 'registrar',
+    '--conceito', 'ja tem via linha de comando dois',
+    '--titulo', 'Ja tem via linha de comando dois',
+    '--motivo', 'O produto ja tem um caminho melhor pela integracao nativa, decisao estrutural do dono.',
+    '--forcar',
+  ], dir);
+  assert.strictEqual(r.status, 1);
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+// =====================================================================
+// Corrida entre processos concorrentes no apelido (DEB-3, correcao final): a acao alias fazia
+// leitura-modificacao-escrita do frontmatter inteiro sem lock nenhum, mesma classe do RV-003 ja
+// fechado em memoria-decisao.cjs e memoria-termo.cjs, mas nunca fechada aqui.
+// =====================================================================
+
+async function testeCorridaApelidosMesmoConceito() {
+  const dir = mkProjeto();
+  rejeicoes.registrar(dir, {
+    conceito: 'painel de controle unificado',
+    titulo: 'Painel de controle unificado',
+    motivo: 'O produto delega esse controle para a ferramenta de observabilidade externa ja contratada.',
+  });
+
+  const N = 10;
+  const promessas = [];
+  for (let i = 0; i < N; i++) {
+    promessas.push(spawnCliAsync([
+      'memoria', 'fora-de-escopo', 'alias',
+      '--conceito', 'painel de controle unificado',
+      '--alias', `apelido concorrente ${i}`,
+    ], dir));
+  }
+  const resultados = await Promise.all(promessas);
+
+  const aceitos = resultados.filter((r) => r.status === 0);
+  assert.strictEqual(aceitos.length, N, `todos os ${N} deveriam ter sido aceitos, saidas: ${JSON.stringify(resultados.map((r) => r.status))}`);
+
+  const listado = rejeicoes.listarRejeicoes(dir).find((x) => x.conceito === 'painel-de-controle-unificado');
+  assert.strictEqual(listado.aliases.length, N, `deveriam existir ${N} apelidos gravados ao final, existem ${listado.aliases.length}: ${JSON.stringify(listado.aliases)}`);
+}
+
+async function main() {
+  await tAsync(`corrida: ${10} apelidos concorrentes no MESMO conceito produzem ${10} apelidos gravados, nenhum perdido`, testeCorridaApelidosMesmoConceito);
+
+  console.log(`\n${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+}
+
+main();
