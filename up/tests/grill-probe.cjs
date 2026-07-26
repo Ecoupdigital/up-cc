@@ -235,7 +235,12 @@ function main() {
     process.exit(2);
   }
 
-  const resultado = spawnSync(CLAUDE_BIN, ['-p', prompt, '--model', CLAUDE_MODEL], {
+  // O prompt vai por stdin, nunca como argumento posicional: a doutrina sob teste pode comecar com
+  // "---" (front matter YAML de skill), e um argumento que comeca com hifen e lido como opcao pelo
+  // parser de linha de comando do runtime, mesmo dentro de uma lista de argumentos (sem shell). Ler
+  // de stdin evita esse problema sem alterar uma unica letra da doutrina.
+  const resultado = spawnSync(CLAUDE_BIN, ['-p', '--model', CLAUDE_MODEL], {
+    input: prompt,
     encoding: 'utf8',
     timeout: TIMEOUT_MS,
     maxBuffer: 20 * 1024 * 1024,
