@@ -142,7 +142,7 @@ Por isso as tarefas 5 e 6 inseriram só a linha de citação, sem converter nenh
 **1. [Regra 1 - Bug/teste tornado obsoleto] Caso de teste do plano 002 assumia que "glossario" continuaria não instalado**
 
 - **Encontrado durante:** verificação após a tarefa 1 (criação de `up/bin/lib/memoria-glossario.cjs`).
-- **Issue:** `up/bin/lib/memoria-decisao.test.cjs` (do plano 002, já mesclado antes desta wave) tinha o caso `roteamento: submodulo declarado mas ainda nao instalado falha com mensagem legivel`, que invocava `memoria glossario listar` esperando a mensagem "nao esta instalado". Isso era verdade só enquanto o submódulo `glossario` não existia. A tarefa 1 deste plano, ao criar `memoria-glossario.cjs`, torna esse cenário permanentemente falso para "glossario" (e o mesmo valeria para "termo", instalado em paralelo pelo plano 005) — não há mais nome, dos quatro declarados no roteador, que fique "declarado mas não instalado" ao final da onda 2.
+- **Issue:** `up/bin/lib/memoria-decisao.test.cjs` (do plano 002, já mesclado antes desta wave) tinha o caso `roteamento: submodulo declarado mas ainda nao instalado falha com mensagem legivel`, que invocava `memoria glossario listar` esperando a mensagem "nao esta instalado". Isso era verdade só enquanto o submódulo `glossario` não existia. A tarefa 1 deste plano, ao criar `memoria-glossario.cjs`, torna esse cenário permanentemente falso para "glossario" (e o mesmo valeria para "termo", instalado em paralelo pelo plano 005): não há mais nome, dos quatro declarados no roteador, que fique "declarado mas não instalado" ao final da onda 2.
 - **Correção:** troquei o caso por um que prova a mesma garantia relevante (exceção do submódulo chega ao usuário sem rastro de pilha), agora contra uma ação inválida do submódulo já instalado (`memoria glossario acao-inexistente`), com comentário explicando a troca.
 - **Arquivos modificados:** `up/bin/lib/memoria-decisao.test.cjs` (fora do `files_modified` declarado deste plano; não pertence a nenhum dos planos 003/005 que rodaram em paralelo, então não há risco de colisão).
 - **Commit:** `e49d056` (`fix(14-004): atualiza teste do plano 002 tornado obsoleto pelo submodulo glossario`).
@@ -159,5 +159,5 @@ Todos os 27 arquivos declarados (2 novos + 25 modificados) existem no disco. Tod
 
 ## Notas para o plano 006 (verificação final da fase)
 
-- A contagem de redefinição e a cobertura de citação estão prontas como comando e prova (`memoria glossario check` / `memoria glossario citacao`), mas **não estão ligadas a nenhum gate de aprovação de fase** — isso foi declarado fora de escopo deste plano de propósito.
+- A contagem de redefinição e a cobertura de citação estão prontas como comando e prova (`memoria glossario check` / `memoria glossario citacao`), mas **não estão ligadas a nenhum gate de aprovação de fase**: isso foi declarado fora de escopo deste plano de propósito.
 - A pasta de skills não tem nenhum achado pendente hoje; se um achado aparecer depois (por exemplo, se a skill de brainstorm crescer e passar a redefinir um termo do glossário), a tarefa 7 já cobre o padrão de investigação (`check --pastas skills`, modo relatório).
