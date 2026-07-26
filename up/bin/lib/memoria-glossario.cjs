@@ -20,6 +20,7 @@ const { lerFlag, contarPalavras } = require('./memoria.cjs');
 
 const NOME_ARQUIVO_GLOSSARIO = 'glossario-up.md';
 const PASTAS_PADRAO = ['agents', 'workflows', 'skills', 'commands', 'references', 'templates'];
+const PASTAS_CITACAO = ['agents', 'workflows'];
 
 // =====================================================================
 // Resolucao de caminhos (nenhuma escrita acontece aqui)
@@ -334,7 +335,47 @@ function check(cwd, flags) {
 }
 
 // =====================================================================
-// Dispatcher (por enquanto, so a acao check; a tarefa 3 acrescenta citacao)
+// Acao: citacao
+// =====================================================================
+
+/**
+ * Mede a cobertura da linha de citacao do glossario nos agentes e workflows (a outra metade
+ * de fonte unica: sem citacao, a regua de redefinicao da tarefa 2 passa por vazio). Nao
+ * considera comandos nem templates, porque o alvo declarado sao agentes e workflows.
+ */
+function citacao(cwd, flags) {
+  const raiz = raizPacote(flags.raiz);
+  const arquivos = arquivosVarridos(raiz, PASTAS_CITACAO);
+
+  const comCitacao = [];
+  const semCitacao = [];
+  for (const arquivo of arquivos) {
+    const conteudo = fs.readFileSync(arquivo, 'utf-8');
+    const relativo = toPosixPath(path.relative(raiz, arquivo));
+    if (conteudo.includes(NOME_ARQUIVO_GLOSSARIO)) {
+      comCitacao.push(relativo);
+    } else {
+      semCitacao.push(relativo);
+    }
+  }
+  semCitacao.sort();
+
+  const resultado = {
+    com_citacao: comCitacao.length,
+    sem_citacao: semCitacao.length,
+    faltando: semCitacao,
+    aprovado: semCitacao.length === 0,
+  };
+
+  if (flags.estrito && !resultado.aprovado) {
+    throw new Error(`Cobertura de citacao incompleta: faltam ${resultado.sem_citacao} arquivo(s):\n${resultado.faltando.join('\n')}`);
+  }
+
+  return resultado;
+}
+
+// =====================================================================
+// Dispatcher
 // =====================================================================
 
 function extrairFlagsComuns(args) {
@@ -359,7 +400,15 @@ function run(cwd, args) {
     };
   }
 
-  throw new Error(`Acao desconhecida para memoria glossario: "${acao || ''}". Disponiveis: check.`);
+  if (acao === 'citacao') {
+    const resultado = citacao(cwd, flags);
+    return {
+      result: resultado,
+      resumo: `Citacao do glossario: ${resultado.com_citacao} com, ${resultado.sem_citacao} sem.`,
+    };
+  }
+
+  throw new Error(`Acao desconhecida para memoria glossario: "${acao || ''}". Disponiveis: check, citacao.`);
 }
 
 module.exports = {
@@ -371,6 +420,7 @@ module.exports = {
   arquivosVarridos,
   linhasUteis,
   check,
+  citacao,
   run,
   toPosixPath,
 };
