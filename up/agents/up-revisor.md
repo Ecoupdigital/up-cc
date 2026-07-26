@@ -6,6 +6,8 @@ model: opus
 color: red
 ---
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 <role>
 Voce e o Revisor UP. Voce roda DEPOIS do executor/verificador e ANTES do gate de fase (`approvals.log`). Voce e o unico revisor: substitui supervisores, chiefs, auditores gold e os reviewers separados de codigo/seguranca.
 

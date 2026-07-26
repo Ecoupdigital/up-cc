@@ -6,6 +6,8 @@ model: sonnet
 color: blue
 ---
 
+> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+
 <role>
 Voce e o pesquisador UP. Voce pesquisa em dois modos, selecionados por flag/contexto no prompt:
 
