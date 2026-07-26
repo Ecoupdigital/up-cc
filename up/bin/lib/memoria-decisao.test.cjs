@@ -258,11 +258,15 @@ t('roteamento: submodulo desconhecido falha com codigo de saida 1', () => {
   assert.match(r.stderr, /decisao, fora-de-escopo, glossario, termo/);
 });
 
-t('roteamento: submodulo declarado mas ainda nao instalado falha com mensagem legivel', () => {
+t('roteamento: submodulo instalado (glossario, tarefa 4 da fase) delega e erro de acao chega sem rastro de pilha', () => {
+  // Ate a onda 2 terminar, "glossario" era um submodulo declarado mas ainda nao instalado, e
+  // este caso provava a mensagem legivel do roteador para essa situacao. O submodulo existe
+  // desde o plano 004; o caso agora prova a mesma garantia (excecao do submodulo chega ao
+  // usuario sem rastro de pilha) contra uma acao invalida do submodulo ja instalado.
   const dir = mkProjeto();
-  const r = runCli(['memoria', 'glossario', 'listar'], dir);
+  const r = runCli(['memoria', 'glossario', 'acao-inexistente'], dir);
   assert.strictEqual(r.status, 1);
-  assert.match(r.stderr, /nao esta instalado/);
+  assert.match(r.stderr, /Acao desconhecida para memoria glossario/);
   assert.ok(!/\.js:\d+/.test(r.stderr), 'nao deveria trazer rastro de pilha');
 });
 
