@@ -15,7 +15,7 @@ O antigo builder.md (3416 linhas) foi deletado. Capacidades reais migradas para 
 SEM trazer governanca hierarquica/supervisores/CEO:
 
 - **Intake autonomo de projeto + pesquisa inline de stack:** migrado para `workflows/up.md` (Passo 2,
-  classify-task escala o brainstorm; greenfield spawna 4x up-pesquisador; modo light = mini-scan inline).
+  heuristica de prosa do brainstorm escala o brainstorm; greenfield spawna 4x up-pesquisador; modo light = mini-scan inline).
   `/up:build` assume que isso ja rodou e que existe PLAN-READY.md.
 - **Crash recovery via LOCK.md:** preservado aqui (Estagio 0.3).
 - **Routing por tipo de plano (frontend/backend/database/misto):** preservado (Estagio 3.2), AGORA via
@@ -24,7 +24,7 @@ SEM trazer governanca hierarquica/supervisores/CEO:
 - **Verification ladder deterministica (verify-static antes do verificador-LLM):** preservada (Estagio 3.6).
 - **E2E + DCRV por fase:** delega a `@~/.claude/up/workflows/dcrv.md` (que absorveu builder-e2e.md).
 - **Modo light (pipeline enxuto):** o conceito de "feature pequena = menos cerimonia" agora e decidido
-  upstream pelo classify-task (em up.md). Aqui o pipeline e o mesmo; o cap de rework e 1 round.
+  upstream pelo heuristica de prosa do brainstorm (em up.md). Aqui o pipeline e o mesmo; o cap de rework e 1 round.
 
 NAO migrado (morto de proposito): CEO/chiefs/supervisores, governanca hierarquica, re-plans com 2 niveis
 de aprovacao LLM, updates periodicos ao dono.

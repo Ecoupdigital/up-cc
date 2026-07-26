@@ -21,7 +21,7 @@ O UP ativa por contexto. Nao precisa decorar comando: a skill certa dispara pelo
 
 **Tarefa NAO-codigo** (documento, relatorio, analise, conteudo, estrategia): brainstorma igual, mas NAO passa por `/up:plan`/`/up:build`/worktree. Apos o escopo aprovado, produz o artefato direto e verifica por adequacao (cobre o pedido, sem TBD), nao por teste. Detalhe na skill `up-brainstorm`.
 
-**Profundidade sob controle do usuario:** o tier automatico e so o piso. Flag `--grill` ou as palavras "me grelha", "vai fundo", "pergunta mais", "me pergunta", "quero pensar junto" entram em modo grill mesmo em tarefa trivial, porque o pedido do dono vence a classificacao automatica; "rapido"/`--quick` continuam descendo pra 0 perguntas; e a palavra de parada ("chega", "para", "fecha", "basta", "suficiente") encerra as perguntas na hora, sem confirmacao, sem encerrar a aprovacao do design. Motor completo em `up/skills/up-brainstorm/grill.md`.
+**Profundidade sob controle do usuario:** o tier automatico e so o piso. Flag `--grill` ou as palavras "me grelha", "vai fundo", "pergunta mais", "me pergunta", "quero pensar junto" entram em modo grill mesmo em tarefa trivial, porque o pedido do dono vence a classificacao automatica; "rapido"/`--quick` continuam descendo pra 0 perguntas; e a palavra de parada ("chega" (a parada vale pela INTENCAO da mensagem, nunca por substring dentro de uma resposta), "para", "fecha", "basta", "suficiente") encerra as perguntas na hora, sem confirmacao, sem encerrar a aprovacao do design. Motor completo em `up/skills/up-brainstorm/grill.md`.
 
 **Lei de Ferro:** evidencia fresca antes de afirmar pronto. Nunca diga "Pronto" ou "Perfeito" sem o comando de prova rodado NESTA mensagem. Detalhe em `up-verificar-antes-de-concluir`.
 

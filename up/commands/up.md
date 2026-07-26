@@ -20,7 +20,7 @@ allowed-tools:
 Porta unica do UP. Um comando que cobre tres situacoes pelo argumento:
 
 1. **Sem argumento** = continuar de onde parou. Le `.plano/STATE.md`, calcula progresso, e roteia pra proxima acao recomendada (planejar, executar, testar, etc.). Se nao existe `.plano/`, ofrece comecar.
-2. **Com descricao** = dispara brainstorm escalado por tamanho (reusa `classify-task`) e roteia: greenfield (do zero), brownfield (feature em projeto existente), ou clone (recriar app a partir de URL).
+2. **Com descricao** = dispara brainstorm escalado por tamanho (piso pela heuristica de prosa, nunca por classify-task) e roteia: greenfield (do zero), brownfield (feature em projeto existente), ou clone (recriar app a partir de URL).
 3. **Subverbo `estado` ou `config`** = casa de estado e configuracao do projeto.
 
 Regra dura: **maximo 3 subverbos**. So existem `continuar` (default, sem arg), `estado` e `config`. Tudo mais e detectado por contexto.

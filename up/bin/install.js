@@ -841,7 +841,7 @@ function buildUpBootstrapBlock(runtime, pathPrefix) {
     '',
     '1. BRAINSTORM-FIRST: explore intencao, requisitos e design ANTES de implementar. Escale por tamanho:',
     '   trivial = 0 perguntas (anuncia e faz); pequena, media e grande entram em modo grill: perguntas',
-    '   ilimitadas, uma por vez, cada com resposta recomendada. Saida: palavra de parada (chega, para,',
+    '   ilimitadas, uma por vez, cada com resposta recomendada. Saida: palavra de parada por INTENCAO, nunca substring (chega, para,',
     '   fecha, basta, suficiente) encerra na hora sem confirmacao; checkpoint a cada 3; auto-convergencia',
     '   declarada. Gate de aprovacao do design continua. Ref: ' + skills + '/up-brainstorm/SKILL.md e ' + skills + '/up-brainstorm/grill.md',
     '2. LEI DE FERRO (evidencia antes de afirmar): nunca diga "pronto", "funciona" ou "corrigido" sem rodar a',

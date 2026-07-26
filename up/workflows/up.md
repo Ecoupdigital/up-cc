@@ -35,7 +35,7 @@ do humor do dia):
 pergunta sai crua: toda pergunta leva recomendação e motivo. Fato descobrível não vira pergunta.
 
 O ouro e intocavel: STATE.md/ROADMAP.md, commits atomicos (sempre via `up-tools.cjs commit`),
-classify-task, approvals.log. Este workflow nao reimplementa nada disso, so chama.
+approvals.log. Este workflow nao reimplementa nada disso, so chama.
 </core_principle>
 
 <process>
