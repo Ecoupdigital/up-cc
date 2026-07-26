@@ -44,6 +44,26 @@ Se voce se pegar pensando uma dessas, PARE. E o sinal de que esta prestes a fura
 
 A unica forma legitima de ir rapido e o tier Trivial, nao furar o gate.
 
+## Consulta à memória antes de explorar
+
+Primeiro passo de toda rodada, inclusive no tier Trivial que não faz pergunta: consultar a base
+de rejeições do projeto (espaço de comando `memoria`, submódulo `fora-de-escopo`) com o texto do
+pedido do dono, antes de explorar a intenção. Base inexistente devolve vazio e o fluxo segue
+normalmente, sem criar nada: a própria consulta nunca cria arquivo.
+
+Sem achado, nada é dito ao dono. Essa é a regra de silêncio: a consulta é barata e invisível
+quando não encontra nada.
+
+Achado, apresente a pergunta pronta que a busca devolve, já com a semelhança citada, o motivo
+original da recusa e a recomendação com o porquê dela, antes de montar qualquer design. A
+pergunta acontece antes de explorar a intenção, não depois do design montado, porque o custo de
+descobrir a recusa no fim é o design inteiro.
+
+A resposta do dono decide o desfecho. Manter a recusa encerra o assunto ali, e a intenção
+explorada passa a ser outra. Mudar de ideia segue o fluxo normal da rodada, e a mudança vira
+decisão registrável quando passar no gate das três condições (ver "Memória gravada no instante",
+abaixo).
+
 ## Profundidade escalada por tamanho
 
 Classifique a tarefa com o `classify-task` do `up-tools.cjs` (tiers: `simple` / `standard` / `complex`). Heuristica equivalente quando ainda nao ha plano: nº de arquivos provaveis, palavra de arquitetura, toca schema/API/auth.
