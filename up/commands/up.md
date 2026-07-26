@@ -75,13 +75,21 @@ Execute the up router workflow from @~/.claude/up/workflows/up.md end-to-end.
 3. Descricao em texto livre: rota `brainstorm`.
 
 **Brainstorm escalado por tamanho (quando ha descricao):**
-Reusa `classify-task` (NAO reimplementar):
+Reusa `classify-task` (NAO reimplementar). A operacao le CAMINHO DE ARQUIVO, nao texto direto: grave a
+descricao num arquivo temporario com frontmatter minimo antes de classificar, igual ao workflow:
 ```bash
-node "$HOME/.claude/up/bin/up-tools.cjs" classify-task "<descricao>"
+mkdir -p .plano
+cat > /tmp/up-brief-classify.md <<EOF
+---
+type: feature
+---
+<descricao>
+EOF
+node "$HOME/.claude/up/bin/up-tools.cjs" classify-task /tmp/up-brief-classify.md --raw
 ```
 - Trivial (1 arquivo, sem decisao de arquitetura): **0 perguntas**, anuncia em 1 linha, roteia.
-- Pequena (1 subsistema, 1 escolha de design): **1 pergunta** com recomendação e motivo + design em 3 frases.
-- Media/Grande (multi-subsistema, schema/API/auth): **brainstorm full** com aprovacao por secao, toda pergunta com recomendacao e motivo.
+- Pequena, Media e Grande (1+ subsistema, qualquer decisao de design): **modo grill** (perguntas
+  ilimitadas, uma por vez, ate uma das tres portas de saida). Motor em `up/skills/up-brainstorm/grill.md`.
 
 Brainstorm gera BRIEFING.md (intake inline, sem CEO). Em seguida roteia:
 - GREENFIELD -> pipeline de novo projeto (pesquisa + sintese), depois `/up:plan`.
