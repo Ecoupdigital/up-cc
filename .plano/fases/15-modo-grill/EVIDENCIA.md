@@ -250,3 +250,92 @@ ponto para o dono decidir (não trava a fase, mas a evidência não deve ser lid
 que é, conforme a regra de honestidade da prova).
 
 **Veredito: NAO DISCRIMINOU** (registrado como veio, sem inventar reprovação nem sucesso).
+
+## Prova 6: regressão dos sete comandos, dos quatro runtimes e do projeto com planejamento anterior
+
+**Aviso seguido à risca**: toda instalação desta prova rodou com `HOME` redirecionado para
+diretório temporário e as três variáveis de configuração de runtime neutralizadas
+(`-u OPENCODE_CONFIG_DIR -u GEMINI_CONFIG_DIR -u CODEX_HOME`), nunca na configuração real do dono.
+
+**Comando de instalação** (rodado duas vezes, para o item 6):
+
+```
+TMPH=$(mktemp -d)
+env -u OPENCODE_CONFIG_DIR -u GEMINI_CONFIG_DIR -u CODEX_HOME \
+    HOME=$TMPH XDG_CONFIG_HOME=$TMPH/.config \
+    node up/bin/install.js --all --global
+```
+
+**Data/hora**: 2026-07-26, ~15:56 a 15:58 UTC. `TMPH` usado: `/tmp/tmp.vDC77J94it`.
+
+### Item 1: sete comandos no Claude
+
+`ls $TMPH/.claude/commands/up/*.md | wc -l` -> `7` (`auditar.md`, `build.md`, `depurar.md`,
+`plan.md`, `rapido.md`, `testar.md`, `up.md`). **PASSOU.**
+
+### Item 2: skills de doutrina (4 pastas)
+
+`usando-up`, `up-brainstorm`, `up-tdd`, `up-verificar-antes-de-concluir` presentes em
+`$TMPH/.claude/skills/`. **PASSOU.**
+
+### Item 3: skills de comando (7 pastas, cada uma com `SKILL.md`)
+
+`up-up`, `up-plan`, `up-build`, `up-testar`, `up-auditar`, `up-depurar`, `up-rapido`: as 7
+presentes, cada uma com `SKILL.md` (entrega da fase 11, conferida sem regressão). **PASSOU.**
+
+### Item 4: motor do grill nos quatro runtimes
+
+`$TMPH/<dir>/up/skills/up-brainstorm/grill.md` existe nos quatro: `.claude`, `.gemini`,
+`.config/opencode`, `.codex`. **PASSOU.**
+
+### Item 5: bootstrap com o piso novo (runtimes sem hook)
+
+`grep -io "grill\|chega"` em `GEMINI.md`, `AGENTS.md` (OpenCode) e `AGENTS.md` (Codex): cada um dos
+três traz 2 ocorrências de "grill" e 1 de "chega", dentro do bloco
+`<!-- UP-BOOTSTRAP:START -->...<!-- UP-BOOTSTRAP:END -->`. Trecho do bloco (idêntico nos três,
+salvo o `Ref:` que aponta pro diretório do runtime):
+
+> 1. BRAINSTORM-FIRST: explore intencao, requisitos e design ANTES de implementar. Escale por
+> tamanho: trivial = 0 perguntas (anuncia e faz); pequena, media e grande entram em modo grill:
+> perguntas ilimitadas, uma por vez, cada com resposta recomendada. Saida: palavra de parada (chega,
+> para, fecha, basta, suficiente) encerra na hora sem confirmacao; checkpoint a cada 3;
+> auto-convergencia declarada. Gate de aprovacao do design continua.
+
+**PASSOU.**
+
+### Item 6: idempotência
+
+Instalação rodada uma segunda vez, no mesmo `$TMPH`. Contagem de `UP-BOOTSTRAP:START` em
+`GEMINI.md`, `AGENTS.md` (OpenCode) e `AGENTS.md` (Codex): `1` nos três, igual à primeira
+instalação. `wc -l` de `GEMINI.md`: `21` linhas antes e depois, sem duplicação de bloco. **PASSOU.**
+
+### Item 7: projeto com planejamento anterior ao ciclo continua lido
+
+Rodado no repositório real (não no `$TMPH`), com `up/bin/up-tools.cjs` desta árvore de trabalho:
+
+- `node up/bin/up-tools.cjs phase-plan-index 10` -> JSON válido, sem campo `error`, 2 planos
+  encontrados (`001`, `002`), onda 1. **PASSOU.**
+- `node up/bin/up-tools.cjs roadmap get-phase 15` -> JSON válido, sem campo `error`,
+  `"found":true`, `"phase_number":"15"`, `"phase_name":"Modo grill"`. **PASSOU.**
+- `node up/bin/up-tools.cjs init up` -> **NÃO É JSON, saída de erro**:
+  `Error: Unknown init workflow: up` (código de saída 1). Investigado a fundo: rodei o MESMO
+  comando na árvore do `SHA_BASE` (`89541fcc92613cc9624cc09d8dc34efb17fb0b3b`, antes de qualquer
+  edição desta fase) via `git worktree add`, e o erro saiu **idêntico, caractere por caractere**.
+  Nenhum plano desta fase toca `up/bin/up-tools.cjs` (não está em nenhum `files_modified`), e a
+  linha `INIT=$(node ... init up)` já existia em `up/workflows/up.md` no `SHA_BASE`. **Isto é um bug
+  pré-existente, não uma regressão desta fase.** Registrado com o achado completo (inclusive que
+  `init auditar` tem o mesmo problema) em
+  `.plano/fases/15-modo-grill/deferred-items.md`, fora de escopo para correção aqui (arquivo não
+  relacionado ao modo grill). **Veredito do item 7 como um todo: PASSOU quanto ao que esta fase
+  poderia ter regredido** (as duas leituras que passam por artefatos que esta fase edita ou que o
+  próprio grill usa continuam OK); **o comando `init up` não passa, mas por um defeito anterior à
+  fase, não introduzido nem agravado por ela.**
+
+### Item 8: limpeza
+
+`rm -rf $TMPH` executado ao fim de toda a prova. Confirmado por `ls -d $TMPH` retornando "No such
+file or directory" logo em seguida. **Diretório temporário apagado.**
+
+**Veredito da prova 6: PASSOU** (itens 1 a 6 e a parte de item 7 dentro do escopo desta fase; a
+exceção de `init up` está documentada como bug pré-existente fora de escopo, não como regressão).
+Cobre REG-01, REG-02 e REG-03.
