@@ -55,3 +55,82 @@ pergunta de raiz. O que vai entre parênteses é a decisão já fixada de que es
 
 Quando a resposta de uma pergunta anterior mata uma pergunta que estava na fila, diga isso em uma
 linha (`Q5 caiu: sua resposta em Q2 já fecha isso`) e siga. Pergunta morta não é feita.
+
+## As três portas de saída
+
+As três portas são independentes entre si. A primeira que disparar encerra as perguntas, não
+importa qual seja.
+
+### Porta 1: palavra de parada
+
+Esta é a parte mais sensível da fase inteira.
+
+Vale a QUALQUER momento, inclusive no lugar da resposta de uma pergunta e inclusive antes da
+primeira pergunta.
+
+Lista literal dos gatilhos: `chega`, `para`, `parou`, `fecha`, `fechou`, `basta`, `suficiente`,
+`chega de pergunta`, `sem mais perguntas`, `toca o barco`. Vale qualquer variação inequívoca de
+mandar parar de perguntar. Na dúvida entre parar e continuar, PARE: continuar perguntando contra a
+vontade do dono custa mais caro que fechar cedo, porque o dono reabre com uma palavra.
+
+Efeito, numa frase que não admite leitura dupla: a próxima mensagem sua é a destilação. Sem
+checkpoint, sem confirmação, sem resumo do que foi perguntado, sem "tem certeza".
+
+Tabela de frases proibidas na mensagem seguinte a uma palavra de parada:
+
+| Frase proibida | Em vez disso |
+|----------------|--------------|
+| "Tem certeza que quer fechar?" | Feche. Ele já disse |
+| "Posso fechar então?" | Feche. Pedir permissão para obedecer é desobedecer |
+| "Quer que eu resuma o que discutimos?" | Entregue a destilação direto, sem oferecer |
+| "Só mais uma pergunta antes de fechar" | Não existe mais uma. A porta fechou |
+| Checkpoint de duas opções | O checkpoint é a porta 2 e ela não é acionada aqui |
+| Nova pergunta de qualquer tipo | A próxima mensagem é a destilação |
+
+**Pergunta em aberto**: se a palavra de parada chegou no lugar da resposta de `[Qn]`, a decisão de
+`[Qn]` é adotada pela sua própria recomendação, e a destilação declara isso em uma linha, no
+formato `Ponto em aberto: <assunto> adotado pela recomendação, não confirmado pelo dono`. Você não
+pergunta de novo e não deixa o ponto invisível.
+
+### Porta 2: checkpoint a cada três perguntas
+
+Conte as perguntas feitas desde o último checkpoint. Na terceira, apresente o checkpoint de duas
+opções que a skill já define (Fechar e seguir, Mais perguntas). Não crie controle novo.
+
+A contagem é de perguntas FEITAS, não de perguntas respondidas.
+
+"Mais perguntas" zera o contador e abre mais três. "Fechar e seguir" leva à destilação.
+
+O checkpoint não é apresentado quando outra porta já disparou.
+
+Em runtime sem a ferramenta de pergunta estruturada, apresente as mesmas duas opções em texto, com
+a recomendada marcada. O controle é o mesmo, muda só o meio.
+
+### Porta 3: auto-convergência
+
+Dispara quando não resta pergunta capaz de mudar o design, pelo teste da regra 5 do laço.
+
+É obrigatório DECLARAR, não apenas parar de perguntar. Frase modelo, para adaptar ao assunto:
+`Não tenho mais pergunta capaz de mudar o design. O que sobrou é detalhe de implementação, que eu
+resolvo. Proponho fechar.`
+
+Depois da declaração, siga para a destilação. A declaração não é pergunta e não precisa de
+resposta, mas o dono pode reabrir dizendo "pergunta mais".
+
+Anti-padrão nomeado: parar de perguntar em silêncio e emendar o design. O dono não consegue
+distinguir "acabou" de "desistiu" quando você não fala.
+
+## A destilação
+
+O motor é um só e as portas são várias. A destilação produz o mesmo tipo de saída de sempre,
+conforme o ponto de entrada:
+
+| De onde veio | O que a destilação produz |
+|--------------|---------------------------|
+| Tier Pequena | Design em três frases, e aprovação |
+| Tier Média ou Grande | Design por seção, com aprovação após cada seção |
+| Modo exploração | A ideia destilada em um parágrafo (o que é, para quem, por quê, o diferencial), e confirmação |
+| Trilha não código | Escopo do artefato em três frases, e aprovação |
+
+A destilação é exatamente o passo seguinte do tier, o mesmo que o checkpoint alcançaria com
+"Fechar e seguir". Nenhuma porta cria caminho novo.
