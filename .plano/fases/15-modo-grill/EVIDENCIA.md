@@ -339,3 +339,25 @@ file or directory" logo em seguida. **Diretório temporário apagado.**
 **Veredito da prova 6: PASSOU** (itens 1 a 6 e a parte de item 7 dentro do escopo desta fase; a
 exceção de `init up` está documentada como bug pré-existente fora de escopo, não como regressão).
 Cobre REG-01, REG-02 e REG-03.
+
+## Veredito consolidado, uma linha por requisito do modo grill
+
+| Requisito | Descrição resumida | Prova que cobre | Veredito |
+|-----------|---------------------|------------------|----------|
+| GRILL-01 | Grill é modo dentro da skill de brainstorm (não skill nova), perguntas ilimitadas uma por vez | Coberto por inspeção: `piso-grill.test.cjs` casos 1 e 4 (motor existe, skill aponta pro motor sem duplicar); `grill.md` seção "## O laço", regras 1 e 2 | PASSOU |
+| GRILL-02 | Trivial em zero pergunta; Pequena/Média/Grande entram em grill automaticamente | Automatizado: `piso-grill.test.cjs` casos 5 e 6 (piso antigo extinto e propagação nas sete superfícies vivas) | PASSOU |
+| GRILL-03 | Grill entra por pedido manual (flag/linguagem natural), com precedência sobre a classificação automática | Prova 4 (sonda `precedencia`, 2/2 asserções: `[Q1]` mesmo em tarefa Trivial, sem execução direta) | PASSOU |
+| GRILL-04 | Cada pergunta traz resposta recomendada e aplica fato contra decisão | Prova 3 (sonda `entrada`, contém `Recomendo:`); coberto por inspeção: `grill.md` "## O laço" regras 3 e 4, citando `CONTRATOS-HERDADOS.md` | PASSOU |
+| GRILL-05 | Perguntas em ordem de dependência, com declaração de qual pergunta anterior condiciona a atual | Provas 2 e 3 (transcrições e respostas usam `Depende de:` de forma verificável) | PASSOU |
+| GRILL-06 | Palavra de parada encerra na primeira tentativa, sem checkpoint nem confirmação | Prova 2 (sonda `parada`, 6/6 asserções contra a doutrina entregue) | PASSOU |
+| GRILL-07 | Checkpoint de duas opções a cada três perguntas | Coberto por inspeção (não há sonda dedicada a esta porta nesta prova): `grill.md` seção "### Porta 2: checkpoint a cada três perguntas"; `up-brainstorm/SKILL.md` seção "## Checkpoint de fechamento" mantém `<pergunta id="brainstorm.checkpoint">`; guarda da fase 13 (`perguntas.test.cjs`) confirma essa tag presente e íntegra | PASSOU (por inspeção) |
+| GRILL-08 | Auto-convergência declarada explicitamente, nunca silêncio | Coberto por inspeção (não há sonda dedicada a esta porta nesta prova): `grill.md` seção "### Porta 3: auto-convergência", com frase modelo obrigatória e o anti-padrão nomeado ("parar de perguntar em silêncio") | PASSOU (por inspeção) |
+| GRILL-09 | Termo e decisão gravados no instante em que caem, nunca em lote | Coberto por inspeção (não há sonda dedicada a esta porta nesta prova): `grill.md` seção "## Escrita inline", apontando para os formatos e a operação determinística de `CONTRATOS-HERDADOS.md`, já testados pela bateria da fase 14 | PASSOU (por inspeção) |
+| GRILL-10 | Fim das perguntas não substitui a aprovação do design; gate continua exigido | Prova 2 (sonda `parada`, asserção 5, pede aprovação); `piso-grill.test.cjs` caso 7 (gate preservado, `<HARD-GATE>` e estado terminal intactos) | PASSOU |
+
+Nenhuma linha ficou vazia. Sete das dez linhas têm prova automatizada (sonda ou invariante
+determinístico); três (GRILL-07, GRILL-08, GRILL-09) são cobertas por inspeção estrutural do motor
+e das superfícies que o citam, porque o plano 004 não pediu sonda de comportamento dedicada a essas
+três portas/mecânicas (só a palavra de parada tinha sonda obrigatória; checkpoint,
+auto-convergência e escrita inline já tinham prova indireta por outras fases ou por inspeção, e
+criar sondas de comportamento adicionais para elas está fora do que este plano especificou).
