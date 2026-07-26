@@ -1,6 +1,6 @@
 ---
 name: up-brainstorm
-description: "Use antes de QUALQUER trabalho criativo: criar feature, montar componente, adicionar funcionalidade, mudar comportamento, iniciar projeto ou tarefa. Explora intencao, requisitos e design antes de implementar. Aplica a todo projeto, por mais simples que pareca."
+description: "Use antes de QUALQUER trabalho criativo: criar feature, montar componente, adicionar funcionalidade, mudar comportamento, iniciar projeto ou tarefa. Explora intencao, requisitos e design antes de implementar. Aplica a todo projeto, por mais simples que pareca. Cobre tambem o modo grill (--grill, 'me grelha', 'vai fundo', 'pergunta mais')."
 ---
 
 # UP Brainstorm
@@ -35,10 +35,10 @@ Se voce se pegar pensando uma dessas, PARE. E o sinal de que esta prestes a fura
 |------------|-----------|
 | "Isso e simples demais pra brainstorm" | O gate nao e opcional. Tier Trivial ja e a saida leve (0 perguntas). Anuncie e siga, mas pelo gate. |
 | "Vou so escrever o codigo, depois explico" | Implementar antes de apresentar o design fura o HARD-GATE. Apresente primeiro. |
-| "Preciso de mais contexto antes de decidir o tier" | Classifique com `classify-task` AGORA. O tier sai dos sinais (nº arquivos, arquitetura, schema/API/auth), nao do seu humor. |
+| "Preciso de mais contexto antes de decidir o tier" | Classifique com `classify-task` AGORA. O tier sai dos sinais (nº arquivos, arquitetura, schema/API/auth), nao do seu humor. O piso automatico e grill fora de Trivial. |
 | "Marco como Trivial pra ir mais rapido" | Se toca schema/API/auth ou >1 subsistema, NAO e Trivial. Rebaixar o tier e furar o gate disfarcado. |
 | "O usuario tem pressa, pulo a aprovacao" | Pressa muda a PROFUNDIDADE (tier), nunca remove a aprovacao. Ate Trivial anuncia antes de agir. |
-| "Ja sei o que ele quer" | Suposicao nao e aprovacao. Em Pequena+, pergunte a decisao-chave. |
+| "Ja sei o que ele quer" | Suposicao nao e aprovacao. Pequena entra em grill: pergunte, nao suponha. |
 | "Design aprovado, agora vou codar/criar a fundacao" | NAO. Projeto/feature: o estado terminal e `/up:plan`, nunca implementacao direta. Registre BRIEFING/PROJECT, entregue o handoff e PARE. |
 | "Vou so deixar o scaffold pronto enquanto isso" | Scaffold E implementacao. Sem `.plano/PLAN-READY.md`, nada de codigo/estrutura. |
 | "Vou anotar tudo no fim da conversa" | O lote perde o contexto em que o termo ou a decisão caiu e, na prática, costuma simplesmente não acontecer. |
@@ -82,16 +82,11 @@ Classifique a tarefa com o `classify-task` do `up-tools.cjs` (tiers: `simple` / 
 
 | Tier | Profundidade |
 |------|--------------|
-| **Trivial** (1 arquivo, sem decisao de arquitetura) | 0 perguntas. Anuncia em 1 linha o que vai fazer e onde. Executa. |
-| **Pequena** (1 subsistema, 1 escolha de design) | 1 pergunta no formato do contrato (ver brainstorm.decisao-chave abaixo) + checkpoint de fechamento + design em 3 frases. Aprova e segue. |
-| **Media / Grande** (multi-subsistema, toca schema/API/auth) | Brainstorm full. |
+| **Trivial** (1 arquivo, sem decisao de arquitetura) | 0 perguntas. Anuncia em 1 linha o que vai fazer e onde. Executa |
+| **Pequena, Média e Grande** | **Modo grill**: perguntas ilimitadas, uma por vez, com resposta recomendada, até uma das três portas de saída. O tier muda o que a destilação produz, não quantas perguntas cabem. Motor em `grill.md` (mesma pasta) |
 
-<pergunta id="brainstorm.decisao-chave">
-Pergunta: {a única decisão de design que muda o resultado desta tarefa}
-Recomendo: {a opção que você escolheria}
-Porque: {a evidência: convenção do codebase, decisão já registrada, ou o trade-off que decide}
-Opções: {recomendada} | {alternativa} | {alternativa}
-</pergunta>
+O que separa Pequena de Média e Grande agora é só a destilação (design em três frases contra design
+por seção); a contagem de perguntas deixou de ser o eixo.
 
 O `classify-task` define o PISO (minimo garantido). O usuario sempre pode SUBIR ou DESCER manualmente (override abaixo). Nunca diminua a profundidade por conta propria; so o usuario rebaixa.
 
@@ -101,20 +96,23 @@ O tier automatico e so o default. O usuario manda na profundidade:
 
 | Sinal do usuario | Efeito |
 |------------------|--------|
-| Palavras "a fundo", "detalhado", "explorar", "pensar junto", "completo", "caprichado" OU flag `--deep` | Sobe pra **full** (ou exploracao, se for ideia crua), ignora o score baixo. |
-| Palavras "rapido", "simples", "so faz", "sem perguntas" OU flag `--quick` | Desce pra **trivial** (0 perguntas), mesmo que o score ache complexo. O HARD-GATE continua: anuncia antes de agir. |
-| Nada declarado | Usa o tier do `classify-task` (piso automatico). |
+| Flag `--grill` ou palavras "me grelha", "vai fundo", "pergunta mais" | Entra em grill, inclusive em tarefa classificada como Trivial: o pedido do dono vence a classificação automática. |
+| Palavras "rapido", "simples", "so faz", "sem perguntas" OU flag `--quick` | Desce pra **trivial** (0 perguntas), mesmo que o score ache complexo. O HARD-GATE continua: anuncia antes de agir. Quando a tarefa está classificada como Média ou Grande, anuncie o desencontro e o risco em uma linha antes de seguir, sem perguntar. |
+| Nada declarado | Usa o piso automático: grill fora de Trivial. |
 
 Pressa nunca remove o gate; muda so quantas perguntas.
 
-## Checkpoint de fechamento (toda rodada de perguntas)
+Empate: quando o mesmo pedido carrega sinal de subir e de descer, sobe, porque subir é reversível por
+uma palavra de parada.
 
-Regra transversal aos tiers **Pequena**, **full** e **exploracao**. Tier Trivial fica FORA (0 perguntas, so anuncia e segue).
+## Checkpoint de fechamento (a cada tres perguntas do modo grill)
 
-Toda rodada de perguntas termina com um AskUserQuestion de controle com exatamente 2 opcoes. "Fechar e seguir"
+Em modo grill (Pequena, Média, Grande e exploracao), o checkpoint aparece a cada tres perguntas,
+conforme a porta 2 do motor (`grill.md`, mesma pasta). Fora do grill (tier Trivial), ele nao aparece.
+
+A cada tres perguntas, apresente um AskUserQuestion de controle com exatamente 2 opcoes. "Fechar e seguir"
 encerra as perguntas e avanca pro proximo passo do tier (design em 3 frases, propor abordagens ou destilar a
-ideia). "Mais perguntas" abre nova rodada, mais especifica que a anterior, que termina com este mesmo
-checkpoint; loop ate o usuario escolher fechar.
+ideia). "Mais perguntas" zera a contagem e abre mais tres, ate o usuario escolher fechar.
 
 <pergunta id="brainstorm.checkpoint">
 Pergunta: Fecho a rodada e sigo, ou faço mais perguntas?
@@ -193,7 +191,7 @@ Diferenca do full: o full valida um design que o usuario ja tem na cabeca; a exp
 1. **Nao pule pra solucao.** Primeiro entenda o PORQUE: que problema/desejo move a ideia, pra quem, por que agora.
 2. **Abra alternativas radicais.** Ofereca 3-5 direcoes bem diferentes (nao variacoes da mesma), incluindo uma obvia, uma ousada e uma "e se fizesse o oposto".
 3. **Provoque com "e se".** Tensione premissas: "e se nao precisasse de X?", "e se o publico fosse outro?", "qual a versao 10x menor que ja entrega valor?".
-4. **Uma pergunta por vez**, multipla escolha quando der. Vai estreitando do amplo pro especifico. Feche a rodada com o checkpoint de fechamento.
+4. **Perguntas em modo grill** (motor em `grill.md`, mesma pasta), estreitando do amplo pro especifico.
 5. So depois do "Fechar e seguir" do checkpoint, **destile** a ideia num paragrafo claro: o que e, pra quem, por que, o diferencial. Confirme com o usuario.
 6. So ENTAO transicione pro design (full) ou direto pro `BRIEFING.md`, conforme o tamanho do que emergiu.
 
@@ -203,7 +201,7 @@ A exploracao termina numa ideia destilada e aprovada, que vira BRIEFING. Continu
 
 Nem todo trabalho e software. Se a tarefa e produzir um ARTEFATO que nao e codigo (documento, proposta, relatorio, analise, roteiro, estrategia, pesquisa), o fluxo muda:
 
-- **Brainstorm igual** (escala por tier + override + modo exploracao valem). A diferenca e o que vem depois.
+- **Brainstorm igual** (escala por tier + override + modo exploracao valem). O grill vale igual nessa trilha; o que muda e o que vem depois da aprovacao.
 - **NAO ha `/up:plan` -> `/up:build` -> worktree/PR.** Sem fases de software, sem TDD-por-tipo, sem GitHub-nativo. Isso e cerimonia de codigo.
 - **Apos o design/escopo aprovado:** produza o artefato direto (escreva o documento/analise). Para conteudo do Jonathan (carrossel, aula, post), use as skills dedicadas (`carrossel-*`, `aula-generator`, etc) quando aplicaveis.
 - **Verificacao por adequacao, nao por teste:** a prova e "o artefato existe, cobre o que foi pedido, sem placeholder/TBD, e bate com o briefing". Aplica a Lei de Ferro adaptada: nao diga "pronto" sem reler o artefato e conferir contra o escopo combinado.
@@ -215,7 +213,7 @@ Como detectar: pedido fala em "documento, proposta, relatorio, analise, texto, r
 
 1. **Explore o contexto** (arquivos, docs, commits recentes).
 2. **Companion visual:** se o topico tem questao visual (mockup, layout, comparacao), ofereca em mensagem isolada, sozinha. Jonathan e visual: ofereca por default em UI. Metodo de quando/como oferecer e produzir: ver `visual-companion.md` (mesma pasta).
-3. **Perguntas uma por vez.** Multipla escolha preferida. Foco: proposito, restricoes, criterio de sucesso. Se o escopo for multiplos subsistemas independentes, sinalize JA e ajude a decompor em sub-projetos. Feche a rodada com o checkpoint de fechamento antes de avancar pro passo 4.
+3. **Perguntas em modo grill** (motor em `grill.md`, mesma pasta): cadencia e checkpoint vem de la. Foco: proposito, restricoes, criterio de sucesso. Se o escopo for multiplos subsistemas independentes, sinalize JA e ajude a decompor em sub-projetos.
 4. **Proponha 2-3 abordagens** com trade-offs e sua recomendacao.
 5. **Apresente o design por SECAO** (arquitetura / componentes / dados / erros / testes), cada secao escalada a complexidade, aprovacao do usuario apos CADA secao.
 6. **Escreva BRIEFING.md** e commite (`docs(brief): <topico>`).
