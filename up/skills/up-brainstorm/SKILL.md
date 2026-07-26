@@ -138,14 +138,48 @@ programação fica de fora. A regra de higiene, em uma linha: zero detalhe de im
 moram dentro do próprio arquivo do glossário do projeto e podem ser lidas pela ação de regras, sem
 que o agente precise inventar a redação.
 
+Rode exatamente este comando assim que o termo for fixado na conversa, com o texto literal do
+termo e da definição:
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" memoria termo registrar \
+  --termo "ondulação de cardápio" \
+  --definicao "Variação sazonal do cardápio do restaurante conforme o clima."
+```
+
 Decisão que aparece durante a conversa passa pelo gate das três condições, em E lógico: difícil de
 reverter, surpreendente sem contexto e resultado de um trade-off real, com alternativas genuínas
 rejeitadas. Faltou uma condição, não se escreve nada. Passou nas três, grava na hora, com as
 alternativas rejeitadas e o motivo de cada uma.
 
+Rode exatamente este comando quando as três condições do gate passarem, com pelo menos uma
+`--alternativa` no formato `"nome :: motivo"`:
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" memoria decisao criar \
+  --titulo "Onda passa a ser visão derivada, não campo solto" \
+  --contexto "A onda hoje é um número solto sem explicação no histórico do projeto." \
+  --decisao "A onda passa a ser calculada a partir do plano em vez de armazenada em campo solto." \
+  --motivo "Evita número de onda desalinhado do que os planos realmente declaram nos arquivos." \
+  --dificil-reverter "Reverter exige migrar todo o histórico de fases já rodadas." \
+  --surpreendente "Ninguém esperaria que a onda fosse derivada, e não um campo solto." \
+  --trade-off "Ganha consistência mas perde a liberdade de forçar uma onda manual às vezes." \
+  --alternativa "Campo manual :: mais simples mas propenso a erro humano"
+```
+
 Recusa do dono com motivo estrutural vira registro na base de rejeições, também na hora. Duas
 coisas nunca entram nessa base: item já implementado (envenena a consulta com falsa rejeição e
 pertence ao documento de estado) e motivo temporário (é adiamento e pertence às pendências).
+
+Rode exatamente este comando assim que o dono recusar algo com motivo estrutural:
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" memoria fora-de-escopo registrar \
+  --conceito "painel de controle do usuário" \
+  --titulo "Painel de controle do usuário" \
+  --motivo "O escopo do MVP não inclui um painel administrativo separado; a gestão acontece direto na tela principal do operador." \
+  --alias "painel admin"
+```
 
 Nenhum dos três artefatos (glossário do projeto, registro de decisão, base de rejeições) nasce
 vazio, em nenhuma hipótese. Sem conteúdo real, não existe arquivo.
