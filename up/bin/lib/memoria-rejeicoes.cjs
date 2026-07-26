@@ -18,14 +18,45 @@
 
 const fs = require('fs');
 const path = require('path');
-const { toPosixPath, escapeRegex } = require('./core.cjs');
-const { dirForaDeEscopo } = require('./memoria.cjs');
+const { generateSlugInternal, toPosixPath, escapeRegex } = require('./core.cjs');
+const { dirForaDeEscopo, garantirDir, lerFlag, lerFlags } = require('./memoria.cjs');
 
 const PALAVRAS_VAZIAS = new Set([
   'de', 'da', 'do', 'das', 'dos', 'e', 'ou', 'um', 'uma', 'o', 'a', 'os', 'as',
   'em', 'no', 'na', 'nos', 'nas', 'para', 'pra', 'por', 'com', 'sem', 'que',
   'se', 'ao', 'aos', 'ser', 'ter', 'mais', 'menos', 'muito', 'novo', 'nova',
 ]);
+
+// Listas fechadas de marca. Ampliar exige decisao registrada, nao palpite do executor.
+const MARCAS_IMPLEMENTADO = [
+  'ja implementado',
+  'ja existe',
+  'ja foi feito',
+  'ja esta pronto',
+  'ja temos',
+  'ja tem',
+  'duplicata do que existe',
+];
+
+const MARCAS_ADIAMENTO = [
+  'por enquanto',
+  'por ora',
+  'agora nao',
+  'falta de tempo',
+  'falta tempo',
+  'sem tempo',
+  'nao da tempo',
+  'mais tarde',
+  'no futuro',
+  'quando sobrar',
+  'fica para depois',
+  'fica pra depois',
+  'deixar para depois',
+  'adiado',
+  'adiar',
+  'proxima versao',
+  'versao 2',
+];
 
 const REGEX_MARCAS_DIACRITICAS = new RegExp('[' + String.fromCharCode(0x0300) + '-' + String.fromCharCode(0x036f) + ']', 'g');
 
@@ -146,7 +177,110 @@ function listarRejeicoes(cwd) {
 }
 
 // =====================================================================
-// Dispatcher (cresce a cada tarefa; por ora so a acao listar)
+// Escrita: registrar (tarefa 2)
+// =====================================================================
+
+function verificarGuardaImplementado(motivo) {
+  const normalizado = normalizar(motivo);
+  const marca = MARCAS_IMPLEMENTADO.find((m) => normalizado.includes(m));
+  if (marca) {
+    throw new Error(
+      `Rejeicao nao registrada: o motivo indica item ja implementado (marca "${marca}"). ` +
+      'Isso nao entra na base porque envenenaria a consulta com falsa rejeicao para pedidos futuros parecidos. ' +
+      'O lugar certo desse registro e o documento de estado do projeto.'
+    );
+  }
+}
+
+function verificarGuardaAdiamento(motivo) {
+  const normalizado = normalizar(motivo);
+  const marca = MARCAS_ADIAMENTO.find((m) => normalizado.includes(m));
+  if (marca) {
+    throw new Error(
+      `Rejeicao nao registrada: o motivo indica adiamento (marca "${marca}"), e adiamento nao e rejeicao. ` +
+      'O lugar certo desse registro e a secao de pendencias do documento de estado do projeto.'
+    );
+  }
+}
+
+function registrar(cwd, flags) {
+  const conceitoBruto = flags.conceito;
+  const titulo = flags.titulo;
+  const motivo = flags.motivo;
+  const aliases = (flags.alias || []).map((a) => a.trim()).filter(Boolean);
+  const reabreSe = flags['reabre-se'] ? flags['reabre-se'].trim() : null;
+
+  // 1. Campos obrigatorios, coletados todos antes de falhar.
+  const faltando = [];
+  if (!conceitoBruto) faltando.push('conceito');
+  if (!titulo) faltando.push('titulo');
+  if (!motivo) faltando.push('motivo');
+  if (faltando.length > 0) {
+    throw new Error(`Rejeicao nao registrada: campo obrigatorio ausente: ${faltando.join(', ')}.`);
+  }
+
+  // 2. As duas guardas de admissao, antes de qualquer escrita.
+  verificarGuardaImplementado(motivo);
+  verificarGuardaAdiamento(motivo);
+
+  // 3. Conceito normalizado para slug, e checagem de duplicata.
+  const conceito = generateSlugInternal(conceitoBruto);
+  if (!conceito) {
+    throw new Error('Rejeicao nao registrada: nao foi possivel gerar um slug valido a partir do conceito informado.');
+  }
+
+  const dir = dirForaDeEscopo(cwd);
+  const baseExistiaAntes = fs.existsSync(dir);
+  const caminhoArquivo = path.join(dir, `${conceito}.md`);
+
+  if (fs.existsSync(caminhoArquivo)) {
+    throw new Error(
+      `Rejeicao nao registrada: o conceito "${conceito}" ja existe em ${toPosixPath(path.relative(cwd, caminhoArquivo))}. ` +
+      'Para ampliar o vocabulario dele use a acao alias, sem reescrever o motivo.'
+    );
+  }
+
+  // 4. Escrita: so aqui, e so depois de toda regra ter passado.
+  garantirDir(dir);
+
+  const data = new Date().toISOString().split('T')[0];
+  const gatilhoTexto = reabreSe || NENHUM_GATILHO_DECLARADO;
+
+  const frontmatter = [
+    '---',
+    `conceito: ${conceito}`,
+    `titulo: ${titulo.trim()}`,
+    'aliases:',
+    ...aliases.map((a) => `  - ${a}`),
+    `registrado_em: ${data}`,
+    'tipo_motivo: estrutural',
+    '---',
+    '',
+  ];
+
+  const corpo = [
+    `# ${titulo.trim()}`,
+    '',
+    '## Motivo da recusa',
+    motivo.trim(),
+    '',
+    '## O que faria isso voltar a mesa',
+    gatilhoTexto,
+    '',
+  ].join('\n');
+
+  fs.writeFileSync(caminhoArquivo, frontmatter.join('\n') + '\n' + corpo, 'utf-8');
+
+  return {
+    conceito,
+    caminho: toPosixPath(path.relative(cwd, caminhoArquivo)),
+    aliases_count: aliases.length,
+    base_criada_agora: !baseExistiaAntes,
+  };
+}
+
+// =====================================================================
+// Dispatcher (cresce a cada tarefa; por ora listar e registrar)
 // =====================================================================
 
 function run(cwd, args) {
@@ -166,13 +300,30 @@ function run(cwd, args) {
     };
   }
 
-  throw new Error(`Acao desconhecida para memoria fora-de-escopo: "${acao || ''}". Disponiveis: listar.`);
+  if (acao === 'registrar') {
+    const resultado = registrar(cwd, {
+      conceito: lerFlag(args, 'conceito'),
+      titulo: lerFlag(args, 'titulo'),
+      motivo: lerFlag(args, 'motivo'),
+      alias: lerFlags(args, 'alias'),
+      'reabre-se': lerFlag(args, 'reabre-se'),
+    });
+    return {
+      result: resultado,
+      resumo: `Rejeicao "${resultado.conceito}" registrada em ${resultado.caminho}.`,
+    };
+  }
+
+  throw new Error(`Acao desconhecida para memoria fora-de-escopo: "${acao || ''}". Disponiveis: listar, registrar.`);
 }
 
 module.exports = {
   PALAVRAS_VAZIAS,
+  MARCAS_IMPLEMENTADO,
+  MARCAS_ADIAMENTO,
   normalizar,
   tokensSignificativos,
   listarRejeicoes,
+  registrar,
   run,
 };
