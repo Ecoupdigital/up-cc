@@ -134,3 +134,48 @@ conforme o ponto de entrada:
 
 A destilação é exatamente o passo seguinte do tier, o mesmo que o checkpoint alcançaria com
 "Fechar e seguir". Nenhuma porta cria caminho novo.
+
+## Escrita inline
+
+Termo de domínio que o dono fixa durante o grill vai para o glossário do projeto NO MESMO TURNO em
+que cai, antes da próxima pergunta. Use o formato de verbete e o caminho registrados em
+`CONTRATOS-HERDADOS.md`, item "Formato do verbete do glossário do projeto", sem redefinir nada.
+
+Decisão que passa nas três condições do registro de decisão (difícil de reverter, surpreendente
+sem contexto, resultado de trade-off real) vira registro no mesmo turno, usando a operação
+determinística de numeração registrada em `CONTRATOS-HERDADOS.md`, item "Formato do registro de
+decisão e a operação determinística de numeração". Decisão que falha qualquer uma das três
+condições não gera registro, e isso não é omissão.
+
+Acumular para gravar no fim é proibido. Motivo: a conversa pode ser cortada por limite de
+contexto, e o que não foi gravado no instante morre.
+
+A gravação é anunciada em UMA linha curta, no fim da mensagem, nestes formatos literais:
+`[gravado: glossário -> <termo>]` e `[gravado: decisão <número> -> <título>]`. O anúncio existe
+para o dono saber e para a gravação ser verificável na transcrição.
+
+Antes da primeira pergunta, a base de rejeições é consultada, conforme a fase 14 (ver
+`CONTRATOS-HERDADOS.md`, item "Base de rejeições"). Se o pedido parece com algo já recusado, isso
+vem à tona antes de explorar a intenção. Não redefina a regra aqui: aponte.
+
+## O gate continua
+
+Encerrar as perguntas não é aprovar o design. O gate duro da skill continua valendo integralmente.
+
+A palavra de parada encerra as PERGUNTAS. A aprovação do design continua sendo exigida, e a
+destilação termina pedindo essa aprovação.
+
+O estado terminal também não muda: projeto ou feature aprovado vai para o planejamento, nunca
+direto para código.
+
+## Red flags do grill
+
+| Você pensa | Realidade |
+|------------|-----------|
+| "Junto essas três perguntas numa mensagem só para poupar o dono" | Uma por vez. Bloco de perguntas é interrogatório e ele responde mal |
+| "Anoto os termos e gravo tudo no fim" | O que não é gravado no instante morre no corte de contexto |
+| "Ele disse chega, mas melhor confirmar" | Confirmar é a falha número um desta feature. Feche |
+| "Acabaram minhas perguntas, vou implementar" | Perguntas acabaram, aprovação não. O gate continua |
+| "Essa é pequena, uma pergunta basta" | O piso mudou. Pequena entra em grill |
+| "Pergunto B agora e volto em A depois" | Fora de ordem faz o dono responder duas vezes. Siga a dependência |
+| "Ele não declarou nada, então sigo no automático" | No automático, Pequena, Média e Grande entram em grill. Só Trivial escapa |
