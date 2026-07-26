@@ -21,7 +21,8 @@
  * Insercao: verbete entra em ordem alfabetica pelo termo, nunca no fim do arquivo. Termo
  * ja existente recusa citando a definicao atual, a menos que --atualizar venha junto.
  *
- * Acoes: registrar (as de leitura, listar e regras, chegam no proximo commit deste plano).
+ * Acoes: registrar, listar, regras. As duas ultimas so leem; nunca criam arquivo nem
+ * diretorio, nem quando o glossario do projeto ainda nao existe.
  */
 
 const fs = require('fs');
@@ -102,6 +103,13 @@ function lerCabecalhoTemplate() {
   return { cabecalho: conteudo.slice(0, corte).trimEnd() + '\n', templateAusente: false };
 }
 
+function extrairRegra(cabecalho, prefixo) {
+  const paragrafos = cabecalho.split(/\n\s*\n/);
+  const alvo = paragrafos.find((p) => p.trim().startsWith(prefixo));
+  if (!alvo) return '';
+  return alvo.split('\n').map((l) => l.trim()).filter(Boolean).join(' ').trim();
+}
+
 // =====================================================================
 // Parse do arquivo do projeto (leitura pura, nenhuma escrita)
 // =====================================================================
@@ -121,7 +129,7 @@ function parseVerbetes(textoVerbetes) {
     .map((bloco) => bloco.trim())
     .filter(Boolean)
     .map((bloco) => {
-      const m = bloco.match(/^### (.+)$/);
+      const m = bloco.match(/^### (.+)$/m);
       return { termo: m ? m[1].trim() : '', bloco };
     });
 }
@@ -129,6 +137,11 @@ function parseVerbetes(textoVerbetes) {
 function extrairDefinicaoAtual(bloco) {
   const m = bloco.match(/\*\*Definição:\*\* ?(.+)/);
   return m ? m[1].trim() : '';
+}
+
+function extrairEvitarAtual(bloco) {
+  const m = bloco.match(/\*\*Evitar:\*\* ?(.+)/);
+  return m ? m[1].trim() : null;
 }
 
 // =====================================================================
@@ -269,6 +282,46 @@ function registrar(cwd, flags) {
 }
 
 // =====================================================================
+// Leitura: listar, regras (nunca criam arquivo nem diretorio)
+// =====================================================================
+
+function listar(cwd) {
+  const caminhoArquivo = arquivoGlossarioProjeto(cwd);
+  if (!fs.existsSync(caminhoArquivo)) {
+    return { termos: [], arquivo_existe: false };
+  }
+  const conteudo = fs.readFileSync(caminhoArquivo, 'utf-8');
+  const verbetes = parseVerbetes(extrairSecaoTermos(conteudo).textoVerbetes);
+  const termos = verbetes.map((v) => ({
+    termo: v.termo,
+    definicao: extrairDefinicaoAtual(v.bloco),
+    evitar: extrairEvitarAtual(v.bloco),
+  }));
+  return { termos, arquivo_existe: true };
+}
+
+function regras(cwd) {
+  const caminhoArquivo = arquivoGlossarioProjeto(cwd);
+  let cabecalho;
+  let fonte;
+
+  if (fs.existsSync(caminhoArquivo)) {
+    cabecalho = extrairSecaoTermos(fs.readFileSync(caminhoArquivo, 'utf-8')).cabecalho;
+    fonte = 'projeto';
+  } else {
+    const lido = lerCabecalhoTemplate();
+    cabecalho = lido.cabecalho;
+    fonte = lido.templateAusente ? 'embutido' : 'template';
+  }
+
+  return {
+    admissao: extrairRegra(cabecalho, 'Regra de admiss'),
+    higiene: extrairRegra(cabecalho, 'Regra de higiene'),
+    fonte,
+  };
+}
+
+// =====================================================================
 // Dispatcher
 // =====================================================================
 
@@ -295,6 +348,22 @@ function run(cwd, args) {
     };
   }
 
+  if (acao === 'listar') {
+    const resultado = listar(cwd);
+    return {
+      result: resultado,
+      resumo: `${resultado.termos.length} termo(s) no glossario do projeto.`,
+    };
+  }
+
+  if (acao === 'regras') {
+    const resultado = regras(cwd);
+    return {
+      result: resultado,
+      resumo: `Regras do glossario do projeto lidas (fonte: ${resultado.fonte}).`,
+    };
+  }
+
   throw new Error(`Acao desconhecida para memoria termo: "${acao || ''}". Disponiveis: registrar, listar, regras.`);
 }
 
@@ -304,11 +373,15 @@ module.exports = {
   eConceitoGeral,
   detectarDetalheImplementacao,
   lerCabecalhoTemplate,
+  extrairRegra,
   extrairSecaoTermos,
   parseVerbetes,
   extrairDefinicaoAtual,
+  extrairEvitarAtual,
   montarBlocoVerbete,
   inserirOrdenado,
   registrar,
+  listar,
+  regras,
   run,
 };
