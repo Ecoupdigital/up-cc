@@ -228,8 +228,15 @@ function casarForma4(titulo, variante) {
 }
 
 function primeiroParagrafoAposHeader(linhasBrutas, indiceHeader) {
+  // Markdown normal poe linha em branco logo depois de todo cabecalho (RV-004): pula as
+  // linhas em branco iniciais antes de comecar a colher o paragrafo, senao a forma 4 nunca
+  // dispara contra markdown real, so contra a fixture artificial que colava a prosa direto
+  // sob o cabecalho.
+  let i = indiceHeader + 1;
+  while (i < linhasBrutas.length && linhasBrutas[i].trim() === '') i++;
+
   const paragrafo = [];
-  for (let i = indiceHeader + 1; i < linhasBrutas.length; i++) {
+  for (; i < linhasBrutas.length; i++) {
     const t = linhasBrutas[i];
     if (t.trim() === '') break;
     if (/^#{1,6}\s+/.test(t)) break;

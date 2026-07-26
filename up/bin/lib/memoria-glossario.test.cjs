@@ -148,7 +148,9 @@ function arquivoComQuatroFormas() {
     '| alfa | prosa de tabela com bastante mais que oito palavras nesta celula aqui |',
     '',
     '## alfa',
-    'Paragrafo abaixo do cabecalho com mais de oito palavras para passar o corte tambem.',
+    '',
+    'Paragrafo abaixo do cabecalho, com uma linha em branco no meio (markdown normal poe linha',
+    'em branco depois de todo cabecalho), com mais de oito palavras para passar o corte tambem.',
     '',
   ].join('\n');
 }
@@ -165,7 +167,8 @@ function arquivoComQuatroFormasCitandoGlossario() {
     '| alfa | prosa de tabela com bastante mais que oito palavras aqui, ver glossario-up.md |',
     '',
     '## alfa',
-    'Paragrafo abaixo do cabecalho com mais de oito palavras, ver glossario-up.md.',
+    '',
+    'Paragrafo abaixo do cabecalho, com linha em branco no meio, ver glossario-up.md.',
     '',
   ].join('\n');
 }
