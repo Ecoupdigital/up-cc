@@ -357,7 +357,90 @@ function adicionarAlias(cwd, { conceito: conceitoBruto, aliases: novosAliases })
 }
 
 // =====================================================================
-// Dispatcher (cresce a cada tarefa; por ora listar, registrar e alias)
+// Leitura: buscar (tarefa 4) e pergunta sugerida (tarefa 5)
+// =====================================================================
+
+/** Primeira frase de um texto (ate o primeiro ponto final, exclamacao ou interrogacao). */
+function primeiraFrase(texto) {
+  if (!texto) return '';
+  const limpo = texto.trim();
+  const idx = limpo.search(/[.!?]/);
+  return idx === -1 ? limpo : limpo.slice(0, idx + 1).trim();
+}
+
+/** Monta a pergunta pronta para o dono a partir de um achado, em tres partes emendadas:
+ * semelhanca citada, motivo original e recomendacao com o porque, seguida da pergunta ao
+ * dono sobre manter ou revisar a recusa. */
+function montarPergunta(rejeicao) {
+  const dataTexto = rejeicao.registrado_em || 'data nao registrada';
+  const parteSemelhanca = `O pedido novo parece com o conceito ja recusado "${rejeicao.titulo}" (recusado em ${dataTexto}).`;
+  const parteMotivo = `O motivo original foi: ${primeiraFrase(rejeicao.motivo)}`;
+
+  let parteRecomendacao = 'Recomendo manter a recusa, porque o motivo original e estrutural e o pedido novo nao trouxe fato que o contradiga.';
+  if (rejeicao.reabre_se) {
+    parteRecomendacao += ` O gatilho declarado para essa recusa voltar a mesa foi: "${rejeicao.reabre_se}". Confira se ele ja aconteceu.`;
+  }
+  parteRecomendacao += ' Mantemos a recusa ou revisamos ela agora?';
+
+  return `${parteSemelhanca} ${parteMotivo} ${parteRecomendacao}`;
+}
+
+/** Avalia se uma chave (slug, titulo ou apelido) casa com o pedido normalizado. Casa quando
+ * todos os tokens significativos da chave aparecem no pedido e a chave tem duas ou mais
+ * tokens significativas, ou quando a forma normalizada contigua da chave aparece inteira
+ * dentro do pedido normalizado. Uma unica palavra compartilhada nunca casa sozinha. */
+function avaliarChave(chaveTexto, pedidoNormalizado, tokensDoPedido) {
+  const tokensChave = tokensSignificativos(chaveTexto);
+  const contigua = normalizar(chaveTexto);
+
+  const casaPorTokens = tokensChave.length >= 2 && tokensChave.every((token) => tokensDoPedido.has(token));
+  const casaPorContigua = contigua.length > 0 && pedidoNormalizado.includes(contigua);
+
+  if (!casaPorTokens && !casaPorContigua) return { casou: false, pontuacao: 0 };
+  return { casou: true, pontuacao: tokensChave.length };
+}
+
+function buscar(cwd, { pedido, limite }) {
+  const dir = dirForaDeEscopo(cwd);
+  if (!fs.existsSync(dir)) {
+    return { achados: [], base_existe: false };
+  }
+
+  const pedidoNormalizado = normalizar(pedido);
+  const tokensDoPedido = new Set(tokensSignificativos(pedido));
+
+  const achados = [];
+  for (const rejeicao of listarRejeicoes(cwd)) {
+    const chaves = [rejeicao.conceito, rejeicao.titulo, ...rejeicao.aliases].filter(Boolean);
+    let melhor = null;
+    for (const chaveTexto of chaves) {
+      const avaliacao = avaliarChave(chaveTexto, pedidoNormalizado, tokensDoPedido);
+      if (!avaliacao.casou) continue;
+      if (!melhor || avaliacao.pontuacao > melhor.pontuacao) {
+        melhor = { chave: chaveTexto, pontuacao: avaliacao.pontuacao };
+      }
+    }
+    if (melhor) {
+      achados.push({
+        conceito: rejeicao.conceito,
+        titulo: rejeicao.titulo,
+        motivo: rejeicao.motivo,
+        registrado_em: rejeicao.registrado_em,
+        caminho: rejeicao.caminho,
+        chave_casada: melhor.chave,
+        pontuacao: melhor.pontuacao,
+        pergunta: montarPergunta(rejeicao),
+      });
+    }
+  }
+
+  achados.sort((a, b) => (b.pontuacao - a.pontuacao) || a.conceito.localeCompare(b.conceito));
+
+  return { achados: achados.slice(0, limite), base_existe: true };
+}
+
+// =====================================================================
+// Dispatcher
 // =====================================================================
 
 function run(cwd, args) {
@@ -402,7 +485,24 @@ function run(cwd, args) {
     };
   }
 
-  throw new Error(`Acao desconhecida para memoria fora-de-escopo: "${acao || ''}". Disponiveis: listar, registrar, alias.`);
+  if (acao === 'buscar') {
+    const pedido = lerFlag(args, 'pedido');
+    if (!pedido) {
+      throw new Error('Busca nao executada: e preciso informar --pedido.');
+    }
+    const limiteBruto = lerFlag(args, 'limite');
+    const limiteNum = limiteBruto ? parseInt(limiteBruto, 10) : NaN;
+    const limite = Number.isFinite(limiteNum) && limiteNum > 0 ? limiteNum : 3;
+    const resultado = buscar(cwd, { pedido, limite });
+    return {
+      result: resultado,
+      resumo: resultado.base_existe
+        ? `${resultado.achados.length} achado(s) para o pedido.`
+        : 'Base de rejeicoes ainda nao existe.',
+    };
+  }
+
+  throw new Error(`Acao desconhecida para memoria fora-de-escopo: "${acao || ''}". Disponiveis: listar, registrar, alias, buscar.`);
 }
 
 module.exports = {
@@ -414,5 +514,8 @@ module.exports = {
   listarRejeicoes,
   registrar,
   adicionarAlias,
+  buscar,
+  montarPergunta,
+  avaliarChave,
   run,
 };
