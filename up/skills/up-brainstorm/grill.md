@@ -80,9 +80,26 @@ Vale a QUALQUER momento, inclusive no lugar da resposta de uma pergunta e inclus
 primeira pergunta.
 
 Lista literal dos gatilhos: `chega`, `para`, `parou`, `fecha`, `fechou`, `basta`, `suficiente`,
-`chega de pergunta`, `sem mais perguntas`, `toca o barco`. Vale qualquer variação inequívoca de
-mandar parar de perguntar. Na dúvida entre parar e continuar, PARE: continuar perguntando contra a
-vontade do dono custa mais caro que fechar cedo, porque o dono reabre com uma palavra.
+`chega de pergunta`, `sem mais perguntas`, `toca o barco`.
+
+**O sinal é a INTENÇÃO da mensagem inteira, nunca a presença isolada da palavra dentro de uma frase
+que responde outra coisa.** `para`, `chega` e `basta` são palavra comum do português e aparecem
+dentro de respostas normais sem nenhuma intenção de encerrar. Teste: a mensagem, lida inteira, está
+mandando você parar de perguntar, ou está respondendo a pergunta com uma escolha que por acaso contém
+a palavra?
+
+Exemplo do lado que É parada: o dono responde `chega, já decidi tudo` ou manda só `para` como
+mensagem inteira. A intenção é encerrar. Aciona a porta.
+
+Exemplo do lado que NÃO é parada: o dono responde `opção b, para não complicar` ou `letra c, que já
+basta pro que eu preciso`. A palavra aparece dentro de uma resposta que ESCOLHE uma opção da pergunta
+feita; a intenção não é parar de perguntar. Trate como resposta normal e siga pra próxima pergunta da
+árvore.
+
+Na dúvida real entre as duas leituras (a mensagem inteira é ambígua sobre a intenção, não uma resposta
+clara que só por acaso carrega a palavra solta), incline para parar: continuar perguntando contra a
+vontade do dono custa mais caro que fechar cedo, porque o dono reabre com uma palavra. Essa inclinação
+é sobre INTENÇÃO ambígua, nunca desculpa pra disparar por substring dentro de uma resposta clara.
 
 Efeito, numa frase que não admite leitura dupla: a próxima mensagem sua é a destilação. Sem
 checkpoint, sem confirmação, sem resumo do que foi perguntado, sem "tem certeza".

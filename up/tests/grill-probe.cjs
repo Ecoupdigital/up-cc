@@ -1,6 +1,6 @@
 /**
  * grill-probe.cjs: sonda de comportamento do modo grill (fase 15, plano 004).
- * Roda: node up/tests/grill-probe.cjs --caso <parada|entrada|precedencia|classifica-grill|classifica-trivial> [--doutrina <caminho>]
+ * Roda: node up/tests/grill-probe.cjs --caso <parada|entrada|precedencia|classifica-grill|classifica-trivial|falso-positivo-para> [--doutrina <caminho>]
  *
  * Monta um prompt com (a) o conteudo integral da doutrina sob teste, (b) uma linha de
  * enquadramento, (c) uma transcricao fabricada do caso escolhido, e (d) a instrucao final pedindo
@@ -91,6 +91,23 @@ do dono, sem repetir nada do que ja foi dito.
 
 Dono: No arquivo components/Button.tsx, troca o texto do botao de "Enviar" pra "Confirmar pedido".
 So isso, nada mais muda.`,
+
+  // Caso 6 (RV-003): a resposta do dono ESCOLHE uma opcao da pergunta feita, e a escolha carrega a
+  // palavra "para" solta dentro da frase ("para nao complicar"). Isso NAO e intencao de mandar parar
+  // de perguntar: e resposta normal. Prova que o motor nao dispara a porta 1 por substring.
+  'falso-positivo-para': `A conversa abaixo ja aconteceu. Continue exatamente a partir do ultimo
+turno do dono, sem repetir nada do que ja foi dito.
+
+Dono: Quero um jeito de agendar postagens no painel.
+
+Agente:
+Pergunta: Qual o alcance do agendamento?
+a) So a data: a postagem sai em qualquer horario daquele dia
+b) Data e hora especifica: a postagem sai no minuto exato
+Recomendo: b, porque rede social depende de horario certo pra engajamento.
+Depende de: nada
+
+Dono: opção b, para não complicar.`,
 };
 
 function parseArgs(argv) {
@@ -236,6 +253,26 @@ function assertivas(caso, saida) {
           saida
         ),
         razao: 'saída não anuncia execução direta (esperado: anúncio de 1 linha seguido de execução, sem pergunta)',
+      },
+    ];
+  }
+
+  if (caso === 'falso-positivo-para') {
+    return [
+      {
+        nome: 'não trata como palavra de parada: sem destilação prematura',
+        ok: !/aprova|posso seguir|segue assim|de acordo|design em três frases|design fechado/i.test(saida),
+        razao: 'saída destilou/pediu aprovação de design como se "para" tivesse mandado parar (falso positivo de substring)',
+      },
+      {
+        nome: 'não trata como palavra de parada: sem "ponto em aberto"',
+        ok: !/ponto em aberto/i.test(saida),
+        razao: 'saída declarou "ponto em aberto" como se a rodada tivesse sido encerrada por palavra de parada',
+      },
+      {
+        nome: 'continua o grill: nova pergunta ou confirmação da escolha',
+        ok: /\?/.test(saida),
+        razao: 'saída não contém nenhuma pergunta nova nem confirmação, não ficou claro que o grill continuou',
       },
     ];
   }
