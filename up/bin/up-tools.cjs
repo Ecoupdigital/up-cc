@@ -2512,7 +2512,10 @@ function cmdRequirementsMarkComplete(cwd, idsArgs, raw) {
 
   for (const id of ids) {
     const idEscaped = escapeRegex(id);
-    const checkboxPattern = new RegExp(`(-\\s*\\[)[ ](\\]\\s*\\*\\*${idEscaped}\\*\\*)`, 'gi');
+    // Aceita tanto "- [ ] **ID**" (negrito) quanto "- [ ] ID:" (formato real usado neste v2,
+    // sem negrito ao redor do identificador). O corte negativo evita casar ID como prefixo de
+    // outro identificador mais longo (ID-01 dentro de ID-010, por exemplo).
+    const checkboxPattern = new RegExp(`(-\\s*\\[)[ ](\\]\\s*\\*{0,2}${idEscaped}\\*{0,2}(?![A-Za-z0-9-]))`, 'gi');
     if (checkboxPattern.test(content)) {
       content = content.replace(checkboxPattern, '$1x$2');
       updated.push(id);
