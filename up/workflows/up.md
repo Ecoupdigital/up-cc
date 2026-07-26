@@ -2,7 +2,7 @@
 Workflow `/up` — Roteador da porta unica do UP.
 
 Sem argumento: le `.plano/STATE.md` e continua de onde parou.
-Com descricao: classifica a tarefa (classify-task), escala o brainstorm/intake inline e roteia
+Com descricao: classifica a tarefa pela heuristica de prosa do motor do grill, escala o brainstorm/intake inline e roteia
 para greenfield, brownfield ou clone.
 Subverbos: `estado` (status/saude/pausar/resetar/custos/remover-fase) e `config` (configurar/onboard/atualizar).
 
@@ -474,7 +474,7 @@ Opções: manter como está | modo | granularidade | paralelização
 <success_criteria>
 - [ ] Branch de roteamento escolhido corretamente pelo $ARGUMENTS
 - [ ] Sem arg: STATE.md carregado (ou reconstruido), trabalho incompleto detectado, proxima acao clara
-- [ ] Com descricao: modo detectado, classify-task rodou, brainstorm escalado (0 em trivial, grill nos demais), e o pedido manual do dono tem precedencia sobre a classificacao automatica
+- [ ] Com descricao: modo detectado, piso definido pela heuristica de prosa (nunca por classify-task), brainstorm escalado (0 em trivial, grill nos demais), e o pedido manual do dono tem precedencia sobre a classificacao automatica
 - [ ] Intake inline cobriu briefing + (design/credenciais/refs/restricoes na complex), SEM CEO
 - [ ] Greenfield: pesquisa inline com 4x up-pesquisador (modo dominio) + up-sintetizador (quando util)
 - [ ] BRIEFING/PROJECT/config gerados e committados atomicamente

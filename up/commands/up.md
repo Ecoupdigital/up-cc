@@ -104,7 +104,7 @@ Se a rota envolve brainstorm/plan e `~/.claude/up/owner-profile.md` NAO existe n
 <success_criteria>
 - [ ] Argumento parseado e rota escolhida (continuar / estado / config / brainstorm)
 - [ ] Sem arg + .plano/ existe: STATE.md lido e proxima acao roteada
-- [ ] Com descricao: classify-task rodado, brainstorm escalado, modo detectado
+- [ ] Com descricao: piso definido pela heuristica de prosa (nunca por classify-task), brainstorm escalado, modo detectado
 - [ ] Subverbos limitados a estado e config (max 3)
 - [ ] Owner profile garantido antes de brainstorm/plan
 </success_criteria>
