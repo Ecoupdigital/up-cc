@@ -20,7 +20,7 @@ allowed-tools:
 Porta unica do UP. Um comando que cobre tres situacoes pelo argumento:
 
 1. **Sem argumento** = continuar de onde parou. Le `.plano/STATE.md`, calcula progresso, e roteia pra proxima acao recomendada (planejar, executar, testar, etc.). Se nao existe `.plano/`, ofrece comecar.
-2. **Com descricao** = dispara brainstorm escalado por tamanho (reusa `classify-task`) e roteia: greenfield (do zero), brownfield (feature em projeto existente), ou clone (recriar app a partir de URL).
+2. **Com descricao** = dispara brainstorm escalado por tamanho (piso pela heuristica de prosa, nunca por classify-task) e roteia: greenfield (do zero), brownfield (feature em projeto existente), ou clone (recriar app a partir de URL).
 3. **Subverbo `estado` ou `config`** = casa de estado e configuracao do projeto.
 
 Regra dura: **maximo 3 subverbos**. So existem `continuar` (default, sem arg), `estado` e `config`. Tudo mais e detectado por contexto.
@@ -75,13 +75,17 @@ Execute the up router workflow from @~/.claude/up/workflows/up.md end-to-end.
 3. Descricao em texto livre: rota `brainstorm`.
 
 **Brainstorm escalado por tamanho (quando ha descricao):**
-Reusa `classify-task` (NAO reimplementar):
-```bash
-node "$HOME/.claude/up/bin/up-tools.cjs" classify-task "<descricao>"
-```
-- Trivial (1 arquivo, sem decisao de arquitetura): **0 perguntas**, anuncia em 1 linha, roteia.
-- Pequena (1 subsistema, 1 escolha de design): **1 pergunta** com recomendação e motivo + design em 3 frases.
-- Media/Grande (multi-subsistema, schema/API/auth): **brainstorm full** com aprovacao por secao, toda pergunta com recomendacao e motivo.
+Classifica por HEURISTICA DE PROSA, aplicada direto na descricao. NAO rode `classify-task` da CLI
+para isso: essa operacao le ARQUIVO DE PLANO, com frontmatter de lista fechada e regex em ingles, e
+nao discrimina descricao livre em portugues. Toda prosa de brainstorm cai perto de zero nela, mesmo
+pedindo reescrita de arquitetura. `classify-task` continua correto para o uso dela: um plano ja
+escrito, depois que `/up:plan` roda. Sinais aplicados direto no texto: nº de arquivos/subsistemas
+provaveis, palavra de arquitetura, toca schema/API/auth. Tabela completa em
+`up/skills/up-brainstorm/grill.md`, secao "## Quando o grill entra".
+- Trivial (1 arquivo, sem decisao de arquitetura, nenhum sinal acima): **0 perguntas**, anuncia em 1
+  linha, roteia.
+- Pequena, Media e Grande (1+ sinal acima): **modo grill** (perguntas ilimitadas, uma por vez, ate
+  uma das tres portas de saida). Motor em `up/skills/up-brainstorm/grill.md`.
 
 Brainstorm gera BRIEFING.md (intake inline, sem CEO). Em seguida roteia:
 - GREENFIELD -> pipeline de novo projeto (pesquisa + sintese), depois `/up:plan`.
@@ -100,7 +104,7 @@ Se a rota envolve brainstorm/plan e `~/.claude/up/owner-profile.md` NAO existe n
 <success_criteria>
 - [ ] Argumento parseado e rota escolhida (continuar / estado / config / brainstorm)
 - [ ] Sem arg + .plano/ existe: STATE.md lido e proxima acao roteada
-- [ ] Com descricao: classify-task rodado, brainstorm escalado, modo detectado
+- [ ] Com descricao: piso definido pela heuristica de prosa (nunca por classify-task), brainstorm escalado, modo detectado
 - [ ] Subverbos limitados a estado e config (max 3)
 - [ ] Owner profile garantido antes de brainstorm/plan
 </success_criteria>

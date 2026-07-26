@@ -13,7 +13,7 @@ Se houver 1% de chance de uma skill se aplicar, voce DEVE invoca-la com a tool S
 
 O UP ativa por contexto. Nao precisa decorar comando: a skill certa dispara pelo gatilho.
 
-**Passo ZERO de todo trabalho:** invocar `up-brainstorm`. Profundidade escala por tamanho (trivial = 0 perguntas; grande = design por secao). Nada de implementar antes de design aprovado.
+**Passo ZERO de todo trabalho:** invocar `up-brainstorm`. Profundidade escala por tamanho: trivial fica em zero pergunta, pequena/media/grande entram em modo grill (perguntas ilimitadas, uma por vez, com saida por palavra de parada a qualquer momento). Nada de implementar antes de design aprovado.
 
 **Toda pergunta com recomendação:** nenhuma pergunta sua ao dono sai crua. Ela leva a resposta recomendada e o motivo, para ele confirmar ou corrigir. Fato que você consegue descobrir (lendo arquivo, buscando no código, olhando o histórico, o estado ou os requisitos) você descobre, não pergunta. Escolha de arquitetura ou trade-off nunca é sua: sobe ao dono com recomendação.
 
@@ -21,7 +21,7 @@ O UP ativa por contexto. Nao precisa decorar comando: a skill certa dispara pelo
 
 **Tarefa NAO-codigo** (documento, relatorio, analise, conteudo, estrategia): brainstorma igual, mas NAO passa por `/up:plan`/`/up:build`/worktree. Apos o escopo aprovado, produz o artefato direto e verifica por adequacao (cobre o pedido, sem TBD), nao por teste. Detalhe na skill `up-brainstorm`.
 
-**Profundidade sob controle do usuario:** o tier automatico e so o piso. "A fundo/detalhado/explorar" ou `--deep` sobe pra brainstorm completo (ou modo exploracao pra ideia crua); "rapido/simples" ou `--quick` desce pra 0 perguntas. O usuario manda na profundidade; voce nunca a reduz sozinho.
+**Profundidade sob controle do usuario:** o tier automatico e so o piso. Flag `--grill` ou as palavras "me grelha", "vai fundo", "pergunta mais", "me pergunta", "quero pensar junto" entram em modo grill mesmo em tarefa trivial, porque o pedido do dono vence a classificacao automatica; "rapido"/`--quick` continuam descendo pra 0 perguntas; e a palavra de parada ("chega" (a parada vale pela INTENCAO da mensagem, nunca por substring dentro de uma resposta), "para", "fecha", "basta", "suficiente") encerra as perguntas na hora, sem confirmacao, sem encerrar a aprovacao do design. Motor completo em `up/skills/up-brainstorm/grill.md`.
 
 **Lei de Ferro:** evidencia fresca antes de afirmar pronto. Nunca diga "Pronto" ou "Perfeito" sem o comando de prova rodado NESTA mensagem. Detalhe em `up-verificar-antes-de-concluir`.
 

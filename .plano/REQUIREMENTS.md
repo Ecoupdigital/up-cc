@@ -131,16 +131,16 @@ comportamento observável, sem citar caminho de arquivo: o mapa de superfícies 
 
 ### Modo grill (GRILL)
 
-- [ ] GRILL-01: O grill é um modo dentro da skill de brainstorm, não uma skill nova, e faz perguntas ilimitadas, uma por vez
-- [ ] GRILL-02: Tarefa trivial continua em zero pergunta; tarefas pequena, média e grande entram em grill automaticamente
-- [ ] GRILL-03: O grill também entra por pedido manual, por flag e por gatilho em linguagem natural, e o pedido manual tem precedência sobre a classificação automática: tarefa classificada como trivial entra em grill quando o dono pede
-- [ ] GRILL-04: Cada pergunta do grill traz resposta recomendada e aplica a regra de fato contra decisão
-- [ ] GRILL-05: As perguntas seguem a ordem de dependência da árvore de decisão, e toda pergunta que depende de resposta anterior declara de qual depende, de modo que a ordem fique verificável na transcrição da rodada
-- [ ] GRILL-06: Palavra de parada encerra as perguntas na primeira tentativa, sem checkpoint e sem pedido de confirmação, seguindo direto para a destilação
-- [ ] GRILL-07: A cada três perguntas aparece o checkpoint de duas opções (fechar e seguir, ou mais perguntas)
-- [ ] GRILL-08: Quando não resta pergunta capaz de mudar o design, o agente declara isso explicitamente e propõe fechar, em vez de simplesmente parar
-- [ ] GRILL-09: Termo de domínio e decisão que surgem durante o grill são gravados no instante em que caem, nunca acumulados para gravação em lote no fim
-- [ ] GRILL-10: O fim das perguntas não substitui a aprovação do design: o gate de aprovação continua exigido
+- [x] GRILL-01: O grill é um modo dentro da skill de brainstorm, não uma skill nova, e faz perguntas ilimitadas, uma por vez
+- [x] GRILL-02: Tarefa trivial continua em zero pergunta; tarefas pequena, média e grande entram em grill automaticamente
+- [x] GRILL-03: O grill também entra por pedido manual, por flag e por gatilho em linguagem natural, e o pedido manual tem precedência sobre a classificação automática: tarefa classificada como trivial entra em grill quando o dono pede
+- [x] GRILL-04: Cada pergunta do grill traz resposta recomendada e aplica a regra de fato contra decisão
+- [x] GRILL-05: As perguntas seguem a ordem de dependência da árvore de decisão, e toda pergunta que depende de resposta anterior declara de qual depende, de modo que a ordem fique verificável na transcrição da rodada
+- [x] GRILL-06: Palavra de parada encerra as perguntas na primeira tentativa, sem checkpoint e sem pedido de confirmação, seguindo direto para a destilação
+- [x] GRILL-07: A cada três perguntas aparece o checkpoint de duas opções (fechar e seguir, ou mais perguntas)
+- [x] GRILL-08: Quando não resta pergunta capaz de mudar o design, o agente declara isso explicitamente e propõe fechar, em vez de simplesmente parar
+- [x] GRILL-09: Termo de domínio e decisão que surgem durante o grill são gravados no instante em que caem, nunca acumulados para gravação em lote no fim
+- [x] GRILL-10: O fim das perguntas não substitui a aprovação do design: o gate de aprovação continua exigido
 
 ### Honestidade da prova (PROVA)
 
@@ -250,7 +250,7 @@ Fronteira declarada pelo dono no briefing. Registrada aqui para não voltar como
 | CICLO-01, CICLO-02 | Fase 12 | Completo |
 | PERG-01 a PERG-06 | Fase 13 | Completo |
 | MEM-01 a MEM-12 | Fase 14 | Pendente |
-| GRILL-01 a GRILL-10 | Fase 15 | Pendente |
+| GRILL-01 a GRILL-10 | Fase 15 | Completo |
 | PROVA-01 a PROVA-08 | Fase 16 | Pendente |
 | PLANO-01 a PLANO-13 | Fase 17 | Pendente |
 | CTX-01 a CTX-12 | Fase 18 | Pendente |

@@ -70,11 +70,12 @@ claude
 /up "app web de controle de gastos: lança despesa, categoriza, mostra gráfico mensal. Next.js + Supabase"
 ```
 
-O UP roda `classify-task` para medir o tamanho e escala o brainstorm:
+O UP aplica uma heuristica de prosa (nº de arquivos, palavra de arquitetura, toca schema/API/auth) direto na descricao para medir o tamanho e escala o brainstorm. Isso nao roda `classify-task` da CLI: essa operacao le arquivo de plano, nao descricao livre em portugues.
 
 - **Tarefa trivial** (1 arquivo): 0 perguntas, anuncia em 1 linha e segue.
-- **Pequena** (1 subsistema, 1 escolha de design): 1 pergunta e design em 3 frases.
-- **Média/grande** (schema + API + auth): brainstorm completo, com aprovação por seção.
+- **Pequena, média e grande**: entram em modo grill (perguntas ilimitadas, uma por vez, cada uma com
+  resposta recomendada), até palavra de parada, checkpoint a cada três ou auto-convergência
+  declarada. Motor completo em `up/skills/up-brainstorm/grill.md`.
 
 Como a pasta está vazia e sem código, o UP detecta **GREENFIELD** automaticamente. Na tela aparece algo assim:
 

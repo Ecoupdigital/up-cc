@@ -1,0 +1,399 @@
+/**
+ * grill-probe.cjs: sonda de comportamento do modo grill (fase 15, plano 004).
+ * Roda: node up/tests/grill-probe.cjs --caso <parada|entrada|precedencia|classifica-grill|classifica-trivial|falso-positivo-para> [--doutrina <caminho>]
+ *
+ * Monta um prompt com (a) o conteudo integral da doutrina sob teste, (b) uma linha de
+ * enquadramento, (c) uma transcricao fabricada do caso escolhido, e (d) a instrucao final pedindo
+ * APENAS a proxima mensagem ao dono. Chama o runtime do Claude em modo de impressao com modelo
+ * economico, por execucao de arquivo com lista de argumentos (nunca interpolacao em shell), e
+ * julga a resposta bruta por regra determinística escrita neste arquivo. Nao pede ao modelo para
+ * avaliar a propria resposta, e nao usa um segundo modelo como juiz: o juiz e a regra escrita,
+ * conferida por quem revisa este arquivo.
+ *
+ * Codigo de saida: 0 quando todas as assercoes do caso passam, 1 quando alguma assercao falha
+ * (a sonda RODOU, mas reprovou), 2 quando a sonda nao pode rodar (executavel ausente, doutrina
+ * ausente, tempo esgotado). Codigo 2 nunca deve ser lido como aprovacao.
+ */
+'use strict';
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { spawnSync } = require('child_process');
+
+// up/tests -> up -> raiz do repo.
+const ROOT = path.resolve(__dirname, '..', '..');
+const DOUTRINA_PADRAO = path.join(ROOT, 'up/skills/up-brainstorm/grill.md');
+const TIMEOUT_MS = 180000;
+const CLAUDE_BIN = 'claude';
+const CLAUDE_MODEL = 'fable'; // modelo economico deste runtime
+
+const FRASES_PROIBIDAS = [
+  'tem certeza',
+  'posso fechar',
+  'quer que eu resuma',
+  'só mais uma pergunta',
+  'antes de fechar',
+  'confirma que',
+];
+
+const TRANSCRICOES = {
+  // Caso 1: tres perguntas em ordem de dependencia, o dono responde as duas primeiras e manda
+  // parar no lugar da resposta da terceira. Transcricao NEUTRA de propósito (RV-006): sem
+  // marcadores de formato da doutrina nova ([Qn], "Depende de:", "Pergunta:", "Opções:" literais),
+  // pra nao funcionar como few-shot da doutrina nova quando esta mesma transcricao roda contra uma
+  // doutrina de controle (mais velha) que nunca ensinou esses rotulos.
+  parada: `A conversa abaixo ja aconteceu. Continue exatamente a partir do ultimo turno do dono, sem
+repetir nada do que ja foi dito.
+
+Dono: Quero exportar um relatorio em arquivo separado, disponivel no painel.
+
+Agente: Onde o arquivo deve ser gerado, no servidor ou no navegador? Recomendo no servidor, pra nao
+sobrecarregar o navegador do dono com relatorios grandes.
+
+Dono: no servidor.
+
+Agente: Como o arquivo deve ser entregue ao dono depois de gerado, por download direto ou por
+e-mail? Recomendo download direto, e o caminho mais simples pra quem so quer o arquivo na hora.
+
+Dono: download direto.
+
+Agente: Existe um teto de linhas por exportacao? Recomendo cinquenta mil linhas, pra proteger contra
+uma exportacao gigante travar o navegador do dono.
+
+Dono: chega`,
+
+  // Caso 2: uma linha so, tarefa de um subsistema (classificacao pequena), sem palavra de parada
+  // nem gatilho manual de grill.
+  entrada: `A conversa abaixo ja aconteceu. Continue exatamente a partir do ultimo turno do dono.
+
+Dono: Quero um filtro por data no painel de pedidos, pra eu conseguir ver so os pedidos de um
+periodo especifico.`,
+
+  // Caso 3: tarefa trivial (troca de texto de botao) mas o dono pede grill explicitamente.
+  precedencia: `A conversa abaixo ja aconteceu. Continue exatamente a partir do ultimo turno do dono.
+
+Dono: Troca o texto do botao "Enviar" pra "Confirmar pedido". Me grelha nessa, quero pensar bem
+antes de mexer.`,
+
+  // Caso 4 (RV-001): descricao de projeto que toca schema, API e autenticacao, sem nenhum gatilho
+  // manual de grill e sem classificacao previa declarada. Prova que a heuristica de prosa embutida
+  // no motor (nao o classify-task da CLI) sobe sozinha pra grill.
+  'classifica-grill': `A conversa abaixo ja aconteceu. Continue exatamente a partir do ultimo turno
+do dono, sem repetir nada do que ja foi dito.
+
+Dono: Preciso refatorar a arquitetura inteira do modulo de pagamentos: muda o schema do banco, troca
+a API de cobranca e adiciona autenticacao nova pra quem pode disparar reembolso.`,
+
+  // Caso 5 (RV-001): tarefa de um arquivo, sem nenhuma decisao de arquitetura, schema, API ou auth.
+  // Prova que a mesma heuristica de prosa continua em zero pergunta pra esse caso.
+  'classifica-trivial': `A conversa abaixo ja aconteceu. Continue exatamente a partir do ultimo turno
+do dono, sem repetir nada do que ja foi dito.
+
+Dono: No arquivo components/Button.tsx, troca o texto do botao de "Enviar" pra "Confirmar pedido".
+So isso, nada mais muda.`,
+
+  // Caso 6 (RV-003): a resposta do dono ESCOLHE uma opcao da pergunta feita, e a escolha carrega a
+  // palavra "para" solta dentro da frase ("para nao complicar"). Isso NAO e intencao de mandar parar
+  // de perguntar: e resposta normal. Prova que o motor nao dispara a porta 1 por substring.
+  'falso-positivo-para': `A conversa abaixo ja aconteceu. Continue exatamente a partir do ultimo
+turno do dono, sem repetir nada do que ja foi dito.
+
+Dono: Quero um jeito de agendar postagens no painel.
+
+Agente:
+Pergunta: Qual o alcance do agendamento?
+a) So a data: a postagem sai em qualquer horario daquele dia
+b) Data e hora especifica: a postagem sai no minuto exato
+Recomendo: b, porque rede social depende de horario certo pra engajamento.
+Depende de: nada
+
+Dono: opção b, para não complicar.`,
+
+  // Caso 7 (RV-004): a palavra de parada chega ANTES da primeira pergunta, na mesma mensagem que
+  // dispara o grill. Nao ha pergunta em voo, mas a descricao carrega mais de uma decisao pendente
+  // (regras de cupom por cliente, por produto, acumulo com outras promocoes). Prova que a destilacao
+  // declara CADA ramo pendente como ponto em aberto, em vez de inventar o design inteiro em silencio.
+  'parada-antes-da-primeira': `A conversa abaixo ja aconteceu. Continue exatamente a partir do
+ultimo turno do dono, sem repetir nada do que ja foi dito. Nenhuma pergunta foi feita ainda: esta e
+a primeira mensagem do dono sobre este assunto.
+
+Dono: Quero adicionar cupom de desconto no checkout, com regra de uso por cliente e por produto, e
+se acumula ou nao com outras promocoes. Chega de pergunta, bota o que faz mais sentido.`,
+};
+
+function parseArgs(argv) {
+  const args = { caso: null, doutrina: null };
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--caso') args.caso = argv[++i];
+    else if (argv[i] === '--doutrina') args.doutrina = argv[++i];
+  }
+  return args;
+}
+
+function montarPrompt(doutrinaTexto, transcricao) {
+  // Enquadramento NEUTRO (RV-006): nao nomeia "modo grill" nem descreve as portas de saida aqui.
+  // Fazer isso injetaria o conceito central da doutrina NOVA no prompt mesmo quando --doutrina
+  // aponta pra uma doutrina de controle (mais velha) que nunca usou esse vocabulario, contaminando
+  // a comparacao. A UNICA fonte de instrução sobre como se comportar tem que ser o conteudo de
+  // `doutrinaTexto`, que já vem concatenado acima.
+  const enquadramento =
+    'Você é o agente do UP. Continue a conversa como o agente do UP, obedecendo integralmente à ' +
+    'doutrina acima, sem exceção.';
+  const instrucaoFinal =
+    'Produza APENAS a sua próxima mensagem ao dono, sem nenhum comentário sobre este exercício de ' +
+    'prova, sem meta-discussão e sem repetir a doutrina.';
+  return [doutrinaTexto.trim(), '', enquadramento, '', transcricao.trim(), '', instrucaoFinal].join(
+    '\n'
+  );
+}
+
+function contains(saida, frase) {
+  return saida.toLowerCase().includes(frase.toLowerCase());
+}
+
+function assertivas(caso, saida) {
+  if (caso === 'parada') {
+    const fraseAchada = FRASES_PROIBIDAS.find((f) => contains(saida, f));
+    return [
+      {
+        nome: 'sem frase de confirmação',
+        ok: !fraseAchada,
+        razao: 'encontrada frase proibida: "' + fraseAchada + '"',
+      },
+      {
+        nome: 'sem pergunta nova de grill',
+        ok: !/\[Q4\]/i.test(saida) && !/depende de:/i.test(saida),
+        razao: 'saída contém "[Q4]" e/ou "Depende de:" (abriu pergunta nova)',
+      },
+      {
+        nome: 'sem abrir o checkpoint',
+        ok: !/fechar e seguir/i.test(saida) && !/mais perguntas/i.test(saida),
+        razao: 'saída contém o controle de checkpoint ("Fechar e seguir" / "Mais perguntas")',
+      },
+      {
+        nome: 'destila as decisões já fixadas',
+        ok: contains(saida, 'servidor') && contains(saida, 'download'),
+        razao: 'faltou "servidor" e/ou "download" na destilação',
+      },
+      {
+        nome: 'pede aprovação do design',
+        ok: /aprova|posso seguir|segue assim|de acordo/i.test(saida),
+        razao: 'nenhuma marca de pedido de aprovação encontrada (aprova/posso seguir/segue assim/de acordo)',
+      },
+      {
+        nome: 'declara o ponto em aberto',
+        ok: /ponto em aberto|recomenda[çc][aã]o|assumi|n[aã]o confirmado/i.test(saida),
+        razao: 'nenhuma marca do ponto em aberto encontrada (ponto em aberto/recomendação/assumi/não confirmado)',
+      },
+    ];
+  }
+
+  if (caso === 'entrada') {
+    const qtdQ1 = (saida.match(/\[Q1\]/g) || []).length;
+    const temQ2 = /\[Q2\]/.test(saida);
+    return [
+      {
+        nome: 'exatamente um marcador [Q1] e nenhum [Q2]',
+        ok: qtdQ1 >= 1 && !temQ2,
+        razao: 'achou ' + qtdQ1 + ' ocorrência(s) de "[Q1]" e ' + (temQ2 ? 'contém' : 'não contém') + ' "[Q2]"',
+      },
+      {
+        nome: 'contém a linha de dependência',
+        ok: /depende de:/i.test(saida),
+        razao: 'faltou "Depende de:"',
+      },
+      {
+        nome: 'contém recomendação explícita',
+        ok: /recomendo:/i.test(saida),
+        razao: 'faltou "Recomendo:"',
+      },
+      {
+        nome: 'sem checkpoint nem design pronto',
+        ok:
+          !/fechar e seguir|mais perguntas/i.test(saida) &&
+          !/aprova|posso seguir|segue assim|de acordo/i.test(saida),
+        razao: 'saída contém checkpoint ou pedido de aprovação de design (deveria ser só a pergunta)',
+      },
+    ];
+  }
+
+  if (caso === 'precedencia') {
+    return [
+      {
+        nome: 'contém [Q1] com linha de dependência',
+        ok: /\[Q1\]/.test(saida) && /depende de:/i.test(saida),
+        razao: 'faltou "[Q1]" e/ou "Depende de:" (deveria ter entrado em grill mesmo em tarefa trivial)',
+      },
+      {
+        nome: 'sem anúncio de execução direta',
+        ok: !/vou (trocar|alterar|implementar|mudar|fazer)|j[aá] (troquei|alterei|implementei|mudei|fiz)|\bpronto\b|\bfeito\b|executando agora/i.test(
+          saida
+        ),
+        razao: 'saída anuncia execução direta em vez de perguntar primeiro',
+      },
+    ];
+  }
+
+  if (caso === 'classifica-grill') {
+    return [
+      {
+        nome: 'entra em grill: contém [Q1] com linha de dependência',
+        ok: /\[Q1\]/.test(saida) && /depende de:/i.test(saida),
+        razao: 'faltou "[Q1]" e/ou "Depende de:" (deveria ter subido pra grill: descrição toca schema, API e autenticação)',
+      },
+      {
+        nome: 'sem anúncio de execução direta (não ficou em zero pergunta)',
+        ok: !/vou (refatorar|mudar|trocar|implementar|migrar|fazer)|j[aá] (refatorei|troquei|implementei|mudei|migrei|fiz)|\bpronto\b|\bfeito\b|executando agora/i.test(
+          saida
+        ),
+        razao: 'saída anuncia execução direta em vez de perguntar primeiro (ficou em zero pergunta)',
+      },
+    ];
+  }
+
+  if (caso === 'classifica-trivial') {
+    return [
+      {
+        nome: 'não entra em grill: sem [Q1] e sem linha de dependência',
+        ok: !/\[Q1\]/.test(saida) && !/depende de:/i.test(saida),
+        razao: 'saída contém "[Q1]" e/ou "Depende de:" (deveria ter ficado em zero pergunta: 1 arquivo, sem decisão de arquitetura)',
+      },
+      {
+        nome: 'anuncia e executa em uma linha',
+        ok: /zero pergunta|sigo direto|vou (trocar|mudar|alterar|atualizar)|\btroc(o|hei)\b|\balter(o|ei)\b|\batualiz(o|ei)\b|\bpronto\b|\bfeito\b/i.test(
+          saida
+        ),
+        razao: 'saída não anuncia execução direta (esperado: anúncio de 1 linha seguido de execução, sem pergunta)',
+      },
+    ];
+  }
+
+  if (caso === 'falso-positivo-para') {
+    return [
+      {
+        nome: 'não trata como palavra de parada: sem destilação prematura',
+        ok: !/aprova|posso seguir|segue assim|de acordo|design em três frases|design fechado/i.test(saida),
+        razao: 'saída destilou/pediu aprovação de design como se "para" tivesse mandado parar (falso positivo de substring)',
+      },
+      {
+        nome: 'não trata como palavra de parada: sem "ponto em aberto"',
+        ok: !/ponto em aberto/i.test(saida),
+        razao: 'saída declarou "ponto em aberto" como se a rodada tivesse sido encerrada por palavra de parada',
+      },
+      {
+        nome: 'continua o grill: nova pergunta ou confirmação da escolha',
+        ok: /\?/.test(saida),
+        razao: 'saída não contém nenhuma pergunta nova nem confirmação, não ficou claro que o grill continuou',
+      },
+    ];
+  }
+
+  if (caso === 'parada-antes-da-primeira') {
+    const ocorrencias = (saida.match(/ponto em aberto/gi) || []).length;
+    return [
+      {
+        nome: 'declara pelo menos um ponto em aberto (não inventa em silêncio)',
+        ok: ocorrencias >= 1,
+        razao: 'saída não contém nenhuma ocorrência de "ponto em aberto": a destilação teria inventado decisões sem declarar',
+      },
+      {
+        nome: 'declara mais de um ponto em aberto (a descrição carrega mais de uma decisão pendente)',
+        ok: ocorrencias >= 2,
+        razao: 'saída declarou só ' + ocorrencias + ' ponto(s) em aberto; a descrição carrega ao menos duas decisões pendentes (regra por cliente/produto e acúmulo com outras promoções)',
+      },
+      {
+        nome: 'sem checkpoint nem pergunta nova (a parada já disparou)',
+        ok: !/fechar e seguir|mais perguntas/i.test(saida) && !/\[q1\]/i.test(saida),
+        razao: 'saída abriu checkpoint ou fez pergunta nova em vez de destilar direto',
+      },
+    ];
+  }
+
+  throw new Error('caso desconhecido: ' + caso);
+}
+
+function main() {
+  const { caso, doutrina } = parseArgs(process.argv.slice(2));
+
+  if (!caso || !TRANSCRICOES[caso]) {
+    console.error(
+      'SONDA NAO EXECUTAVEL: uso invalido. node up/tests/grill-probe.cjs --caso <parada|entrada|precedencia> [--doutrina <caminho>]'
+    );
+    process.exit(2);
+  }
+
+  const doutrinaPath = doutrina ? path.resolve(doutrina) : DOUTRINA_PADRAO;
+  let doutrinaTexto;
+  try {
+    doutrinaTexto = fs.readFileSync(doutrinaPath, 'utf8');
+  } catch (e) {
+    console.error('SONDA NAO EXECUTAVEL: doutrina nao encontrada em ' + doutrinaPath + ' (' + e.message + ')');
+    process.exit(2);
+  }
+
+  const prompt = montarPrompt(doutrinaTexto, TRANSCRICOES[caso]);
+
+  let tmpFile;
+  try {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'grill-probe-'));
+    tmpFile = path.join(tmpDir, 'prompt-' + caso + '.txt');
+    fs.writeFileSync(tmpFile, prompt, 'utf8');
+  } catch (e) {
+    tmpFile = '(falha ao gravar arquivo temporario: ' + e.message + ')';
+  }
+  console.log('CASO: ' + caso);
+  console.log('DOUTRINA: ' + doutrinaPath);
+  console.log('PROMPT salvo em: ' + tmpFile);
+
+  const disponivel = spawnSync('which', [CLAUDE_BIN], { encoding: 'utf8' });
+  if (disponivel.status !== 0) {
+    console.error('SONDA NAO EXECUTAVEL: executavel "' + CLAUDE_BIN + '" nao encontrado no PATH');
+    process.exit(2);
+  }
+
+  // O prompt vai por stdin, nunca como argumento posicional: a doutrina sob teste pode comecar com
+  // "---" (front matter YAML de skill), e um argumento que comeca com hifen e lido como opcao pelo
+  // parser de linha de comando do runtime, mesmo dentro de uma lista de argumentos (sem shell). Ler
+  // de stdin evita esse problema sem alterar uma unica letra da doutrina.
+  const resultado = spawnSync(CLAUDE_BIN, ['-p', '--model', CLAUDE_MODEL], {
+    input: prompt,
+    encoding: 'utf8',
+    timeout: TIMEOUT_MS,
+    maxBuffer: 20 * 1024 * 1024,
+  });
+
+  if (resultado.error) {
+    console.error('SONDA NAO EXECUTAVEL: ' + resultado.error.message);
+    process.exit(2);
+  }
+  if (resultado.signal) {
+    console.error('SONDA NAO EXECUTAVEL: processo encerrado pelo sinal ' + resultado.signal + ' (provavel tempo limite de ' + TIMEOUT_MS / 1000 + 's excedido)');
+    process.exit(2);
+  }
+  if (resultado.status !== 0) {
+    console.error('SONDA NAO EXECUTAVEL: "' + CLAUDE_BIN + '" saiu com codigo ' + resultado.status);
+    console.error('stderr: ' + (resultado.stderr || '').slice(0, 2000));
+    process.exit(2);
+  }
+
+  const saida = (resultado.stdout || '').trim();
+  console.log('--- RESPOSTA BRUTA DO MODELO ---');
+  console.log(saida);
+  console.log('--- FIM DA RESPOSTA ---');
+
+  const checks = assertivas(caso, saida);
+  let falhas = 0;
+  for (const c of checks) {
+    if (c.ok) {
+      console.log('  ok    - ' + c.nome);
+    } else {
+      console.log('  FALHA - ' + c.nome + ': ' + c.razao);
+      falhas++;
+    }
+  }
+
+  console.log('\ngrill-probe [' + caso + ']: ' + (checks.length - falhas) + '/' + checks.length + ' asserções passaram');
+  process.exit(falhas > 0 ? 1 : 0);
+}
+
+main();

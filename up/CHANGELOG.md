@@ -4,6 +4,38 @@ Todas as mudancas relevantes do `up-cc` ficam documentadas aqui. O formato segue
 o espirito de [Keep a Changelog](https://keepachangelog.com/) e o versionamento
 e [SemVer](https://semver.org/). v2.0.0 e um **major** (breaking change).
 
+## Nao lancado
+
+> O piso de perguntas era raso: tarefa pequena passava com uma unica pergunta fixa, e nao havia
+> como o dono dizer "chega" sem o agente confirmar antes de fechar. Agora perguntar de menos deixa
+> de ser o default.
+
+### Adicionado
+
+- **Modo grill no `up-brainstorm`.** Tarefa pequena, media e grande entram automaticamente em modo
+  grill: perguntas ilimitadas, uma por vez, cada uma com resposta recomendada e ordem pela arvore de
+  dependencia (toda pergunta que depende de outra declara de qual). Tier Trivial continua em zero
+  pergunta. Pedido manual do dono (flag `--grill` ou linguagem natural como "me grelha", "vai fundo",
+  "pergunta mais") vence a classificacao automatica, inclusive numa tarefa classificada como
+  Trivial. Motor unico em `up/skills/up-brainstorm/grill.md`, carregado sob demanda pela skill de
+  brainstorm e citado nas demais superficies de doutrina (bootstrap de sessao, roteador e comando da
+  porta unica, instalador, README, guia de uso).
+- **Tres portas de saida independentes.** Palavra de parada (chega, para, fecha, basta, suficiente,
+  entre outras variacoes equivalentes) encerra as perguntas na primeira tentativa, sem checkpoint e
+  sem pedido de confirmacao, seguindo direto pra destilacao. Checkpoint de duas opcoes a cada tres
+  perguntas (Fechar e seguir / Mais perguntas), reaproveitando o controle que ja existia. Auto
+  convergencia declarada quando nao resta pergunta capaz de mudar o design, em vez de simplesmente
+  parar de perguntar em silencio.
+- **Escrita inline.** Termo de dominio e decisao que surgem durante o grill sao gravados no mesmo
+  turno em que caem (glossario do projeto e registro de decisao), nunca acumulados pra gravar em
+  lote no fim da conversa.
+
+### Mantido
+
+- O gate de aprovacao do design continua exigido integralmente: encerrar as perguntas nao aprova o
+  design, e o estado terminal (projeto ou feature aprovado vai pro `/up:plan`, nunca direto pra
+  codigo) nao muda.
+
 ## 2.3.0
 
 > A rodada de perguntas do brainstorm fechava e o agente seguia sozinho pro

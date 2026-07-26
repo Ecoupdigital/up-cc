@@ -87,7 +87,7 @@ O UP escala o esforco pelo tamanho da tarefa, sem voce pedir.
 
 ```
 /up "ajusta o titulo do botao pra X"
-  -> classify-task: TRIVIAL -> 0 perguntas, anuncia e executa
+  -> heuristica de prosa: TRIVIAL -> 0 perguntas, anuncia e executa
   -> up-executor muda + prova fresca por tipo (UI -> captura visual antes/depois)
   -> commit atomico na branch ATUAL
   -> STATE.md atualizado. FIM.
@@ -99,18 +99,21 @@ Zero worktree, zero issue, zero PR, zero rede. `/up:rapido` (ou `--local` no bui
 
 ```
 /up "adiciona filtro por data no dashboard"
-  -> classify-task: PEQUENA -> 1 pergunta-chave + design em 3 frases
+  -> heuristica de prosa: PEQUENA -> modo grill: perguntas ilimitadas, uma por vez, com resposta
+     recomendada, ate palavra de parada, checkpoint a cada tres ou auto-convergencia declarada
   -> BRIEFING.md curto, commitado
   -> /up:plan gera PLAN-READY.md (1 plano = 1 agente)
   -> /up:build (GitHub-nativo): worktree + issue, TDD por tipo, teste visual se tem UI
   -> menu de fim de fase (merge local / abrir PR / deixa a branch / descarta)
 ```
 
+O UP passou a perguntar por padrao porque perguntar de menos custa mais caro que perguntar demais: uma decisao errada assumida sem pergunta vira retrabalho depois. A saida e barata, uma palavra encerra as perguntas na hora, sem confirmacao, e quem manda na profundidade e sempre voce. Motor completo do modo grill em `up/skills/up-brainstorm/grill.md`.
+
 ### Caminho completo (projeto grande, repo colaborativo)
 
 ```
 /up "redesign do gestor com novo modulo de cohorts"
-  -> classify-task: GRANDE -> brainstorm full com aprovacao por secao
+  -> heuristica de prosa: GRANDE -> brainstorm full com perguntas em modo grill, aprovacao por secao
   -> BRIEFING.md completo -> /up:plan gera ROADMAP.md + varios PLAN-READY.md em waves
   -> /up:build --board   (GitHub-nativo por padrao, Multica ligado via --board)
      por fase: worktree -> issue -> waves de agentes em paralelo -> teste visual -> menu de fim de fase
