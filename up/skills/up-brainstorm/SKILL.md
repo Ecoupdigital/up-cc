@@ -53,8 +53,18 @@ de rejeições do projeto (espaço de comando `memoria`, submódulo `fora-de-esc
 pedido do dono, antes de explorar a intenção. Base inexistente devolve vazio e o fluxo segue
 normalmente, sem criar nada: a própria consulta nunca cria arquivo.
 
-Sem achado, nada é dito ao dono. Essa é a regra de silêncio: a consulta é barata e invisível
-quando não encontra nada.
+Rode exatamente este comando, com o texto literal do pedido do dono em `--pedido`:
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" memoria fora-de-escopo buscar --pedido "<texto do pedido do dono>"
+```
+
+A saída é um JSON com `achados` (lista) e `base_existe` (booleano). Leia `achados`: lista vazia
+segue a regra de silêncio abaixo. Lista não vazia, pegue o primeiro item (maior pontuação primeiro)
+e use o campo `pergunta` dele, verbatim, como a pergunta ao dono descrita a seguir.
+
+Sem achado (`achados` vazio), nada é dito ao dono. Essa é a regra de silêncio: a consulta é barata
+e invisível quando não encontra nada.
 
 Achado, apresente a pergunta pronta que a busca devolve, já com a semelhança citada, o motivo
 original da recusa e a recomendação com o porquê dela, antes de montar qualquer design. A
