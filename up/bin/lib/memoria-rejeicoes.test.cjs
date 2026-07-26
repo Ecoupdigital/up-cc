@@ -11,7 +11,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { spawnSync, spawn } = require('child_process');
 const rejeicoes = require('./memoria-rejeicoes.cjs');
 
 const UP_TOOLS = path.join(__dirname, '..', 'up-tools.cjs');
@@ -61,6 +61,27 @@ let pass = 0, fail = 0;
 function t(name, fn) {
   try { fn(); console.log('  ok  -', name); pass++; }
   catch (e) { console.error('  FAIL -', name, '\n     ', e.message); fail++; }
+}
+
+/** Versao assincrona de t(), so para o teste de corrida entre processos (DEB-3): precisa de
+ * concorrencia real entre processos do SO, que so acontece com spawn (nao spawnSync) mais
+ * Promise.all, nunca com um loop sincrono de espera. */
+async function tAsync(name, fn) {
+  try { await fn(); console.log('  ok  -', name); pass++; }
+  catch (e) { console.error('  FAIL -', name, '\n     ', e.message); fail++; }
+}
+
+/** Dispara o binario real sem esperar (spawn, nunca spawnSync): concorrencia real entre
+ * processos do SO so acontece assim. */
+function spawnCliAsync(argsArr, cwd) {
+  return new Promise((resolve) => {
+    const filho = spawn(process.execPath, [UP_TOOLS, ...argsArr, '--cwd', cwd]);
+    let stdout = '';
+    let stderr = '';
+    filho.stdout.on('data', (d) => { stdout += d; });
+    filho.stderr.on('data', (d) => { stderr += d; });
+    filho.on('close', (status) => resolve({ status, stdout, stderr }));
+  });
 }
 
 // =====================================================================
@@ -513,5 +534,43 @@ t('linha de comando: registrar aprovado sai com codigo 0 e grava o arquivo', () 
   assert.ok(fs.existsSync(path.join(dir, parsed.caminho)));
 });
 
-console.log(`\n${pass} passed, ${fail} failed`);
-process.exit(fail ? 1 : 0);
+// =====================================================================
+// Corrida entre processos concorrentes no apelido (DEB-3, correcao final): a acao alias fazia
+// leitura-modificacao-escrita do frontmatter inteiro sem lock nenhum, mesma classe do RV-003 ja
+// fechado em memoria-decisao.cjs e memoria-termo.cjs, mas nunca fechada aqui.
+// =====================================================================
+
+async function testeCorridaApelidosMesmoConceito() {
+  const dir = mkProjeto();
+  rejeicoes.registrar(dir, {
+    conceito: 'painel de controle unificado',
+    titulo: 'Painel de controle unificado',
+    motivo: 'O produto delega esse controle para a ferramenta de observabilidade externa ja contratada.',
+  });
+
+  const N = 10;
+  const promessas = [];
+  for (let i = 0; i < N; i++) {
+    promessas.push(spawnCliAsync([
+      'memoria', 'fora-de-escopo', 'alias',
+      '--conceito', 'painel de controle unificado',
+      '--alias', `apelido concorrente ${i}`,
+    ], dir));
+  }
+  const resultados = await Promise.all(promessas);
+
+  const aceitos = resultados.filter((r) => r.status === 0);
+  assert.strictEqual(aceitos.length, N, `todos os ${N} deveriam ter sido aceitos, saidas: ${JSON.stringify(resultados.map((r) => r.status))}`);
+
+  const listado = rejeicoes.listarRejeicoes(dir).find((x) => x.conceito === 'painel-de-controle-unificado');
+  assert.strictEqual(listado.aliases.length, N, `deveriam existir ${N} apelidos gravados ao final, existem ${listado.aliases.length}: ${JSON.stringify(listado.aliases)}`);
+}
+
+async function main() {
+  await tAsync(`corrida: ${10} apelidos concorrentes no MESMO conceito produzem ${10} apelidos gravados, nenhum perdido`, testeCorridaApelidosMesmoConceito);
+
+  console.log(`\n${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+}
+
+main();

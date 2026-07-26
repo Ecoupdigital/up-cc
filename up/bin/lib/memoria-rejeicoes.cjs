@@ -13,6 +13,12 @@
  * confundiriam adiamento com recusa. Criacao preguicosa: nenhum diretorio nasce antes da
  * primeira rejeicao estrutural passar nas duas guardas.
  *
+ * A acao alias faz leitura-modificacao-escrita do frontmatter inteiro do conceito, protegida
+ * por um lock de diretorio por conceito (comLockDiretorio, mesmo mecanismo do RV-003 ja
+ * fechado em memoria-decisao.cjs e memoria-termo.cjs): sem o lock, dois processos acrescentando
+ * apelido ao mesmo conceito ao mesmo tempo perdem apelido em silencio, cada um reportando
+ * sucesso.
+ *
  * Limitacao conhecida e aceita: as duas guardas sao listas lexicas fechadas. Colapsam a
  * contracao "pra"/"para" (normalizarGuarda), mas nao entendem parafrase. "esse recurso ja foi
  * entregue" e "nao temos tempo neste trimestre" dizem a mesma coisa que "ja existe" e "por
@@ -30,7 +36,7 @@ const fs = require('fs');
 const path = require('path');
 const { generateSlugInternal, toPosixPath, escapeRegex } = require('./core.cjs');
 const {
-  dirForaDeEscopo, garantirDir, resolverCaminhoContido,
+  dirForaDeEscopo, garantirDir, resolverCaminhoContido, comLockDiretorio,
   rejeitarQuebraDeLinha, serializarValorFrontmatter, parseValorFrontmatterSimples,
   lerFlag, lerFlags,
 } = require('./memoria.cjs');
@@ -363,37 +369,51 @@ function adicionarAlias(cwd, { conceito: conceitoBruto, aliases: novosAliases })
   for (const alias of novos) rejeitarQuebraDeLinha(alias, 'alias');
 
   const conceito = generateSlugInternal(conceitoBruto);
-  const caminhoArquivo = resolverCaminhoContido(dirForaDeEscopo(cwd), `${conceito}.md`);
+  const dir = dirForaDeEscopo(cwd);
+  const caminhoArquivo = resolverCaminhoContido(dir, `${conceito}.md`);
 
   if (!fs.existsSync(caminhoArquivo)) {
     throw new Error(`Apelido nao registrado: o conceito "${conceito}" nao foi encontrado na base de rejeicoes.`);
   }
 
-  const conteudo = fs.readFileSync(caminhoArquivo, 'utf-8');
-  const { frontmatter } = extrairFrontmatter(conteudo);
-  const aliasesAtuais = frontmatter.aliases || [];
-  const normalizadosAtuais = new Set(aliasesAtuais.map((a) => normalizar(a)));
+  // Leitura-modificacao-escrita do bloco de aliases inteiro, dentro de um lock de diretorio
+  // (mesma classe do RV-003 ja fechado em memoria-decisao.cjs e memoria-termo.cjs, mas nunca
+  // fechada neste submodulo): sem lock, dois processos acrescentando apelido ao MESMO conceito
+  // ao mesmo tempo leem o MESMO conteudo atual, cada um monta a lista final por cima dele e o
+  // ultimo a escrever apaga o apelido que o outro tinha acabado de gravar, embora os dois
+  // processos reportem sucesso. O UP roda planos da mesma onda em paralelo por design, entao
+  // isto nao e hipotetico. A checagem de conceito inexistente fica FORA do lock, de proposito:
+  // se o arquivo nao existe, nao ha nada a lockear e a criacao preguicosa do diretorio nao pode
+  // ser um efeito colateral desta acao.
+  const caminhoLock = path.join(dir, `.${conceito}.alias.lock`);
 
-  const aliasesFinal = [...aliasesAtuais];
-  let acrescentados = 0;
-  for (const alias of novos) {
-    const normalizado = normalizar(alias);
-    if (normalizadosAtuais.has(normalizado)) continue;
-    normalizadosAtuais.add(normalizado);
-    aliasesFinal.push(alias);
-    acrescentados++;
-  }
+  return comLockDiretorio(caminhoLock, () => {
+    const conteudo = fs.readFileSync(caminhoArquivo, 'utf-8');
+    const { frontmatter } = extrairFrontmatter(conteudo);
+    const aliasesAtuais = frontmatter.aliases || [];
+    const normalizadosAtuais = new Set(aliasesAtuais.map((a) => normalizar(a)));
 
-  if (acrescentados > 0) {
-    const novoConteudo = reescreverAliasesFrontmatter(conteudo, aliasesFinal);
-    fs.writeFileSync(caminhoArquivo, novoConteudo, 'utf-8');
-  }
+    const aliasesFinal = [...aliasesAtuais];
+    let acrescentados = 0;
+    for (const alias of novos) {
+      const normalizado = normalizar(alias);
+      if (normalizadosAtuais.has(normalizado)) continue;
+      normalizadosAtuais.add(normalizado);
+      aliasesFinal.push(alias);
+      acrescentados++;
+    }
 
-  return {
-    conceito,
-    aliases: aliasesFinal,
-    aliases_acrescentados: acrescentados,
-  };
+    if (acrescentados > 0) {
+      const novoConteudo = reescreverAliasesFrontmatter(conteudo, aliasesFinal);
+      fs.writeFileSync(caminhoArquivo, novoConteudo, 'utf-8');
+    }
+
+    return {
+      conceito,
+      aliases: aliasesFinal,
+      aliases_acrescentados: acrescentados,
+    };
+  });
 }
 
 // =====================================================================
