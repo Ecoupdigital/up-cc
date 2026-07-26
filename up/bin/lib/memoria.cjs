@@ -82,6 +82,11 @@ function resolverCaminhoContido(dir, nomeArquivo) {
 
 const LOCK_TENTATIVAS_PADRAO = 400;
 const LOCK_ESPERA_MS_PADRAO = 15;
+// Lock mais velho que este limite e considerado orfao (dono provavelmente morto no meio da
+// secao critica) e pode ser roubado por quem estiver esperando. A secao critica real deste
+// modulo e leitura e escrita de um arquivo pequeno (poucos milissegundos), entao um lock vivo
+// nunca chega perto deste valor; so um dono morto deixa o lock parado por tanto tempo (DEB-2).
+const LOCK_ORFAO_LIMIAR_MS_PADRAO = 5000;
 
 /** Pausa sincrona real (bloqueia a thread por ms milissegundos) via Atomics.wait sobre um
  * SharedArrayBuffer descartavel. Usada so para o espera-ocupada do lock: sem uma pausa
@@ -91,16 +96,41 @@ function esperarSincrono(ms) {
   Atomics.wait(ia, 0, 0, ms);
 }
 
+/** Remove um lock ja identificado como orfao (mtime alem do limiar) e registra o roubo em
+ * stderr, com o caminho e a idade, para o incidente ficar visivel a quem operar o processo.
+ * Tolera ENOENT (outro processo ja removeu o mesmo lock orfao entre a checagem de idade e
+ * esta remocao, corrida rara mas possivel entre dois processos esperando o mesmo lock);
+ * qualquer outro erro sobe, porque nao e uma condicao esperada desta corrida. */
+function roubarLockOrfao(caminhoLock, idadeMs) {
+  try {
+    fs.rmdirSync(caminhoLock);
+    console.error(
+      `[memoria] lock orfao roubado: "${caminhoLock}" estava parado ha ${Math.round(idadeMs)}ms, ` +
+      'mais velho que o limite de orfandade. O dono original provavelmente morreu no meio da escrita.'
+    );
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+}
+
 /**
  * Executa fn() com um lock exclusivo no caminho caminhoLock, obtido por fs.mkdirSync (que
  * falha com EEXIST se o diretorio ja existe, atomicamente no SO). Espera ocupada com pausa
  * curta entre tentativas ate obter o lock ou esgotar as tentativas. Libera o lock no
  * finally, mesmo se fn() lancar, para uma excecao de regra de negocio no meio da secao
  * critica nao deixar o proximo processo travado pra sempre.
+ *
+ * Lock orfao (DEB-2): um processo que morre segurando o lock (kill -9 no meio da secao
+ * critica) deixava toda escrita seguinte falhando para sempre, porque o loop so contava
+ * tentativas e nunca considerava a idade do lock. A cada EEXIST, agora compara o mtime do
+ * lock contra opts.limiarOrfaoMs (padrao alguns segundos): mais velho que isso, o lock e
+ * roubado (removido e o roubo registrado) e a tentativa seguinte volta a competir por ele
+ * normalmente; mais novo, continua respeitado exatamente como antes.
  */
 function comLockDiretorio(caminhoLock, fn, opts) {
   const tentativas = (opts && opts.tentativas) || LOCK_TENTATIVAS_PADRAO;
   const esperaMs = (opts && opts.esperaMs) || LOCK_ESPERA_MS_PADRAO;
+  const limiarOrfaoMs = (opts && opts.limiarOrfaoMs) || LOCK_ORFAO_LIMIAR_MS_PADRAO;
 
   fs.mkdirSync(path.dirname(caminhoLock), { recursive: true });
 
@@ -111,6 +141,19 @@ function comLockDiretorio(caminhoLock, fn, opts) {
       obtido = true;
     } catch (e) {
       if (e.code !== 'EEXIST') throw e;
+      let estatisticas;
+      try {
+        estatisticas = fs.statSync(caminhoLock);
+      } catch (erroStat) {
+        estatisticas = null; // ja sumiu entre o EEXIST e agora; so retentar mkdirSync
+      }
+      if (estatisticas) {
+        const idadeMs = Date.now() - estatisticas.mtimeMs;
+        if (idadeMs > limiarOrfaoMs) {
+          roubarLockOrfao(caminhoLock, idadeMs);
+          continue; // retenta mkdirSync no proximo giro, sem esperar: o lock acabou de abrir
+        }
+      }
       esperarSincrono(esperaMs);
     }
   }
