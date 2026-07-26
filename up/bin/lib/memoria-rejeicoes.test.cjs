@@ -154,6 +154,24 @@ t('registrar: motivo com marca de adiamento falha e nao cria a base', () => {
   assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
 });
 
+t('registrar: contracao "pra" da marca "deixar pra depois" falha igual a "deixar para depois"', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'busca por voz', titulo: 'Busca por voz', motivo: 'Isso a gente pode deixar pra depois, sem problema.' }),
+    /adiamento/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
+t('registrar: forma "deixar para depois" continua barrada apos a normalizacao de contracao', () => {
+  const dir = mkProjeto();
+  assert.throws(
+    () => rejeicoes.registrar(dir, { conceito: 'busca por voz dois', titulo: 'Busca por voz dois', motivo: 'Isso a gente pode deixar para depois, sem problema.' }),
+    /adiamento/
+  );
+  assert.ok(!fs.existsSync(dirForaDeEscopo(dir)));
+});
+
 t('registrar: palavra solta "depois" em prosa legitima nao produz recusa falsa', () => {
   const dir = mkProjeto();
   const r = rejeicoes.registrar(dir, {

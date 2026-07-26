@@ -13,6 +13,16 @@
  * confundiriam adiamento com recusa. Criacao preguicosa: nenhum diretorio nasce antes da
  * primeira rejeicao estrutural passar nas duas guardas.
  *
+ * Limitacao conhecida e aceita: as duas guardas sao listas lexicas fechadas. Colapsam a
+ * contracao "pra"/"para" (normalizarGuarda), mas nao entendem parafrase. "esse recurso ja foi
+ * entregue" e "nao temos tempo neste trimestre" dizem a mesma coisa que "ja existe" e "por
+ * enquanto", e passam. Ampliar a lista para perseguir cada parafrase possivel e jogo de gato e
+ * rato que a lista sempre perde: cada frase nova bloqueada abre espaco pra outra reformulacao
+ * nao prevista. A guarda existe pra pegar o caso descuidado (marca literal, com ou sem acento
+ * ou caixa), nao a tentativa deliberada de driblar a redacao. Fechar o caso adversarial exigiria
+ * classificacao semantica (um modelo, nao uma lista), o que e uma decisao de arquitetura fora
+ * do escopo deste modulo.
+ *
  * Acoes: listar, registrar, alias, buscar.
  */
 
@@ -72,6 +82,15 @@ function normalizar(texto) {
   const semAcento = minuscula.normalize('NFD').replace(REGEX_MARCAS_DIACRITICAS, '');
   const apenasLetraDigito = semAcento.replace(/[^a-z0-9]+/g, ' ');
   return apenasLetraDigito.trim().replace(/\s+/g, ' ');
+}
+
+/** Normaliza e, so para o proposito das guardas de admissao, colapsa a contracao "pra" na
+ * forma "para" (palavra inteira, nao prefixo de outra palavra). Sem isso "deixar pra depois"
+ * escapava da marca "deixar para depois" por diferenca lexical pura, mesma intencao. Escopo
+ * restrito as duas guardas abaixo: normalizar() em si fica intocada, porque busca, alias e slug
+ * dependem da forma neutra sem esse colapso. */
+function normalizarGuarda(texto) {
+  return normalizar(texto).replace(/\bpra\b/g, 'para');
 }
 
 /** Normaliza, quebra por espaco, descarta palavra vazia e token com menos de quatro
@@ -181,7 +200,7 @@ function listarRejeicoes(cwd) {
 // =====================================================================
 
 function verificarGuardaImplementado(motivo) {
-  const normalizado = normalizar(motivo);
+  const normalizado = normalizarGuarda(motivo);
   const marca = MARCAS_IMPLEMENTADO.find((m) => normalizado.includes(m));
   if (marca) {
     throw new Error(
@@ -193,7 +212,7 @@ function verificarGuardaImplementado(motivo) {
 }
 
 function verificarGuardaAdiamento(motivo) {
-  const normalizado = normalizar(motivo);
+  const normalizado = normalizarGuarda(motivo);
   const marca = MARCAS_ADIAMENTO.find((m) => normalizado.includes(m));
   if (marca) {
     throw new Error(
