@@ -41,12 +41,11 @@ Isso é aviso, não pergunta.
 1. Perguntas ilimitadas. Não existe número máximo. Quem encerra são as três portas de saída.
 2. Uma pergunta por mensagem. Duas perguntas na mesma mensagem é violação, mesmo que pareçam do
    mesmo assunto.
-3. Toda pergunta chega no formato entregue pela fase 13: rótulos `Pergunta:`, `Recomendo:`,
+3. Toda pergunta chega no formato do contrato de pergunta do UP: rótulos `Pergunta:`, `Recomendo:`,
    `Porque:` e, quando a lista de respostas é fechada, `Opções:` (ver
-   `CONTRATOS-HERDADOS.md`, item "Formato de pergunta com resposta recomendada"). NÃO redefina o
-   formato aqui.
-4. Antes de cada pergunta, aplique a regra de fato contra decisão, também da fase 13 (ver
-   `CONTRATOS-HERDADOS.md`, item "Regra de fato contra decisão"). Fato que você descobre lendo o
+   `up/references/questioning.md`, seção "## 1. Nenhuma pergunta crua"). NÃO redefina o formato aqui.
+4. Antes de cada pergunta, aplique a regra de fato contra decisão do mesmo contrato (ver
+   `up/references/questioning.md`, seção "## 2. Fato contra decisão"). Fato que você descobre lendo o
    repositório nunca vira pergunta.
 5. Uma pergunta só entra na árvore se pelo menos duas respostas plausíveis produzirem designs
    diferentes. Se todas as respostas levam ao mesmo design, a pergunta é decorativa: descarte.
@@ -150,14 +149,14 @@ A destilação é exatamente o passo seguinte do tier, o mesmo que o checkpoint 
 ## Escrita inline
 
 Termo de domínio que o dono fixa durante o grill vai para o glossário do projeto NO MESMO TURNO em
-que cai, antes da próxima pergunta. Use o formato de verbete e o caminho registrados em
-`CONTRATOS-HERDADOS.md`, item "Formato do verbete do glossário do projeto", sem redefinir nada.
+que cai, antes da próxima pergunta. Use o formato de verbete e a operação de registro descritos em
+`SKILL.md` (mesma pasta), seção "Memória gravada no instante", sem redefinir nada.
 
 Decisão que passa nas três condições do registro de decisão (difícil de reverter, surpreendente
 sem contexto, resultado de trade-off real) vira registro no mesmo turno, usando a operação
-determinística de numeração registrada em `CONTRATOS-HERDADOS.md`, item "Formato do registro de
-decisão e a operação determinística de numeração". Decisão que falha qualquer uma das três
-condições não gera registro, e isso não é omissão.
+determinística de numeração descrita em `SKILL.md` (mesma pasta), seção "Memória gravada no
+instante". Decisão que falha qualquer uma das três condições não gera registro, e isso não é
+omissão.
 
 Acumular para gravar no fim é proibido. Motivo: a conversa pode ser cortada por limite de
 contexto, e o que não foi gravado no instante morre.
@@ -166,9 +165,9 @@ A gravação é anunciada em UMA linha curta, no fim da mensagem, nestes formato
 `[gravado: glossário -> <termo>]` e `[gravado: decisão <número> -> <título>]`. O anúncio existe
 para o dono saber e para a gravação ser verificável na transcrição.
 
-Antes da primeira pergunta, a base de rejeições é consultada, conforme a fase 14 (ver
-`CONTRATOS-HERDADOS.md`, item "Base de rejeições"). Se o pedido parece com algo já recusado, isso
-vem à tona antes de explorar a intenção. Não redefina a regra aqui: aponte.
+Antes da primeira pergunta, a base de rejeições é consultada. Use a operação descrita em `SKILL.md`
+(mesma pasta), seção "Consulta à memória antes de explorar". Se o pedido parece com algo já recusado,
+isso vem à tona antes de explorar a intenção. Não redefina a regra aqui: aponte.
 
 ## O gate continua
 
