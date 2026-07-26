@@ -41,6 +41,8 @@ Se voce se pegar pensando uma dessas, PARE. E o sinal de que esta prestes a fura
 | "Ja sei o que ele quer" | Suposicao nao e aprovacao. Em Pequena+, pergunte a decisao-chave. |
 | "Design aprovado, agora vou codar/criar a fundacao" | NAO. Projeto/feature: o estado terminal e `/up:plan`, nunca implementacao direta. Registre BRIEFING/PROJECT, entregue o handoff e PARE. |
 | "Vou so deixar o scaffold pronto enquanto isso" | Scaffold E implementacao. Sem `.plano/PLAN-READY.md`, nada de codigo/estrutura. |
+| "Vou anotar tudo no fim da conversa" | O lote perde o contexto em que o termo ou a decisão caiu e, na prática, costuma simplesmente não acontecer. |
+| "Essa escolha é obviamente importante, já registro" | O gate das três condições é conjuntivo por definição: existe justamente para o histórico não virar lista de tudo que foi falado. |
 
 A unica forma legitima de ir rapido e o tier Trivial, nao furar o gate.
 
@@ -114,6 +116,29 @@ Opções: {recomendada primeiro} | {a outra}
 A recomendação deste checkpoint é **calculada**, nunca fixa: se ainda existe pergunta capaz de mudar o
 design, a recomendação é "Mais perguntas" e a linha Porque nomeia qual é a pergunta. Se não existe,
 a recomendação é "Fechar e seguir". Não adicione opção de resposta livre: a saída livre nativa já cobre.
+
+## Memória gravada no instante
+
+Termo de domínio que o dono fixa durante a conversa é gravado na hora, com a ação de registro de
+termo (espaço de comando `memoria`, submódulo `termo`). Nunca acumular para gravar em lote no fim:
+o lote perde o contexto em que o termo caiu e, na prática, costuma simplesmente não acontecer.
+
+A regra de admissão, em uma linha: só entra conceito específico do domínio, conceito geral de
+programação fica de fora. A regra de higiene, em uma linha: zero detalhe de implementação. As duas
+moram dentro do próprio arquivo do glossário do projeto e podem ser lidas pela ação de regras, sem
+que o agente precise inventar a redação.
+
+Decisão que aparece durante a conversa passa pelo gate das três condições, em E lógico: difícil de
+reverter, surpreendente sem contexto e resultado de um trade-off real, com alternativas genuínas
+rejeitadas. Faltou uma condição, não se escreve nada. Passou nas três, grava na hora, com as
+alternativas rejeitadas e o motivo de cada uma.
+
+Recusa do dono com motivo estrutural vira registro na base de rejeições, também na hora. Duas
+coisas nunca entram nessa base: item já implementado (envenena a consulta com falsa rejeição e
+pertence ao documento de estado) e motivo temporário (é adiamento e pertence às pendências).
+
+Nenhum dos três artefatos (glossário do projeto, registro de decisão, base de rejeições) nasce
+vazio, em nenhuma hipótese. Sem conteúdo real, não existe arquivo.
 
 ## Modo exploracao (ideia crua, acima do full)
 
