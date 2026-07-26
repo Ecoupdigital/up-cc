@@ -38,36 +38,27 @@ const FRASES_PROIBIDAS = [
 
 const TRANSCRICOES = {
   // Caso 1: tres perguntas em ordem de dependencia, o dono responde as duas primeiras e manda
-  // parar no lugar da resposta da terceira.
+  // parar no lugar da resposta da terceira. Transcricao NEUTRA de propósito (RV-006): sem
+  // marcadores de formato da doutrina nova ([Qn], "Depende de:", "Pergunta:", "Opções:" literais),
+  // pra nao funcionar como few-shot da doutrina nova quando esta mesma transcricao roda contra uma
+  // doutrina de controle (mais velha) que nunca ensinou esses rotulos.
   parada: `A conversa abaixo ja aconteceu. Continue exatamente a partir do ultimo turno do dono, sem
 repetir nada do que ja foi dito.
 
 Dono: Quero exportar um relatorio em arquivo separado, disponivel no painel.
 
-Agente:
-[Q1] Depende de: nada
-Pergunta: Onde o arquivo deve ser gerado?
-Recomendo: No servidor.
-Porque: Evita sobrecarregar o navegador do dono com relatorios grandes.
-Opções: {No servidor} | {No navegador}
+Agente: Onde o arquivo deve ser gerado, no servidor ou no navegador? Recomendo no servidor, pra nao
+sobrecarregar o navegador do dono com relatorios grandes.
 
 Dono: no servidor.
 
-Agente:
-[Q2] Depende de: Q1 (geração no servidor)
-Pergunta: Como o arquivo deve ser entregue ao dono depois de gerado?
-Recomendo: Download direto.
-Porque: E o caminho mais simples pra quem so quer o arquivo na hora.
-Opções: {Download direto} | {Enviar por e-mail}
+Agente: Como o arquivo deve ser entregue ao dono depois de gerado, por download direto ou por
+e-mail? Recomendo download direto, e o caminho mais simples pra quem so quer o arquivo na hora.
 
 Dono: download direto.
 
-Agente:
-[Q3] Depende de: Q2 (download direto)
-Pergunta: Existe um teto de linhas por exportação?
-Recomendo: Cinquenta mil linhas.
-Porque: Protege contra uma exportação gigante travar o navegador do dono.
-Opções: {Cinquenta mil} | {Sem teto}
+Agente: Existe um teto de linhas por exportacao? Recomendo cinquenta mil linhas, pra proteger contra
+uma exportacao gigante travar o navegador do dono.
 
 Dono: chega`,
 
@@ -112,9 +103,14 @@ function parseArgs(argv) {
 }
 
 function montarPrompt(doutrinaTexto, transcricao) {
+  // Enquadramento NEUTRO (RV-006): nao nomeia "modo grill" nem descreve as portas de saida aqui.
+  // Fazer isso injetaria o conceito central da doutrina NOVA no prompt mesmo quando --doutrina
+  // aponta pra uma doutrina de controle (mais velha) que nunca usou esse vocabulario, contaminando
+  // a comparacao. A UNICA fonte de instrução sobre como se comportar tem que ser o conteudo de
+  // `doutrinaTexto`, que já vem concatenado acima.
   const enquadramento =
-    'Você está conduzindo um brainstorm do UP em modo grill (perguntas ilimitadas, uma por vez, ' +
-    'até uma das três portas de saída) e deve obedecer integralmente à doutrina acima, sem exceção.';
+    'Você é o agente do UP. Continue a conversa como o agente do UP, obedecendo integralmente à ' +
+    'doutrina acima, sem exceção.';
   const instrucaoFinal =
     'Produza APENAS a sua próxima mensagem ao dono, sem nenhum comentário sobre este exercício de ' +
     'prova, sem meta-discussão e sem repetir a doutrina.';

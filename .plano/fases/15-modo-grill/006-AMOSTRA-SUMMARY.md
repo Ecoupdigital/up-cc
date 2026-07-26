@@ -25,6 +25,7 @@ key-files:
 decisions:
   - "Taxa bruta (100% nova vs 70% antiga) não foi aceita como veredito final sem inspecionar a causa de cada reprovação, porque a regra de honestidade da prova exige separar diferença estrutural de ruído de regex"
   - "Recomendação final: manter a sonda como informativa, não como gate duro, para as duas asserções que mostraram ruído; as outras quatro asserções continuam registradas como estáveis (sem falha nas 20 execuções), mas também não discriminam nesta amostra"
+  - "RETRATADO no rework crítico (RV-006): a comparação nova-vs-antiga desta medição tinha vazamento de desenho (mesmo enquadramento e mesma transcrição com marcadores da doutrina nova nos dois braços). A taxa bruta e a leitura de causa (modelo vs doutrina) foram retiradas como veredito; o achado de ruído de vocabulário em duas asserções continua valendo por não depender do vazamento. As 20 execuções não foram refeitas."
 metrics:
   duration: "~35 minutos (predominantemente espera de runtime sob carga alta da máquina)"
   completed: "2026-07-26"
@@ -102,27 +103,28 @@ numa direção que penaliza sem motivo.
 
 ## Interpretação honesta
 
-A taxa bruta (100% contra 70%) sozinha sugeriria que a doutrina nova cria uma garantia comportamental que
-a antiga não tem. Mas ao abrir cada uma das três reprovações da doutrina anterior, nenhuma é uma diferença
-estrutural real no eixo que a fase 15 quis provar (o checkpoint de duas opções abrindo ou não depois da
-palavra de parada). As três são ruído: duas por correspondência de linguagem natural ("mais perguntas"
-como frase comum, não como rótulo de opção) e uma por sinônimo ("baixa" em vez de "download"). Na métrica
-que de fato importa (o controle de checkpoint abriu?), a resposta é a mesma para as duas doutrinas: não
-abriu em nenhuma das 20 execuções, incluindo as 10 rodadas contra o texto que manda abri-lo.
+**Nota de invalidação (rework crítico RV-006, escrita depois desta medição ter rodado, sem refazer as
+20 execuções)**: o método usado nesta medição e no plano 004 tinha vazamento de desenho. `grill-probe.cjs`
+montava a MESMA linha de enquadramento para os dois braços, citando literalmente "modo grill (perguntas
+ilimitadas, uma por vez, até uma das três portas de saída)": isso injetava o conceito central da doutrina
+NOVA no braço que deveria ser controle (a doutrina anterior). Some-se que a transcrição fabricada do caso
+`parada` já usava `[Q1]`, `Depende de:` e `Recomendo:`, a assinatura formal da doutrina nova, funcionando
+como few-shot mesmo quando o texto sob teste era o antigo. As 20 execuções rodaram de verdade e os
+números das tabelas acima batem com o que a sonda imprimiu (nenhum dado foi inventado), mas **o desenho
+não isola o efeito do texto da doutrina**: os dois braços receberam o mesmo vocabulário da doutrina nova
+pelo enquadramento e pela transcrição, então a convergência observada entre as duas doutrinas pode vir do
+vazamento do próprio experimento, não de "o modelo já faz isso sozinho, independente do texto". Por isso
+os dois parágrafos originais abaixo, que tiravam essa conclusão, estão **retirados como veredito**: taxa
+bruta (100% contra 70%) e a leitura de que o comportamento vem do modelo e não da doutrina não sustentam
+mais nada, porque o experimento não separou as duas causas. `grill-probe.cjs` foi corrigido depois desta
+medição (enquadramento neutro, transcrição sem os marcadores da doutrina nova), e as duas sondas novas de
+classificação de entrada do grill (RV-001 do rework) já rodam com o desenho corrigido. Esta medição
+especificamente não foi refeita: o objetivo deste rework é registrar que o dado aqui não sustenta a
+conclusão, não produzir conclusão nova a partir de uma reexecução.
 
-Isso aponta para o cenário do meio descrito no pedido desta tarefa: **as duas doutrinas convergem, numa
-taxa alta, no comportamento estrutural relevante** (respeitar "chega" sem confirmar e sem abrir
-checkpoint), uma vez que se descontam os falsos positivos de vocabulário da sonda. A leitura mais honesta
-não é "a doutrina nova criou o comportamento" (as 10 execuções contra o texto antigo já mostram o mesmo
-comportamento estrutural 10 de 10 vezes), e também não é "as duas são idênticas" (a taxa bruta real é
-100% contra 70%, e ignorar isso seria inflar a doutrina anterior além do que os dados sustentam). É:
-**o modelo econômico usado nesta sonda já tende a obedecer "chega" sem o controle de checkpoint,
-independentemente do texto da doutrina que está lendo; o valor da doutrina nova não é criar esse
-comportamento do zero, é declará-lo como regra explícita (em vez de depender do alinhamento incidental
-do modelo) e impedir que uma futura edição da doutrina volte a exigir confirmação.** A doutrina anterior
-mandava literalmente o checkpoint e mesmo assim o modelo não abriu em nenhuma das 10 tentativas: é
-evidência de que a garantia observada vem mais do modelo do que do texto, pelo menos para este caso e
-este modelo.
+O que continua de pé, porque não depende do enquadramento nem da transcrição (é sobre a REGEX da
+asserção contra o VOCABULÁRIO do modelo, não sobre qual doutrina o modelo lê), é o achado de ruído
+descrito no parágrafo seguinte.
 
 Ao mesmo tempo, duas das seis asserções da sonda (`sem abrir o checkpoint` e `destila as decisões já
 fixadas`) mostraram ruído real nesta amostra: 3 reprovações em 20 execuções (15%) que não correspondem a

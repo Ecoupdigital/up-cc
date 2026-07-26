@@ -167,6 +167,22 @@ Código de saída: `0`. **Veredito: PASSOU (2/2).** Cobre GRILL-03.
 
 ## Prova 5: contraprova, caso `parada` contra a doutrina anterior à fase
 
+**Nota de invalidação (rework crítico RV-006, escrita depois desta prova ter rodado, sem refazer as
+execuções abaixo)**: `grill-probe.cjs`, no momento em que esta prova rodou, montava a MESMA linha de
+enquadramento para os dois braços do teste, citando literalmente "modo grill (perguntas ilimitadas,
+uma por vez, até uma das três portas de saída)". Isso injetava o conceito central da doutrina NOVA no
+braço que deveria ser controle (a doutrina anterior, extraída abaixo). Some-se que a transcrição
+fabricada do caso `parada` já usava `[Q1]`, `Depende de:` e `Recomendo:`, a assinatura formal da
+doutrina nova, funcionando como few-shot mesmo quando o texto sob teste era o antigo. As duas
+execuções abaixo rodaram de verdade e as respostas brutas são reais, mas **o desenho não isola o
+efeito do texto da doutrina**: o modelo via vocabulário da doutrina nova pelo enquadramento e pela
+transcrição em ambos os casos, então o veredito "NÃO DISCRIMINOU" ao final desta prova, e a leitura
+de que o comportamento observado "pode vir do alinhamento do modelo, não da doutrina", não separam
+essas duas causas como pretendiam. `grill-probe.cjs` foi corrigido depois (enquadramento neutro,
+transcrição sem os marcadores da doutrina nova); as execuções desta prova especificamente não foram
+refeitas, porque o objetivo do rework é registrar que o dado abaixo não sustenta a conclusão que o
+veredito tirou dele, não produzir uma conclusão nova a partir de reexecução.
+
 **Preparação**: `git show 89541fcc92613cc9624cc09d8dc34efb17fb0b3b:up/skills/up-brainstorm/SKILL.md`
 extraído para um arquivo temporário (essa é a doutrina de brainstorm inteira, tal como estava antes
 de qualquer edição desta fase; naquele momento o modelo antigo não conhecia grill nem palavra de
@@ -238,16 +254,20 @@ termina com um AskUserQuestion de controle com exatamente 2 opções".
 
 ### Veredito da contraprova
 
-**A sonda não discriminou de forma confiável nesta rodada**: uma execução reprovou (por diferença
-de vocabulário, não de estrutura), a outra passou nas 6 asserções, inclusive na do checkpoint que
-era o eixo esperado da diferença. O comportamento observado (respeitar "chega" sem confirmar) pode
-vir do próprio alinhamento do modelo econômico usado na sonda, e não exclusivamente da doutrina que
-ele está lendo. Isso não invalida a doutrina nova (as provas 2 a 4, contra a doutrina entregue,
-passaram de forma consistente e cobrem exatamente os mesmos pontos), mas significa que **este teste
-específico, com este modelo, não prova isoladamente que a doutrina antiga falharia sempre**. Essa
-leitura honesta, incluindo a inconsistência entre as duas execuções, está levada ao SUMMARY como
-ponto para o dono decidir (não trava a fase, mas a evidência não deve ser lida como mais forte do
-que é, conforme a regra de honestidade da prova).
+**RETRATADO pelo rework crítico (RV-006), ver nota de invalidação no topo desta prova.** A leitura
+original abaixo (mantida como registro histórico do que foi escrito antes do rework) tratava a
+inconsistência entre as duas execuções como sinal de que "o comportamento pode vir do modelo, não da
+doutrina". Essa leitura não se sustenta: o enquadramento e a transcrição compartilhados pelos dois
+braços já carregavam o vocabulário da doutrina nova, então nenhuma das duas execuções isolou de fato
+o texto da doutrina antiga. O que continua valendo, sem depender do vazamento: as provas 2 a 4,
+rodadas só contra a doutrina entregue (sem braço de controle, sem a contaminação deste desenho
+comparativo), passaram de forma consistente e cobrem os mesmos pontos.
+
+> Leitura original (retirada como conclusão, mantida como registro histórico): a sonda não discriminou
+> de forma confiável nesta rodada; uma execução reprovou (por diferença de vocabulário, não de
+> estrutura), a outra passou nas 6 asserções, inclusive na do checkpoint que era o eixo esperado da
+> diferença. O comportamento observado (respeitar "chega" sem confirmar) pode vir do próprio
+> alinhamento do modelo econômico usado na sonda, e não exclusivamente da doutrina que ele está lendo.
 
 **Veredito: NAO DISCRIMINOU** (registrado como veio, sem inventar reprovação nem sucesso).
 
