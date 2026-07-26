@@ -37,6 +37,15 @@ critério disponível, e então a linha Porque declara qual critério de desempa
 Recomendar não é enviesar. Opção enviesada é a que presume a resposta sem dizer por quê. A recomendação
 deste contrato vem sempre com o motivo e com a correção livre, e por isso é o oposto de enviesar.
 
+## Modo grill
+
+O grill e o motor de questionamento profundo do UP: um modo dentro da skill de brainstorm, nao uma
+skill nova, usando o formato de `## 1. Nenhuma pergunta crua` acima, sem redefini-lo. Entra
+automaticamente fora do tier trivial (pequena, media, grande); o pedido manual do dono tem
+precedencia sobre a classificacao automatica. Tres portas de saida, cada uma sozinha basta: palavra
+de parada, checkpoint a cada tres perguntas, auto-convergencia declarada. Regras completas em
+`up/skills/up-brainstorm/grill.md`.
+
 ## 2. Fato contra decisão
 
 FATO: já tem uma resposta certa escrita em algum lugar que o agente alcança. Fato nunca vira pergunta.
