@@ -108,6 +108,17 @@ Recomendo: b, porque rede social depende de horario certo pra engajamento.
 Depende de: nada
 
 Dono: opção b, para não complicar.`,
+
+  // Caso 7 (RV-004): a palavra de parada chega ANTES da primeira pergunta, na mesma mensagem que
+  // dispara o grill. Nao ha pergunta em voo, mas a descricao carrega mais de uma decisao pendente
+  // (regras de cupom por cliente, por produto, acumulo com outras promocoes). Prova que a destilacao
+  // declara CADA ramo pendente como ponto em aberto, em vez de inventar o design inteiro em silencio.
+  'parada-antes-da-primeira': `A conversa abaixo ja aconteceu. Continue exatamente a partir do
+ultimo turno do dono, sem repetir nada do que ja foi dito. Nenhuma pergunta foi feita ainda: esta e
+a primeira mensagem do dono sobre este assunto.
+
+Dono: Quero adicionar cupom de desconto no checkout, com regra de uso por cliente e por produto, e
+se acumula ou nao com outras promocoes. Chega de pergunta, bota o que faz mais sentido.`,
 };
 
 function parseArgs(argv) {
@@ -273,6 +284,27 @@ function assertivas(caso, saida) {
         nome: 'continua o grill: nova pergunta ou confirmação da escolha',
         ok: /\?/.test(saida),
         razao: 'saída não contém nenhuma pergunta nova nem confirmação, não ficou claro que o grill continuou',
+      },
+    ];
+  }
+
+  if (caso === 'parada-antes-da-primeira') {
+    const ocorrencias = (saida.match(/ponto em aberto/gi) || []).length;
+    return [
+      {
+        nome: 'declara pelo menos um ponto em aberto (não inventa em silêncio)',
+        ok: ocorrencias >= 1,
+        razao: 'saída não contém nenhuma ocorrência de "ponto em aberto": a destilação teria inventado decisões sem declarar',
+      },
+      {
+        nome: 'declara mais de um ponto em aberto (a descrição carrega mais de uma decisão pendente)',
+        ok: ocorrencias >= 2,
+        razao: 'saída declarou só ' + ocorrencias + ' ponto(s) em aberto; a descrição carrega ao menos duas decisões pendentes (regra por cliente/produto e acúmulo com outras promoções)',
+      },
+      {
+        nome: 'sem checkpoint nem pergunta nova (a parada já disparou)',
+        ok: !/fechar e seguir|mais perguntas/i.test(saida) && !/\[q1\]/i.test(saida),
+        razao: 'saída abriu checkpoint ou fez pergunta nova em vez de destilar direto',
       },
     ];
   }

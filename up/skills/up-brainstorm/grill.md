@@ -115,10 +115,15 @@ Tabela de frases proibidas na mensagem seguinte a uma palavra de parada:
 | Checkpoint de duas opções | O checkpoint é a porta 2 e ela não é acionada aqui |
 | Nova pergunta de qualquer tipo | A próxima mensagem é a destilação |
 
-**Pergunta em aberto**: se a palavra de parada chegou no lugar da resposta de `[Qn]`, a decisão de
-`[Qn]` é adotada pela sua própria recomendação, e a destilação declara isso em uma linha, no
-formato `Ponto em aberto: <assunto> adotado pela recomendação, não confirmado pelo dono`. Você não
-pergunta de novo e não deixa o ponto invisível.
+**Ponto em aberto**: cobre TODO ramo pendente capaz de mudar o design no momento em que a palavra de
+parada chega, não só a pergunta que estava em voo. Isso inclui: a pergunta em resposta a que a palavra
+chegou (quando chega no lugar da resposta de `[Qn]`); toda pergunta que a árvore de dependência já
+tinha planejado fazer e ainda não fez; e o caso limite em que a parada chega ANTES da primeira
+pergunta, onde não há nenhuma em voo, mas a árvore inteira já foi montada mentalmente e ficaria
+invisível se você simplesmente inventasse o design sem declarar nada. Cada ramo pendente adota a
+própria recomendação, e a destilação declara CADA UM em uma linha, no formato `Ponto em aberto:
+<assunto> adotado pela recomendação, não confirmado pelo dono`. Você não pergunta de novo e não
+deixa nenhum ponto invisível.
 
 ### Porta 2: checkpoint a cada três perguntas
 
