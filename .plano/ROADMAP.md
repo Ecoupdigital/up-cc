@@ -22,7 +22,7 @@
 - [x] **Fase 12: Correção do encerramento solo** - Modo solo com repositório ativo passa a aterrissar a fase de verdade
 - [x] **Fase 13: Formato de pergunta** - Resposta recomendada em toda pergunta e regra de fato contra decisão (completed 2026-07-25)
 - [x] **Fase 14: Memória do projeto** - Glossário, registro de decisão com alternativas rejeitadas e base de rejeições (completed 2026-07-26)
-- [ ] **Fase 15: Modo grill** - Questionamento profundo como piso automático, com três portas de saída
+- [x] **Fase 15: Modo grill** - Questionamento profundo como piso automático, com três portas de saída (completed 2026-07-26)
 - [ ] **Fase 16: Honestidade da prova** - Fronteiras de teste pré-acordadas e regra anti-tautologia
 - [ ] **Fase 17: Planejamento por grafo** - Arestas de bloqueio, fronteira derivada, tamanho por janela e durabilidade do plano
 - [ ] **Fase 18: Contexto e revisão** - Higiene de contexto prescrita, handoff e revisão em dois eixos paralelos
@@ -366,7 +366,7 @@ De onde a posse de arquivo passa a vir em tempo de execução, agora que a regra
 | 12. Correção do encerramento solo | 1/1 | Completa | 2026-07-09 |
 | 13. Formato de pergunta | 5/5 | Complete   | 2026-07-25 |
 | 14. Memória do projeto | 6/6 | Complete   | 2026-07-26 |
-| 15. Modo grill | 0/4 | Planejada | - |
+| 15. Modo grill | 5/4 | Complete   | 2026-07-26 |
 | 16. Honestidade da prova | 0/5 | Planejada | - |
 | 17. Planejamento por grafo | 0/5 | Pendente | - |
 | 18. Contexto e revisão | 0/7 | Pendente | - |

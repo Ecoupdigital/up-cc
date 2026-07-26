@@ -4,13 +4,13 @@
 
 **Projeto**: UP (up-cc)
 **Valor Central**: Pipeline autônomo confiável exige perguntar o suficiente antes de agir, lembrar do que já foi decidido e recusado, e provar o que afirma
-**Foco Atual**: Ciclo 2 estruturado (fases 13 a 20). Fase 14 (memória do projeto) completa: os 6 planos das 3 ondas fecharam, com prova ponta a ponta e regressão zero. Próxima fase: 15 (modo grill)
+**Foco Atual**: Ciclo 2 estruturado (fases 13 a 20). Fase 15 (modo grill) completa: os 4 planos das 3 ondas fecharam, com invariante determinístico, sonda de comportamento e regressão zero. Próxima fase: 16 (honestidade da prova)
 
 ## Posicao Atual
 
-**Fase**: 15 de 20 (próxima; fase 14 completa)
-**Plano**: fase 14 fechada com os 6 planos das 3 ondas: 001 (glossário interno do UP), 002 (registro de decisão determinístico), 003 (base de rejeições por conceito de domínio), 004 (definição única e citação nas superfícies), 005 (glossário do projeto e doutrina de memória), 006 (prova ponta a ponta e regressão zero)
-**Status**: Fase 14 completa e commitada. Plano 006 escreveu `up/bin/lib/memoria-e2e.test.cjs` (16 casos, duas jornadas encadeadas exercitando o binário real de ferramentas: critério 3 do briefing, criação preguiçosa e gate; critério 4, reproposta de conceito recusado), provou regressão real nos quatro runtimes, num projeto no formato anterior ao ciclo e na bateria completa de 114 casos + guarda da fase 13. Corrigiu, no caminho, um bug real em `requirements mark-complete` (regex nunca casava o formato sem negrito usado neste v2; era no-op silencioso). MEM-01 a MEM-12 marcados completos em REQUIREMENTS.md via linha de comando, já corrigida. REG-01 a REG-03 seguem pendentes (transversais, reverificados a cada fase 13-20)
+**Fase**: 16 de 20 (próxima; fase 15 completa)
+**Plano**: fase 15 fechada com os 4 planos das 3 ondas (mais 1 correção de regressão fora de onda): 001 (motor único do grill), 002 (porta na skill de brainstorm), 003 (propagação do piso novo nas outras superfícies, em paralelo com o 002), 005-regressao (correção do guarda de perguntas da fase 13, que ficou vermelho porque os planos 002 e 003 removeram duas tags em paralelo sem atualizar o inventário), 004 (prova: invariante de piso, sonda de comportamento e regressão)
+**Status**: Fase 15 completa e commitada. Plano 004 escreveu `up/tests/piso-grill.test.cjs` (invariante de piso e propagação, 8 casos, verde na árvore atual e vermelho na árvore do ponto de partida) e `up/tests/grill-probe.cjs` (sonda de comportamento com julgamento 100% determinístico, sem juiz-modelo), rodou os três casos exigidos (parada 6/6, entrada 4/4, precedência 2/2) contra a doutrina entregue, e a contraprova contra a doutrina anterior à fase: **inconsistente entre duas execuções** (uma reprovou por diferença de vocabulário, a outra passou 6/6, inclusive na asserção do checkpoint que era o eixo esperado de diferença), registrado como "sonda não discriminou" em vez de forçar uma leitura mais forte do que os dados sustentam. Provou regressão real dos sete comandos e quatro runtimes (instalação em diretório temporário) e das duas leituras de projeto com planejamento anterior ao ciclo (`phase-plan-index`, `roadmap get-phase`); achou de novo o bug conhecido `init up` (já registrado desde a fase 13, item 1 de `.plano/fases/13-formato-de-pergunta/deferred-items.md`), confirmado idêntico no SHA_BASE desta fase, portanto não é regressão do grill. GRILL-01 a GRILL-10 marcados completos em REQUIREMENTS.md. REG-01 a REG-03 seguem pendentes (transversais, reverificados a cada fase 13-20)
 **Progresso**:
 ```
 Ciclo 1: fases 1 a 10               [████████████████████] Concluido (detalhe no ROADMAP.md)
@@ -18,7 +18,7 @@ Fase 11: Suporte a Grok Build       [██████████████�
 Fase 12: Encerramento solo          [████████████████████] Completa
 Fase 13: Formato de pergunta        [████████████████████] Completa (5/5 planos)
 Fase 14: Memoria do projeto         [████████████████████] Completa (6/6 planos)
-Fase 15: Modo grill                 [░░░░░░░░░░░░░░░░░░░░] Pendente
+Fase 15: Modo grill                 [████████████████████] Completa (4/4 planos)
 Fase 16: Honestidade da prova       [░░░░░░░░░░░░░░░░░░░░] Pendente
 Fase 17: Planejamento por grafo     [░░░░░░░░░░░░░░░░░░░░] Pendente
 Fase 18: Contexto e revisao         [░░░░░░░░░░░░░░░░░░░░] Pendente
@@ -30,10 +30,10 @@ Fase 20: Nevoa e fronteira          [░░░░░░░░░░░░░░�
 
 | Metrica | Valor |
 |---------|-------|
-| Fases completas | 14 de 20 |
+| Fases completas | 15 de 20 |
 | Requisitos do ciclo 1 cobertos | 19/19 |
-| Requisitos do ciclo 2 | 23 completos (fases 11, 12, 13 e 14: DIST/CICLO/PERG-01 a PERG-06/MEM-01 a MEM-12), 72 pendentes (REG-01 a REG-03 seguem transversais e pendentes; fases 15 a 20) |
-| Planos executados | 31 |
+| Requisitos do ciclo 2 | 33 completos (fases 11, 12, 13, 14 e 15: DIST/CICLO/PERG-01 a PERG-06/MEM-01 a MEM-12/GRILL-01 a GRILL-10), 62 pendentes (REG-01 a REG-03 seguem transversais e pendentes; fases 16 a 20) |
+| Planos executados | 36 |
 
 ## Contexto Acumulado
 
@@ -68,6 +68,8 @@ Fase 20: Nevoa e fronteira          [░░░░░░░░░░░░░░�
 - [Phase 13, plano 005]: bug pré-existente crítico descoberto no fechamento da fase (`init up` não existe no despachante de `init` de `up-tools.cjs`, mas `up/workflows/up.md` chama exatamente esse comando no Passo 0; toda invocação de `/up:up` sem argumento provavelmente falha ali). Confirmado anterior ao primeiro commit da fase 13 (existia no commit 8d06348, merge-base desta branch com main). Não corrigido por estar fora do escopo do plano de prova (corrigir exigiria tocar up/bin/up-tools.cjs, violando o próprio critério de aceite da tarefa 6 sobre diferença vazia em up/bin). Registrado com prioridade alta em `.plano/fases/13-formato-de-pergunta/deferred-items.md`, item 1, para tratamento fora deste ciclo de fase.
 - [Phase 13, plano 005]: mais quatro gaps de ferramentas descobertos durante o fechamento (`requirements mark-complete` e os cinco comandos `state advance-plan/update-progress/add-decision/record-metric/record-session` não casam com o formato real de `REQUIREMENTS.md`/`STATE.md` desta v2, apenas com um template legado). Contornado com edição manual dos dois arquivos nesta sessão; `roadmap update-plan-progress` funciona e foi usado normalmente. Detalhe nos itens 4 e 5 de `deferred-items.md`.
 - [Phase 14, plano 006]: `requirements mark-complete` corrigido (Regra 1 + Regra 3): o regex exigia identificador em negrito (`**ID**`), formato que não existe em nenhum `REQUIREMENTS.md` deste v2; aceita agora negrito opcional. Único dos cinco comandos da família corrigido, porque só ele bloqueava a tarefa 6 do plano; os quatro comandos `state *` continuam com o mesmo defeito, não tocados (fora do escopo desta fase). `roadmap update-plan-progress` seguiu funcionando normalmente e foi usado para fechar a fase 14 neste STATE.md e no ROADMAP.md.
+- [Phase 15, plano 004, DECISAO ESCALADA]: a contraprova da palavra de parada (sonda `grill-probe.cjs --caso parada` contra a doutrina anterior à fase) foi rodada duas vezes contra o mesmo modelo econômico e deu resultados diferentes: uma reprovou (por troca de palavra, "baixa direto" no lugar de "download"), a outra passou 6/6, inclusive na asserção do checkpoint que era o eixo estrutural esperado de diferença entre a doutrina antiga e a nova. Registrado como "a sonda não discriminou nesta rodada" em vez de forçar uma conclusão mais forte do que os dados sustentam (regra de honestidade da prova). Isso não invalida a doutrina nova (as sondas contra ela passaram de forma consistente, 6/6, 4/4 e 2/2), mas significa que a garantia de "a palavra de parada encerra sem confirmação" depende também do alinhamento geral do modelo usado, não só do texto da doutrina. Fica para o dono decidir se vale a pena um teste de comportamento com mais amostras (ex.: N execuções e maioria) antes de tratar essa garantia como couraçada, ou se a garantia estrutural (ausência do texto do checkpoint na doutrina nova, presença dele na antiga) já é suficiente. Detalhe completo em `.plano/fases/15-modo-grill/EVIDENCIA.md`, Prova 5.
+- [Phase 15, plano 004]: achado o mesmo bug pré-existente já registrado na fase 13 (`init up` não reconhecido pelo dispatcher de `init` em `up-tools.cjs`, idêntico desde o `SHA_BASE`); confirmado de novo que também afeta `init auditar`. Não corrigido (fora do escopo do modo grill); detalhe em `.plano/fases/15-modo-grill/deferred-items.md`.
 
 ### TODOs
 
@@ -87,6 +89,6 @@ Nenhum bloqueio ativo.
 
 ## Continuidade de Sessao
 
-**Ultima sessao**: 2026-07-26 -- Executou o plano 006 da fase 14 (onda 3, último plano, fecha a fase): escreveu `up/bin/lib/memoria-e2e.test.cjs` (16 casos em duas jornadas encadeadas, exercitando o binário real de ferramentas contra um projeto temporário: critério 3 do briefing, criação preguiçosa e gate das três condições; critério 4, reproposta de conceito recusado). Provou regressão real dos sete comandos e quatro runtimes (instalação real em diretório temporário), de um projeto no formato de planejamento anterior a este ciclo (sem migração, sem artefato novo por baixo do pano) e da bateria completa de 114 casos (6 arquivos de teste) mais o guarda da fase 13, todos verdes. Corrigiu, no caminho, um bug real e bloqueante em `requirements mark-complete` (regex nunca casava o formato sem negrito usado neste v2; era no-op silencioso mesmo com código de saída zero), verificado vermelho-antes/verde-depois contra cópia isolada antes de tocar o arquivo real. Marcou MEM-01 a MEM-12 completos em REQUIREMENTS.md via linha de comando (já corrigida), com tabela de rastreabilidade no resumo. Commits `c3ab4c4`, `51f37ea`, `9aab079`, `625ff4c`, `60f9a92`.
-**Proxima acao**: iniciar a fase 15 (modo grill: questionamento profundo como piso automático, com três portas de saída). Bug `init up` (fase 13) e os quatro comandos `state *` restantes (fase 13/14) continuam registrados como dívida pré-existente, fora do ciclo de fases.
-**Comando sugerido**: `/up:build fase 15`
+**Ultima sessao**: 2026-07-26 -- Executou o plano 004 da fase 15 (onda 3, último plano, fecha a fase): escreveu `up/tests/piso-grill.test.cjs` (invariante determinístico de piso e propagação, 8 casos, verde na árvore atual e vermelho na árvore do `SHA_BASE`) e `up/tests/grill-probe.cjs` (sonda de comportamento contra o runtime real do Claude, julgamento por regra escrita, sem juiz-modelo). Rodou os três casos de comportamento contra a doutrina entregue (parada 6/6, entrada 4/4, precedência 2/2, todos PASSOU) e a contraprova contra a doutrina anterior à fase, que saiu inconsistente entre duas execuções e foi registrada como "não discriminou" em vez de forçada a uma leitura mais forte (ver DECISAO ESCALADA acima). Provou regressão real dos sete comandos, das quatro skills de doutrina, das sete skills de comando e do motor do grill nos quatro runtimes (instalação em `HOME` temporário, nunca na config real), idempotência da instalação, e as leituras de projeto com planejamento anterior ao ciclo (`phase-plan-index`, `roadmap get-phase`, ambas OK; `init up` falhou, mas idêntico ao `SHA_BASE`, bug pré-existente já registrado desde a fase 13, não regressão desta). Escreveu `.plano/fases/15-modo-grill/EVIDENCIA.md` com todas as saídas brutas e o veredito consolidado das dez linhas GRILL, e a seção "Nao lancado" do changelog. Marcou GRILL-01 a GRILL-10 completos em REQUIREMENTS.md. Commits `8eb7bd2`, `20043fa`, `1261ead`, `d8ec240`, `d733232`, `dbefe3d`, `483d0e1`.
+**Proxima acao**: iniciar a fase 16 (honestidade da prova: fronteiras de teste pré-acordadas e regra anti-tautologia). Bug `init up`/`init auditar` (fase 13, reconfirmado na fase 15) e os quatro comandos `state *` restantes continuam registrados como dívida pré-existente, fora do ciclo de fases.
+**Comando sugerido**: `/up:build fase 16`
