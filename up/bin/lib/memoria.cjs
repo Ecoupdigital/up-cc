@@ -42,13 +42,32 @@ function dirForaDeEscopo(cwd) {
 }
 
 function arquivoGlossarioProjeto(cwd) {
-  return path.join(dirPlano(cwd), 'GLOSSARY.md');
+  // Nome de arquivo fixo (nunca vem de flag do usuario), mas passa pelo mesmo portao de
+  // contencao dos demais caminhos do espaco de memoria, como defesa em profundidade (RV-001).
+  return resolverCaminhoContido(dirPlano(cwd), 'GLOSSARY.md');
 }
 
 /** Unica funcao do modulo autorizada a criar diretorio. So chamada apos a regra de admissao passar. */
 function garantirDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
   return dir;
+}
+
+/**
+ * Resolve nomeArquivo dentro de dir e garante que o caminho final continua dentro do
+ * diretorio esperado. Ultimo portao antes de qualquer escrita em disco (RV-001): mesmo que o
+ * nome do arquivo ja tenha passado por slugificacao rio acima, esta funcao lanca excecao se o
+ * caminho resolvido escapar do diretorio, em vez de deixar `path.join` normalizar um `..` pra
+ * fora e sobrescrever arquivo alheio em silencio.
+ */
+function resolverCaminhoContido(dir, nomeArquivo) {
+  const dirResolvido = path.resolve(dir);
+  const caminho = path.resolve(dirResolvido, nomeArquivo);
+  const prefixo = dirResolvido.endsWith(path.sep) ? dirResolvido : dirResolvido + path.sep;
+  if (caminho !== dirResolvido && !caminho.startsWith(prefixo)) {
+    throw new Error(`Caminho resolvido fora do diretorio esperado: "${nomeArquivo}" escaparia de "${dirResolvido}".`);
+  }
+  return caminho;
 }
 
 // --- Flags ---
@@ -132,6 +151,7 @@ module.exports = {
   dirForaDeEscopo,
   arquivoGlossarioProjeto,
   garantirDir,
+  resolverCaminhoContido,
   lerFlag,
   lerFlags,
   contarPalavras,

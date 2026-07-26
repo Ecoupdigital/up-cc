@@ -17,7 +17,7 @@
 const fs = require('fs');
 const path = require('path');
 const { generateSlugInternal, toPosixPath } = require('./core.cjs');
-const { dirDecisoes, garantirDir, lerFlag, lerFlags, contarPalavras } = require('./memoria.cjs');
+const { dirDecisoes, garantirDir, resolverCaminhoContido, lerFlag, lerFlags, contarPalavras } = require('./memoria.cjs');
 
 const REGEX_ARQUIVO_REGISTRO = /^(\d{4})-([a-z0-9-]+)\.md$/;
 
@@ -129,15 +129,20 @@ function criar(cwd, flags) {
     throw new Error(`Status invalido para criacao: "${status}". Uma decisao nasce como "proposta" ou "aceita"; "substituida" so acontece depois, pela acao status.`);
   }
 
-  // 5. Numero (varredura) e slug.
+  // 5. Numero (varredura) e slug. O slug SEMPRE passa pela slugificacao real, nunca aceita
+  // o valor cru de --slug (RV-001): sem isso, um `--slug "../../../ROADMAP"` sobrevive ao
+  // corte de 48 caracteres e ao trim de hifen, e o `path.join` normaliza o `..` pra fora do
+  // diretorio de decisoes na escrita, sobrescrevendo arquivo alheio em silencio.
   const numeroFormatado = formatarNumero(proximoNumero(cwd));
-  let slug = flags.slug || generateSlugInternal(titulo) || 'decisao';
+  let slug = generateSlugInternal(flags.slug || titulo) || 'decisao';
   slug = slug.slice(0, 48).replace(/^-+|-+$/g, '') || 'decisao';
 
-  // 6. Escrita: so aqui, e so depois de toda regra ter passado.
+  // 6. Escrita: so aqui, e so depois de toda regra ter passado. resolverCaminhoContido e o
+  // ultimo portao: mesmo que o slug acima tivesse algum jeito de escapar, a escrita nao
+  // aconteceria fora de .plano/decisoes.
   const dir = garantirDir(dirDecisoes(cwd));
   const nomeArquivo = `${numeroFormatado}-${slug}.md`;
-  const caminhoAbsoluto = path.join(dir, nomeArquivo);
+  const caminhoAbsoluto = resolverCaminhoContido(dir, nomeArquivo);
   const data = new Date().toISOString().split('T')[0];
 
   const frontmatter = [

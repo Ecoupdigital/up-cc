@@ -196,6 +196,37 @@ t('criar: campo de fase so aparece no frontmatter quando a flag foi passada', ()
 });
 
 // =====================================================================
+// Path traversal via --slug (RV-001, rework critico)
+// =====================================================================
+
+t('slug com travessia de diretorio nao escreve fora de .plano/decisoes', () => {
+  const dir = mkProjeto();
+  const alvoForaDoDiretorio = path.join(dir, '.plano', 'ROADMAP.md');
+  const conteudoOriginal = 'conteudo original do roadmap, 28 bytes.';
+  fs.writeFileSync(alvoForaDoDiretorio, conteudoOriginal, 'utf-8');
+
+  const r = decisao.criar(dir, flagsValidas({ slug: '../../../ROADMAP' }));
+  assert.strictEqual(r.criado, true);
+
+  // O roadmap fora do diretorio de decisoes tem que continuar intocado.
+  assert.strictEqual(fs.readFileSync(alvoForaDoDiretorio, 'utf-8'), conteudoOriginal, 'roadmap fora do diretorio de decisoes deveria continuar intocado');
+
+  // O arquivo real tem que ter nascido DENTRO de .plano/decisoes, com o slug sanitizado.
+  const caminhoReal = path.join(dir, r.caminho);
+  const dentroDoDiretorio = path.resolve(caminhoReal).startsWith(path.resolve(dirDecisoes(dir)) + path.sep);
+  assert.ok(dentroDoDiretorio, `o registro deveria ter nascido dentro de .plano/decisoes, nasceu em ${r.caminho}`);
+  assert.ok(!fs.existsSync(path.join(dir, 'ROADMAP.md')), 'nao deveria ter nascido nenhum ROADMAP.md fora de .plano');
+});
+
+t('slug com travessia de diretorio e so pontos e barras cai no slug padrao', () => {
+  const dir = mkProjeto();
+  const r = decisao.criar(dir, flagsValidas({ slug: '../../..' }));
+  const caminhoReal = path.join(dir, r.caminho);
+  const dentroDoDiretorio = path.resolve(caminhoReal).startsWith(path.resolve(dirDecisoes(dir)) + path.sep);
+  assert.ok(dentroDoDiretorio, `o registro deveria ter nascido dentro de .plano/decisoes, nasceu em ${r.caminho}`);
+});
+
+// =====================================================================
 // Status (tarefa 4)
 // =====================================================================
 

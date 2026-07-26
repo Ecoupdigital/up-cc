@@ -29,7 +29,7 @@
 const fs = require('fs');
 const path = require('path');
 const { generateSlugInternal, toPosixPath, escapeRegex } = require('./core.cjs');
-const { dirForaDeEscopo, garantirDir, lerFlag, lerFlags } = require('./memoria.cjs');
+const { dirForaDeEscopo, garantirDir, resolverCaminhoContido, lerFlag, lerFlags } = require('./memoria.cjs');
 
 const PALAVRAS_VAZIAS = new Set([
   'de', 'da', 'do', 'das', 'dos', 'e', 'ou', 'um', 'uma', 'o', 'a', 'os', 'as',
@@ -250,7 +250,9 @@ function registrar(cwd, flags) {
 
   const dir = dirForaDeEscopo(cwd);
   const baseExistiaAntes = fs.existsSync(dir);
-  const caminhoArquivo = path.join(dir, `${conceito}.md`);
+  // conceito ja vem de generateSlugInternal, mas resolverCaminhoContido e o mesmo portao
+  // final usado no resto do espaco de memoria, como defesa em profundidade (RV-001).
+  const caminhoArquivo = resolverCaminhoContido(dir, `${conceito}.md`);
 
   if (fs.existsSync(caminhoArquivo)) {
     throw new Error(
@@ -342,7 +344,7 @@ function adicionarAlias(cwd, { conceito: conceitoBruto, aliases: novosAliases })
   }
 
   const conceito = generateSlugInternal(conceitoBruto);
-  const caminhoArquivo = path.join(dirForaDeEscopo(cwd), `${conceito}.md`);
+  const caminhoArquivo = resolverCaminhoContido(dirForaDeEscopo(cwd), `${conceito}.md`);
 
   if (!fs.existsSync(caminhoArquivo)) {
     throw new Error(`Apelido nao registrado: o conceito "${conceito}" nao foi encontrado na base de rejeicoes.`);
