@@ -1,0 +1,67 @@
+  FAIL - seletor: acha a fase 11 sem coluna de agente 
+      parse: Error: Unknown command: gate
+
+[32m+ actual[39m [31m- expected[39m
+
+[32m+[39m true
+[31m- [39mundefined
+
+  FAIL - posicao: veredito nao e evidencia 
+      decision deve ser APPROVE; got=undefined
+[32m+ actual[39m [31m- expected[39m
+
+[32m+[39m undefined
+[31m- [39m'APPROVE'
+
+  FAIL - vocabulario: smoke:pass normaliza para glue 
+      evidence_types deve ser array
+  FAIL - vocabulario: test:red-green normaliza para logic 
+      evidence_types deve conter logic; got=undefined
+  FAIL - forma canonica de seis colunas continua lida 
+      Expected values to be strictly equal:
+[32m+ actual[39m [31m- expected[39m
+
+[32m+[39m undefined
+[31m- [39m'APPROVE'
+
+  FAIL - fragmento sem veredito e ignorado 
+      ignored deve ser array
+  FAIL - fase inexistente nao explode 
+      exit code deve ser 0 (fail-open); got=1 stderr=Error: Unknown command: gate
+
+
+1 !== 0
+
+  FAIL - escopo nao numerico 
+      Expected values to be strictly equal:
+[32m+ actual[39m [31m- expected[39m
+
+[32m+[39m undefined
+[31m- [39mtrue
+
+  FAIL - campo escalar 
+      deve sair 0; stderr=Error: Unknown command: gate
+
+
+false !== true
+
+  FAIL - evidencia esperada casa e nao casa 
+      logic deve passar; got=
+
+'' !== 'true'
+
+  FAIL - log inexistente nao explode 
+      exit 0; stderr=Error: Unknown command: gate
+
+
+1 !== 0
+
+  FAIL - ultima decisao vence 
+      ultima entrada deve vencer; got=undefined
+[32m+ actual[39m [31m- expected[39m
+
+[32m+[39m undefined
+[31m- [39m'REQUEST_CHANGES'
+
+
+0 passed, 12 failed

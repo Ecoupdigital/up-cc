@@ -22,6 +22,8 @@
  *   phase-plan-index <phase>
  *   state-snapshot
  *   summary-extract <path> [--fields field1,field2]
+ *   gate verdict --phase N | --scope planning [--expect-evidence <tipo>] [--require-seams] [--field <campo>]
+ *   gate entries [--phase N]
  */
 
 const fs = require('fs');
@@ -37,6 +39,7 @@ const {
 
 const github = require('./lib/github.cjs');
 const multica = require('./lib/multica.cjs');
+const gate = require('./lib/gate.cjs');
 
 // --- Frontmatter helpers ---
 
@@ -521,6 +524,10 @@ function main() {
     }
 
     // ==================== SUMMARY-EXTRACT ====================
+    case 'gate': {
+      cmdGate(cwd, args.slice(1), raw);
+      break;
+    }
     case 'summary-extract': {
       const fieldsIdx = args.indexOf('--fields');
       const fields = fieldsIdx !== -1 ? args[fieldsIdx + 1].split(',') : [];
@@ -3951,6 +3958,156 @@ function cmdProgress(cwd, format, raw) {
   } else {
     output({ phases, total_plans: totalPlans, total_summaries: totalSummaries, percent }, raw);
   }
+}
+
+// ==================== GATE ====================
+
+/**
+ * Leitor unico do log de aprovacoes (fase 16 / PROVA-04).
+ * Fail-open: log ausente, fase ausente ou zero entradas saem com codigo 0.
+ * error() so para uso incorreto da CLI.
+ */
+function cmdGate(cwd, args, raw) {
+  const sub = args[0];
+  if (!sub || (sub !== 'verdict' && sub !== 'entries')) {
+    error('Usage: gate verdict --phase N | gate entries');
+  }
+
+  let phase = null;
+  let scope = null;
+  let logPath = null;
+  let expectEvidence = null;
+  let requireSeams = false;
+  let field = null;
+
+  for (let i = 1; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--phase') {
+      const v = args[++i];
+      if (!v || v.startsWith('--')) error('Missing value for --phase');
+      phase = Number(v);
+      if (Number.isNaN(phase)) error('Invalid --phase: ' + v);
+    } else if (a.startsWith('--phase=')) {
+      phase = Number(a.slice('--phase='.length));
+      if (Number.isNaN(phase)) error('Invalid --phase');
+    } else if (a === '--scope') {
+      const v = args[++i];
+      if (!v || v.startsWith('--')) error('Missing value for --scope');
+      scope = v;
+    } else if (a.startsWith('--scope=')) {
+      scope = a.slice('--scope='.length);
+    } else if (a === '--log') {
+      const v = args[++i];
+      if (!v || v.startsWith('--')) error('Missing value for --log');
+      logPath = v;
+    } else if (a.startsWith('--log=')) {
+      logPath = a.slice('--log='.length);
+    } else if (a === '--expect-evidence') {
+      const v = args[++i];
+      if (!v || v.startsWith('--')) error('Missing value for --expect-evidence');
+      expectEvidence = v;
+    } else if (a.startsWith('--expect-evidence=')) {
+      expectEvidence = a.slice('--expect-evidence='.length);
+    } else if (a === '--require-seams') {
+      requireSeams = true;
+    } else if (a === '--field') {
+      const v = args[++i];
+      if (!v || v.startsWith('--')) error('Missing value for --field');
+      field = v;
+    } else if (a.startsWith('--field=')) {
+      field = a.slice('--field='.length);
+    }
+  }
+
+  const read = gate.readApprovals({ cwd, logPath });
+
+  if (sub === 'entries') {
+    let entries = read.entries;
+    if (phase != null) {
+      entries = entries.filter((e) => e.phase === phase);
+    }
+    const result = {
+      log_path: read.log_path,
+      exists: read.exists,
+      lines_total: read.lines_total,
+      entries,
+      ignored: read.ignored,
+    };
+    if (field) {
+      if (!(field in result)) error('Unknown field: ' + field);
+      const val = result[field];
+      const asString = Array.isArray(val)
+        ? val.join(',')
+        : typeof val === 'boolean'
+          ? (val ? 'true' : 'false')
+          : val == null
+            ? ''
+            : String(val);
+      output(result, true, asString);
+      return;
+    }
+    output(result, raw, `gate entries: ${entries.length} entradas, ${read.ignored.length} ignoradas`);
+    return;
+  }
+
+  // verdict
+  if (phase == null && !scope) {
+    error('Usage: gate verdict --phase N | --scope planning');
+  }
+
+  const selector = phase != null ? { phase } : { scope };
+  const verdict = gate.verdictForPhase(read, selector);
+  const evaluation = gate.evaluateGate(verdict, {
+    expectEvidence,
+    requireSeams,
+  });
+
+  const result = {
+    found: verdict.found,
+    phase: verdict.phase,
+    scope: verdict.scope,
+    decision: verdict.decision,
+    forced: verdict.forced,
+    agent: verdict.agent,
+    notation: verdict.notation,
+    evidence: verdict.evidence,
+    evidence_types: verdict.evidence_types,
+    seams_confirmed: verdict.seams_confirmed,
+    entries_matched: verdict.entries_matched,
+    line: verdict.decision_line,
+    line_number: verdict.decision_line_number,
+    ignored_lines: read.ignored.length,
+    log_path: read.log_path,
+    pass: evaluation.pass,
+    reasons: evaluation.reasons,
+    checks: {
+      expect_evidence: expectEvidence || null,
+      require_seams: requireSeams,
+    },
+  };
+
+  if (field) {
+    if (!(field in result)) error('Unknown field: ' + field);
+    const val = result[field];
+    const asString = Array.isArray(val)
+      ? val.join(',')
+      : typeof val === 'boolean'
+        ? (val ? 'true' : 'false')
+        : val == null
+          ? ''
+          : String(val);
+    output(result, true, asString);
+    return;
+  }
+
+  const evTypes = (result.evidence_types || []).join(',') || '-';
+  const resumo =
+    `gate: fase=${result.phase != null ? result.phase : result.scope}` +
+    ` decision=${result.decision || 'null'}` +
+    ` evidence=${evTypes}` +
+    ` seams=${result.seams_confirmed}` +
+    ` pass=${result.pass}`;
+  output(result, raw, resumo);
 }
 
 // =====================================================================

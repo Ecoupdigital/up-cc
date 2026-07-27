@@ -31,5 +31,8 @@
   "license": "MIT",
   "engines": {
     "node": ">=16.7.0"
+  },
+  "scripts": {
+    "test:up": "node scripts/run-up-tests.cjs"
   }
 }

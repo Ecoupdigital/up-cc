@@ -1,0 +1,14 @@
+  ok  - seletor: acha a fase 11 sem coluna de agente
+  ok  - posicao: veredito nao e evidencia
+  ok  - vocabulario: smoke:pass normaliza para glue
+  ok  - vocabulario: test:red-green normaliza para logic
+  ok  - forma canonica de seis colunas continua lida
+  ok  - fragmento sem veredito e ignorado
+  ok  - fase inexistente nao explode
+  ok  - escopo nao numerico
+  ok  - campo escalar
+  ok  - evidencia esperada casa e nao casa
+  ok  - log inexistente nao explode
+  ok  - ultima decisao vence
+
+12 passed, 0 failed
