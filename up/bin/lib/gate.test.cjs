@@ -369,4 +369,52 @@ t('arquivo ausente nao explode', () => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Entrada de fronteiras aditiva (PROVA-04 seams) - plano 004
+// ---------------------------------------------------------------------------
+
+const SEAMS_LOG =
+  '2026-07-20T10:00:00Z | phase-16 | up-planejador | CONFIRMED | fronteira acordada | evidence=seams:confirmed\n' +
+  '2026-07-20T12:00:00Z | phase-16 | up-revisor | APPROVE | tudo certo | evidence=logic:test_pass\n';
+
+t('entrada de fronteiras soma, e nao rouba o veredito', () => {
+  const dir = mkTempProject({ '.plano/governance/approvals.log': SEAMS_LOG });
+  try {
+    const r = runUpToolsJson(['gate', 'verdict', '--phase', '16'], dir);
+    assert.strictEqual(r.decision, 'APPROVE', 'decision deve ser APPROVE, nao CONFIRMED; got=' + r.decision);
+    assert.strictEqual(r.seams_confirmed, true);
+    assert.ok(r.evidence_types && r.evidence_types.includes('logic'));
+    assert.ok(r.evidence_types && r.evidence_types.includes('seams'));
+    const pass = runUpTools(
+      ['gate', 'verdict', '--phase', '16', '--require-seams', '--expect-evidence', 'logic', '--field', 'pass'],
+      dir
+    );
+    assert.strictEqual(pass.stdout.trim(), 'true', 'require-seams + logic deve passar; got=' + pass.stdout);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+t('sem a linha de fronteiras, a exigencia falha', () => {
+  const onlyApprove =
+    '2026-07-20T12:00:00Z | phase-16 | up-revisor | APPROVE | tudo certo | evidence=logic:test_pass\n';
+  const dir = mkTempProject({ '.plano/governance/approvals.log': onlyApprove });
+  try {
+    const pass = runUpTools(
+      ['gate', 'verdict', '--phase', '16', '--require-seams', '--expect-evidence', 'logic', '--field', 'pass'],
+      dir
+    );
+    assert.strictEqual(pass.stdout.trim(), 'false', 'sem seams deve falhar exigencia; got=' + pass.stdout);
+    const r = runUpToolsJson(
+      ['gate', 'verdict', '--phase', '16', '--require-seams', '--expect-evidence', 'logic'],
+      dir
+    );
+    assert.ok(r.reasons && r.reasons.includes('seams_missing'),
+      'reasons deve ter seams_missing; got=' + JSON.stringify(r.reasons));
+    assert.strictEqual(r.decision, 'APPROVE', 'decision continua APPROVE');
+  } finally {
+    cleanup(dir);
+  }
+});
+
 done();

@@ -1,0 +1,10 @@
+=== gate plan-ready (PLAN-READY real) ===
+gate plan-ready: pass=true schema=null seams=0 avisos=1
+=== gate verdict --phase 16 ===
+gate: fase=16 decision=null evidence=seams seams=true pass=false
+=== gate entries --phase 16 ===
+gate entries: 1 entradas, 2 ignoradas
+=== fases 11 e 12 ===
+11=APPROVE
+12=APPROVE
+seams_confirmed=true

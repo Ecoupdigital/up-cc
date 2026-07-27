@@ -154,7 +154,21 @@ PLANNED_RUNTIME=$(grep "runtime:" .plano/PLAN-READY.md | head -1 | awk '{print $
 INTENDED_RUNTIME=$(grep -A1 "intended_execution:" .plano/PLAN-READY.md | tail -1 | awk '{print $2}')
 TOTAL_PHASES=$(grep "total_phases:" .plano/PLAN-READY.md | awk '{print $2}')
 CONFIDENCE=$(grep "planning_confidence:" .plano/PLAN-READY.md | awk '{print $2}')
+
+PR_PASS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate plan-ready --field pass)
+PR_SCHEMA=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate plan-ready --field schema)
+PR_WARN=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate plan-ready --field warnings)
+
+if [ "$PR_PASS" != "true" ]; then
+  echo "BLOQUEADO: plano pronto sem fronteiras confirmadas. Rode /up:plan para esbocar e confirmar as fronteiras."
+  exit 1
+fi
+[ -n "$PR_WARN" ] && echo "AVISO: ${PR_WARN} (plano anterior a este ciclo; seguindo sem bloquear)"
 ```
+
+Plano pronto anterior a este ciclo nao tem marcador de esquema, entao a ausencia do campo sai como
+aviso e a execucao segue. Plano gerado a partir deste ciclo tem `plan_schema` 2 ou maior e a
+ausencia bloqueia.
 
 ### V.2 Validacao de Compatibilidade
 
@@ -454,10 +468,15 @@ Agent(
     - .plano/fases/{phase_number}/PHASE.md (se existir)
     - .plano/DESIGN-TOKENS.md (so se frontend e existir)
     - Arquivos referenciados em <files> das tarefas DESTE plano (codigo a editar)
+    - @$HOME/.claude/up/references/seams.md (fronteiras de teste; sob demanda se a prova exigir)
 
     Sob demanda apenas: .plano/PROJECT.md, .plano/SYSTEM-DESIGN.md, .plano/REQUIREMENTS.md
     NAO refazer Read em PLAN/STATE/config/REQUIREMENTS-SLICE/engineering-principles (ja inline).
     </files_to_read>
+
+    Regra de execucao (fronteiras): e proibido criar fronteira de teste nao prevista no plano.
+    Ao precisar de uma, PARE e escale com pergunta no formato do ciclo (pergunta, recomendacao,
+    motivo). A decisao volta como ajuste do plano. Ver seams.md.
 
     Implementar todas as tarefas DESTE plano. Se o plano pedir, gerar tambem artefatos de
     prod/docs/testes inline (papeis de devops/technical-writer/qa absorvidos pelo executor).
@@ -715,9 +734,11 @@ echo "=== GATE: Fase ${PHASE_NUMBER} ==="
 SUMMARY_OK=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
 VERIF_OK=$(ls ${PHASE_DIR}/*-VERIFICATION.md 2>/dev/null | wc -l)
 
-GATE_PASS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" --field pass)
+SEAMS_FLAG=""
+if [ -n "$PR_SCHEMA" ] && [ "$PR_SCHEMA" -ge 2 ] 2>/dev/null; then SEAMS_FLAG="--require-seams"; fi
+GATE_PASS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" $SEAMS_FLAG --field pass)
 DECISION=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --field decision)
-GATE_REASONS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" --field reasons)
+GATE_REASONS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" $SEAMS_FLAG --field reasons)
 
 PASS=true
 [ "$SUMMARY_OK" -eq 0 ] && echo "FALHA: sem SUMMARY.md" && PASS=false
@@ -734,6 +755,10 @@ O leitor unico (`gate verdict`) localiza fase, veredito e evidencia por conteudo
 sem a coluna do agente, aceita as notacoes `phase-N` e `fase=N`, aceita as gramaticas de evidencia
 ja gravadas em disco e ignora apenas linha sem palavra de veredito. O escritor da secao 3.7 nao
 muda: continua emitindo as seis colunas documentadas.
+
+A entrada de fronteiras e ADITIVA. A fase continua exigindo a evidencia do tipo dela, e a entrada
+de fronteiras nao substitui nenhuma evidencia. A exigencia `--require-seams` so entra quando
+`plan_schema` e 2 ou maior.
 
 **Processar o veredito:**
 - `APPROVE`: prosseguir para 3.8.
@@ -973,8 +998,9 @@ final_confidence: [do up-revisor de delivery]
 
 <success_criteria>
 - [ ] Owner profile LOCAL validado
-- [ ] PLAN-READY.md existe e parseado
+- [ ] PLAN-READY.md existe, parseado e validado por `gate plan-ready` (bloqueia se schema>=2 sem seams; avisa se legado)
 - [ ] Validacao light passou (artefatos + planos existem)
+- [ ] Nenhuma fronteira de teste criada em tempo de execucao (escala se faltar)
 - [ ] Dono confirmou execucao (orquestrador, sem CEO)
 - [ ] Governance inicializada (.plano/governance/approvals.log)
 - [ ] Todas as fases executadas com SUMMARY.md (GATE A)
