@@ -1,0 +1,5 @@
+up/agents/up-planejador.md {"total":0,"fail":0,"warnings":0,"warn":0}
+up/workflows/plan.md {"total":0,"fail":0,"warnings":0,"warn":0}
+adjetivos ok
+(node:3187643) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)

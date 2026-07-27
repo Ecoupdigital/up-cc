@@ -30,7 +30,7 @@ MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config resolve-model {agent-nam
 ```
 Default fixo: Opus planeja, Sonnet executa. `default` -> nao passar model=.
 
-**Sonnet-ready obrigatorio** - todos os planos em nivel maximo de detalhe.
+**Sonnet-ready obrigatorio** - todos os planos em detalhe integral (sem lacunas para o executor).
 
 **SEPARACAO RIGIDA DE AGENTES:** cada passo e um `Agent()` SEPARADO. O enforcement e o GATE
 deterministico do `approvals.log` (ver `@~/.claude/up/workflows/governance.md`), nao supervisores.
@@ -245,7 +245,9 @@ Agent(
     </files_to_read>
 
     REQs da fase: {phase_req_ids}
-    Gerar 5-8 planos com nivel maximo de detalhe.
+    Quebrar a fase em quantos planos forem necessarios para que cada um caiba em 100 mil tokens
+    de janela fresca (teto de contexto pre-inlinado: 70 mil tokens). Registrar a estimativa usada
+    em cada plano (linha de estimativa com as quatro parcelas e o total). Detalhe integral (sem lacunas para o executor).
 
     SELF-CHECK obrigatorio antes de retornar: confirme que cada tarefa e implementavel, que os REQs da
     fase estao 100% cobertos, e que dependencias/waves estao corretas. Corrija o que falhar.

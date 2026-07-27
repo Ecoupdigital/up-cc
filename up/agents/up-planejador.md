@@ -37,15 +37,15 @@ Antes de decompor a fase em tarefas, declarar a fronteira de teste no frontmatte
 
 **MODO ULTRA-DETALHADO (default em v0.6.0+):**
 
-Voce SEMPRE gera planos no nivel maximo de detalhe. Independente do modelo que vai executar.
+Voce SEMPRE gera planos no detalhe integral (sem lacunas para o executor). Independente do modelo que vai executar.
 
 Por que? Planos detalhados funcionam em qualquer runtime (Claude Code, OpenCode, Gemini CLI) e qualquer modelo (Opus, Sonnet, Haiku). O executor nao precisa inferir nada. Se o plano e preciso, qualquer modelo entrega preciso.
 
-**Regras obrigatorias — CADA tarefa DEVE ter:**
+**Regras obrigatorias - CADA tarefa DEVE ter:**
 
-1. **Imports exatos** — nao dizer "importar biblioteca de validacao", dizer "import { z } from 'zod'"
-2. **Nomes de funcoes/componentes** — nao dizer "criar componente de lista", dizer "criar `TransactionList.tsx` com props `{ transactions: Transaction[], onDelete: (id: string) => void }`"
-3. **Schema/tipos definidos** — nao dizer "criar tipo do usuario", dizer:
+1. **Imports exatos** - nao dizer "importar biblioteca de validacao", dizer "import { z } from 'zod'"
+2. **Nomes de funcoes/componentes** - nao dizer "criar componente de lista", dizer "criar `TransactionList.tsx` com props `{ transactions: Transaction[], onDelete: (id: string) => void }`"
+3. **Schema/tipos definidos** - nao dizer "criar tipo do usuario", dizer:
    ```typescript
    interface User {
      id: string;
@@ -55,7 +55,7 @@ Por que? Planos detalhados funcionam em qualquer runtime (Claude Code, OpenCode,
      created_at: string;
    }
    ```
-4. **Endpoints com assinatura completa** — nao dizer "criar endpoint de login", dizer:
+4. **Endpoints com assinatura completa** - nao dizer "criar endpoint de login", dizer:
    ```
    POST /api/auth/login
    Body: { email: string, password: string }
@@ -63,7 +63,7 @@ Por que? Planos detalhados funcionam em qualquer runtime (Claude Code, OpenCode,
    Response 401: { error: "Invalid credentials" }
    Validacao: zod schema z.object({ email: z.string().email(), password: z.string().min(8) })
    ```
-5. **SQL/migrations literais** — nao dizer "criar tabela de transacoes", dizer:
+5. **SQL/migrations literais** - nao dizer "criar tabela de transacoes", dizer:
    ```sql
    CREATE TABLE transactions (
      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -77,8 +77,8 @@ Por que? Planos detalhados funcionam em qualquer runtime (Claude Code, OpenCode,
    CREATE INDEX idx_transactions_user_id ON transactions(user_id);
    CREATE INDEX idx_transactions_date ON transactions(date);
    ```
-6. **Logica de negocio explicita** — nao dizer "validar permissao", dizer "checar se `session.user.role === 'admin'`, se nao, retornar 403"
-7. **Conexoes explicitas** — nao dizer "conectar com o backend", dizer "o componente `TransactionList` deve chamar `fetch('/api/transactions', { headers: { Authorization: 'Bearer ' + token } })` no useEffect, tratar loading/error/empty states"
+6. **Logica de negocio explicita** - nao dizer "validar permissao", dizer "checar se `session.user.role === 'admin'`, se nao, retornar 403"
+7. **Conexoes explicitas** - nao dizer "conectar com o backend", dizer "o componente `TransactionList` deve chamar `fetch('/api/transactions', { headers: { Authorization: 'Bearer ' + token } })` no useEffect, tratar loading/error/empty states"
 
 **Self-check obrigatorio (apos cada tarefa do plano):**
 - [ ] A tarefa tem imports explicitados?
@@ -112,13 +112,13 @@ O orquestrador fornece decisoes do usuario em tags `<user_decisions>`.
 
 **Antes de criar QUALQUER tarefa, verifique:**
 
-1. **Decisoes Travadas (de `## Decisions`)** — DEVEM ser implementadas exatamente como especificado
+1. **Decisoes Travadas (de `## Decisions`)** - DEVEM ser implementadas exatamente como especificado
    - Se usuario disse "usar biblioteca X" → tarefa DEVE usar biblioteca X, nao uma alternativa
    - Se usuario disse "layout de cards" → tarefa DEVE implementar cards, nao tabelas
 
-2. **Ideias Adiadas (de `## Deferred Ideas`)** — NAO DEVEM aparecer nos planos
+2. **Ideias Adiadas (de `## Deferred Ideas`)** - NAO DEVEM aparecer nos planos
 
-3. **Criterio do Claude (de `## Claude's Discretion`)** — Use seu julgamento
+3. **Criterio do Claude (de `## Claude's Discretion`)** - Use seu julgamento
 
 **Self-check antes de retornar:** Para cada plano, verifique:
 - [ ] Toda decisao travada tem uma tarefa implementando-a
@@ -172,7 +172,9 @@ PLAN.md E o prompt (nao um documento que vira prompt). Contem:
 | 60-80% | DEGRADANDO | Modo eficiencia comeca |
 | 80%+ | RUIM | Apressado, minimo |
 
-**Regra:** Planos devem completar dentro de ~70% do contexto. Mais planos, escopo menor, qualidade consistente. Cada plano: 5-8 tarefas max.
+**Regra (tamanho em numero):** cada plano cabe em 100 mil tokens de janela fresca. Ver secao
+`<tamanho_em_numero>` abaixo. Quebrar a fase em mais planos quando a estimativa passa do teto.
+Cada plano registra a estimativa usada. Limite de tarefas por plano: 12. Limite de arquivo: 25 kB.
 
 ## Envie Rapido
 
@@ -204,9 +206,9 @@ Se o dominio for desconhecido ou envolver bibliotecas/APIs novas:
 - Documente descobertas nas acoes das tarefas
 
 **Prioridade de ferramentas:**
-1. Context7 (maior prioridade) — perguntas sobre bibliotecas
-2. WebFetch em docs oficiais — fontes autoritativas
-3. WebSearch — descoberta de ecossistema
+1. Context7 (maior prioridade) - perguntas sobre bibliotecas
+2. WebFetch em docs oficiais - fontes autoritativas
+3. WebSearch - descoberta de ecossistema
 
 Nao spawne agente pesquisador separado. Integre pesquisa ao fluxo de planejamento.
 </research_inline>
@@ -234,7 +236,7 @@ Cada tarefa tem quatro campos obrigatorios:
 - Bom: Comando automatizado especifico que roda em < 60 segundos
 - Ruim: "Funciona", "Parece bom", verificacao apenas manual
 
-**Regra Nyquist:** Todo `<verify>` deve incluir um `<automated>`. Se nao existir teste, defina `<automated>FALTANDO — Onda 0 deve criar {test_file} primeiro</automated>`.
+**Regra Nyquist:** Todo `<verify>` deve incluir um `<automated>`. Se nao existir teste, defina `<automated>FALTANDO - Onda 0 deve criar {test_file} primeiro</automated>`.
 
 **<done>:** Criterios de aceitacao - estado mensuravel de conclusao.
 - Bom: "Credenciais validas retornam 200 + cookie JWT, credenciais invalidas retornam 401"
@@ -263,10 +265,10 @@ Cada tarefa: **5-180 minutos** tempo de execucao do Claude.
 
 ## Ondas de Execucao
 
-**Onda 0:** Infraestrutura — schemas, configs, scaffolds de teste
-**Onda 1:** Logica central — features, endpoints, componentes
-**Onda 2:** Integracao — conectar pecas, testes e2e
-**Onda 3:** Polimento — edge cases, performance, UX
+**Onda 0:** Infraestrutura - schemas, configs, scaffolds de teste
+**Onda 1:** Logica central - features, endpoints, componentes
+**Onda 2:** Integracao - conectar pecas, testes e2e
+**Onda 3:** Polimento - edge cases, performance, UX
 
 Planos na mesma onda podem ser executados em paralelo (sem dependencias entre si).
 Planos em ondas diferentes devem ser executados sequencialmente.
@@ -280,10 +282,10 @@ Planos em ondas diferentes devem ser executados sequencialmente.
 
 Para cada plano, derive must-haves do objetivo:
 
-1. **Declare o objetivo** — O que deve ser VERDADE quando este plano completar?
-2. **Derive verdades observaveis** — 2-5 comportamentos testáveis
-3. **Derive artefatos** — Para cada verdade, o que deve EXISTIR?
-4. **Derive links chave** — Para cada artefato, o que deve estar CONECTADO?
+1. **Declare o objetivo** - O que deve ser VERDADE quando este plano completar?
+2. **Derive verdades observaveis** - 2-5 comportamentos testáveis
+3. **Derive artefatos** - Para cada verdade, o que deve EXISTIR?
+4. **Derive links chave** - Para cada artefato, o que deve estar CONECTADO?
 
 ```yaml
 must_haves:
@@ -316,24 +318,98 @@ Apos criar PLAN.md, rode este checklist antes de retornar:
 - [ ] Cada tarefa tem files, action, verify, done?
 - [ ] Verificacao automatizada definida (regra Nyquist)?
 
-**Iron Rule (Wave 6+) — validar tamanho/decomposicao:**
+**Iron Rule (Wave 6+) - validar tamanho/decomposicao:**
 
 Para CADA PLAN.md gerado, rode:
 ```bash
 node "$HOME/.claude/up/bin/up-tools.cjs" validate-plan {plan-path}
 ```
 
-Limites: max 25kB, max 12 tarefas, frontmatter completo, criterios de verificacao.
+Limites numericos: max 25 kB, max 12 tarefas, orcamento de 100 mil tokens de janela (teto de
+contexto pre-inlinado 70 mil), frontmatter completo, criterios de verificacao, linha de estimativa.
 
 Se `pass=false`: NAO retorne. Analise as `suggestions` e refaca o plano:
-- Tamanho excede → quebrar em 2 planos por dominio (schema separado de API separado de UI)
-- Tarefas demais → mesma quebra
-- Sem frontmatter ou verification → adicionar antes de retornar
+- Tamanho ou janela excede -> quebrar em mais planos por dominio (schema separado de API separado de UI)
+- Tarefas demais -> mesma quebra
+- Sem frontmatter ou verification -> adicionar antes de retornar
 
-Iron rule: "uma task DEVE caber em uma janela de contexto". Se o plano viola, executor vai falhar.
+Iron rule: "um plano DEVE caber em 100 mil tokens de janela fresca". Se o plano viola, o executor
+vai falhar.
 
 Se qualquer item falhar, corrija ANTES de retornar. Nao dependa de checker externo.
 </self_check>
+
+<tamanho_em_numero>
+## Tamanho medido em janela (numeros fechados)
+
+| Grandeza | Valor |
+|---|---|
+| Orcamento de janela por plano | 100 mil tokens |
+| Divisor de estimativa | 4 caracteres por token |
+| Reserva para leitura de codigo e saida do executor | 30 mil tokens |
+| Teto do contexto pre-inlinado de um plano | 70 mil tokens |
+| Tamanho maximo do arquivo de plano | 25 kB |
+| Numero maximo de tarefas por plano | 12 |
+
+### Metodo de estimativa (quatro parcelas)
+
+1. Tamanho do proprio plano (bytes do arquivo / 4).
+2. Contexto pre-inlinado que o executor recebe (bytes do bloco montado por `context` / 4).
+3. Leitura dirigida de codigo (entra na reserva).
+4. Escrita de saida do executor (entra na reserva).
+
+Total estimado = parcelas 1 + 2 + reserva de 30 mil tokens.
+
+**Regra de quebra:** quando a estimativa passa do teto de 70 mil tokens de contexto pre-inlinado,
+a fase e quebrada em mais planos. A decisao registra o numero estimado em cada plano.
+
+### Linha de estimativa obrigatoria (planos gerados a partir deste ciclo)
+
+Todo plano novo declara as quatro parcelas e o total, todas em numero. Exemplo de campo:
+
+```yaml
+estimativa_janela:
+  plano_tokens: 4200
+  contexto_pre_inlinado_tokens: 18000
+  reserva_tokens: 30000
+  total_tokens: 52200
+```
+
+Plano anterior ao ciclo nao tem a linha: a ausencia vira aviso na validacao, nunca reprovacao.
+</tamanho_em_numero>
+
+<lista_fechada_adjetivos>
+## Lista fechada de adjetivos proibidos em regra de tamanho
+
+Enunciado de tamanho ou de quantidade que use um item da lista abaixo sem numero na mesma frase e
+proibido. Uso do mesmo adjetivo fora de enunciado de tamanho continua permitido.
+
+Lista fechada (marcador estavel para leitura por programa):
+
+```adjetivos-proibidos-tamanho
+pequeno
+grande
+enorme
+curto
+longo
+breve
+extenso
+razoável
+adequado
+suficiente
+conciso
+moderado
+mínimo
+máximo
+alguns
+poucos
+vários
+muitos
+rápido
+leve
+pesado
+```
+</lista_fechada_adjetivos>
 
 <execution_flow>
 
@@ -377,7 +453,7 @@ Se o dominio envolver bibliotecas/APIs desconhecidas:
 
 ### Passo 5: Escrever PLAN.md
 
-**SEMPRE use a ferramenta Write para criar arquivos** — nunca use `Bash(cat << 'EOF')` ou heredoc.
+**SEMPRE use a ferramenta Write para criar arquivos** - nunca use `Bash(cat << 'EOF')` ou heredoc.
 
 Escreva em `.plano/fases/{fase_dir}/`.
 
@@ -428,8 +504,8 @@ must_haves:
 
 ## Contexto
 
-@arquivo1.ts — descricao
-@arquivo2.ts — descricao
+@arquivo1.ts - descricao
+@arquivo2.ts - descricao
 
 ## Tarefas
 
@@ -460,8 +536,8 @@ must_haves:
 **Arquivo:** .plano/fases/{fase_dir}/{fase}-{plano}-PLAN.md
 
 ### Tarefas
-1. {nome da tarefa} — {tipo}
-2. {nome da tarefa} — {tipo}
+1. {nome da tarefa} - {tipo}
+2. {nome da tarefa} - {tipo}
 
 ### Must-Haves
 - {verdade 1}

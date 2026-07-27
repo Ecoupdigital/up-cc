@@ -43,6 +43,7 @@ const multica = require('./lib/multica.cjs');
 const gate = require('./lib/gate.cjs');
 const tautologia = require('./lib/tautologia.cjs');
 const plansLib = require('./lib/plans.cjs');
+const planChecks = require('./lib/plan-checks.cjs');
 
 // --- Frontmatter helpers ---
 
@@ -2862,6 +2863,7 @@ function cmdValidatePlan(cwd, args, raw) {
 
   const issues = [];
   const suggestions = [];
+  const warnings = [];
   const bytes = Buffer.byteLength(content, 'utf-8');
 
   // Frontmatter parsing
@@ -2877,13 +2879,8 @@ function cmdValidatePlan(cwd, args, raw) {
     suggestions.push('Add YAML frontmatter with at least: phase, plan, type');
   }
 
-  // Task count
-  // Detect tasks via multiple shapes - <task> XML tags (preferred), or
-  // numbered/bulleted markdown headings/items at start of line.
-  const taskMatches = (content.match(/<task\b/gi) || []).length;
-  const numberedHeadings = (content.match(/^#{2,4}\s+(?:Task\s+)?\d+[.:)]?\s/gmi) || []).length;
-  const numberedBullets = (content.match(/^[-*]\s+\d+[.:)]\s/gm) || []).length;
-  const tasks = Math.max(taskMatches, numberedHeadings, numberedBullets);
+  // Task count unica (plan-checks.countTasks): portugues e ingles, max entre formas
+  const tasks = planChecks.countTasks(content);
 
   // Verification criteria
   const hasVerification = /<verification|must_haves|criterios|criteria/i.test(content);
@@ -2908,6 +2905,78 @@ function cmdValidatePlan(cwd, args, raw) {
     suggestions.push('Add a <verification> block or must_haves frontmatter so the verifier can check completion.');
   }
 
+  // Contexto pre-inlinado: mesma base do construtor de contexto (plano + state + config + reqs)
+  let contextBytes = 0;
+  try {
+    const parts = [];
+    parts.push(content);
+    for (const rel of ['.plano/STATE.md', '.plano/config.json', '.plano/REQUIREMENTS.md']) {
+      const p = path.join(cwd, rel);
+      if (fs.existsSync(p)) {
+        try { parts.push(fs.readFileSync(p, 'utf-8')); } catch {}
+      }
+    }
+    contextBytes = Buffer.byteLength(parts.join('\n'), 'utf-8');
+  } catch {
+    contextBytes = bytes;
+  }
+
+  const windowEst = planChecks.estimateWindow({ planBytes: bytes, contextBytes });
+
+  // Regra de adjetivo (lista na doutrina do planejador)
+  let doctrineText = null;
+  const doctrineCandidates = [
+    path.join(__dirname, '..', 'agents', 'up-planejador.md'),
+    path.join(require('os').homedir(), '.claude', 'up', 'agents', 'up-planejador.md'),
+  ];
+  for (const d of doctrineCandidates) {
+    try {
+      if (fs.existsSync(d)) {
+        doctrineText = fs.readFileSync(d, 'utf-8');
+        break;
+      }
+    } catch {}
+  }
+
+  const adj = planChecks.runChecks({
+    text: content,
+    name: path.relative(cwd, fullPath),
+    rules: ['adjectives'],
+    doctrineText,
+  });
+  if (adj.verdict === 'unavailable') {
+    warnings.push({
+      rule: 'adjectives',
+      message: 'lista de adjetivos indisponivel (doutrina ausente); checagem nao aprovada em silencio',
+    });
+  }
+  for (const o of adj.occurrences || []) {
+    if (o.severity === 'fail') {
+      issues.push(`adjective_size_rule:${o.adjective || 'adj'}:L${o.line}`);
+      suggestions.push(
+        `Regra de adjetivo: troque "${o.adjective || 'adjetivo'}" por um numero na mesma frase (ex.: "no maximo 12 tarefas"). Trecho: ${o.excerpt}`
+      );
+    } else {
+      warnings.push({
+        rule: 'adjectives',
+        line: o.line,
+        excerpt: o.excerpt,
+        adjective: o.adjective,
+        message: 'enunciado de tamanho so com adjetivo (aviso em plano legado)',
+      });
+    }
+  }
+
+  // Aviso se plano schema>=2 sem linha de estimativa
+  const schemaM = content.match(/^\s*plan_schema\s*:\s*(\d+)/m);
+  const schema = schemaM ? parseInt(schemaM[1], 10) : 0;
+  if (schema >= 2 && !/estimativa_janela|window_estimate/i.test(content)) {
+    warnings.push({
+      rule: 'window_estimate_missing',
+      message: 'plano com plan_schema>=2 sem linha de estimativa de janela (aviso)',
+    });
+  }
+
   const pass = issues.length === 0;
 
   output(
@@ -2920,11 +2989,16 @@ function cmdValidatePlan(cwd, args, raw) {
       has_verification: hasVerification,
       issues,
       suggestions,
+      warnings,
       limits: { max_bytes: flags.maxBytes, max_tasks: flags.maxTasks },
+      window_estimate_tokens: windowEst.window_estimate_tokens,
+      window_budget_tokens: windowEst.window_budget_tokens,
+      window_percent: windowEst.window_percent,
+      window_over_ceiling: windowEst.window_over_ceiling,
     },
     raw,
     pass
-      ? `validate-plan: PASS (${(bytes/1024).toFixed(1)}kB, ${tasks} tasks)`
+      ? `validate-plan: PASS (${(bytes/1024).toFixed(1)}kB, ${tasks} tasks, janela ${windowEst.window_percent}%)`
       : `validate-plan: FAIL (${issues.length} issues) - ${issues.join(', ')}`
   );
 }
@@ -3642,6 +3716,109 @@ function cmdVerifyStatic(cwd, args, raw) {
     }
   }
 
+  // Checagem de planos (adjetivos de tamanho, contagem): regredida na verificacao estatica
+  {
+    const logPath = path.join(runtimeDir, 'verify-static-plan-checks.log');
+    let doctrineText = null;
+    const doctrineCandidates = [
+      path.join(__dirname, '..', 'agents', 'up-planejador.md'),
+      path.join(require('os').homedir(), '.claude', 'up', 'agents', 'up-planejador.md'),
+    ];
+    for (const d of doctrineCandidates) {
+      try {
+        if (fs.existsSync(d)) { doctrineText = fs.readFileSync(d, 'utf-8'); break; }
+      } catch {}
+    }
+
+    // Planos da fase corrente (nao o historico inteiro) + doutrina de tamanho
+    const planTargets = [];
+    try {
+      const fasesDir = path.join(cwd, '.plano', 'fases');
+      let currentDir = null;
+      // Preferir fase em progresso no STATE, senao a de maior numero com PLAN
+      try {
+        const statePath = path.join(cwd, '.plano', 'STATE.md');
+        if (fs.existsSync(statePath)) {
+          const st = fs.readFileSync(statePath, 'utf-8');
+          const m = st.match(/(?:fase|phase)\s*[#:]?\s*(\d+)/i);
+          if (m) {
+            const dirs = fs.readdirSync(fasesDir);
+            currentDir = dirs.find((d) => d.startsWith(m[1] + '-') || d === m[1] || d.startsWith(String(m[1]).padStart(2, '0')));
+          }
+        }
+      } catch {}
+      if (!currentDir && fs.existsSync(fasesDir)) {
+        const dirs = fs.readdirSync(fasesDir).filter((d) => {
+          try { return fs.statSync(path.join(fasesDir, d)).isDirectory(); } catch { return false; }
+        }).sort((a, b) => comparePhaseNum(a, b));
+        currentDir = dirs[dirs.length - 1] || null;
+      }
+      if (currentDir) {
+        const full = path.join(fasesDir, currentDir);
+        let files = [];
+        try { files = fs.readdirSync(full); } catch {}
+        const inv = plansLib.inventoryPhase(files, (currentDir.match(/^(\d+)/) || [])[1] || currentDir);
+        for (const p of inv.plans) {
+          planTargets.push(path.join(full, p.file));
+        }
+      }
+    } catch {}
+
+    // Doutrina do planejador e fluxo de planejamento tambem sao alvos de regra de tamanho
+    for (const rel of [
+      path.join(__dirname, '..', 'agents', 'up-planejador.md'),
+      path.join(__dirname, '..', 'workflows', 'plan.md'),
+    ]) {
+      if (fs.existsSync(rel)) planTargets.push(rel);
+    }
+
+    if (planTargets.length === 0) {
+      checks.push({
+        name: 'plan-checks',
+        status: 'skip',
+        exit_code: null,
+        summary: 'nenhum plano ou doutrina alvo encontrado',
+        output_path: null,
+      });
+    } else {
+      const lines = [];
+      let failN = 0;
+      let warnN = 0;
+      for (const target of planTargets) {
+        let text = '';
+        try { text = fs.readFileSync(target, 'utf-8'); } catch { continue; }
+        const r = planChecks.runChecks({
+          text,
+          name: path.relative(cwd, target),
+          rules: ['adjectives'],
+          doctrineText,
+        });
+        if (r.verdict === 'unavailable') {
+          lines.push(`${path.relative(cwd, target)}: lista de adjetivos indisponivel`);
+          warnN += 1;
+        }
+        for (const o of r.occurrences || []) {
+          lines.push(`${path.relative(cwd, target)}:${o.line} | ${o.severity || 'warn'} | ${o.rule} | ${o.excerpt}`);
+          if (o.severity === 'fail') failN += 1;
+          else warnN += 1;
+        }
+      }
+      try { fs.writeFileSync(logPath, lines.length ? lines.join('\n') + '\n' : 'sem ocorrencias\n'); } catch {}
+      let status = 'pass';
+      if (failN > 0) status = 'fail';
+      else if (warnN > 0) status = 'warn';
+      checks.push({
+        name: 'plan-checks',
+        status,
+        exit_code: status === 'fail' ? 1 : 0,
+        summary: status === 'pass'
+          ? `plan-checks ok (${planTargets.length} alvos)`
+          : `plan-checks: ${failN} reprovacoes, ${warnN} avisos em ${planTargets.length} alvos`,
+        output_path: path.relative(cwd, logPath),
+      });
+    }
+  }
+
   // Tautologia (PROVA-07/08): sinaliza, nao bloqueia
   if (flags.all || flags.tautologia) {
     const logPath = path.join(runtimeDir, 'verify-static-tautologia.log');
@@ -3736,10 +3913,11 @@ function cmdVerifyStatic(cwd, args, raw) {
     },
   };
 
+  const checkNames = checks.map((c) => c.name).join(',');
   output(
     result,
     raw,
-    `verify-static: ${overall} (${passed.length} passed, ${failed.length} failed, ${warned.length} warned, ${skipped.length} skipped, ${duration}s)`
+    `verify-static: ${overall} (${passed.length} passed, ${failed.length} failed, ${warned.length} warned, ${skipped.length} skipped, ${duration}s) checks=[${checkNames}]`
   );
 }
 
