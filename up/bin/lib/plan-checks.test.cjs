@@ -174,5 +174,117 @@ t('10. estimativa: acima do teto declara estouro; abaixo nao', () => {
   assert.strictEqual(over.window_budget_tokens, 100_000);
 });
 
+// --- Casos do plano 004: durabilidade e fora de escopo ---
+
+const DOC_DUR = DOCTRINE_BASE + '\n<!-- origem prototipo -->\n<!-- exemplo ruim -->\n';
+
+function planBody(extra, schema) {
+  const fm = schema === false
+    ? '---\nphase: 1\n---\n'
+    : '---\nplan_schema: 2\n---\n';
+  return fm + '# t\n' + (extra || '') + '\n## Fora de escopo\n- Nada deliberadamente fora de escopo neste plano.\n';
+}
+
+t('D1. caminho de arquivo no corpo: ocorrencia', () => {
+  assert.ok(typeof checks.checkDurability === 'function', 'checkDurability existe');
+  const r = checks.checkDurability(planBody('ver o modulo em up/bin/x.cjs agora'), DOC_DUR);
+  assert.ok(r.occurrences.length >= 1);
+});
+
+t('D2. URL com esquema de protocolo: sem ocorrencia', () => {
+  const r = checks.checkDurability(planBody('ver docs em https://example.com/a/b.ts'), DOC_DUR);
+  assert.strictEqual(r.occurrences.length, 0);
+});
+
+t('D3. bloco cercado: ocorrencia', () => {
+  const r = checks.checkDurability(planBody('```js\nconst x=1\n```'), DOC_DUR);
+  assert.ok(r.occurrences.some((o) => o.rule === 'durability_codeblock' || o.rule === 'durability'));
+});
+
+t('D4. bloco com origem prototipo na linha anterior: sem ocorrencia de bloco', () => {
+  const r = checks.checkDurability(
+    planBody('<!-- origem prototipo -->\n```js\nconst x=1\n```'),
+    DOC_DUR
+  );
+  assert.ok(!r.occurrences.some((o) => /codeblock|bloco/i.test(o.rule) || o.kind === 'codeblock'));
+});
+
+t('D5. bloco prototipo com caminho: ocorrencia de caminho', () => {
+  const r = checks.checkDurability(
+    planBody('<!-- origem prototipo -->\n```js\n// file up/bin/x.cjs\nconst x=1\n```'),
+    DOC_DUR
+  );
+  assert.ok(r.occurrences.some((o) => /path|caminho|durability_path/i.test(o.rule) || /cjs|\//.test(o.excerpt)));
+});
+
+t('D6. contrato entre crases simples: sem ocorrencia', () => {
+  const r = checks.checkDurability(planBody('chamar o subcomando `validate-plan`'), DOC_DUR);
+  assert.strictEqual(r.occurrences.length, 0);
+});
+
+t('D7. marcador prototipo a duas linhas: bloco conta', () => {
+  const r = checks.checkDurability(
+    planBody('<!-- origem prototipo -->\n\n```js\nconst x=1\n```'),
+    DOC_DUR
+  );
+  assert.ok(r.occurrences.length >= 1);
+});
+
+t('D8. sem secao fora de escopo: ocorrencia', () => {
+  const text = '---\nplan_schema: 2\n---\n# t\n### 1. tarefa\nfazer algo\n';
+  assert.ok(typeof checks.checkRequiredSections === 'function');
+  const r = checks.checkRequiredSections(text);
+  assert.ok(r.occurrences.length >= 1);
+});
+
+t('D9. secao fora de escopo vazia: ocorrencia', () => {
+  const text = '---\nplan_schema: 2\n---\n# t\n## Fora de escopo\n\n## Outra\n';
+  const r = checks.checkRequiredSections(text);
+  assert.ok(r.occurrences.length >= 1);
+});
+
+t('D10. secao com frase padrao: sem ocorrencia', () => {
+  const text = planBody('texto limpo sem caminho');
+  const r = checks.checkRequiredSections(text);
+  assert.strictEqual(r.occurrences.length, 0);
+});
+
+t('D11. plano limpo: veredito pass', () => {
+  const text = planBody('estender o subcomando `validate-plan` para devolver percentual');
+  const r = checks.runChecks({
+    text,
+    name: 'limpo.md',
+    rules: ['adjectives', 'durability', 'required_sections'],
+    doctrineText: DOC_DUR,
+  });
+  assert.strictEqual(r.verdict, 'pass', JSON.stringify(r.occurrences));
+});
+
+t('D12. legado sem schema: avisos, sem fail', () => {
+  const text = '---\nphase: 1\n---\n# t\nver up/bin/x.cjs\n```js\nx\n```\n';
+  const r = checks.runChecks({
+    text,
+    name: 'leg.md',
+    rules: ['durability', 'required_sections'],
+    doctrineText: DOC_DUR,
+  });
+  assert.notStrictEqual(r.verdict, 'fail');
+  assert.ok(r.occurrences.length >= 1);
+  assert.ok(r.occurrences.every((o) => o.severity === 'warn'));
+});
+
+t('D13. exemplo ruim com violacoes: sem ocorrencia', () => {
+  const text = planBody(
+    '<!-- exemplo ruim -->\nver up/bin/x.cjs\n```js\nconst x=1\n```\n<!-- /exemplo ruim -->\n'
+  );
+  const r = checks.runChecks({
+    text,
+    name: 'ex.md',
+    rules: ['durability', 'required_sections'],
+    doctrineText: DOC_DUR,
+  });
+  assert.strictEqual(r.occurrences.filter((o) => o.rule !== 'required_sections' || true && o.rule.startsWith('durab')).length, 0, JSON.stringify(r.occurrences));
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -3022,7 +3022,7 @@ function cmdValidatePlan(cwd, args, raw) {
   const adj = planChecks.runChecks({
     text: content,
     name: path.relative(cwd, fullPath),
-    rules: ['adjectives'],
+    rules: ['adjectives', 'durability', 'required_sections'],
     doctrineText,
   });
   if (adj.verdict === 'unavailable') {
@@ -3033,17 +3033,37 @@ function cmdValidatePlan(cwd, args, raw) {
   }
   for (const o of adj.occurrences || []) {
     if (o.severity === 'fail') {
-      issues.push(`adjective_size_rule:${o.adjective || 'adj'}:L${o.line}`);
-      suggestions.push(
-        `Regra de adjetivo: troque "${o.adjective || 'adjetivo'}" por um numero na mesma frase (ex.: "no maximo 12 tarefas"). Trecho: ${o.excerpt}`
-      );
+      if (o.rule === 'adjectives') {
+        issues.push(`adjective_size_rule:${o.adjective || 'adj'}:L${o.line}`);
+        suggestions.push(
+          `Regra de adjetivo: troque "${o.adjective || 'adjetivo'}" por um numero na mesma frase (ex.: "no maximo 12 tarefas"). Trecho: ${o.excerpt}`
+        );
+      } else if (o.rule === 'durability_path' || o.rule === 'durability') {
+        issues.push(`durability_path:L${o.line}`);
+        suggestions.push(
+          `Durabilidade: troque o caminho de arquivo por nome de contrato publico (modulo, comando, rota). Trecho: ${o.excerpt}`
+        );
+      } else if (o.rule === 'durability_codeblock') {
+        issues.push(`durability_codeblock:L${o.line}`);
+        suggestions.push(
+          `Durabilidade: troque o bloco de codigo por descricao de contrato de comportamento, ou marque com <!-- origem prototipo --> na linha anterior se for um dos quatro casos permitidos.`
+        );
+      } else if (o.rule === 'required_sections') {
+        issues.push(`required_sections:L${o.line}`);
+        suggestions.push(
+          `Campo obrigatorio: adicione secao "## Fora de escopo" com pelo menos um item e motivo. Se nao houver nada: "Nada deliberadamente fora de escopo neste plano."`
+        );
+      } else {
+        issues.push(`${o.rule}:L${o.line}`);
+        suggestions.push(`Corrija: ${o.excerpt}`);
+      }
     } else {
       warnings.push({
-        rule: 'adjectives',
+        rule: o.rule || 'check',
         line: o.line,
         excerpt: o.excerpt,
         adjective: o.adjective,
-        message: 'enunciado de tamanho so com adjetivo (aviso em plano legado)',
+        message: 'ocorrencia em severidade aviso (plano legado ou sem plan_schema>=2)',
       });
     }
   }

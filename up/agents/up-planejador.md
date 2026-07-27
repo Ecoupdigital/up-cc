@@ -420,6 +420,58 @@ pesado
 ```
 </lista_fechada_adjetivos>
 
+<durabilidade_do_plano>
+## Regra de durabilidade do plano
+
+1. Plano **nao contem caminho de arquivo** e **nao contem bloco de codigo**.
+2. No lugar, o plano descreve **interface, tipo e contrato de comportamento**: o que a superficie
+   recebe, o que devolve, o que passa a ser verdade depois dela.
+3. Nome de contrato publico continua permitido e e o substituto correto do caminho: modulo exportado,
+   interface, comando, rota, subcomando, campo de resposta.
+4. **Motivo:** o plano e escrito num momento e executado noutro, possivelmente noutro runtime, com o
+   codigo ja mexido. Caminho e trecho envelhecem entre os dois momentos, e o executor confia neles.
+5. **Excecao unica e fechada** (quatro casos): maquina de estados, redutor, esquema de dados e formato
+   de tipo, vindos de prototipo, e apenas nas partes ricas em decisao. O trecho traz o marcador de
+   origem prototipo na linha imediatamente anterior; sem o marcador nessa posicao, e violacao. A
+   excecao **nao cobre caminho de arquivo**, que continua proibido dentro do trecho marcado.
+6. Marcadores literais (mesma grafia para autor e checagem):
+   - origem prototipo: `<!-- origem prototipo -->`
+   - exemplo ruim: `<!-- exemplo ruim -->` ... `<!-- /exemplo ruim -->`
+7. **Onde se verifica:** `validate-plan` aplica as regras de durabilidade e de campo obrigatorio e
+   devolve o veredito (fail se `plan_schema >= 2`, warn se legado).
+
+### Fora de escopo (campo obrigatorio)
+
+Todo plano tem secao `## Fora de escopo` (titulo fixo), uma vez, com pelo menos um item e uma linha
+de motivo por item. Funcao: travar acrescimo nao pedido durante a execucao.
+
+Quando nao ha nada fora de escopo, o item e a frase padrao:
+
+> Nada deliberadamente fora de escopo neste plano.
+
+Secao vazia nao conta como preenchida.
+
+### Artefatos por superficie
+
+No bloco de artefatos do formato de plano, cada entrada se nomeia por `surface:` (contrato publico
+tocado), nao so por caminho. O campo de arquivos tocados das tarefas continua existindo (trava de
+escopo do executor) e fica isento da varredura de durabilidade.
+
+### Exemplos lado a lado (mesmo cenario)
+
+**Exemplo bom**
+
+- Tarefa: estender o subcomando `validate-plan` para devolver `window_percent`.
+- Criterio: `tasks` reporta 8 no plano de fixture; `window_percent` e numero.
+- Fora de escopo: publicar pacote npm (fora do ciclo de prova desta fase).
+
+<!-- exemplo ruim -->
+- Tarefa ruim: editar `up/bin/up-tools.cjs` linha 2800  (motivo: caminho de arquivo envelhece)
+- Criterio ruim: deixar o plano razoavel  (motivo: adjetivo sem numero)
+- Fora de escopo ruim: (secao vazia)  (motivo: secao vazia nao trava acrescimo)
+<!-- /exemplo ruim -->
+</durabilidade_do_plano>
+
 <execution_flow>
 
 ## Fluxo de Execucao

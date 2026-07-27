@@ -1,0 +1,41 @@
+  ok  - 1. adjetivo sozinho em limite de tarefas: ocorrencia; com numero: sem
+  ok  - 2. adjetivo fora de enunciado de medida: sem ocorrencia
+  ok  - 3. adjetivo com numero na mesma frase: sem ocorrencia
+  ok  - 4. adjetivo dentro de exemplo ruim: sem ocorrencia
+  ok  - 5. lista lida da doutrina: item novo gera ocorrencia sem tocar codigo
+  ok  - 6. doutrina ausente: unavailable, veredito nao e aprovacao
+  ok  - 7. severidade: plan_schema 2 reprova; sem marcador avisa
+  ok  - 8. ocorrencia no frontmatter tambem e detectada
+  ok  - 9. contagem de tarefas: pt, xml, e nao soma as duas formas
+  ok  - 10. estimativa: acima do teto declara estouro; abaixo nao
+  FAIL - D1. caminho de arquivo no corpo: ocorrencia 
+      checkDurability existe
+  FAIL - D2. URL com esquema de protocolo: sem ocorrencia 
+      checks.checkDurability is not a function
+  FAIL - D3. bloco cercado: ocorrencia 
+      checks.checkDurability is not a function
+  FAIL - D4. bloco com origem prototipo na linha anterior: sem ocorrencia de bloco 
+      checks.checkDurability is not a function
+  FAIL - D5. bloco prototipo com caminho: ocorrencia de caminho 
+      checks.checkDurability is not a function
+  FAIL - D6. contrato entre crases simples: sem ocorrencia 
+      checks.checkDurability is not a function
+  FAIL - D7. marcador prototipo a duas linhas: bloco conta 
+      checks.checkDurability is not a function
+  FAIL - D8. sem secao fora de escopo: ocorrencia 
+      The expression evaluated to a falsy value:
+
+  assert.ok(typeof checks.checkRequiredSections === 'function')
+
+  FAIL - D9. secao fora de escopo vazia: ocorrencia 
+      checks.checkRequiredSections is not a function
+  FAIL - D10. secao com frase padrao: sem ocorrencia 
+      checks.checkRequiredSections is not a function
+  FAIL - D11. plano limpo: veredito pass 
+      checkDurability is not defined
+  FAIL - D12. legado sem schema: avisos, sem fail 
+      checkDurability is not defined
+  FAIL - D13. exemplo ruim com violacoes: sem ocorrencia 
+      checkDurability is not defined
+
+10 passed, 13 failed

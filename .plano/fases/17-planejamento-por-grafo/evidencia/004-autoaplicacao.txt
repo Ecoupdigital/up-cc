@@ -1,0 +1,35 @@
+=== .plano/fases/17-planejamento-por-grafo/001-PLAN.md ===
+FAIL issues=30 tasks=7 window=49787
+  sample durability_path:L92, durability_path:L92, durability_path:L94
+(node:3234179) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== .plano/fases/17-planejamento-por-grafo/002-PLAN.md ===
+FAIL issues=30 tasks=8 window=50462
+  sample durability_path:L88, durability_path:L90, durability_path:L90
+(node:3234194) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== .plano/fases/17-planejamento-por-grafo/003-PLAN.md ===
+FAIL issues=35 tasks=8 window=49105
+  sample adjective_size_rule:vários:L44, adjective_size_rule:razoável:L96, adjective_size_rule:mínimo:L139
+(node:3234208) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== .plano/fases/17-planejamento-por-grafo/004-PLAN.md ===
+FAIL issues=28 tasks=8 window=49505
+  sample durability_path:L75, durability_path:L75, durability_path:L89
+(node:3234222) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== .plano/fases/17-planejamento-por-grafo/005-PLAN.md ===
+FAIL issues=41 tasks=7 window=48023
+  sample durability_path:L71, durability_path:L71, durability_path:L71
+(node:3234236) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+NOTA: os 5 planos desta fase falham durabilidade porque o corpo das tarefas
+ainda descreve caminhos (verify shell, evidencia/*.txt). Isso e a forma do
+plano-executor desta fase, que o 004-PLAN declara como trava de escopo em
+<files> e como excecao da propria fase (a regra e o que a fase constroi).
+Corrigir reescreveria a especificacao da fase. Novos planos apos o ciclo devem PASS.

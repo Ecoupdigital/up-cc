@@ -1,6 +1,6 @@
 # PLAN-READY.md Template
 
-Template para `.plano/PLAN-READY.md` — arquivo-flag que indica que o projeto foi
+Template para `.plano/PLAN-READY.md` - arquivo-flag que indica que o projeto foi
 completamente planejado e esta pronto para execucao.
 
 Gerado por `/up:plan` ao final do planejamento.
@@ -78,7 +78,24 @@ listada aqui: ao precisar de uma, escala. Regras em `seams.md`.
 
 ## Fora de Escopo
 
+Campo obrigatorio. Pelo menos um item com motivo em uma linha. Secao vazia nao conta.
+Quando nao ha nada fora: use a frase padrao "Nada deliberadamente fora de escopo neste plano."
+
 - [item]: [motivo em uma linha]
+
+### Exemplos (mesmo cenario)
+
+**Exemplo bom**
+
+- Tarefa: estender o subcomando publico de validacao de plano para devolver percentual de janela.
+- Criterio: o campo `tasks` reporta 8; `window_percent` e numero entre 0 e 1000.
+- Fora de escopo: publicar pacote npm (fora do ciclo de prova desta fase).
+
+<!-- exemplo ruim -->
+- Tarefa ruim: editar `up/bin/up-tools.cjs`  (motivo: caminho de arquivo envelhece)
+- Criterio ruim: deixar o plano razoavel  (motivo: adjetivo sem numero)
+- Fora de escopo ruim: (vazio)  (motivo: secao vazia nao trava acrescimo)
+<!-- /exemplo ruim -->
 
 ## Aprovacoes Obtidas
 

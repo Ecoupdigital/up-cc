@@ -210,6 +210,181 @@ function schemaVersion(text) {
 }
 
 /**
+ * Campos isentos da varredura de caminho (trava de escopo do executor).
+ * Linhas que casam estes padroes nao geram ocorrencia de caminho.
+ */
+const EXEMPT_PATH_LINE = [
+  /^\s*files_modified\s*:/i,
+  /^\s*-\s*["']?[\w./-]+\.(cjs|js|md|ts|tsx|json)/i, // item de lista de files no frontmatter
+  /<files>/i,
+  /<\/files>/i,
+  /^\s*-\s+path:\s+/i,
+  /^\s*surface:\s+/i,
+];
+
+/**
+ * Detecta caminhos de arquivo e blocos de codigo.
+ * @returns {{ occurrences: Array }}
+ */
+function checkDurability(text, doctrineText) {
+  const occurrences = [];
+  const original = text || '';
+  // Mascarar exemplos ruins e campos isentos antes de varrer caminhos/blocos
+  let masked = maskBadExamples(original);
+
+  // Frontmatter inteiro isento (preserva newlines para nao deslocar linhas)
+  const blankKeepNl = (m) => m.replace(/[^\n]/g, ' ');
+  masked = masked.replace(/^---\s*\n[\s\S]*?\n---/, blankKeepNl);
+  // Secoes <files>...</files> isentas
+  masked = masked.replace(/<files>[\s\S]*?<\/files>/gi, blankKeepNl);
+  // Referencias @caminho em contexto
+  masked = masked.replace(/@[\w./-]+/g, (m) => ' '.repeat(m.length));
+
+  const lines = masked.split('\n');
+  const origLines = original.split('\n');
+
+  // 1) Blocos cercados
+  let inFence = false;
+  let fenceStart = -1;
+  let fenceHasPrototype = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^```/.test(line.trim())) {
+      if (!inFence) {
+        inFence = true;
+        fenceStart = i;
+        // linha imediatamente anterior
+        const prev = i > 0 ? origLines[i - 1] : '';
+        fenceHasPrototype = /origem\s+prot[oó]tipo/i.test(prev);
+      } else {
+        inFence = false;
+        if (!fenceHasPrototype) {
+          occurrences.push({
+            line: fenceStart + 1,
+            excerpt: (origLines[fenceStart] || '').trim().slice(0, 120),
+            rule: 'durability_codeblock',
+            kind: 'codeblock',
+          });
+        } else {
+          // mesmo com prototipo, caminhos dentro do bloco contam
+          for (let j = fenceStart; j <= i; j++) {
+            const pathHits = findPaths(origLines[j] || '');
+            for (const hit of pathHits) {
+              occurrences.push({
+                line: j + 1,
+                excerpt: hit.slice(0, 120),
+                rule: 'durability_path',
+                kind: 'path',
+              });
+            }
+          }
+        }
+        fenceStart = -1;
+        fenceHasPrototype = false;
+      }
+      continue;
+    }
+  }
+
+  // 2) Caminhos fora de fence (e fora de exemplos mascarados)
+  inFence = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^```/.test(line.trim())) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    // linha mascarada (so espacos) = isenta
+    if (!line.replace(/\s/g, '').length && (origLines[i] || '').length) continue;
+    if (EXEMPT_PATH_LINE.some((re) => re.test(origLines[i] || ''))) continue;
+    // skip lines that were fully masked
+    if (line.trim() === '' && (origLines[i] || '').trim() !== '') continue;
+    const pathHits = findPaths(line);
+    for (const hit of pathHits) {
+      // URL com esquema nao conta
+      if (/^[a-z][a-z0-9+.-]*:\/\//i.test(hit)) continue;
+      occurrences.push({
+        line: i + 1,
+        excerpt: hit.slice(0, 120),
+        rule: 'durability_path',
+        kind: 'path',
+      });
+    }
+  }
+
+  return { occurrences };
+}
+
+/**
+ * Encontra candidatos a caminho de arquivo em uma linha.
+ */
+function findPaths(line) {
+  if (!line) return [];
+  // Ignorar URLs: remover trechos com esquema
+  const noUrl = line.replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, ' ');
+  const hits = [];
+  // ./path, ../path, /abs, ~/path, path/with.ext
+  const re = /(?:\.\.?\/|~\/|\/)?(?:[\w.-]+\/)+[\w.-]+\.[\w]+|(?:\.\.?\/|~\/)[\w./-]+/g;
+  let m;
+  while ((m = re.exec(noUrl)) !== null) {
+    hits.push(m[0]);
+  }
+  // tambem segment simples tipo up/bin/x.cjs sem ./ 
+  const re2 = /\b[\w.-]+(?:\/[\w.-]+)+\.[\w]+\b/g;
+  while ((m = re2.exec(noUrl)) !== null) {
+    if (!hits.includes(m[0])) hits.push(m[0]);
+  }
+  return hits;
+}
+
+/**
+ * Secao obrigatoria de fora de escopo: existe, unica, com pelo menos um item.
+ */
+function checkRequiredSections(text) {
+  const occurrences = [];
+  const t = text || '';
+  const re = /^#{1,3}\s*Fora de escopo\s*$/gim;
+  const matches = [];
+  let m;
+  while ((m = re.exec(t)) !== null) {
+    matches.push({ index: m.index, line: lineNumberAt(t, m.index) });
+  }
+  if (matches.length === 0) {
+    occurrences.push({
+      line: 1,
+      excerpt: 'secao "Fora de escopo" ausente',
+      rule: 'required_sections',
+    });
+    return { occurrences };
+  }
+  if (matches.length > 1) {
+    occurrences.push({
+      line: matches[1].line,
+      excerpt: 'secao "Fora de escopo" duplicada',
+      rule: 'required_sections',
+    });
+  }
+  // Conteudo ate a proxima secao ##
+  const start = matches[0].index;
+  const after = t.slice(start);
+  const next = after.search(/\n#{1,3}\s+\S/);
+  const body = next === -1 ? after : after.slice(0, next);
+  // Item: bullet (-/*) ou lista numerada (1. texto)
+  const items = body.split('\n').filter((l) =>
+    /^\s*[-*]\s+\S+/.test(l) || /^\s*\d+[.)]\s+\S+/.test(l)
+  );
+  if (items.length === 0) {
+    occurrences.push({
+      line: matches[0].line,
+      excerpt: 'secao "Fora de escopo" vazia (sem itens)',
+      rule: 'required_sections',
+    });
+  }
+  return { occurrences };
+}
+
+/**
  * @param {{ text, name, rules: string[], doctrineText }}
  * @returns {{ verdict: 'pass'|'fail'|'unavailable', counts, occurrences }}
  */
@@ -234,6 +409,24 @@ function runChecks({ text, name, rules, doctrineText }) {
             file: name || null,
           });
         }
+      }
+    } else if (rule === 'durability') {
+      const r = checkDurability(text, doctrineText);
+      for (const o of r.occurrences) {
+        occurrences.push({
+          ...o,
+          severity: strict ? 'fail' : 'warn',
+          file: name || null,
+        });
+      }
+    } else if (rule === 'required_sections') {
+      const r = checkRequiredSections(text);
+      for (const o of r.occurrences) {
+        occurrences.push({
+          ...o,
+          severity: strict ? 'fail' : 'warn',
+          file: name || null,
+        });
       }
     }
   }
@@ -260,6 +453,8 @@ function runChecks({ text, name, rules, doctrineText }) {
 module.exports = {
   runChecks,
   checkAdjectives,
+  checkDurability,
+  checkRequiredSections,
   countTasks,
   estimateWindow,
   parseAdjectiveList,

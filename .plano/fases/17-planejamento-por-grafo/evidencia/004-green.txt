@@ -1,0 +1,25 @@
+  ok  - 1. adjetivo sozinho em limite de tarefas: ocorrencia; com numero: sem
+  ok  - 2. adjetivo fora de enunciado de medida: sem ocorrencia
+  ok  - 3. adjetivo com numero na mesma frase: sem ocorrencia
+  ok  - 4. adjetivo dentro de exemplo ruim: sem ocorrencia
+  ok  - 5. lista lida da doutrina: item novo gera ocorrencia sem tocar codigo
+  ok  - 6. doutrina ausente: unavailable, veredito nao e aprovacao
+  ok  - 7. severidade: plan_schema 2 reprova; sem marcador avisa
+  ok  - 8. ocorrencia no frontmatter tambem e detectada
+  ok  - 9. contagem de tarefas: pt, xml, e nao soma as duas formas
+  ok  - 10. estimativa: acima do teto declara estouro; abaixo nao
+  ok  - D1. caminho de arquivo no corpo: ocorrencia
+  ok  - D2. URL com esquema de protocolo: sem ocorrencia
+  ok  - D3. bloco cercado: ocorrencia
+  ok  - D4. bloco com origem prototipo na linha anterior: sem ocorrencia de bloco
+  ok  - D5. bloco prototipo com caminho: ocorrencia de caminho
+  ok  - D6. contrato entre crases simples: sem ocorrencia
+  ok  - D7. marcador prototipo a duas linhas: bloco conta
+  ok  - D8. sem secao fora de escopo: ocorrencia
+  ok  - D9. secao fora de escopo vazia: ocorrencia
+  ok  - D10. secao com frase padrao: sem ocorrencia
+  ok  - D11. plano limpo: veredito pass
+  ok  - D12. legado sem schema: avisos, sem fail
+  ok  - D13. exemplo ruim com violacoes: sem ocorrencia
+
+23 passed, 0 failed
