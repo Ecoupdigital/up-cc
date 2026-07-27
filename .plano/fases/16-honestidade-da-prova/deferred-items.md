@@ -19,3 +19,13 @@ Ja documentado em `.plano/fases/15-modo-grill/deferred-items.md` e fase 13. Nao 
 ## 3. Cinco comandos da familia `state *` nao casam com o formato v2 (herdado)
 
 `advance-plan`, `update-progress`, `add-decision`, `record-metric`, `record-session`. Ja registrado. Nao reabrir.
+
+## 4. `verify-static --all` falha no check `audit` por falta de package-lock (pre-existente)
+
+**Encontrado durante**: plano 005, regressao.
+
+**Sintoma**: `npm audit` sai com `ENOLOCK` / exit 1 porque nao ha `package-lock.json`. O overall de `verify-static --all` fica `fail` por causa do audit, nao da tautologia (que fica em `warn`).
+
+**Confirmado pre-existente**: o repositorio nunca teve lockfile no package da raiz (so `package.json` sem dependencias de producao). A fase 16 nao removeu nem criou lockfile.
+
+**Por que nao foi corrigido**: inventar package-lock so para o audit passar e fora do escopo PROVA. A heuristica de tautologia continua com status `warn` e overall do proprio `--tautologia` e `pass`.

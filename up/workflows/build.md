@@ -682,6 +682,14 @@ A evidencia ja foi PRODUZIDA upstream: `logic:test_pass` pelo verificador (red-g
 captura visual antes/depois do `up-tester` no DCRV (3.6); `glue:smoke` pelo smoke do DCRV (3.6). O revisor
 apenas CONFIRMA que ela existe e a carimba no approvals.log. Ver `@~/.claude/up/workflows/dcrv.md`.
 
+Antes do spawn do revisor, rodar a heuristica anti-tautologia (sinaliza, nao bloqueia):
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" verify-static --tautologia --raw
+TAUT_LOG=".plano/runtime/verify-static-tautologia.log"
+[ -s "$TAUT_LOG" ] && echo "Achados de tautologia para o revisor confirmar: $(wc -l < "$TAUT_LOG")"
+```
+
 Spawnar `up-revisor` (UNICO, two-stage). Substitui supervisores, chiefs e auditores gold.
 
 ```python
@@ -702,6 +710,8 @@ Agent(
     - {PHASE_DIR}/dcrv/DCRV-REPORT.md (se existir)
     - git diff (use Bash)
     - .plano/fases/{phase_number}/REQUIREMENTS-SLICE.md (se existir)
+    - .plano/runtime/verify-static-tautologia.log (se existir: confirmar ou descartar cada achado,
+      sem tratar achado cru como veredito)
     Sob demanda: $HOME/.claude/up/references/engineering-principles-compressed.md,
                  $HOME/.claude/up/references/production-requirements-compressed.md
     </files_to_read>
@@ -1009,6 +1019,7 @@ final_confidence: [do up-revisor de delivery]
 - [ ] E2E + DCRV rodaram por fase (delegado a dcrv.md)
 - [ ] up-revisor emitiu veredito por fase e LOGOU em approvals.log COM campo evidence=<tipo>:<resultado>
 - [ ] GATE de fase deterministico passou via leitor unico (`gate verdict`): APPROVE + evidence do tipo certo, ou forced approval com debito
+- [ ] Achados de tautologia apresentados ao revisor, confirmados ou descartados, e nenhum deles bloqueando o gate por conta propria
 - [ ] GitHub-nativo (default): worktree+branch+issue por fase via `github start-phase` (transporte gh OU
       MCP); menu 4 opcoes / `github finish-phase` no fim. `--solo`/`--auto` mantem GitHub (autonomia, nao
       desliga). `--local` degrada para commit na branch atual (sem worktree/issue/PR)

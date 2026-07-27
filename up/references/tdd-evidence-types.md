@@ -24,6 +24,11 @@ Teste que passa de primeira nao prova nada (pode estar testando o nada). Para bu
 reproduz o bug (falha antes do fix), passa depois, e ao reverter o fix volta a falhar (regressão).
 Resultado aceito: saída do runner com 0 falhas no comportamento-alvo, depois de tê-lo visto vermelho.
 
+Regra anti-tautologia: o valor esperado vem de fonte independente (literal, exemplo trabalhado ou
+requisito), nunca recomputado do mesmo jeito que o codigo. Par bom e ruim lado a lado na skill
+`up-tdd`. A verificacao estatica sinaliza por heuristica; o revisor confirma ou descarta; ela nao
+bloqueia o gate sozinha.
+
 ### ui -> captura visual antes/depois
 NAO é red-green com mock. "O CSS parece certo" nao prova nada. A prova é o par de screenshots
 (antes e depois) da mudança, via Playwright ou `up-tester`. Sem o par antes/depois, o gate nao passa.

@@ -218,10 +218,11 @@
 **Planos**: 0/4 (planejados em 2026-07-25: motor na onda 1; porta da skill e propagação em paralelo na onda 2; prova na onda 3)
 
 ### Fase 16: Honestidade da prova
+**Status**: Completa (execucao dos 5 planos na worktree; merge pendente de revisao)
 **Objetivo**: O gate de evidência para de aceitar teatro: o teste tem lugar acordado antes e valor esperado de fonte independente
 **Depende de**: Fase 13 (a confirmação das fronteiras com o dono é pergunta com recomendação)
 **Bloqueia**: Fase 18, que consome o leitor único do log de aprovações entregue aqui
-**Requisitos**: PROVA-01 a PROVA-08, REG-01, REG-02, REG-03
+**Requisitos**: PROVA-01 a PROVA-08 (completos), REG-01, REG-02, REG-03 (transversais)
 **Fora de escopo**: o template do plano pronto carrega sedimento da versão anterior (aprovações de CEO, chiefs e supervisores). Esta fase acrescenta o campo de fronteiras confirmadas e não remove o sedimento, que tem briefing próprio
 **Critérios de Sucesso** (o que deve ser VERDADE):
   1. Plano pronto gerado a partir deste ciclo sem o campo de fronteiras confirmadas não passa no gate, e plano pronto anterior ao ciclo passa registrando a ausência como aviso
@@ -235,7 +236,8 @@
 **Prova exigida**: smoke para fronteiras (critério 6 do briefing) e lógica vermelho e verde para anti-tautologia (critério 5)
 **Ordem interna**: as fronteiras vêm antes da anti-tautologia, porque a regra anti-tautologia só vale no gate depois que existe lugar acordado para o teste
 **Fronteira de teste acordada**: uma só, a superfície pública de subcomandos da CLI de ferramentas do UP (contrato do tipo comando, já existente), invocada como subprocesso com JSON em stdout. É a fronteira mais alta que um teste consegue executar neste sistema, e tanto o leitor do log quanto a heurística de tautologia são alcançáveis por ela
-**Planos**: 0/5 (ondas 1 a 5, sequenciais: leitor único, religar os gates, doutrina e validação das fronteiras, fronteiras no fluxo e no log, anti-tautologia)
+**Planos**: 5/5 (001 leitor unico, 002 religar gates, 003 seams+plan-ready, 004 fluxo/log, 005 anti-tautologia)
+**Evidencia no log**: `evidence=seams:confirmed` (plano 004); a revisao de entrega deve gravar `evidence=logic:test_pass` e `evidence=glue:smoke` no fechamento
 
 ### Fase 17: Planejamento por grafo
 **Objetivo**: A ordem de execução passa a ser derivada de dependência declarada, e o plano passa a ser durável o bastante para ser executado depois, noutro runtime

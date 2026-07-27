@@ -41,6 +41,7 @@ const {
 const github = require('./lib/github.cjs');
 const multica = require('./lib/multica.cjs');
 const gate = require('./lib/gate.cjs');
+const tautologia = require('./lib/tautologia.cjs');
 
 // --- Frontmatter helpers ---
 
@@ -3450,6 +3451,7 @@ function cmdAnalyzeRouting(cwd, raw) {
  *
  * Usage:
  *   up-tools.cjs verify-static [--lint] [--typecheck] [--test] [--audit]
+ *                              [--tautologia] [--paths <lista-csv>]
  *                              [--all] [--skip-missing]
  *
  * If no flags given, defaults to --all (--skip-missing).
@@ -3458,12 +3460,13 @@ function cmdAnalyzeRouting(cwd, raw) {
  *   {
  *     overall: "pass" | "fail" | "skip",
  *     checks: [
- *       { name, status: "pass"|"fail"|"skip", exit_code, summary, output_path }
+ *       { name, status: "pass"|"fail"|"skip"|"warn", exit_code, summary, output_path, findings? }
  *     ],
  *     duration_secs
  *   }
  *
  * Each check's full output is written to .plano/runtime/verify-static-<check>.log
+ * A heuristica de tautologia SINALIZA (status warn) e NAO bloqueia o gate (PROVA-08).
  */
 function cmdVerifyStatic(cwd, args, raw) {
   const flags = {
@@ -3471,19 +3474,29 @@ function cmdVerifyStatic(cwd, args, raw) {
     typecheck: false,
     test: false,
     audit: false,
+    tautologia: false,
     all: false,
     skipMissing: false,
+    paths: null,
   };
-  for (const a of args) {
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
     if (a === '--lint') flags.lint = true;
     else if (a === '--typecheck') flags.typecheck = true;
     else if (a === '--test') flags.test = true;
     else if (a === '--audit') flags.audit = true;
+    else if (a === '--tautologia') flags.tautologia = true;
     else if (a === '--all') flags.all = true;
     else if (a === '--skip-missing') flags.skipMissing = true;
+    else if (a === '--paths') {
+      const v = args[++i];
+      if (v && !v.startsWith('--')) flags.paths = v;
+    } else if (a.startsWith('--paths=')) {
+      flags.paths = a.slice('--paths='.length);
+    }
   }
   // Default: run all, skip if script missing
-  if (!flags.lint && !flags.typecheck && !flags.test && !flags.audit && !flags.all) {
+  if (!flags.lint && !flags.typecheck && !flags.test && !flags.audit && !flags.tautologia && !flags.all) {
     flags.all = true;
     flags.skipMissing = true;
   }
@@ -3597,28 +3610,93 @@ function cmdVerifyStatic(cwd, args, raw) {
     }
   }
 
+  // Tautologia (PROVA-07/08): sinaliza, nao bloqueia
+  if (flags.all || flags.tautologia) {
+    const logPath = path.join(runtimeDir, 'verify-static-tautologia.log');
+    let scanPaths;
+    if (flags.paths) {
+      scanPaths = flags.paths.split(',').map((s) => s.trim()).filter(Boolean);
+    } else {
+      scanPaths = [cwd];
+    }
+    const scan = tautologia.scanFiles(scanPaths, { cwd });
+    const allFindings = scan.findings || [];
+    // Gravar log completo sempre
+    const logLines = allFindings.map((f) =>
+      `${f.file}:${f.line} | ${f.signal} | ${f.snippet} | ${f.why}`
+    );
+    try {
+      fs.writeFileSync(logPath, logLines.length ? logLines.join('\n') + '\n' : '');
+    } catch {}
+
+    if (scan.files_scanned === 0 && allFindings.length === 0 && !flags.paths) {
+      // Sem paths explicitos e zero arquivos: skip
+      // Com --paths apontando para arquivo inexistente tambem pode ser 0
+    }
+
+    if (scan.files_scanned === 0) {
+      checks.push({
+        name: 'tautologia',
+        status: 'skip',
+        exit_code: null,
+        summary: 'nenhum arquivo de teste encontrado',
+        output_path: null,
+        findings: [],
+        findings_total: 0,
+      });
+    } else if (allFindings.length > 0) {
+      const shown = allFindings.slice(0, 20);
+      checks.push({
+        name: 'tautologia',
+        status: 'warn',
+        exit_code: null,
+        summary: `${allFindings.length} sinais de tautologia em ${scan.files_scanned} arquivos (sinaliza, nao bloqueia)`,
+        output_path: path.relative(cwd, logPath),
+        findings: shown,
+        findings_total: allFindings.length,
+      });
+    } else {
+      checks.push({
+        name: 'tautologia',
+        status: 'pass',
+        exit_code: 0,
+        summary: 'nenhum sinal de tautologia',
+        output_path: path.relative(cwd, logPath),
+        findings: [],
+        findings_total: 0,
+      });
+    }
+  }
+
   const duration = Math.round((Date.now() - start) / 1000);
 
   const failed = checks.filter(c => c.status === 'fail');
   const passed = checks.filter(c => c.status === 'pass');
   const skipped = checks.filter(c => c.status === 'skip');
+  // PROVA-08: warn e categoria propria; heuristica sinaliza e nao bloqueia o gate
+  const warned = checks.filter(c => c.status === 'warn');
 
   let overall;
   if (failed.length > 0) overall = 'fail';
-  else if (passed.length > 0) overall = 'pass';
+  else if (passed.length > 0 || warned.length > 0) overall = 'pass';
   else overall = 'skip';
 
   const result = {
     overall,
     checks,
     duration_secs: duration,
-    counts: { passed: passed.length, failed: failed.length, skipped: skipped.length },
+    counts: {
+      passed: passed.length,
+      failed: failed.length,
+      skipped: skipped.length,
+      warned: warned.length,
+    },
   };
 
   output(
     result,
     raw,
-    `verify-static: ${overall} (${passed.length} passed, ${failed.length} failed, ${skipped.length} skipped, ${duration}s)`
+    `verify-static: ${overall} (${passed.length} passed, ${failed.length} failed, ${warned.length} warned, ${skipped.length} skipped, ${duration}s)`
   );
 }
 

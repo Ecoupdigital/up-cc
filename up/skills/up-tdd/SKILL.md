@@ -22,6 +22,43 @@ Leia o tipo via `classify-task` (`frontmatter_type`, reasons) do `up-tools.cjs`,
 - **REFACTOR:** so depois do verde. Remove duplicacao, melhora nomes, mantem verde, nao adiciona comportamento.
 - **Bugfix:** escreva o teste que reproduz o bug antes do fix. Regressao: escreve -> roda (passa) -> reverte o fix -> roda (DEVE falhar) -> restaura -> roda (passa).
 
+## Regra anti-tautologia: o valor esperado vem de fonte independente
+
+O valor esperado vem de fonte independente: literal conhecido bom, exemplo trabalhado a mao, ou o
+proprio requisito. Nunca recomputado do mesmo jeito que o codigo computa.
+
+Teste que recomputa passa por construcao, nunca discorda do codigo, e por isso nao e prova de nada.
+
+Cenario unico (funcao que transforma titulo em identificador legivel: remove acento, baixa a caixa
+e troca espaco por hifen):
+
+**RUIM (tautologico):**
+```js
+assert.strictEqual(
+  slugify(entrada),
+  entrada.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/\s+/g, '-')
+);
+```
+Se a implementacao errar a ordem das operacoes, o teste erra junto e continua verde.
+
+**BOM (honesto):**
+```js
+assert.strictEqual(slugify('Ola Mundo'), 'ola-mundo');
+```
+Se a implementacao mudar de comportamento, este teste fica vermelho, que e a unica coisa que um
+teste precisa saber fazer.
+
+Tres fontes independentes aceitas:
+- Literal conhecido bom (ex.: `'ola-mundo'`).
+- Exemplo trabalhado (entrada e saida escritas a mao antes do codigo).
+- O requisito citado por identificador (ex.: REQ-SLUG-01).
+
+Racionalizacao que mata o atalho: "escrever o esperado a mao e duplicar logica" responde
+"duplicar de proposito e o ponto: e a segunda opiniao".
+
+Onde isto e verificado: a verificacao estatica sinaliza o achado por heuristica e o revisor
+confirma ou descarta, sem bloquear o gate sozinha.
+
 ## UI / CSS -> prova visual obrigatoria
 
 NAO e red-green com mock. A prova e a captura. Tire screenshot ANTES e DEPOIS via Playwright (ou `up-tester`) e compare. "O CSS parece certo" nao prova nada. Sem o antes/depois, o gate nao passa.
@@ -36,6 +73,7 @@ Nao da pra red-green de verdade contra dependencia externa. A prova e o smoke-te
 - "Deletar X horas de codigo e desperdicio." -> Falacia do custo afundado. Codigo nao verificado e divida tecnica.
 - "TDD e dogmatico, estou sendo pragmatico." -> TDD E pragmatico.
 - "Pulo o TDD so dessa vez." -> Isso e racionalizacao. Pare.
+- "Escrever o esperado a mao e duplicar logica." -> Duplicar de proposito e o ponto: e a segunda opiniao.
 - "Violar a letra da regra e violar o espirito da regra."
 
 Excecoes (so com permissao explicita): prototipo descartavel, codigo gerado, arquivo de config.
