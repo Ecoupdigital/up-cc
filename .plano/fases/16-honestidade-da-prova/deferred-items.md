@@ -29,3 +29,29 @@ Ja documentado em `.plano/fases/15-modo-grill/deferred-items.md` e fase 13. Nao 
 **Confirmado pre-existente**: o repositorio nunca teve lockfile no package da raiz (so `package.json` sem dependencias de producao). A fase 16 nao removeu nem criou lockfile.
 
 **Por que nao foi corrigido**: inventar package-lock so para o audit passar e fora do escopo PROVA. A heuristica de tautologia continua com status `warn` e overall do proprio `--tautologia` e `pass`.
+
+## 5. Nunca geramos PLAN-READY com `plan_schema: 2` real e rodamos o build de ponta a ponta
+
+**Encontrado durante**: avaliacao critica do executor (ponto 6) e rework da revisao.
+
+**Sintoma**: a clausula de legado e os casos de schema 2 existem so em fixtures temporarias do
+`gate.test.cjs`. O `.plano/PLAN-READY.md` deste repositorio e legado. Nao ha prova de fumaça do
+workflow `/up:build` recusando um plano schema 2 sem seams e aceitando um schema 2 completo.
+
+**Por que nao foi executado no rework**: a revisao marcou como divida declarada, sem executar.
+**Encaminhamento sugerido**: em passe de dogfooding, gerar (em worktree temporaria) um
+PLAN-READY com `plan_schema: 2` e uma fronteira valida, validar `gate plan-ready`, e um segundo
+sem seams que o build V.1 bloqueie. Nao reescrever o PLAN-READY do ciclo 2 no repo principal.
+
+## 6. Workflows instalados no HOME temporario nao foram greppados por `gate verdict`
+
+**Encontrado durante**: avaliacao critica do executor (ponto 7) e rework da revisao.
+
+**Sintoma**: a instalacao nos 4 runtimes passou (exit 0) e `seams.md` chegou a destinos, mas nao
+houve grep pos-install nos workflows copiados para confirmar que o texto `gate verdict` esta no
+artefato instalado (so no fonte `up/workflows/`).
+
+**Por que nao foi executado no rework**: divida declarada pela revisao, sem executar.
+**Encaminhamento sugerido**: no REG-02 de uma fase futura, apos
+`HOME=$(mktemp -d) node up/bin/install.js --all --global`, grepar
+`$HOME/.claude/up/workflows/{build,governance,plan}.md` por `gate verdict` e falhar se faltar.

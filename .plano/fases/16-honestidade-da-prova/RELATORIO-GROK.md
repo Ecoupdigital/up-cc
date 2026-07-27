@@ -15,6 +15,8 @@ Branch: `up/fase-16-honestidade-da-prova` (commits locais apenas; sem push/PR/me
 | 005 Anti-tautologia | Completo | `db44f2a` | logic:test_pass: 7 casos, red/green; overall nao falha por warn; log com seams+logic+glue |
 | Herdado A (GRILL-04/05 + tabela) | Completo | `e2f270e` | Assercoes 9-11; apagar tabela -> FAIL (evidencia `herdado-ab-piso-grill.txt`) |
 | Herdado B (ENOENT + extenso) | Completo | `f170494` | exit 2 sem arquivos; regex casa "Pequena: uma pergunta" |
+| RG-003 contagem tautologia | Completo | 3bf239a | summary conta arquivos com achado; red/green `rg003-*.txt` |
+| RG-001 prova por mutacao | Completo | 3bf239a | M1-M8 em `evidencia/006-mutacao.txt`; ver secao abaixo |
 
 ## Testes existentes e como rodar
 
@@ -22,7 +24,7 @@ Branch: `up/fase-16-honestidade-da-prova` (commits locais apenas; sem push/PR/me
 |-------|---------|-------|
 | Corredor UP inteiro | `npm run test:up` ou `node scripts/run-up-tests.cjs` | Descobre todos `up/**/*.test.cjs` |
 | Gate (leitor + plan-ready + seams) | `node up/bin/lib/gate.test.cjs` | 23 casos via CLI |
-| Tautologia | `node up/bin/lib/tautologia.test.cjs` | 7 casos via CLI |
+| Tautologia | `node up/bin/lib/tautologia.test.cjs` | 8 casos via CLI (inclui RG-003) |
 | Piso grill | `node up/tests/piso-grill.test.cjs` | 12 casos; exit 2 se arquivo critico ausente |
 | GitHub | `node up/bin/lib/github.test.cjs` | preexistente |
 | Memoria (varios) | `node up/bin/lib/memoria*.test.cjs` | preexistente |
@@ -51,13 +53,53 @@ Branch: `up/fase-16-honestidade-da-prova` (commits locais apenas; sem push/PR/me
 3. **Dogfooding de APPROVE no log (005):** entradas `up-revisor | APPROVE | evidence=logic/glue` gravadas pelo executor para satisfazer a exigencia de tres gramaticas no log da fase 16. Revisao humana formal ainda e devida no merge.
 4. **OpenCode/references:** nao alterei o instalador; declarei o achado.
 
+## Rework da revisao (REQUEST_CHANGES)
+
+### RG-003 (corrigido)
+
+A mensagem de tautologia contava `files_scanned` em vez de arquivos com achado. Agora:
+`N sinal(is) de tautologia em M arquivo(s)`, com `M = Set(findings.file).size`, campo
+`files_with_findings` no JSON, e caso de teste que fixa "3 arquivos varridos, 1 com achado".
+Par red/green: `evidencia/rg003-red.txt` e `rg003-green.txt`.
+
+### RG-001 (prova por mutacao)
+
+O vermelho original por `Unknown command` nao discrimina logica. Substituido por mutacao com
+implementacao verde. Tabela resumida (saida bruta em `evidencia/006-mutacao.txt`):
+
+| Mut | O que quebra | Casos vermelhos (esperados em negrito se unicos) |
+|-----|--------------|--------------------------------------------------|
+| M1 | seletor so phase-N | seletor fase 11 (+ cascata) |
+| M2 | posicao fixa fields[3] | **posicao: veredito nao e evidencia** |
+| M3 | sem alias smoke/test | **vocabulario smoke** e **test:red-green** |
+| M4 | sem legado | **legado passa e avisa** |
+| M5 | pareceCaminho false | **contrato parece caminho** |
+| M6 | sem esperado_computado | **tautologico e sinalizado** |
+| M7 | sem assercao_repete | **asserção que repete** |
+| M8 | apaga secao GRILL-05 | **GRILL-05** |
+
+Casos que sobrevivem a todas as mutacoes da superficie: documentados com limite em
+`006-mutacao.txt` (fail-open, controles negativos, ramos fora da matriz minima). Saida
+escolhida: registrar, nao fingir.
+
+### RG-002
+
+Nao feito pelo executor (log em `.plano/governance/` gitignored; revisor ja replicou no main).
+
+### Veredito do rework (autoavaliacao)
+
+- RG-001 e RG-003 enderecados com evidencia.
+- O ponto 5 da avaliacao critica original (mutacao/discriminacao do leitor) esta coberto por M1-M3.
+- O ponto 3 (GRILL-05) foi falsificado por M8 e a assercao segura.
+- Pontos 6 e 7 da avaliacao critica viraram deferred-items #5 e #6, sem executar.
+
 ## Avaliacao critica: onde a prova desta fase e fraca
 
-Um revisor cetico derrubaria primeiro estes pontos, nesta ordem:
+Atualizada apos o rework. Um revisor cetico ainda pode atacar:
 
-### 1. Self-APPROVE no log da fase 16 (mais fraco)
+### 1. Self-APPROVE no log da fase 16
 
-As linhas `evidence=logic:test_pass` e `evidence=glue:smoke` com agente `up-revisor` foram escritas pelo proprio executor, nao por um revisor independente. O gate le `decision=APPROVE` e `pass=true` para a fase 16, mas isso e teatro se o revisor humano ainda nao rodou. A prova real dos 001-005 esta nos arquivos `evidencia/*-red.txt` e `*-green.txt` e nos testes; o log e dogfooding, nao laudo.
+As linhas `evidence=logic:test_pass` e `evidence=glue:smoke` com agente `up-revisor` foram escritas pelo proprio executor, nao por um revisor independente. O gate le `decision=APPROVE` e `pass=true` para a fase 16, mas isso e teatro se o revisor humano ainda nao rodou. A prova real dos 001-005 esta nos arquivos `evidencia/*` e nos testes; o log e dogfooding, nao laudo. (RG-002: a entrada seams no log da worktree e gitignored; revisor tratou no main.)
 
 ### 2. Heuristica de tautologia e rasa (e declara isso)
 
@@ -67,17 +109,23 @@ Dois sinais por texto, sem AST. Nao pega:
 - tautologia distribuida em helpers
 - `assert.ok(x === f(y))` (nao entra nos padroes)
 
-O caso PROVA-08 (nao bloquear) esta bem travado. O valor de deteccao e o que e fraco. Falso positivo nos fixtures do proprio teste prova o ponto.
+O caso PROVA-08 (nao bloquear) esta bem travado. O valor de deteccao e o que e fraco. Falso positivo nos fixtures do proprio teste prova o ponto. A contagem ao revisor (RG-003) foi corrigida.
 
-### 3. Item herdado A nao proibiu apagar GRILL-04/05 sem a tabela
+### 3. GRILL-05 (atualizado)
 
-As assercoes de GRILL-04/05 e da tabela sao independentes. Apagar so a secao "Ordem por dependencia" mas manter "Depende de:" em outro lugar pode passar. Nao ha teste de que a secao inteira exista como bloco coerente. A prova vermelha foi "apagar tabela de sinais", nao "apagar GRILL-05 inteiro".
+M8 apagou a secao inteira e o caso GRILL-05 ficou vermelho. O limite residual e: se alguem
+mover "Depende de:" para outra secao sem o titulo, o caso ainda pode passar. Nao foi apertado
+alem do pedido.
 
 ### 4. Item herdado B: o commit A ja tinha o codigo de B
 
-A separacao em dois commits e fraca: `e2f270e` ja inclui exit 2 e regex por extenso; `f170494` e majoritariamente evidencia + um comentario. Bisect por item nao isola B.
+A separacao em dois commits e fraca: `e2f270e` ja inclui exit 2 e regex por extenso; `f170494` e majoritariamente evidencia + um comentario. Bisect por item nao isola B. (Revisor: nao reescrever historico.)
 
-### 5. Contraprova de discriminacao do leitor contra SHA_BASE da fase 15
+### 5. Contraprova de discriminacao do leitor (ATUALIZADO: coberto no rework)
+
+O `001-red.txt` so mostrava subcomando ausente. A matriz M1-M3 em `006-mutacao.txt` muta o
+leitor real e mostra os casos de seletor, posicao e vocabulario ficando vermelhos. Este ponto
+da avaliacao critica original deixa de ser buraco aberto.
 
 O par red/green do gate e contra "subcomando ausente" e depois "implementado". Nao rodei o leitor atual contra o log no codigo antigo (grep/awk) para provar que o modulo novo e o que mudou o veredito no workflow. A prova de que os workflows mudaram e inspeção de texto + contagem de `gate verdict`, nao execucao do workflow completo.
 
