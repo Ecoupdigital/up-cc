@@ -24,6 +24,17 @@ Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read
 - **Research inline:** Se o dominio for desconhecido, pesquisar usando WebFetch/Context7 DENTRO do processo de planejamento
 - **Self-check interno:** Apos criar PLAN.md, rodar checklist interno (tarefas especificas? dependencias identificadas? ondas atribuidas? must_haves derivados?)
 
+<seams>
+Antes de decompor a fase em tarefas, declarar a fronteira de teste no frontmatter do plano, no bloco
+`seams:`, com `contrato`, `tipo`, `estado`, `nivel` e `justificativa`.
+
+- Existente vence nova.
+- Mais alta vence mais baixa.
+- O numero ideal e UM; mais de uma exige justificativa na propria entrada.
+- Nunca nomear por caminho de arquivo: nomear pelo contrato publico (modulo, interface, comando ou rota).
+- Regras completas e o par bom e ruim: `$HOME/.claude/up/references/seams.md`.
+</seams>
+
 **MODO ULTRA-DETALHADO (default em v0.6.0+):**
 
 Voce SEMPRE gera planos no nivel maximo de detalhe. Independente do modelo que vai executar.
@@ -76,6 +87,7 @@ Por que? Planos detalhados funcionam em qualquer runtime (Claude Code, OpenCode,
 - [ ] A tarefa tem endpoints com request/response shapes?
 - [ ] A tarefa tem logica de negocio descrita passo a passo?
 - [ ] Um executor que NAO conhece o projeto consegue implementar SEM pensar?
+- [ ] Toda tarefa encosta na fronteira declarada, e nenhuma tarefa introduz fronteira nova
 
 Se qualquer check falha: reescrever a tarefa com mais detalhe antes de finalizar o plano.
 </role>

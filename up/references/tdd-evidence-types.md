@@ -24,6 +24,11 @@ Teste que passa de primeira nao prova nada (pode estar testando o nada). Para bu
 reproduz o bug (falha antes do fix), passa depois, e ao reverter o fix volta a falhar (regressão).
 Resultado aceito: saída do runner com 0 falhas no comportamento-alvo, depois de tê-lo visto vermelho.
 
+Regra anti-tautologia: o valor esperado vem de fonte independente (literal, exemplo trabalhado ou
+requisito), nunca recomputado do mesmo jeito que o codigo. Par bom e ruim lado a lado na skill
+`up-tdd`. A verificacao estatica sinaliza por heuristica; o revisor confirma ou descarta; ela nao
+bloqueia o gate sozinha.
+
 ### ui -> captura visual antes/depois
 NAO é red-green com mock. "O CSS parece certo" nao prova nada. A prova é o par de screenshots
 (antes e depois) da mudança, via Playwright ou `up-tester`. Sem o par antes/depois, o gate nao passa.
@@ -79,3 +84,38 @@ evidência faltando e NAO aprove a fase: volte e produza a prova do tipo certo.
 
 Exceções (só com permissão explícita do dono): protótipo descartável, código gerado, arquivo de config.
 Nesses casos registre `evidence=<tipo>:exempted` com o motivo no `<motivo>`.
+
+### Leitura do historico (leitor unico)
+
+O escritor continua emitindo as seis colunas documentadas acima. A leitura de historico e tolerante
+por necessidade: ha linha antiga gravada a mao com cinco colunas (sem coluna de agente) e gramaticas
+de evidencia divergentes.
+
+Como o leitor acha cada campo (por conteudo, nunca por posicao fixa):
+
+- **Escopo / fase:** numero da fase em qualquer notacao em uso (`phase-N` e `fase=N`), ou palavra
+  inteira de escopo (`planning`, `architecture`, `delivery`).
+- **Veredito:** palavra de veredito (`APPROVE`, `APPROVED`, `REQUEST_CHANGES`, `BLOCK`, `CONFIRMED`, etc.).
+- **Evidencia:** prefixo `evidence=` em qualquer coluna.
+- **Agente:** coluna opcional que casa `up-*`. Ausencia NAO invalida a linha.
+
+Tabela de aliases aceitos na leitura:
+
+| Gravado em disco | Tipo normalizado | Exemplo |
+|------------------|------------------|---------|
+| `logic`, `test` | `logic` | `evidence=test:red-green` |
+| `ui`, `visual` | `ui` | `evidence=ui:visual` |
+| `glue`, `smoke` | `glue` | `evidence=smoke:pass` |
+| `seams` | `seams` | `evidence=seams:confirmed` (fase 16; detalhe no plano 003) |
+
+Regra unica de descarte: so e ignorada a linha que nao carrega palavra de veredito nenhuma, como o
+fragmento de JSON no topo do arquivo. Ignorar por nao reconhecer apagaria veredito historico, que a
+revisao em dois eixos (fase 18) promete continuar lendo.
+
+Invocacao do subcomando (fora de workflow):
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase N [--expect-evidence <tipo>] [--require-seams] [--field <campo>]
+node "$HOME/.claude/up/bin/up-tools.cjs" gate entries [--phase N]
+node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --scope planning --field decision
+```

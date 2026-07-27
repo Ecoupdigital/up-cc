@@ -1,0 +1,39 @@
+=== run-up-tests ===
+piso-grill: 8 passou, 0 falhou
+(node:3016397) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+up tests: 11 arquivos, 0 falharam
+
+=== npm test ===
+npm error Missing script: "test"
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-07-27T02_20_13_352Z-debug-0.log
+
+=== install 4 runtimes + seams.md ===
+
+  [32mDone![0m Run [36m/up-up "sua ideia"[0m in OpenCode to get started.
+
+  Installing for [36mCodex CLI[0m to [36m~/.codex[0m
+
+  [32m✓[0m Installed up/ (120 files)
+  [32m✓[0m Installed 7 skills (commands)
+  [32m✓[0m Installed 12 agents
+  [32m✓[0m Configured config.toml ([agents] max_depth=4, max_threads=8)
+  [32m✓[0m Brainstorm-first em AGENTS.md (bootstrap UP)
+  [32m✓[0m Wrote VERSION (2.2.0)
+  [32m✓[0m Wrote package.json (CommonJS mode)
+
+  [32mDone![0m Run [36m$up-up "sua ideia"[0m in Codex CLI to get started.
+
+install exit=0
+seams.md nos destinos:
+/tmp/tmp.N7OLfn2t7b/.gemini/up/references/seams.md
+/tmp/tmp.N7OLfn2t7b/.claude/up/references/seams.md
+/tmp/tmp.N7OLfn2t7b/.codex/up/references/seams.md
+
+=== plan-ready legado ===
+true
+gate plan-ready: pass=true schema=null seams=0 avisos=1

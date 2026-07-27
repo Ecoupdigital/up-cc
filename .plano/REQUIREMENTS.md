@@ -144,14 +144,14 @@ comportamento observável, sem citar caminho de arquivo: o mapa de superfícies 
 
 ### Honestidade da prova (PROVA)
 
-- [ ] PROVA-01: Antes de planejar, as fronteiras públicas onde o teste vai encostar são esboçadas e confirmadas com o dono
-- [ ] PROVA-02: O esboço declara, por fronteira, se ela já existe ou é nova e em que nível está, prefere a existente e a mais alta, e o alvo é uma fronteira: qualquer número maior que um vem com uma linha de justificativa no próprio campo
-- [ ] PROVA-03: O artefato de plano pronto gerado a partir deste ciclo tem campo obrigatório de fronteiras confirmadas e não passa no gate sem ele. A fronteira é nomeada como contrato público (módulo exportado, interface, comando ou rota), nunca como caminho de arquivo. Plano pronto anterior a este ciclo passa no gate e registra a ausência do campo como aviso, sem bloquear
-- [ ] PROVA-04: O log de aprovações passa a aceitar a entrada de fronteiras confirmadas sob o rótulo de seams confirmados, somando ao vocabulário fechado do gate em vez de substituí-lo, e o conjunto aceito é ampliado para reconhecer as gramáticas de evidência já gravadas em disco. A entrada é aditiva: a fase continua exigindo a evidência do tipo dela. O leitor do gate localiza os campos por conteúdo e não por posição fixa: o escopo pelo número da fase em qualquer das notações em uso, o veredito pela palavra de veredito e a evidência pelo prefixo do campo, funcionando com ou sem a coluna do agente. Só é ignorada a linha que não carrega veredito nenhum, como o fragmento não estruturado do topo do arquivo. O alvo é a leitura do histórico: o escritor oficial já emite o formato documentado de seis colunas e não muda
-- [ ] PROVA-05: A execução fica proibida de criar fronteira de teste não prevista no plano: ao precisar de uma, escala em vez de inventar
-- [ ] PROVA-06: A doutrina de TDD contém a regra anti-tautologia, com par de exemplos bom e ruim lado a lado, no mesmo cenário
-- [ ] PROVA-07: A verificação estática detecta teste tautológico por heurística: bloco de asserção que repete a mesma operação da implementação, ou valor esperado computado dentro do próprio teste
-- [ ] PROVA-08: A heurística de tautologia sinaliza o achado para confirmação do revisor e não bloqueia o gate por conta própria
+- [x] PROVA-01: Antes de planejar, as fronteiras públicas onde o teste vai encostar são esboçadas e confirmadas com o dono
+- [x] PROVA-02: O esboço declara, por fronteira, se ela já existe ou é nova e em que nível está, prefere a existente e a mais alta, e o alvo é uma fronteira: qualquer número maior que um vem com uma linha de justificativa no próprio campo
+- [x] PROVA-03: O artefato de plano pronto gerado a partir deste ciclo tem campo obrigatório de fronteiras confirmadas e não passa no gate sem ele. A fronteira é nomeada como contrato público (módulo exportado, interface, comando ou rota), nunca como caminho de arquivo. Plano pronto anterior a este ciclo passa no gate e registra a ausência do campo como aviso, sem bloquear
+- [x] PROVA-04: O log de aprovações passa a aceitar a entrada de fronteiras confirmadas sob o rótulo de seams confirmados, somando ao vocabulário fechado do gate em vez de substituí-lo, e o conjunto aceito é ampliado para reconhecer as gramáticas de evidência já gravadas em disco. A entrada é aditiva: a fase continua exigindo a evidência do tipo dela. O leitor do gate localiza os campos por conteúdo e não por posição fixa: o escopo pelo número da fase em qualquer das notações em uso, o veredito pela palavra de veredito e a evidência pelo prefixo do campo, funcionando com ou sem a coluna do agente. Só é ignorada a linha que não carrega veredito nenhum, como o fragmento não estruturado do topo do arquivo. O alvo é a leitura do histórico: o escritor oficial já emite o formato documentado de seis colunas e não muda
+- [x] PROVA-05: A execução fica proibida de criar fronteira de teste não prevista no plano: ao precisar de uma, escala em vez de inventar
+- [x] PROVA-06: A doutrina de TDD contém a regra anti-tautologia, com par de exemplos bom e ruim lado a lado, no mesmo cenário
+- [x] PROVA-07: A verificação estática detecta teste tautológico por heurística: bloco de asserção que repete a mesma operação da implementação, ou valor esperado computado dentro do próprio teste
+- [x] PROVA-08: A heurística de tautologia sinaliza o achado para confirmação do revisor e não bloqueia o gate por conta própria
 
 **Fora de escopo da fase 16**: o template do plano pronto ainda descreve aprovações de papéis removidos na versão 2 (CEO, chiefs e supervisores). Esta fase edita esse template apenas para acrescentar o campo de fronteiras confirmadas. Remover o sedimento restante é passe separado, com briefing próprio.
 
@@ -251,7 +251,7 @@ Fronteira declarada pelo dono no briefing. Registrada aqui para não voltar como
 | PERG-01 a PERG-06 | Fase 13 | Completo |
 | MEM-01 a MEM-12 | Fase 14 | Pendente |
 | GRILL-01 a GRILL-10 | Fase 15 | Completo |
-| PROVA-01 a PROVA-08 | Fase 16 | Pendente |
+| PROVA-01 a PROVA-08 | Fase 16 | Complete |
 | PLANO-01 a PLANO-13 | Fase 17 | Pendente |
 | CTX-01 a CTX-12 | Fase 18 | Pendente |
 | REV-01 a REV-09 | Fase 18 | Pendente |

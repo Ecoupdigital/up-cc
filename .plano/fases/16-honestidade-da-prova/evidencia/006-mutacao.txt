@@ -1,0 +1,449 @@
+# Matriz de mutacao - fase 16 rework RG-001
+
+Metodo: com a implementacao verde, cada mutacao e aplicada sozinha, a suite relevante
+roda, a saida e capturada, e a mutacao e revertida antes da proxima.
+
+Baseline (sem mutacao): gate 23/0, tautologia 8/0, piso-grill 12/0.
+
+========================================================================
+## M1: seletor exige so notacao phase-N (nao fase=N)
+Alvo: up/bin/lib/gate.cjs
+
+### comando: node up/bin/lib/gate.test.cjs
+exit=1  resumo=17 passed, 6 failed
+casos FAIL:
+  - seletor: acha a fase 11 sem coluna de agente
+  - posicao: veredito nao e evidencia
+  - vocabulario: smoke:pass normaliza para glue
+  - vocabulario: test:red-green normaliza para logic
+  - campo escalar
+  - evidencia esperada casa e nao casa
+
+--- saida bruta ---
+  ok  - forma canonica de seis colunas continua lida
+  ok  - fragmento sem veredito e ignorado
+  ok  - fase inexistente nao explode
+  ok  - escopo nao numerico
+  ok  - log inexistente nao explode
+  ok  - ultima decisao vence
+  ok  - legado passa e avisa
+  ok  - esquema 2 sem fronteira bloqueia
+  ok  - esquema 2 com uma fronteira passa
+  ok  - contrato que parece caminho de arquivo bloqueia
+  ok  - rota nao e confundida com caminho
+  ok  - duas fronteiras sem justificativa bloqueiam
+  ok  - tipo fora da lista fechada bloqueia
+  ok  - campo escalar plan-ready
+  ok  - arquivo ausente nao explode
+  ok  - entrada de fronteiras soma, e nao rouba o veredito
+  ok  - sem a linha de fronteiras, a exigencia falha
+
+17 passed, 6 failed
+  FAIL - seletor: acha a fase 11 sem coluna de agente 
+      found deve ser true; saida={"success":true,"exitCode":0,"found":false,"phase":11,"scope":null,"decision":null,"forced":false,"agent":null,"notation":null,"evidence":[],"evidence_types":[],"seams_confirmed":false,"entries_matched":0,"line":null,"line_number":null,"ignored_lines":2,"log_path":"/tmp/up-test-oOGpCc/.plano/governance/approvals.log","pass":false,"reasons":["no_entry"],"checks":{"expect_evidence":null,"require_seams":false}}
+
+false !== true
+
+  FAIL - posicao: veredito nao e evidencia 
+      decision deve ser APPROVE; got=null
+
+null !== 'APPROVE'
+
+  FAIL - vocabulario: smoke:pass normaliza para glue 
+      evidence_types deve conter glue; got=[]
+  FAIL - vocabulario: test:red-green normaliza para logic 
+      evidence_types deve conter logic; got=[]
+  FAIL - campo escalar 
+      deve imprimir APPROVE sem JSON; got=""
+
+'' !== 'APPROVE'
+
+  FAIL - evidencia esperada casa e nao casa 
+      logic deve passar; got=false
+
+'false' !== 'true'
+--- fim saida ---
+
+========================================================================
+## M2: veredito por posicao fixa (fields[3] = awk $4), nao por conteudo
+Alvo: up/bin/lib/gate.cjs
+
+### comando: node up/bin/lib/gate.test.cjs
+exit=1  resumo=19 passed, 4 failed
+casos FAIL:
+  - posicao: veredito nao e evidencia
+  - fragmento sem veredito e ignorado
+  - campo escalar
+  - evidencia esperada casa e nao casa
+
+--- saida bruta ---
+  ok  - seletor: acha a fase 11 sem coluna de agente
+  ok  - vocabulario: smoke:pass normaliza para glue
+  ok  - vocabulario: test:red-green normaliza para logic
+  ok  - forma canonica de seis colunas continua lida
+  ok  - fase inexistente nao explode
+  ok  - escopo nao numerico
+  ok  - log inexistente nao explode
+  ok  - ultima decisao vence
+  ok  - legado passa e avisa
+  ok  - esquema 2 sem fronteira bloqueia
+  ok  - esquema 2 com uma fronteira passa
+  ok  - contrato que parece caminho de arquivo bloqueia
+  ok  - rota nao e confundida com caminho
+  ok  - duas fronteiras sem justificativa bloqueiam
+  ok  - tipo fora da lista fechada bloqueia
+  ok  - campo escalar plan-ready
+  ok  - arquivo ausente nao explode
+  ok  - entrada de fronteiras soma, e nao rouba o veredito
+  ok  - sem a linha de fronteiras, a exigencia falha
+
+19 passed, 4 failed
+  FAIL - posicao: veredito nao e evidencia 
+      decision deve ser APPROVE; got=evidence=smoke:pass
+[32mactual[39m [31mexpected[39m
+
+[39m'[39m[32me[39m[32mv[39m[32mi[39m[32md[39m[32me[39m[32mn[39m[32mc[39m[32me[39m[32m=[39m[32ms[39m[32mm[39m[32mo[39m[32mk[39m[32me[39m[32m:[39m[32mp[39m[32ma[39m[32ms[39m[32ms[39m[31mA[39m[31mP[39m[31mP[39m[31mR[39m[31mO[39m[31mV[39m[31mE[39m[39m'[39m
+
+  FAIL - fragmento sem veredito e ignorado 
+      ignored.length >= 2; got=0
+  FAIL - campo escalar 
+      deve imprimir APPROVE sem JSON; got="evidence=smoke:pass"
+[32mactual[39m [31mexpected[39m
+
+[39m'[39m[32me[39m[32mv[39m[32mi[39m[32md[39m[32me[39m[32mn[39m[32mc[39m[32me[39m[32m=[39m[32ms[39m[32mm[39m[32mo[39m[32mk[39m[32me[39m[32m:[39m[32mp[39m[32ma[39m[32ms[39m[32ms[39m[31mA[39m[31mP[39m[31mP[39m[31mR[39m[31mO[39m[31mV[39m[31mE[39m[39m'[39m
+
+  FAIL - evidencia esperada casa e nao casa 
+      logic deve passar; got=false
+
+'false' !== 'true'
+--- fim saida ---
+
+========================================================================
+## M3: vocabulario fechado sem normalizacao smoke->glue e test->logic
+Alvo: up/bin/lib/gate.cjs
+
+### comando: node up/bin/lib/gate.test.cjs
+exit=1  resumo=20 passed, 3 failed
+casos FAIL:
+  - vocabulario: smoke:pass normaliza para glue
+  - vocabulario: test:red-green normaliza para logic
+  - evidencia esperada casa e nao casa
+
+--- saida bruta ---
+  ok  - seletor: acha a fase 11 sem coluna de agente
+  ok  - posicao: veredito nao e evidencia
+  ok  - forma canonica de seis colunas continua lida
+  ok  - fragmento sem veredito e ignorado
+  ok  - fase inexistente nao explode
+  ok  - escopo nao numerico
+  ok  - campo escalar
+  ok  - log inexistente nao explode
+  ok  - ultima decisao vence
+  ok  - legado passa e avisa
+  ok  - esquema 2 sem fronteira bloqueia
+  ok  - esquema 2 com uma fronteira passa
+  ok  - contrato que parece caminho de arquivo bloqueia
+  ok  - rota nao e confundida com caminho
+  ok  - duas fronteiras sem justificativa bloqueiam
+  ok  - tipo fora da lista fechada bloqueia
+  ok  - campo escalar plan-ready
+  ok  - arquivo ausente nao explode
+  ok  - entrada de fronteiras soma, e nao rouba o veredito
+  ok  - sem a linha de fronteiras, a exigencia falha
+
+20 passed, 3 failed
+  FAIL - vocabulario: smoke:pass normaliza para glue 
+      evidence_types deve conter glue; got=["smoke"]
+  FAIL - vocabulario: test:red-green normaliza para logic 
+      evidence_types deve conter logic; got=["test"]
+  FAIL - evidencia esperada casa e nao casa 
+      logic deve passar; got=false
+
+'false' !== 'true'
+--- fim saida ---
+
+========================================================================
+## M4: checkPlanReadySeams sem distincao de legado (tudo schema 2)
+Alvo: up/bin/lib/gate.cjs
+
+### comando: node up/bin/lib/gate.test.cjs
+exit=1  resumo=22 passed, 1 failed
+casos FAIL:
+  - legado passa e avisa
+
+--- saida bruta ---
+  ok  - seletor: acha a fase 11 sem coluna de agente
+  ok  - posicao: veredito nao e evidencia
+  ok  - vocabulario: smoke:pass normaliza para glue
+  ok  - vocabulario: test:red-green normaliza para logic
+  ok  - forma canonica de seis colunas continua lida
+  ok  - fragmento sem veredito e ignorado
+  ok  - fase inexistente nao explode
+  ok  - escopo nao numerico
+  ok  - campo escalar
+  ok  - evidencia esperada casa e nao casa
+  ok  - log inexistente nao explode
+  ok  - ultima decisao vence
+  ok  - esquema 2 sem fronteira bloqueia
+  ok  - esquema 2 com uma fronteira passa
+  ok  - contrato que parece caminho de arquivo bloqueia
+  ok  - rota nao e confundida com caminho
+  ok  - duas fronteiras sem justificativa bloqueiam
+  ok  - tipo fora da lista fechada bloqueia
+  ok  - campo escalar plan-ready
+  ok  - arquivo ausente nao explode
+  ok  - entrada de fronteiras soma, e nao rouba o veredito
+  ok  - sem a linha de fronteiras, a exigencia falha
+
+22 passed, 1 failed
+  FAIL - legado passa e avisa 
+      legado deve passar; got={"success":true,"exitCode":0,"path":"/tmp/up-test-kpJRYn/.plano/PLAN-READY.md","exists":true,"pass":false,"errors":["seams_field_missing"],"warnings":[],"seams":[],"seam_count":0,"schema":null,"legacy":false}
+
+false !== true
+--- fim saida ---
+
+========================================================================
+## M5: pareceCaminho sempre falso
+Alvo: up/bin/lib/gate.cjs
+
+### comando: node up/bin/lib/gate.test.cjs
+exit=1  resumo=22 passed, 1 failed
+casos FAIL:
+  - contrato que parece caminho de arquivo bloqueia
+
+--- saida bruta ---
+  ok  - seletor: acha a fase 11 sem coluna de agente
+  ok  - posicao: veredito nao e evidencia
+  ok  - vocabulario: smoke:pass normaliza para glue
+  ok  - vocabulario: test:red-green normaliza para logic
+  ok  - forma canonica de seis colunas continua lida
+  ok  - fragmento sem veredito e ignorado
+  ok  - fase inexistente nao explode
+  ok  - escopo nao numerico
+  ok  - campo escalar
+  ok  - evidencia esperada casa e nao casa
+  ok  - log inexistente nao explode
+  ok  - ultima decisao vence
+  ok  - legado passa e avisa
+  ok  - esquema 2 sem fronteira bloqueia
+  ok  - esquema 2 com uma fronteira passa
+  ok  - rota nao e confundida com caminho
+  ok  - duas fronteiras sem justificativa bloqueiam
+  ok  - tipo fora da lista fechada bloqueia
+  ok  - campo escalar plan-ready
+  ok  - arquivo ausente nao explode
+  ok  - entrada de fronteiras soma, e nao rouba o veredito
+  ok  - sem a linha de fronteiras, a exigencia falha
+
+22 passed, 1 failed
+  FAIL - contrato que parece caminho de arquivo bloqueia 
+      Expected values to be strictly equal:
+
+true !== false
+--- fim saida ---
+
+========================================================================
+## M6: desligar sinal esperado_computado_no_teste
+Alvo: up/bin/lib/tautologia.cjs
+
+### comando: node up/bin/lib/tautologia.test.cjs
+exit=1  resumo=4 passed, 4 failed
+casos FAIL:
+  - tautologico e sinalizado
+  - heuristica nao bloqueia
+  - log de achados gravado
+  - summary conta arquivos com achado, nao varridos
+
+--- saida bruta ---
+  ok  - honesto nao gera achado
+  ok  - asserção que repete a implementacao e sinalizada
+  ok  - sem arquivo de teste, a checagem e pulada
+  ok  - achado citavel
+
+4 passed, 4 failed
+  FAIL - tautologico e sinalizado 
+      findings >= 1; got={"name":"tautologia","status":"pass","exit_code":0,"summary":"nenhum sinal de tautologia","output_path":".plano/runtime/verify-static-tautologia.log","findings":[],"findings_total":0}
+  FAIL - heuristica nao bloqueia 
+      Expected values to be strictly equal:
+
+'pass' !== 'warn'
+
+  FAIL - log de achados gravado 
+      log nao vazio
+  FAIL - summary conta arquivos com achado, nao varridos 
+      Expected values to be strictly equal:
+
+'pass' !== 'warn'
+--- fim saida ---
+
+========================================================================
+## M7: desligar sinal assercao_repete_implementacao
+Alvo: up/bin/lib/tautologia.cjs
+
+### comando: node up/bin/lib/tautologia.test.cjs
+exit=1  resumo=7 passed, 1 failed
+casos FAIL:
+  - asserção que repete a implementacao e sinalizada
+
+--- saida bruta ---
+  ok  - tautologico e sinalizado
+  ok  - honesto nao gera achado
+  ok  - heuristica nao bloqueia
+  ok  - sem arquivo de teste, a checagem e pulada
+  ok  - achado citavel
+  ok  - log de achados gravado
+  ok  - summary conta arquivos com achado, nao varridos
+
+7 passed, 1 failed
+  FAIL - asserção que repete a implementacao e sinalizada 
+      deve ter assercao_repete_implementacao; got=[{"signal":"esperado_computado_no_teste","line":4,"snippet":"assert.strictEqual(slugify('Ola Mundo'), slugify('Ola Mundo'));","why":"o valor esperado e computado dentro do proprio teste, entao o teste concorda com o codigo por construcao","file":"testes/slug-repetido.test.cjs"}]
+--- fim saida ---
+
+========================================================================
+## M8: apagar secao inteira GRILL-05 (Ordem por dependencia) do motor grill.md
+Alvo: up/skills/up-brainstorm/grill.md
+
+### comando: node up/tests/piso-grill.test.cjs
+exit=1  resumo=piso-grill: 11 passou, 1 falhou
+casos FAIL:
+  - GRILL-05: ordem por dependencia e linha Depende de
+
+--- saida bruta ---
+  ok  - motor existe e tem as tres portas de saida
+  ok  - palavras de parada literais aparecem no motor
+  ok  - frases proibidas declaradas no motor
+  ok  - skill de brainstorm aponta para o motor
+  ok  - piso antigo extinto em todas as superficies vivas
+  ok  - propagacao: todas as superficies citam o grill
+  ok  - gate preservado na skill e citado pelo motor
+  ok  - sem travessao nos arquivos que nasceram limpos
+  ok  - tabela de sinais de prosa presente e nao vazia
+  ok  - GRILL-04: recomendacao e fato contra decisao no motor
+  ok  - deteccao de piso antigo cobre forma por extenso
+
+piso-grill: 11 passou, 1 falhou
+  FAIL - GRILL-05: ordem por dependencia e linha Depende de 
+      "up/skills/up-brainstorm/grill.md" perdeu a secao de ordem por dependencia (GRILL-05)
+(node:3088887) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+--- fim saida ---
+
+========================================================================
+## Tabela mutacao -> casos vermelhos
+
+| Mutacao | Casos que ficaram vermelhos | Discriminou? |
+|---------|----------------------------|--------------|
+| M1 seletor exige so notacao phase-N (nao fa | seletor: acha a fase 11 sem coluna de agente; posicao: veredito nao e evidencia; vocabulario: smoke:pass normaliza para glue; vocabulario: test:red-green normaliza para logic; campo escalar; evidencia esperada casa e nao casa | SIM |
+| M2 veredito por posicao fixa (fields[3] = a | posicao: veredito nao e evidencia; fragmento sem veredito e ignorado; campo escalar; evidencia esperada casa e nao casa | SIM |
+| M3 vocabulario fechado sem normalizacao smo | vocabulario: smoke:pass normaliza para glue; vocabulario: test:red-green normaliza para logic; evidencia esperada casa e nao casa | SIM |
+| M4 checkPlanReadySeams sem distincao de leg | legado passa e avisa | SIM |
+| M5 pareceCaminho sempre falso | contrato que parece caminho de arquivo bloqueia | SIM |
+| M6 desligar sinal esperado_computado_no_tes | tautologico e sinalizado; heuristica nao bloqueia; log de achados gravado; summary conta arquivos com achado, nao varridos | SIM |
+| M7 desligar sinal assercao_repete_implement | asserção que repete a implementacao e sinalizada | SIM |
+| M8 apagar secao inteira GRILL-05 (Ordem por | GRILL-05: ordem por dependencia e linha Depende de | SIM |
+
+## Analise: casos que sobrevivem a todas as mutacoes da superficie
+
+### Superficie gate (M1-M5)
+- `campo escalar`: morto por ['M1', 'M2']
+- `contrato que parece caminho de arquivo bloqueia`: morto por ['M5']
+- `evidencia esperada casa e nao casa`: morto por ['M1', 'M2', 'M3']
+- `fragmento sem veredito e ignorado`: morto por ['M2']
+- `legado passa e avisa`: morto por ['M4']
+- `posicao: veredito nao e evidencia`: morto por ['M1', 'M2']
+- `seletor: acha a fase 11 sem coluna de agente`: morto por ['M1']
+- `vocabulario: smoke:pass normaliza para glue`: morto por ['M1', 'M3']
+- `vocabulario: test:red-green normaliza para logic`: morto por ['M1', 'M3']
+- `arquivo ausente nao explode`: morto por NENHUMA mutacao da superficie
+- `campo escalar plan-ready`: morto por NENHUMA mutacao da superficie
+- `duas fronteiras sem justificativa bloqueiam`: morto por NENHUMA mutacao da superficie
+- `entrada de fronteiras soma, e nao rouba o veredito`: morto por NENHUMA mutacao da superficie
+- `escopo nao numerico`: morto por NENHUMA mutacao da superficie
+- `esquema 2 com uma fronteira passa`: morto por NENHUMA mutacao da superficie
+- `esquema 2 sem fronteira bloqueia`: morto por NENHUMA mutacao da superficie
+- `fase inexistente nao explode`: morto por NENHUMA mutacao da superficie
+- `forma canonica de seis colunas continua lida`: morto por NENHUMA mutacao da superficie
+- `log inexistente nao explode`: morto por NENHUMA mutacao da superficie
+- `rota nao e confundida com caminho`: morto por NENHUMA mutacao da superficie
+- `sem a linha de fronteiras, a exigencia falha`: morto por NENHUMA mutacao da superficie
+- `tipo fora da lista fechada bloqueia`: morto por NENHUMA mutacao da superficie
+- `ultima decisao vence`: morto por NENHUMA mutacao da superficie
+
+### Superficie tautologia (M6-M7)
+- `asserção que repete a implementacao e sinalizada`: morto por ['M7']
+- `heuristica nao bloqueia`: morto por ['M6']
+- `log de achados gravado`: morto por ['M6']
+- `summary conta arquivos com achado, nao varridos`: morto por ['M6']
+- `tautologico e sinalizado`: morto por ['M6']
+- `achado citavel`: morto por NENHUMA mutacao da superficie
+- `honesto nao gera achado`: morto por NENHUMA mutacao da superficie
+- `sem arquivo de teste, a checagem e pulada`: morto por NENHUMA mutacao da superficie
+
+### Superficie piso-grill GRILL-05 (M8)
+Casos vermelhos: ['GRILL-05: ordem por dependencia e linha Depende de']
+
+
+## Politica para casos que nao discriminaram na matriz obrigatoria
+
+Regra do revisor: caso que sobrevive a TODAS as mutacoes da superficie ou aperta, ou remove,
+ou registra por escrito por que existe mesmo sem discriminar.
+
+### Superficie gate (M1-M5) - sobreviventes e por que ficam
+
+Os tres pontos de quebra do plano 001 (seletor, posicao, vocabulario) E as duas mutacoes de
+plan-ready da matriz (legado, caminho) estao cobertos: M1-M5 cada uma deixou vermelho o caso
+esperado. Os sobreviventes nao sao os tres pontos de quebra. Sao contratos laterais:
+
+1. **Fail-open / ausencia** (`fase inexistente nao explode`, `log inexistente nao explode`,
+   `arquivo ausente nao explode`, `campo escalar plan-ready`): existem para provar codigo de
+   saida 0 e forma de resposta quando nao ha dado. A matriz obrigatoria nao inclui mutacao
+   "lancar em vez de fail-open". Nao fingem provar leitura por conteudo. Mantidos.
+
+2. **Forma canonica de seis colunas** e **ultima decisao vence** e **escopo nao numerico**:
+   a matriz nao muta o escritor de seis colunas nem a regra de ultima entrada. M2 (posicao)
+   NAO derruba a forma canonica porque, em seis colunas, a 4a coluna JA e o veredito: o defeito
+   posicional so aparece em cinco colunas. Isso e exatamente o ponto 2 da prova. O caso da
+   forma canonica documenta regressao do caminho feliz; nao discrimina o bug de cinco colunas
+   sozinho (quem discrimina e `posicao: veredito nao e evidencia`, morto por M2). Mantido com
+   esse limite declarado.
+
+3. **Plan-ready alem de legado e caminho** (`esquema 2 sem/com fronteira`, `rota`, `duas sem
+   justificativa`, `tipo invalido`): a matriz so mutou legado (M4) e pareceCaminho (M5).
+   - `legado passa e avisa` morre em M4 (ok).
+   - `contrato que parece caminho` morre em M5 (ok).
+   - `rota nao e confundida` SOBREVIVE a M5 de proposito: com pareceCaminho sempre falso, rota
+     continua passando; matar este caso exigiria mutacao inversa (pareceCaminho sempre true).
+     Mantido: e o controle negativo do M5.
+   - Os demais (tipo, justificativa, schema 2 com/sem seams) nao foram mutados na matriz
+     obrigatoria. Discriminam regras proprias se mutadas (`SEAM_TIPOS` vazio, pular check de
+     justificativa, etc.), mas isso esta fora da matriz minima pedida. Mantidos com o limite:
+     a matriz obrigatoria nao prova esses ramos; prova legado e caminho.
+
+4. **Entrada de fronteiras aditiva** (`entrada de fronteiras soma...`, `sem a linha de
+   fronteiras...`): a matriz nao muta `verdict_bearing` de CONFIRMED nem `requireSeams`.
+   Mantidos; limite declarado. Uma mutacao natural seria forcar CONFIRMED a ser
+   verdict_bearing true (roubaria o veredito) ou ignorar --require-seams.
+
+### Superficie tautologia (M6-M7) - sobreviventes e por que ficam
+
+1. **honesto nao gera achado**: a matriz so DESLIGA sinais. Matar este caso exigiria mutacao
+   que sinaliza demais (sempre achar). Mantido como controle negativo.
+2. **sem arquivo de teste, a checagem e pulada**: nao e sobre sinais; e caminho skip. Mantido.
+3. **achado citavel**: com M6, o fixture tautologico deixa de achar e o caso de citabilidade
+   no fixture tautologico some do caminho warn; com so M7 o fixture tautologico ainda gera
+   esperado_computado e o caso de citabilidade pode continuar verde. O caso nao tem mutacao
+   propria na matriz (ex.: zerar `snippet`/`why`). Mantido: e shape do achado, nao o sinal.
+
+### Superficie GRILL-05 (M8)
+
+Discriminou: apagar a secao inteira deixou vermelho exatamente
+`GRILL-05: ordem por dependencia e linha Depende de`. O ponto 3 da avaliacao critica do
+executor (asserção frouxa) nao se confirmou nesta mutacao: a secao como bloco coerente esta
+travada o bastante para M8.
+
+## Conclusao RG-001
+
+As mutacoes obrigatorias M1-M7 cada uma derrubou o(s) caso(s) esperado(s). O vermelho original
+por "Unknown command" fica desqualificado como prova de logica; a prova por mutacao substitui.
+Nenhum caso dos tres pontos de quebra (seletor, posicao, vocabulario), do legado, do caminho,
+nem dos dois sinais de tautologia sobreviveu a mutacao da propria superficie.

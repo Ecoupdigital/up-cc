@@ -1,15 +1,20 @@
 /**
- * piso-grill.test.cjs: invariante de piso e de propagacao do modo grill (fase 15).
+ * piso-grill.test.cjs: invariante de piso e de propagacao do modo grill (fase 15 + heranca fase 16).
  * Roda: node up/tests/piso-grill.test.cjs
  * Sem framework, sem rede. Resolve a raiz do repositorio a partir de __dirname (up/tests -> up ->
  * raiz), porque este arquivo tambem roda copiado para uma arvore de trabalho temporaria na
- * contraprova vermelha (ver 004-PLAN.md, tarefa 1), e precisa medir a arvore onde esta, nao o
- * diretorio corrente.
+ * contraprova vermelha, e precisa medir a arvore onde esta, nao o diretorio corrente.
  *
  * Contrato: falha quando qualquer superficie viva volta a ensinar o piso antigo ("pequena = 1
- * pergunta"), quando o motor perde uma das tres portas de saida, quando uma superficie deixa de
- * apontar para o motor, ou quando travessao/meia-risca aparece nos arquivos que nasceram limpos
- * nesta fase.
+ * pergunta" ou forma por extenso "Pequena: uma pergunta"), quando o motor perde uma das tres
+ * portas de saida, quando a tabela de sinais de prosa some, quando GRILL-04/GRILL-05 deixam de
+ * estar escritos no motor, quando uma superficie deixa de apontar para o motor, ou quando
+ * travessao/meia-risca aparece nos arquivos que nasceram limpos nesta fase.
+ *
+ * Codigos de saida:
+ *   0 = todos os casos de conteudo passaram
+ *   1 = pelo menos um caso de conteudo falhou (FAIL)
+ *   2 = erro de execucao: arquivo critico ausente (ENOENT). Nao se confunde com FAIL de conteudo.
  */
 'use strict';
 const assert = require('assert');
@@ -52,9 +57,23 @@ const SUPERFICIES_VIVAS = [
 // (ver CONTEXT.md, "Fora de escopo da fase inteira").
 const ARQUIVOS_LIMPOS = [MOTOR, SKILL_BRAINSTORM, SKILL_BOOTSTRAP, README];
 
-// Duas ordens da mesma frase, sem diferenciar maiusculas. '.' nao cruza quebra de linha em JS sem
-// a flag 's', igual ao comportamento padrao do grep usado nos planos 002 e 003 desta fase.
-const REGEX_PISO_ANTIGO = /pequena.{0,60}1 pergunta|1 pergunta.{0,60}pequena/i;
+// Arquivos criticos: ausencia e erro de execucao (exit 2), nao FAIL de conteudo.
+const ARQUIVOS_CRITICOS = [...new Set([MOTOR, ...SUPERFICIES_VIVAS])];
+
+// Item herdado B (revisao fase 15): forma por extenso e exit 2
+// Formas numericas E por extenso do piso antigo. A forma numerica sozinha deixava passar
+// "Pequena: uma pergunta" (item herdado B da revisao da fase 15).
+const REGEX_PISO_ANTIGO = new RegExp(
+  [
+    // numerico: "1 pergunta" perto de "pequena"
+    'pequena.{0,80}1\\s*pergunta',
+    '1\\s*pergunta.{0,80}pequena',
+    // por extenso: "uma pergunta" / "uma so pergunta" perto de "pequena"
+    'pequena.{0,80}uma\\s+(s[oó]\\s+)?pergunta',
+    'uma\\s+(s[oó]\\s+)?pergunta.{0,80}pequena',
+  ].join('|'),
+  'i'
+);
 const REGEX_TRAVESSAO = /[—–]/;
 
 let pass = 0;
@@ -74,14 +93,25 @@ function ler(relPath) {
   return fs.readFileSync(path.join(ROOT, relPath), 'utf8');
 }
 
+// --- Preflight: ausencia de arquivo e erro de execucao distinto (exit 2) ---
+// Item herdado B: nao misturar ENOENT com FAIL de deteccao de conteudo.
+const ausentes = [];
+for (const rel of ARQUIVOS_CRITICOS) {
+  const full = path.join(ROOT, rel);
+  if (!fs.existsSync(full)) {
+    ausentes.push(rel);
+  }
+}
+if (ausentes.length > 0) {
+  console.error('ERRO DE EXECUCAO: arquivo critico ausente (nao e FAIL de conteudo):');
+  for (const a of ausentes) console.error('  -', a);
+  console.error('Codigo de saida 2 = ambiente incompleto, nao regressao de doutrina.');
+  process.exit(2);
+}
+
 // Caso 1: o motor existe e casa com os tres titulos de porta.
 t('motor existe e tem as tres portas de saida', () => {
-  let conteudo;
-  try {
-    conteudo = ler(MOTOR);
-  } catch (e) {
-    throw new Error(`motor ausente em "${MOTOR}": ${e.message}`);
-  }
+  const conteudo = ler(MOTOR);
   const minusculo = conteudo.toLowerCase();
   for (const porta of ['palavra de parada', 'checkpoint', 'auto-convergência']) {
     assert.ok(
@@ -174,6 +204,82 @@ t('sem travessao nos arquivos que nasceram limpos', () => {
       `"${arquivo}" contem travessao ou meia-risca (arquivo deveria ter nascido limpo nesta fase)`
     );
   }
+});
+
+// Caso 9 (item herdado A / GRILL-02 via tabela): tabela de sinais de prosa presente e nao vazia.
+// Apagar essa tabela mantinha a suite inteira verde antes desta assercao.
+t('tabela de sinais de prosa presente e nao vazia', () => {
+  const conteudo = ler(MOTOR);
+  assert.ok(
+    /Sinal presente na descri/i.test(conteudo),
+    `"${MOTOR}" perdeu o cabecalho da tabela de sinais de prosa`
+  );
+  assert.ok(
+    /Resultado da heur/i.test(conteudo),
+    `"${MOTOR}" perdeu a tabela de resultado da heuristica`
+  );
+  // Pelo menos tres linhas de sinal (conteudo da tabela, nao so o cabecalho)
+  const linhasSinal = conteudo
+    .split('\n')
+    .filter((l) => /^\|/.test(l.trim()) && /Sobe pra grill|Fica em Trivial|Grill entra/i.test(l));
+  assert.ok(
+    linhasSinal.length >= 3,
+    `"${MOTOR}" tem tabela de sinais esvaziada: so ${linhasSinal.length} linhas de efeito; precisa >= 3`
+  );
+});
+
+// Caso 10 (item herdado A / GRILL-04): recomendacao e fato contra decisao no motor.
+t('GRILL-04: recomendacao e fato contra decisao no motor', () => {
+  const conteudo = ler(MOTOR);
+  assert.ok(
+    /Recomendo:/.test(conteudo),
+    `"${MOTOR}" nao declara o rotulo Recomendo: (GRILL-04)`
+  );
+  assert.ok(
+    /fato contra decis/i.test(conteudo),
+    `"${MOTOR}" nao cita a regra de fato contra decisao (GRILL-04)`
+  );
+  assert.ok(
+    /Pergunta:/.test(conteudo),
+    `"${MOTOR}" nao declara o rotulo Pergunta: (GRILL-04)`
+  );
+});
+
+// Caso 11 (item herdado A / GRILL-05): ordem por dependencia e linha Depende de.
+t('GRILL-05: ordem por dependencia e linha Depende de', () => {
+  const conteudo = ler(MOTOR);
+  assert.ok(
+    /Ordem por depend/i.test(conteudo) || /rvore de decis/i.test(conteudo),
+    `"${MOTOR}" perdeu a secao de ordem por dependencia (GRILL-05)`
+  );
+  assert.ok(
+    /Depende de:/.test(conteudo),
+    `"${MOTOR}" nao declara o formato "Depende de:" (GRILL-05)`
+  );
+  assert.ok(
+    /\[Q\d\]/.test(conteudo) || /Q\d/.test(conteudo),
+    `"${MOTOR}" nao numera perguntas (GRILL-05, verificavel na transcricacao)`
+  );
+});
+
+// Caso 12 (item herdado B): a deteccao de piso antigo casa formas por extenso.
+// Fixture embutida: se o regex regredir para so "1 pergunta", este caso fica vermelho.
+t('deteccao de piso antigo cobre forma por extenso', () => {
+  const fixtureExtenso = 'Pequena: uma pergunta basta para fechar o tier';
+  const fixtureNumerico = 'pequena = 1 pergunta e pronto';
+  assert.ok(
+    REGEX_PISO_ANTIGO.test(fixtureExtenso),
+    'REGEX_PISO_ANTIGO deveria casar "Pequena: uma pergunta" (forma por extenso)'
+  );
+  assert.ok(
+    REGEX_PISO_ANTIGO.test(fixtureNumerico),
+    'REGEX_PISO_ANTIGO deveria continuar casando a forma numerica'
+  );
+  // Controle negativo: prosa legítima do motor nao deve casar
+  assert.ok(
+    !REGEX_PISO_ANTIGO.test('Pequena entra em grill automaticamente'),
+    'falso positivo: "Pequena entra em grill" nao e piso antigo'
+  );
 });
 
 console.log(`\npiso-grill: ${pass} passou, ${fail} falhou`);

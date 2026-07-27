@@ -22,6 +22,9 @@
  *   phase-plan-index <phase>
  *   state-snapshot
  *   summary-extract <path> [--fields field1,field2]
+ *   gate verdict --phase N | --scope planning [--expect-evidence <tipo>] [--require-seams] [--field <campo>]
+ *   gate entries [--phase N]
+ *   gate plan-ready [--path <caminho>] [--field <campo>]
  */
 
 const fs = require('fs');
@@ -37,6 +40,8 @@ const {
 
 const github = require('./lib/github.cjs');
 const multica = require('./lib/multica.cjs');
+const gate = require('./lib/gate.cjs');
+const tautologia = require('./lib/tautologia.cjs');
 
 // --- Frontmatter helpers ---
 
@@ -521,6 +526,10 @@ function main() {
     }
 
     // ==================== SUMMARY-EXTRACT ====================
+    case 'gate': {
+      cmdGate(cwd, args.slice(1), raw);
+      break;
+    }
     case 'summary-extract': {
       const fieldsIdx = args.indexOf('--fields');
       const fields = fieldsIdx !== -1 ? args[fieldsIdx + 1].split(',') : [];
@@ -3442,6 +3451,7 @@ function cmdAnalyzeRouting(cwd, raw) {
  *
  * Usage:
  *   up-tools.cjs verify-static [--lint] [--typecheck] [--test] [--audit]
+ *                              [--tautologia] [--paths <lista-csv>]
  *                              [--all] [--skip-missing]
  *
  * If no flags given, defaults to --all (--skip-missing).
@@ -3450,12 +3460,13 @@ function cmdAnalyzeRouting(cwd, raw) {
  *   {
  *     overall: "pass" | "fail" | "skip",
  *     checks: [
- *       { name, status: "pass"|"fail"|"skip", exit_code, summary, output_path }
+ *       { name, status: "pass"|"fail"|"skip"|"warn", exit_code, summary, output_path, findings? }
  *     ],
  *     duration_secs
  *   }
  *
  * Each check's full output is written to .plano/runtime/verify-static-<check>.log
+ * A heuristica de tautologia SINALIZA (status warn) e NAO bloqueia o gate (PROVA-08).
  */
 function cmdVerifyStatic(cwd, args, raw) {
   const flags = {
@@ -3463,19 +3474,29 @@ function cmdVerifyStatic(cwd, args, raw) {
     typecheck: false,
     test: false,
     audit: false,
+    tautologia: false,
     all: false,
     skipMissing: false,
+    paths: null,
   };
-  for (const a of args) {
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
     if (a === '--lint') flags.lint = true;
     else if (a === '--typecheck') flags.typecheck = true;
     else if (a === '--test') flags.test = true;
     else if (a === '--audit') flags.audit = true;
+    else if (a === '--tautologia') flags.tautologia = true;
     else if (a === '--all') flags.all = true;
     else if (a === '--skip-missing') flags.skipMissing = true;
+    else if (a === '--paths') {
+      const v = args[++i];
+      if (v && !v.startsWith('--')) flags.paths = v;
+    } else if (a.startsWith('--paths=')) {
+      flags.paths = a.slice('--paths='.length);
+    }
   }
   // Default: run all, skip if script missing
-  if (!flags.lint && !flags.typecheck && !flags.test && !flags.audit && !flags.all) {
+  if (!flags.lint && !flags.typecheck && !flags.test && !flags.audit && !flags.tautologia && !flags.all) {
     flags.all = true;
     flags.skipMissing = true;
   }
@@ -3589,28 +3610,104 @@ function cmdVerifyStatic(cwd, args, raw) {
     }
   }
 
+  // Tautologia (PROVA-07/08): sinaliza, nao bloqueia
+  if (flags.all || flags.tautologia) {
+    const logPath = path.join(runtimeDir, 'verify-static-tautologia.log');
+    let scanPaths;
+    if (flags.paths) {
+      scanPaths = flags.paths.split(',').map((s) => s.trim()).filter(Boolean);
+    } else {
+      scanPaths = [cwd];
+    }
+    const scan = tautologia.scanFiles(scanPaths, { cwd });
+    const allFindings = scan.findings || [];
+    // Gravar log completo sempre
+    const logLines = allFindings.map((f) =>
+      `${f.file}:${f.line} | ${f.signal} | ${f.snippet} | ${f.why}`
+    );
+    try {
+      fs.writeFileSync(logPath, logLines.length ? logLines.join('\n') + '\n' : '');
+    } catch {}
+
+    if (scan.files_scanned === 0 && allFindings.length === 0 && !flags.paths) {
+      // Sem paths explicitos e zero arquivos: skip
+      // Com --paths apontando para arquivo inexistente tambem pode ser 0
+    }
+
+    if (scan.files_scanned === 0) {
+      checks.push({
+        name: 'tautologia',
+        status: 'skip',
+        exit_code: null,
+        summary: 'nenhum arquivo de teste encontrado',
+        output_path: null,
+        findings: [],
+        findings_total: 0,
+      });
+    } else if (allFindings.length > 0) {
+      const shown = allFindings.slice(0, 20);
+      // Conta arquivos DISTINTOS com achado (nao o total varrido). PROVA-08 / RG-003:
+      // a frase ao revisor nao pode sugerir contaminacao em arquivos limpos.
+      const filesWithFindings = new Set(
+        allFindings.map((f) => f.file).filter(Boolean)
+      ).size;
+      const nSinais = allFindings.length;
+      const nArqs = filesWithFindings;
+      const palavraSinal = nSinais === 1 ? 'sinal' : 'sinais';
+      const palavraArquivo = nArqs === 1 ? 'arquivo' : 'arquivos';
+      checks.push({
+        name: 'tautologia',
+        status: 'warn',
+        exit_code: null,
+        summary: `${nSinais} ${palavraSinal} de tautologia em ${nArqs} ${palavraArquivo} (sinaliza, nao bloqueia)`,
+        output_path: path.relative(cwd, logPath),
+        findings: shown,
+        findings_total: allFindings.length,
+        files_with_findings: filesWithFindings,
+        files_scanned: scan.files_scanned,
+      });
+    } else {
+      checks.push({
+        name: 'tautologia',
+        status: 'pass',
+        exit_code: 0,
+        summary: 'nenhum sinal de tautologia',
+        output_path: path.relative(cwd, logPath),
+        findings: [],
+        findings_total: 0,
+      });
+    }
+  }
+
   const duration = Math.round((Date.now() - start) / 1000);
 
   const failed = checks.filter(c => c.status === 'fail');
   const passed = checks.filter(c => c.status === 'pass');
   const skipped = checks.filter(c => c.status === 'skip');
+  // PROVA-08: warn e categoria propria; heuristica sinaliza e nao bloqueia o gate
+  const warned = checks.filter(c => c.status === 'warn');
 
   let overall;
   if (failed.length > 0) overall = 'fail';
-  else if (passed.length > 0) overall = 'pass';
+  else if (passed.length > 0 || warned.length > 0) overall = 'pass';
   else overall = 'skip';
 
   const result = {
     overall,
     checks,
     duration_secs: duration,
-    counts: { passed: passed.length, failed: failed.length, skipped: skipped.length },
+    counts: {
+      passed: passed.length,
+      failed: failed.length,
+      skipped: skipped.length,
+      warned: warned.length,
+    },
   };
 
   output(
     result,
     raw,
-    `verify-static: ${overall} (${passed.length} passed, ${failed.length} failed, ${skipped.length} skipped, ${duration}s)`
+    `verify-static: ${overall} (${passed.length} passed, ${failed.length} failed, ${warned.length} warned, ${skipped.length} skipped, ${duration}s)`
   );
 }
 
@@ -3951,6 +4048,187 @@ function cmdProgress(cwd, format, raw) {
   } else {
     output({ phases, total_plans: totalPlans, total_summaries: totalSummaries, percent }, raw);
   }
+}
+
+// ==================== GATE ====================
+
+/**
+ * Leitor unico do log de aprovacoes (fase 16 / PROVA-04).
+ * Fail-open: log ausente, fase ausente ou zero entradas saem com codigo 0.
+ * error() so para uso incorreto da CLI.
+ */
+function cmdGate(cwd, args, raw) {
+  const sub = args[0];
+  if (!sub || (sub !== 'verdict' && sub !== 'entries' && sub !== 'plan-ready')) {
+    error('Usage: gate verdict --phase N | gate entries | gate plan-ready');
+  }
+
+  let phase = null;
+  let scope = null;
+  let logPath = null;
+  let expectEvidence = null;
+  let requireSeams = false;
+  let field = null;
+  let planPath = null;
+
+  for (let i = 1; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--phase') {
+      const v = args[++i];
+      if (!v || v.startsWith('--')) error('Missing value for --phase');
+      phase = Number(v);
+      if (Number.isNaN(phase)) error('Invalid --phase: ' + v);
+    } else if (a.startsWith('--phase=')) {
+      phase = Number(a.slice('--phase='.length));
+      if (Number.isNaN(phase)) error('Invalid --phase');
+    } else if (a === '--scope') {
+      const v = args[++i];
+      if (!v || v.startsWith('--')) error('Missing value for --scope');
+      scope = v;
+    } else if (a.startsWith('--scope=')) {
+      scope = a.slice('--scope='.length);
+    } else if (a === '--log') {
+      const v = args[++i];
+      if (!v || v.startsWith('--')) error('Missing value for --log');
+      logPath = v;
+    } else if (a.startsWith('--log=')) {
+      logPath = a.slice('--log='.length);
+    } else if (a === '--expect-evidence') {
+      const v = args[++i];
+      if (!v || v.startsWith('--')) error('Missing value for --expect-evidence');
+      expectEvidence = v;
+    } else if (a.startsWith('--expect-evidence=')) {
+      expectEvidence = a.slice('--expect-evidence='.length);
+    } else if (a === '--require-seams') {
+      requireSeams = true;
+    } else if (a === '--path') {
+      const v = args[++i];
+      if (!v || v.startsWith('--')) error('Missing value for --path');
+      planPath = v;
+    } else if (a.startsWith('--path=')) {
+      planPath = a.slice('--path='.length);
+    } else if (a === '--field') {
+      const v = args[++i];
+      if (!v || v.startsWith('--')) error('Missing value for --field');
+      field = v;
+    } else if (a.startsWith('--field=')) {
+      field = a.slice('--field='.length);
+    }
+  }
+
+  if (sub === 'plan-ready') {
+    const result = gate.checkPlanReadySeams({ cwd, planPath });
+    if (field) {
+      if (!(field in result)) error('Unknown field: ' + field);
+      const val = result[field];
+      const asString = Array.isArray(val)
+        ? val.join(',')
+        : typeof val === 'boolean'
+          ? (val ? 'true' : 'false')
+          : val == null
+            ? ''
+            : String(val);
+      output(result, true, asString);
+      return;
+    }
+    const resumo =
+      `gate plan-ready: pass=${result.pass}` +
+      ` schema=${result.schema == null ? 'null' : result.schema}` +
+      ` seams=${result.seam_count}` +
+      ` avisos=${(result.warnings || []).length}`;
+    output(result, raw, resumo);
+    return;
+  }
+
+  const read = gate.readApprovals({ cwd, logPath });
+
+  if (sub === 'entries') {
+    let entries = read.entries;
+    if (phase != null) {
+      entries = entries.filter((e) => e.phase === phase);
+    }
+    const result = {
+      log_path: read.log_path,
+      exists: read.exists,
+      lines_total: read.lines_total,
+      entries,
+      ignored: read.ignored,
+    };
+    if (field) {
+      if (!(field in result)) error('Unknown field: ' + field);
+      const val = result[field];
+      const asString = Array.isArray(val)
+        ? val.join(',')
+        : typeof val === 'boolean'
+          ? (val ? 'true' : 'false')
+          : val == null
+            ? ''
+            : String(val);
+      output(result, true, asString);
+      return;
+    }
+    output(result, raw, `gate entries: ${entries.length} entradas, ${read.ignored.length} ignoradas`);
+    return;
+  }
+
+  // verdict
+  if (phase == null && !scope) {
+    error('Usage: gate verdict --phase N | --scope planning');
+  }
+
+  const selector = phase != null ? { phase } : { scope };
+  const verdict = gate.verdictForPhase(read, selector);
+  const evaluation = gate.evaluateGate(verdict, {
+    expectEvidence,
+    requireSeams,
+  });
+
+  const result = {
+    found: verdict.found,
+    phase: verdict.phase,
+    scope: verdict.scope,
+    decision: verdict.decision,
+    forced: verdict.forced,
+    agent: verdict.agent,
+    notation: verdict.notation,
+    evidence: verdict.evidence,
+    evidence_types: verdict.evidence_types,
+    seams_confirmed: verdict.seams_confirmed,
+    entries_matched: verdict.entries_matched,
+    line: verdict.decision_line,
+    line_number: verdict.decision_line_number,
+    ignored_lines: read.ignored.length,
+    log_path: read.log_path,
+    pass: evaluation.pass,
+    reasons: evaluation.reasons,
+    checks: {
+      expect_evidence: expectEvidence || null,
+      require_seams: requireSeams,
+    },
+  };
+
+  if (field) {
+    if (!(field in result)) error('Unknown field: ' + field);
+    const val = result[field];
+    const asString = Array.isArray(val)
+      ? val.join(',')
+      : typeof val === 'boolean'
+        ? (val ? 'true' : 'false')
+        : val == null
+          ? ''
+          : String(val);
+    output(result, true, asString);
+    return;
+  }
+
+  const evTypes = (result.evidence_types || []).join(',') || '-';
+  const resumo =
+    `gate: fase=${result.phase != null ? result.phase : result.scope}` +
+    ` decision=${result.decision || 'null'}` +
+    ` evidence=${evTypes}` +
+    ` seams=${result.seams_confirmed}` +
+    ` pass=${result.pass}`;
+  output(result, raw, resumo);
 }
 
 // =====================================================================

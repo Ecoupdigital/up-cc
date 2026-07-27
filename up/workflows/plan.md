@@ -192,6 +192,39 @@ Agent(subagent_type="up-sintetizador", prompt="""
 PHASES=$(node "$HOME/.claude/up/bin/up-tools.cjs" roadmap list-phases)
 ```
 
+### Esboco de fronteiras de teste (ANTES de qualquer spawn de planejador)
+
+Carregar `@$HOME/.claude/up/references/seams.md`. Esbocar as fronteiras candidatas aplicando as
+tres regras (existente vence nova, mais alta vence mais baixa, numero ideal UM). Apresentar ao dono
+no formato do ciclo (pergunta, resposta recomendada e motivo):
+
+```
+Fronteira de teste desta fase (onde o teste vai encostar):
+
+  Recomendado: {contrato publico}  ({tipo}, {existente|nova})
+  Motivo: {por que esta e a mais alta disponivel e por que uma so basta}
+
+  [1] Confirmar a recomendada
+  [2] Ajustar (descreva a fronteira que voce prefere)
+```
+
+Regras duras:
+- Mais de uma fronteira so entra com justificativa escrita na propria entrada, e essa justificativa
+  vai para o campo `justificativa` do plano pronto.
+- Fato contra decisao: se a fronteira ja existe no codigo, o agente descobre isso sozinho (busca no
+  codigo e mapa do codebase) e nao pergunta se existe. So sobe ao dono a ESCOLHA entre candidatas.
+
+Apos a confirmacao, gravar a entrada no log no formato documentado de seis colunas:
+
+```bash
+mkdir -p .plano/governance
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-${PHASE_NUMBER} | up-planejador | CONFIRMED | fronteiras acordadas com o dono: ${SEAM_RESUMO} | evidence=seams:confirmed" \
+  >> .plano/governance/approvals.log
+```
+
+Nota: `CONFIRMED` nao e veredito de fase. Ele soma evidencia e nunca substitui a evidencia do tipo
+da fase, que continua exigida.
+
 Para cada fase — `up-planejador` faz self-check (sem camada de revisao intermediaria):
 
 ```python
@@ -295,9 +328,8 @@ Agent(
 ```bash
 echo "=== GATE: planning ==="
 [ -f .plano/AUDIT-PLAN.md ] || { echo "FALHA: sem AUDIT-PLAN.md"; exit 1; }
-REVISOR_ENTRY=$(grep "planning.*up-revisor" .plano/governance/approvals.log 2>/dev/null | tail -1)
-[ -z "$REVISOR_ENTRY" ] && echo "FALHA: up-revisor NAO logou planning" && exit 1
-DECISION=$(echo "$REVISOR_ENTRY" | awk -F'|' '{gsub(/ /,"",$4); print $4}')
+DECISION=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --scope planning --field decision)
+[ -z "$DECISION" ] && echo "FALHA: up-revisor NAO logou planning" && exit 1
 ```
 
 **Processar:**
@@ -319,13 +351,23 @@ Opções: Corrigir e re-revisar | Aceitar como dívida e seguir para o plano pro
 
 Usar template `$HOME/.claude/up/templates/plan-ready.md`. Preencher: planned_at, planned_by.runtime
 (detectar), intended_execution.runtime (flag --execution-runtime ou "same"), project_name, mode,
-total_phases/plans/requirements, planning_confidence (do AUDIT-PLAN.md), lista completa de planos.
+total_phases/plans/requirements, planning_confidence (do AUDIT-PLAN.md), lista completa de planos,
+`plan_schema: 2`, o bloco `seams:` (com as fronteiras confirmadas no esboco) e o campo
+`fora_de_escopo`.
 
 ```bash
 if [ -d ~/.claude ]; then RUNTIME="claude-code"
 elif [ -d ~/.config/opencode ]; then RUNTIME="opencode"
 elif [ -d ~/.gemini ]; then RUNTIME="gemini-cli"; fi
 ```
+
+Validar antes de commitar:
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" gate plan-ready --raw
+```
+
+Plano pronto reprovado e corrigido antes do commit, nunca commitado como esta.
 
 ### PR.2 Commit Final
 
@@ -387,9 +429,10 @@ Sem stream ao vivo: o board reflete so status. O `/up:build --board` continua a 
 - [ ] up-sintetizador validou REQUIREMENTS (modo validacao, absorveu requirements-validator)
 - [ ] TODAS as fases planejadas com PLAN.md (self-check do planejador)
 - [ ] up-revisor fez a revisao consolidada do planejamento e LOGOU em approvals.log
-- [ ] GATE de planejamento deterministico passou (APPROVE ou forced approval)
+- [ ] GATE de planejamento deterministico passou via leitor unico (`gate verdict --scope planning`): APPROVE ou forced approval
 - [ ] AUDIT-PLAN.md gerado com Planning Confidence Score
-- [ ] PLAN-READY.md gerado e committado
+- [ ] Fronteiras esbocadas e confirmadas com o dono antes do planejamento (entrada evidence=seams:confirmed)
+- [ ] PLAN-READY.md gerado com plan_schema 2 e seams, aprovado por `gate plan-ready`, e committado
 - [ ] `--board` (se passado, MODO PROJETO): 1 issue-filha Multica por fase criada batched (via `multica init --from-roadmap`), idempotente e fail-open
 - [ ] Apresentacao = output do orquestrador (sem CEO)
 - [ ] Nenhuma referencia a CEO, chiefs, camadas de revisao intermediaria ou aos agentes de planejamento deletados

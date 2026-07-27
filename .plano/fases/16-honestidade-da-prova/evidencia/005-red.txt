@@ -1,0 +1,16 @@
+  FAIL - tautologico e sinalizado 
+      checagem tautologia deve existir
+  FAIL - honesto nao gera achado 
+      checagem existe
+  FAIL - asserção que repete a implementacao e sinalizada 
+      Cannot read properties of undefined (reading 'findings')
+  FAIL - heuristica nao bloqueia 
+      Cannot read properties of undefined (reading 'status')
+  FAIL - sem arquivo de teste, a checagem e pulada 
+      checagem existe
+  FAIL - achado citavel 
+      Cannot read properties of undefined (reading 'findings')
+  FAIL - log de achados gravado 
+      log deve existir em /tmp/up-test-HfCGcT/.plano/runtime/verify-static-tautologia.log
+
+0 passed, 7 failed

@@ -154,7 +154,21 @@ PLANNED_RUNTIME=$(grep "runtime:" .plano/PLAN-READY.md | head -1 | awk '{print $
 INTENDED_RUNTIME=$(grep -A1 "intended_execution:" .plano/PLAN-READY.md | tail -1 | awk '{print $2}')
 TOTAL_PHASES=$(grep "total_phases:" .plano/PLAN-READY.md | awk '{print $2}')
 CONFIDENCE=$(grep "planning_confidence:" .plano/PLAN-READY.md | awk '{print $2}')
+
+PR_PASS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate plan-ready --field pass)
+PR_SCHEMA=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate plan-ready --field schema)
+PR_WARN=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate plan-ready --field warnings)
+
+if [ "$PR_PASS" != "true" ]; then
+  echo "BLOQUEADO: plano pronto sem fronteiras confirmadas. Rode /up:plan para esbocar e confirmar as fronteiras."
+  exit 1
+fi
+[ -n "$PR_WARN" ] && echo "AVISO: ${PR_WARN} (plano anterior a este ciclo; seguindo sem bloquear)"
 ```
+
+Plano pronto anterior a este ciclo nao tem marcador de esquema, entao a ausencia do campo sai como
+aviso e a execucao segue. Plano gerado a partir deste ciclo tem `plan_schema` 2 ou maior e a
+ausencia bloqueia.
 
 ### V.2 Validacao de Compatibilidade
 
@@ -454,10 +468,15 @@ Agent(
     - .plano/fases/{phase_number}/PHASE.md (se existir)
     - .plano/DESIGN-TOKENS.md (so se frontend e existir)
     - Arquivos referenciados em <files> das tarefas DESTE plano (codigo a editar)
+    - @$HOME/.claude/up/references/seams.md (fronteiras de teste; sob demanda se a prova exigir)
 
     Sob demanda apenas: .plano/PROJECT.md, .plano/SYSTEM-DESIGN.md, .plano/REQUIREMENTS.md
     NAO refazer Read em PLAN/STATE/config/REQUIREMENTS-SLICE/engineering-principles (ja inline).
     </files_to_read>
+
+    Regra de execucao (fronteiras): e proibido criar fronteira de teste nao prevista no plano.
+    Ao precisar de uma, PARE e escale com pergunta no formato do ciclo (pergunta, recomendacao,
+    motivo). A decisao volta como ajuste do plano. Ver seams.md.
 
     Implementar todas as tarefas DESTE plano. Se o plano pedir, gerar tambem artefatos de
     prod/docs/testes inline (papeis de devops/technical-writer/qa absorvidos pelo executor).
@@ -663,6 +682,14 @@ A evidencia ja foi PRODUZIDA upstream: `logic:test_pass` pelo verificador (red-g
 captura visual antes/depois do `up-tester` no DCRV (3.6); `glue:smoke` pelo smoke do DCRV (3.6). O revisor
 apenas CONFIRMA que ela existe e a carimba no approvals.log. Ver `@~/.claude/up/workflows/dcrv.md`.
 
+Antes do spawn do revisor, rodar a heuristica anti-tautologia (sinaliza, nao bloqueia):
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" verify-static --tautologia --raw
+TAUT_LOG=".plano/runtime/verify-static-tautologia.log"
+[ -s "$TAUT_LOG" ] && echo "Achados de tautologia para o revisor confirmar: $(wc -l < "$TAUT_LOG")"
+```
+
 Spawnar `up-revisor` (UNICO, two-stage). Substitui supervisores, chiefs e auditores gold.
 
 ```python
@@ -683,6 +710,8 @@ Agent(
     - {PHASE_DIR}/dcrv/DCRV-REPORT.md (se existir)
     - git diff (use Bash)
     - .plano/fases/{phase_number}/REQUIREMENTS-SLICE.md (se existir)
+    - .plano/runtime/verify-static-tautologia.log (se existir: confirmar ou descartar cada achado,
+      sem tratar achado cru como veredito)
     Sob demanda: $HOME/.claude/up/references/engineering-principles-compressed.md,
                  $HOME/.claude/up/references/production-requirements-compressed.md
     </files_to_read>
@@ -714,28 +743,32 @@ Aplicar o gate de `@~/.claude/up/workflows/governance.md`:
 echo "=== GATE: Fase ${PHASE_NUMBER} ==="
 SUMMARY_OK=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
 VERIF_OK=$(ls ${PHASE_DIR}/*-VERIFICATION.md 2>/dev/null | wc -l)
-REVISOR_ENTRY=$(grep "phase-${PHASE_NUMBER}.*up-revisor" .plano/governance/approvals.log 2>/dev/null | tail -1)
+
+SEAMS_FLAG=""
+if [ -n "$PR_SCHEMA" ] && [ "$PR_SCHEMA" -ge 2 ] 2>/dev/null; then SEAMS_FLAG="--require-seams"; fi
+GATE_PASS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" $SEAMS_FLAG --field pass)
+DECISION=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --field decision)
+GATE_REASONS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" $SEAMS_FLAG --field reasons)
 
 PASS=true
 [ "$SUMMARY_OK" -eq 0 ] && echo "FALHA: sem SUMMARY.md" && PASS=false
 [ "$VERIF_OK" -eq 0 ] && echo "FALHA: sem VERIFICATION.md" && PASS=false
-[ -z "$REVISOR_ENTRY" ] && echo "FALHA: up-revisor NAO logou" && PASS=false
-
-# Fase 3 - TDD: a entry do revisor PRECISA ter o campo evidence=<tipo>:<resultado> do tipo certo.
-EVIDENCE_FIELD=$(echo "$REVISOR_ENTRY" | grep -oE 'evidence=(logic|ui|glue):(test_pass|visual|smoke)')
-if [ -z "$EVIDENCE_FIELD" ]; then
-  echo "FALHA: up-revisor logou sem campo evidence=<tipo>:<resultado>. Re-rodar revisor com prova fresca." && PASS=false
-elif [ -n "$EVIDENCE_TYPE" ] && ! echo "$EVIDENCE_FIELD" | grep -q "evidence=${EVIDENCE_TYPE}:"; then
-  echo "FALHA: evidence de tipo errado ($EVIDENCE_FIELD; esperado ${EVIDENCE_TYPE}). Re-rodar com prova certa." && PASS=false
-fi
-
-DECISION=$(echo "$REVISOR_ENTRY" | awk -F'|' '{gsub(/ /,"",$4); print $4}')
+[ "$GATE_PASS" != "true" ] && echo "FALHA no veredito: ${GATE_REASONS}" && PASS=false
 
 if [ "$PASS" = false ]; then
   echo "GATE FALHOU: spawnar o agente faltante e re-rodar."
   exit 1
 fi
 ```
+
+O leitor unico (`gate verdict`) localiza fase, veredito e evidencia por conteudo, funciona com ou
+sem a coluna do agente, aceita as notacoes `phase-N` e `fase=N`, aceita as gramaticas de evidencia
+ja gravadas em disco e ignora apenas linha sem palavra de veredito. O escritor da secao 3.7 nao
+muda: continua emitindo as seis colunas documentadas.
+
+A entrada de fronteiras e ADITIVA. A fase continua exigindo a evidencia do tipo dela, e a entrada
+de fronteiras nao substitui nenhuma evidencia. A exigencia `--require-seams` so entra quando
+`plan_schema` e 2 ou maior.
 
 **Processar o veredito:**
 - `APPROVE`: prosseguir para 3.8.
@@ -975,8 +1008,9 @@ final_confidence: [do up-revisor de delivery]
 
 <success_criteria>
 - [ ] Owner profile LOCAL validado
-- [ ] PLAN-READY.md existe e parseado
+- [ ] PLAN-READY.md existe, parseado e validado por `gate plan-ready` (bloqueia se schema>=2 sem seams; avisa se legado)
 - [ ] Validacao light passou (artefatos + planos existem)
+- [ ] Nenhuma fronteira de teste criada em tempo de execucao (escala se faltar)
 - [ ] Dono confirmou execucao (orquestrador, sem CEO)
 - [ ] Governance inicializada (.plano/governance/approvals.log)
 - [ ] Todas as fases executadas com SUMMARY.md (GATE A)
@@ -984,7 +1018,8 @@ final_confidence: [do up-revisor de delivery]
 - [ ] Verificador produziu VERIFICATION.md por fase (GATE B); ladder estatica usada quando possivel
 - [ ] E2E + DCRV rodaram por fase (delegado a dcrv.md)
 - [ ] up-revisor emitiu veredito por fase e LOGOU em approvals.log COM campo evidence=<tipo>:<resultado>
-- [ ] GATE de fase deterministico passou (APPROVE + evidence do tipo certo, ou forced approval com debito)
+- [ ] GATE de fase deterministico passou via leitor unico (`gate verdict`): APPROVE + evidence do tipo certo, ou forced approval com debito
+- [ ] Achados de tautologia apresentados ao revisor, confirmados ou descartados, e nenhum deles bloqueando o gate por conta propria
 - [ ] GitHub-nativo (default): worktree+branch+issue por fase via `github start-phase` (transporte gh OU
       MCP); menu 4 opcoes / `github finish-phase` no fim. `--solo`/`--auto` mantem GitHub (autonomia, nao
       desliga). `--local` degrada para commit na branch atual (sem worktree/issue/PR)

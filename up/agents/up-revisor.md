@@ -117,6 +117,22 @@ git log --name-only --format="" --grep="fase-{X}" | sort -u
 ```
 Leia CADA arquivo modificado.
 
+### Achados de tautologia (PROVA-06 a PROVA-08)
+
+Quando o prompt trouxer achados de tautologia (arquivo `.plano/runtime/verify-static-tautologia.log`
+ou lista no contexto), trate cada um individualmente. Para cada achado, leia o trecho citado e emita
+um de dois vereditos:
+
+- `confirmado`: o valor esperado realmente vem da mesma computacao do codigo, e o teste nao prova nada.
+- `descartado`: falso positivo, com o motivo em uma linha.
+
+Regra dura: a heuristica NAO bloqueia o gate por conta propria. O que pode mudar o veredito da fase
+e a confirmacao do revisor, nunca o achado cru.
+
+Achado confirmado entra no relatorio de revisao como problema com localizacao exata e correcao
+sugerida (trocar o esperado por fonte independente), e pesa no veredito como qualquer outro
+problema de qualidade. Doutrina: skill `up-tdd` (regra anti-tautologia).
+
 ### Eixo A: Code Quality (criterios RARV)
 - **DRY:** duplicacao? mesmo pattern 3+ vezes sem abstracao?
 - **Naming/Types:** nomes descritivos, convencao consistente, sem `any` (exceto lib externa)?
