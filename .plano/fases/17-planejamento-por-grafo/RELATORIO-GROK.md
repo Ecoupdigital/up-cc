@@ -5,16 +5,16 @@ Data: 2026-07-27.
 
 ## Tabela de planos
 
-| Plano | Status | Commit (msg) | Prova |
-|-------|--------|--------------|-------|
-| 001 leitura nomes | feito | `fix: leitura de plano e resumo...` | logic red/green 10 casos; fases reais |
-| 003 tamanho/adjetivos | feito | `feat: tamanho de plano em janela...` | logic 10 casos; validate-plan window_* |
-| 002 fronteira | feito | `feat: grafo de bloqueio e fronteira...` | logic 12 casos fronteira (22 total) |
-| 004 durabilidade | feito | `feat: durabilidade do plano...` | logic 13 casos (23 total) |
-| 005 fechamento | feito | (este commit de fechamento) | smoke comandos/runtimes + suite |
-| herdado A schema2 | feito | (mesmo commit de fechamento) | gate plan-ready pass schema 2 |
-| herdado B install | feito | (mesmo commit de fechamento) | grep conteudo em HOME temp |
-| mutacao 006 | feito | evidencia `006-mutacao.txt` | 6 mutacoes + reversoes |
+| Plano | Status | Commit | Prova |
+|-------|--------|--------|-------|
+| 001 leitura nomes | feito | `3f61de5` fix: leitura de plano e resumo... | logic red/green 10 casos; fases reais |
+| 003 tamanho/adjetivos | feito | `1da2566` feat: tamanho de plano em janela... | logic 10 casos; validate-plan window_* |
+| 002 fronteira | feito | `75ec26e` feat: grafo de bloqueio e fronteira... | logic 12 casos fronteira (22 total) |
+| 004 durabilidade | feito | `b28e86d` feat: durabilidade do plano... | logic 13 casos (23 total) |
+| 005 fechamento | feito | `dd6905b` chore: fechar fase 17... | smoke comandos/runtimes + suite |
+| herdado A schema2 | feito | `dd6905b` | gate plan-ready pass schema 2 |
+| herdado B install | feito | `dd6905b` | grep conteudo em HOME temp |
+| mutacao 006 | feito | `dd6905b` evidencia `006-mutacao.txt` | 6 mutacoes + reversoes |
 
 ## Como rodar os testes
 
