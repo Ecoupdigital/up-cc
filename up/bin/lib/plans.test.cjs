@@ -144,5 +144,189 @@ t('10. segmento numerico inicial diferente da fase nao e removido', () => {
   assert.ok(c.id === '09-002' || c.id.startsWith('09'), 'id preserva o prefixo 09: ' + c.id);
 });
 
+// --- Casos do plano 002: fronteira e grafo ---
+
+function mkPlan(id, opts = {}) {
+  return {
+    id,
+    file: `${id}-PLAN.md`,
+    wave: opts.wave !== undefined ? opts.wave : 1,
+    depends_on: opts.depends_on,
+    declared_edges: opts.declared_edges,
+  };
+}
+
+function runFrontier(planDefs, summaryIds, failed) {
+  assert.ok(typeof plans.deriveFrontier === 'function', 'deriveFrontier deve existir');
+  const inv = {
+    plans: planDefs.map((p) => ({ id: p.id, file: p.file })),
+    summaries: (summaryIds || []).map((id) => ({ id, file: `${id}-SUMMARY.md` })),
+    id_conflicts: [],
+  };
+  const pairing = plans.pairSummaries(inv);
+  // Anexar edges normalizadas
+  const phaseNumber = 17;
+  const plansWithEdges = planDefs.map((p) => {
+    const n = plans.normalizeEdges(p, inv, phaseNumber);
+    return {
+      ...p,
+      edges: n.edges,
+      dangling: n.dangling,
+      declared: n.declared,
+    };
+  });
+  return plans.deriveFrontier({
+    plans: plansWithEdges,
+    pairing,
+    failed: failed || [],
+  });
+}
+
+t('F1. cadeia linear: um por vez na ordem', () => {
+  const defs = [
+    mkPlan('001', { depends_on: [] }),
+    mkPlan('002', { depends_on: ['001'] }),
+    mkPlan('003', { depends_on: ['002'] }),
+  ];
+  const r1 = runFrontier(defs, [], []);
+  assert.deepStrictEqual(r1.frontier.map((x) => x.id || x), ['001']);
+  const r2 = runFrontier(defs, ['001'], []);
+  assert.deepStrictEqual(r2.frontier.map((x) => x.id || x), ['002']);
+  const r3 = runFrontier(defs, ['001', '002'], []);
+  assert.deepStrictEqual(r3.frontier.map((x) => x.id || x), ['003']);
+});
+
+t('F2. leque: tres com dependencia vazia na fronteira', () => {
+  const defs = [
+    mkPlan('001', { depends_on: [] }),
+    mkPlan('002', { depends_on: [] }),
+    mkPlan('003', { depends_on: [] }),
+  ];
+  const r = runFrontier(defs, [], []);
+  assert.strictEqual(r.ordering_mode, 'aresta');
+  assert.strictEqual(r.frontier.length, 3);
+});
+
+t('F3. plano que falha: independente segue; dependentes bloqueados', () => {
+  const defs = [
+    mkPlan('001', { depends_on: [] }),
+    mkPlan('002', { depends_on: ['001'] }),
+    mkPlan('003', { depends_on: ['001'] }),
+    mkPlan('004', { depends_on: [] }),
+  ];
+  const r = runFrontier(defs, [], ['001']);
+  const fIds = r.frontier.map((x) => x.id || x).sort();
+  assert.deepStrictEqual(fIds, ['004']);
+  assert.ok(r.blocked.some((b) => (b.id || b) === '002' || (b.id === '002')));
+  assert.ok(r.blocked.some((b) => (b.id || b) === '003' || (b.id === '003')));
+  assert.strictEqual(r.exhausted, false);
+});
+
+t('F4. retomada: com resumo do primeiro, fronteira no segundo', () => {
+  const defs = [
+    mkPlan('001', { depends_on: [] }),
+    mkPlan('002', { depends_on: ['001'] }),
+    mkPlan('003', { depends_on: ['002'] }),
+  ];
+  const r = runFrontier(defs, ['001'], []);
+  assert.deepStrictEqual(r.frontier.map((x) => x.id || x), ['002']);
+});
+
+t('F5. sem aresta: modo onda, menor onda com pendencia', () => {
+  const defs = [
+    mkPlan('001', { wave: 1 }),
+    mkPlan('002', { wave: 1 }),
+    mkPlan('003', { wave: 2 }),
+  ];
+  // depends_on ausente (undefined) = sem aresta declarada
+  const r = runFrontier(defs, [], []);
+  assert.strictEqual(r.ordering_mode, 'onda');
+  assert.strictEqual(r.frontier.length, 2);
+  const ids = r.frontier.map((x) => x.id || x).sort();
+  assert.deepStrictEqual(ids, ['001', '002']);
+  // derived_wave igual a declarada no modo onda
+  assert.ok(r.derived_waves);
+});
+
+t('F6. modo misto: sem aresta em onda posterior so entra depois', () => {
+  const defs = [
+    mkPlan('001', { depends_on: [], wave: 1 }),
+    mkPlan('002', { depends_on: ['001'], wave: 1 }),
+    mkPlan('003', { wave: 2 }), // sem depends_on
+  ];
+  const r = runFrontier(defs, [], []);
+  assert.strictEqual(r.ordering_mode, 'misto');
+  const fIds = r.frontier.map((x) => x.id || x).sort();
+  assert.ok(fIds.includes('001'));
+  assert.ok(!fIds.includes('003'), '003 so depois das ondas anteriores');
+  const r2 = runFrontier(defs, ['001', '002'], []);
+  assert.ok(r2.frontier.map((x) => x.id || x).includes('003'));
+});
+
+t('F7. ciclo: fronteira vazia, ciclo reportado, nao esgotada', () => {
+  const defs = [
+    mkPlan('001', { depends_on: ['002'] }),
+    mkPlan('002', { depends_on: ['001'] }),
+  ];
+  const r = runFrontier(defs, [], []);
+  assert.strictEqual(r.frontier.length, 0);
+  assert.ok(r.cycle && r.cycle.length >= 2);
+  assert.strictEqual(r.exhausted, false);
+});
+
+t('F8. aresta pendente: nao bloqueia, entra em dangling', () => {
+  const defs = [
+    mkPlan('001', { depends_on: ['999'] }),
+  ];
+  const r = runFrontier(defs, [], []);
+  assert.ok(r.frontier.map((x) => x.id || x).includes('001'));
+  assert.ok((r.dangling_edges || []).length >= 1);
+});
+
+t('F9. aresta composta com numero da fase resolve', () => {
+  const defs = [
+    mkPlan('001', { depends_on: [] }),
+    mkPlan('002', { depends_on: ['17-001'] }),
+  ];
+  const r = runFrontier(defs, [], []);
+  // 002 bloqueado por 001
+  assert.deepStrictEqual(r.frontier.map((x) => x.id || x), ['001']);
+  const r2 = runFrontier(defs, ['001'], []);
+  assert.deepStrictEqual(r2.frontier.map((x) => x.id || x), ['002']);
+});
+
+t('F10. autoaresta: descartada como pendente, nao trava', () => {
+  const defs = [
+    mkPlan('001', { depends_on: ['001'] }),
+  ];
+  const r = runFrontier(defs, [], []);
+  assert.ok(r.frontier.map((x) => x.id || x).includes('001'));
+  assert.ok((r.dangling_edges || []).length >= 1);
+});
+
+t('F11. fase esgotada: todos com resumo', () => {
+  const defs = [
+    mkPlan('001', { depends_on: [] }),
+    mkPlan('002', { depends_on: ['001'] }),
+  ];
+  const r = runFrontier(defs, ['001', '002'], []);
+  assert.strictEqual(r.frontier.length, 0);
+  assert.strictEqual(r.exhausted, true);
+  assert.ok(!r.cycle || r.cycle.length === 0);
+});
+
+t('F12. onda zero preservada: so os de wave 0 na primeira fronteira', () => {
+  const defs = [
+    mkPlan('001', { wave: 0 }),
+    mkPlan('002', { wave: 0 }),
+    mkPlan('003', { wave: 1 }),
+  ];
+  const r = runFrontier(defs, [], []);
+  assert.strictEqual(r.ordering_mode, 'onda');
+  const ids = r.frontier.map((x) => x.id || x).sort();
+  assert.deepStrictEqual(ids, ['001', '002']);
+  assert.ok(!ids.includes('003'));
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

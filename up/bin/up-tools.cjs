@@ -517,7 +517,7 @@ function main() {
 
     // ==================== PHASE-PLAN-INDEX ====================
     case 'phase-plan-index': {
-      cmdPhasePlanIndex(cwd, args[1], raw);
+      cmdPhasePlanIndex(cwd, args.slice(1), raw);
       break;
     }
 
@@ -2314,7 +2314,25 @@ function findLastCheckboxEnd(text) {
   return lastEnd;
 }
 
-function cmdPhasePlanIndex(cwd, phase, raw) {
+function cmdPhasePlanIndex(cwd, argsOrPhase, raw) {
+  // Aceita (cwd, phase, raw) legado ou (cwd, args[], raw) com --failed
+  let phase = null;
+  let failed = [];
+  if (Array.isArray(argsOrPhase)) {
+    for (let i = 0; i < argsOrPhase.length; i++) {
+      const a = argsOrPhase[i];
+      if (a === '--failed') {
+        const v = argsOrPhase[++i] || '';
+        failed = v.split(',').map((s) => s.trim()).filter(Boolean);
+      } else if (a.startsWith('--failed=')) {
+        failed = a.slice('--failed='.length).split(',').map((s) => s.trim()).filter(Boolean);
+      } else if (!a.startsWith('--') && !phase) {
+        phase = a;
+      }
+    }
+  } else {
+    phase = argsOrPhase;
+  }
   if (!phase) error('phase required for phase-plan-index');
 
   const fasesDir = path.join(cwd, '.plano', 'fases');
@@ -2345,6 +2363,7 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
   const waves = {};
   const incomplete = [];
   let hasCheckpoints = false;
+  const plansForFrontier = [];
 
   for (const p of paired.plans) {
     const planPath = path.join(phaseDir, p.file);
@@ -2352,11 +2371,10 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
     try { content = fs.readFileSync(planPath, 'utf-8'); } catch { content = ''; }
     const fm = extractFrontmatter(content);
 
-    const xmlTasks = content.match(/<task[\s>]/gi) || [];
-    const mdTasks = content.match(/##\s*Task\s*\d+/gi) || [];
-    const taskCount = xmlTasks.length || mdTasks.length;
+    // Contagem unica (portugues e ingles)
+    const taskCount = planChecks.countTasks(content);
 
-    // Plano sem frontmatter: wave 1, autonomous true (fase 11 esta gravada assim)
+    // Onda zero preservada: ausencia assume 1; zero declarado vale zero
     let wave = 1;
     if (fm.wave !== undefined && fm.wave !== null && fm.wave !== '') {
       const parsed = parseInt(fm.wave, 10);
@@ -2377,6 +2395,38 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
 
     if (!p.has_summary) incomplete.push(p.id);
 
+    // depends_on: campo presente vs ausente
+    const hasDepends = Object.prototype.hasOwnProperty.call(fm, 'depends_on');
+    let dependsOn = undefined;
+    if (hasDepends) {
+      dependsOn = fm.depends_on;
+      if (typeof dependsOn === 'string') {
+        const s = dependsOn.trim();
+        if (s.startsWith('[') && s.endsWith(']')) {
+          dependsOn = s.slice(1, -1).split(',').map((x) => x.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+        } else if (s === '' || s === '[]') {
+          dependsOn = [];
+        } else {
+          dependsOn = [s];
+        }
+      }
+    }
+
+    const entry = {
+      id: p.id,
+      wave,
+      depends_on: dependsOn,
+    };
+    // Se o campo existe no frontmatter (mesmo vazio), marcar declared via normalizeEdges
+    if (hasDepends) entry.depends_on = dependsOn;
+    const norm = plansLib.normalizeEdges(
+      hasDepends ? entry : { id: p.id, wave },
+      inv,
+      phaseNumber
+    );
+
+    const state = failed.includes(p.id) ? 'falho' : (p.has_summary ? 'pronto' : 'pendente');
+
     plansOut.push({
       id: p.id,
       wave,
@@ -2387,11 +2437,36 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
       has_summary: p.has_summary,
       file: p.file,
       summary_file: p.summary_file,
+      edges: norm.edges,
+      derived_wave: null, // preenchido apos deriveFrontier
+      state,
+    });
+
+    plansForFrontier.push({
+      id: p.id,
+      file: p.file,
+      wave,
+      edges: norm.edges,
+      dangling: norm.dangling,
+      declared: norm.declared,
     });
 
     const waveKey = String(wave);
     if (!waves[waveKey]) waves[waveKey] = [];
     waves[waveKey].push(p.id);
+  }
+
+  const frontierResult = plansLib.deriveFrontier({
+    plans: plansForFrontier,
+    pairing: paired,
+    failed,
+  });
+
+  for (const po of plansOut) {
+    po.derived_wave = frontierResult.derived_waves[po.id];
+    if (failed.includes(po.id)) po.state = 'falho';
+    else if (po.has_summary) po.state = 'pronto';
+    else po.state = 'pendente';
   }
 
   output({
@@ -2402,6 +2477,12 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
     has_checkpoints: hasCheckpoints,
     id_conflicts: inv.id_conflicts,
     orphan_summaries: paired.orphan_summaries,
+    frontier: frontierResult.frontier,
+    blocked: frontierResult.blocked,
+    dangling_edges: frontierResult.dangling_edges,
+    cycle: frontierResult.cycle,
+    ordering_mode: frontierResult.ordering_mode,
+    exhausted: frontierResult.exhausted,
   }, raw);
 }
 

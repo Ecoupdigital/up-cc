@@ -1,0 +1,32 @@
+# Retrocompat fase 002 - ordering_mode por fase
+phase 03 mode aresta plans [33m1[39m frontier [] waves {"0":["001"]}
+(node:3215497) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+phase 04 mode aresta plans [33m3[39m frontier [] waves {"1":["001","002","003"]}
+(node:3215519) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+phase 05 mode aresta plans [33m3[39m frontier [] waves {"1":["001","002","003"]}
+(node:3215587) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+phase 06 mode aresta plans [33m1[39m frontier [] waves {"1":["001"]}
+(node:3215636) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+phase 07 mode aresta plans [33m2[39m frontier [] waves {"0":["001"],"1":["002"]}
+(node:3215651) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+phase 08 mode aresta plans [33m2[39m frontier [] waves {"1":["001"],"2":["002"]}
+(node:3215666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+phase 09 mode aresta plans [33m2[39m frontier [] waves {"0":["001"],"1":["002"]}
+(node:3215680) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+phase 10 mode aresta plans [33m2[39m frontier [] waves {"0":["001"],"1":["002"]}
+(node:3215694) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+phase 11 mode onda plans [33m1[39m frontier []
+(node:3215710) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Nota: fases 3-10 ja declaram depends_on no frontmatter (inclusive lista vazia).
+Por isso ordering_mode=aresta (ou misto se algum nao declarar). Comportamento honra
+as arestas que ja existiam em disco e antes eram ignoradas pelo motor de ondas.

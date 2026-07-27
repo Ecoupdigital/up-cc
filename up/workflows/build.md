@@ -420,18 +420,44 @@ planos daquela wave). Ordenar as waves por numero CRESCENTE. Para resolver o arq
 o campo `file` devolvido pelo indice (nunca montar o nome a partir do id):
 `PLAN="$PHASE_DIR/${file}"` onde `file` vem de `plans[].file`.
 
-> Por que paralelizar dentro da wave e SEGURO: o agrupamento por wave ja garante que os planos da MESMA
-> wave sao INDEPENDENTES entre si (arquivos disjuntos, sem dependencia mutua). Qualquer plano que dependa
-> de outro cai numa wave POSTERIOR. Entao rodar todos os planos de uma wave em paralelo nunca causa
-> conflito de escrita. Waves rodam SEMPRE em ordem (a wave N+1 so comeca quando a wave N inteira termina).
+> Por que paralelizar dentro da fronteira e SEGURO: a aresta declarada (`depends_on`) garante que os
+> planos da MESMA fronteira tem todos os bloqueadores prontos e nao dependem uns dos outros. A onda
+> numerada e apenas visao de leitura. Rodadas rodam SEMPRE em sequencia (a proxima fronteira so e
+> pedida quando a rodada atual inteira termina).
 
-### 3.2 + 3.3 LOOP DE WAVES: detectar tipo (por plano) + spawnar executor(es)
+### 3.2 + 3.3 LOOP DE FRONTEIRA: detectar tipo (por plano) + spawnar executor(es)
 
-Iterar as waves em ordem crescente. Para CADA wave:
+A ordem de execucao sai da **fronteira derivada** (planos cujos bloqueadores estao todos prontos),
+recalculada a cada rodada a partir de `depends_on`. A onda numerada continua no indice como
+visao de leitura (`derived_wave` / `waves`), nao como motor.
 
-1. **Selecionar os planos da wave que ainda NAO tem SUMMARY** (resume): pular todo plano com
-   `has_summary: true` no `$PLAN_INDEX` (idempotencia/retomada). Se a wave inteira ja esta concluida,
-   anuncia e pula pra proxima wave.
+```bash
+FAILED_IDS=""   # ids que falharam nesta execucao (nao persiste em disco)
+while true; do
+  PLAN_INDEX=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index {phase_number} \
+    --failed "$FAILED_IDS" --cwd "$WORKTREE" --raw)
+  if [[ "$PLAN_INDEX" == @file:* ]]; then PLAN_INDEX=$(cat "${PLAN_INDEX#@file:}"); fi
+
+  ORDERING=$(echo "$PLAN_INDEX" | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{console.log(JSON.parse(s).ordering_mode||'')}catch{}}")
+  EXHAUSTED=$(echo "$PLAN_INDEX" | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{console.log(JSON.parse(s).exhausted?'true':'false')}catch{console.log('false')}}")
+  CYCLE_LEN=$(echo "$PLAN_INDEX" | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{console.log((JSON.parse(s).cycle||[]).length)}catch{console.log(0)}}")
+  FRONTIER_IDS=$(echo "$PLAN_INDEX" | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{console.log((JSON.parse(s).frontier||[]).map(x=>x.id||x).join(' '))}catch{}}")
+
+  if [ "$CYCLE_LEN" != "0" ] && [ -z "$FRONTIER_IDS" ]; then
+    echo "GATE A FALHOU: cycle detectado na fronteira. Escalar ao dono (nao desempatar sozinho)."
+    exit 1
+  fi
+  if [ "$EXHAUSTED" = "true" ] || [ -z "$FRONTIER_IDS" ]; then
+    echo "Fronteira vazia / fase esgotada. Saindo do laco de fronteira."
+    break
+  fi
+  # FRONTIER_IDS = planos a executar nesta rodada (paralelos se PARALLELIZATION=true)
+  WAVE_PLAN_IDS="$FRONTIER_IDS"
+```
+
+Para CADA rodada de fronteira:
+
+1. **Selecionar os planos da fronteira** (ja vem sem `has_summary`). A onda e visao de leitura.
 
 2. **Para CADA plano selecionado da wave, montar contexto e detectar tipo (PRE-spawn, por plano):**
 
@@ -552,9 +578,13 @@ Opções: Re-executar a onda | Re-planejar a fase | Parar aqui
 Se a saída dos executores apontar causa de plano (contrato inexistente, dependência que o plano assumiu e não
 existe), a recomendação vira "Re-planejar a fase" e a linha Porque cita o achado. A recomendação é calculada.
 
-6. **Prosseguir para a proxima wave.** Repetir 1-5 ate a ultima wave.
+6. **Ao fim da rodada:** plano sem resumo entra em `FAILED_IDS` (depois da politica de reexecucao
+   que ja existe). A lista vive na execucao, nao em disco. Recomecar o laco: um plano pronto libera
+   quem dependia dele; um falho nao trava quem nao dependia.
 
-**Fim do loop de waves:** ao sair do loop, TODOS os planos da fase tem SUMMARY. GATE A consolidado:
+7. **Prosseguir para a proxima fronteira.** Fechar o `while true` do passo 3.2.
+
+**Fim do loop de fronteira:** ao sair do loop, TODOS os planos da fase tem SUMMARY (ou cycle/escala). GATE A consolidado:
 
 ```bash
 echo "=== GATE A consolidado (Fase ${PHASE_NUMBER}) ==="

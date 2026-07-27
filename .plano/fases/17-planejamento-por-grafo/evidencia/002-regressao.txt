@@ -1,0 +1,39 @@
+7
+6
+36
+  ok  - 1. rotulo antes do id (fase 11): plano e resumo pareiam
+  ok  - 2. id antes do rotulo sem prefixo (fase 10): plano e resumo pareiam
+  ok  - 3. resumo prefixado pelo numero da fase (fase 3): falso negativo real
+  ok  - 4. fase mista: um plano em cada convencao, cada um com seu resumo
+  ok  - 5. plano com prefixo do numero da fase (fase 10): canoniza igual ao sem prefixo
+  ok  - 6. plano sem numeracao, so o rotulo: id 001
+  ok  - 7. conflito de identificador: reportado, entradas preservadas
+  ok  - 8. verificacao, contexto e pesquisa: fora do inventario
+  ok  - 9. resumo sem plano correspondente: orphan_summaries
+  ok  - 10. segmento numerico inicial diferente da fase nao e removido
+  ok  - F1. cadeia linear: um por vez na ordem
+  ok  - F2. leque: tres com dependencia vazia na fronteira
+  ok  - F3. plano que falha: independente segue; dependentes bloqueados
+  ok  - F4. retomada: com resumo do primeiro, fronteira no segundo
+  ok  - F5. sem aresta: modo onda, menor onda com pendencia
+  ok  - F6. modo misto: sem aresta em onda posterior so entra depois
+  ok  - F7. ciclo: fronteira vazia, ciclo reportado, nao esgotada
+  ok  - F8. aresta pendente: nao bloqueia, entra em dangling
+  ok  - F9. aresta composta com numero da fase resolve
+  ok  - F10. autoaresta: descartada como pendente, nao trava
+  ok  - F11. fase esgotada: todos com resumo
+  ok  - F12. onda zero preservada: so os de wave 0 na primeira fronteira
+
+22 passed, 0 failed
+  ok  - local: sem worktree/issue, branch atual
+  ok  - sem remote: worktree criado, git-local
+  ok  - remote sem gh: github-mcp pendente
+  ok  - solo nao desliga github (vira github-mcp, nao local)
+  ok  - recordIssue grava issue no git-map
+  ok  - issueTransport: local->none; sem remote->none
+  ok  - finish local: noop status done
+  ok  - finish auto sem remote: merge local
+  ok  - finish auto remote sem gh: sinaliza needs-mcp-pr
+  ok  - recordPr merged: grava pr, status merged, limpa worktree
+
+10 passed, 0 failed

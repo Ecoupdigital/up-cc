@@ -152,10 +152,204 @@ function pairSummaries(inventory) {
   return { plans: pairedPlans, orphan_summaries };
 }
 
+// --- Arestas e fronteira ---
+
+/**
+ * Normaliza depends_on de um plano contra o inventario da fase.
+ * @returns {{ edges: string[], dangling: string[], declared: boolean }}
+ * declared=false quando o campo depends_on esta ausente (nao quando lista vazia).
+ */
+function normalizeEdges(planEntry, inventory, phaseNumber) {
+  const hasField = planEntry && Object.prototype.hasOwnProperty.call(planEntry, 'depends_on');
+  const raw = hasField ? planEntry.depends_on : undefined;
+  const declared = hasField; // ausente vs lista vazia
+  if (raw == null) {
+    return { edges: [], dangling: [], declared: false };
+  }
+  const list = Array.isArray(raw) ? raw : [raw];
+  const known = new Set((inventory.plans || []).map((p) => p.id));
+  const selfId = planEntry.id;
+  const edges = [];
+  const dangling = [];
+  for (const item of list) {
+    if (item == null || item === '') continue;
+    const text = String(item).trim();
+    // Canonicaliza como se fosse o resto de um nome PLAN
+    const id = canonicalizeId(text, phaseNumber);
+    if (id === selfId) {
+      dangling.push(text);
+      continue;
+    }
+    if (!known.has(id)) {
+      dangling.push(text);
+      continue;
+    }
+    if (!edges.includes(id)) edges.push(id);
+  }
+  return { edges, dangling, declared };
+}
+
+/**
+ * Deriva a fronteira de execucao a partir das arestas e do estado (resumo/falho).
+ * Funcao pura.
+ *
+ * @param {{ plans: Array, pairing: {plans}, failed: string[] }}
+ */
+function deriveFrontier({ plans: planList, pairing, failed }) {
+  const failedSet = new Set((failed || []).map(String));
+  const pairingById = new Map((pairing.plans || []).map((p) => [p.id, p]));
+
+  // Estado por plano
+  const byId = new Map();
+  for (const p of planList || []) {
+    const paired = pairingById.get(p.id);
+    let state = 'pendente';
+    if (failedSet.has(p.id)) state = 'falho';
+    else if (paired && paired.has_summary) state = 'pronto';
+    byId.set(p.id, {
+      id: p.id,
+      wave: p.wave !== undefined && p.wave !== null && p.wave !== '' ? Number(p.wave) : 1,
+      edges: Array.isArray(p.edges) ? p.edges.slice() : [],
+      dangling: Array.isArray(p.dangling) ? p.dangling.slice() : [],
+      declared: !!p.declared,
+      state,
+    });
+  }
+
+  const all = [...byId.values()];
+  const declaredCount = all.filter((p) => p.declared).length;
+  let ordering_mode = 'onda';
+  if (declaredCount === 0) ordering_mode = 'onda';
+  else if (declaredCount === all.length) ordering_mode = 'aresta';
+  else ordering_mode = 'misto';
+
+  // Em modo misto: planos sem aresta herdam bloqueadores de onda estritamente menor
+  if (ordering_mode === 'misto') {
+    for (const p of all) {
+      if (p.declared) continue;
+      const blockers = all
+        .filter((o) => o.id !== p.id && Number(o.wave) < Number(p.wave))
+        .map((o) => o.id);
+      p.edges = blockers;
+    }
+  }
+
+  // Em modo onda: fronteira = pendentes da menor wave com pendencia
+  // Em modo aresta/misto: pendentes cujos blockers resolvidos estao todos prontos
+
+  function blockersReady(p) {
+    for (const b of p.edges) {
+      const bp = byId.get(b);
+      if (!bp) continue; // dangling ja filtrado
+      if (bp.state === 'falho') return { ok: false, reason: 'falho', blocker: b };
+      if (bp.state !== 'pronto') return { ok: false, reason: 'pendente', blocker: b };
+    }
+    return { ok: true };
+  }
+
+  // Transitivo: quem depende (direta ou indiretamente) de falho
+  function dependsOnFailed(id, seen = new Set()) {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    const p = byId.get(id);
+    if (!p) return false;
+    for (const b of p.edges) {
+      if (failedSet.has(b)) return true;
+      if (dependsOnFailed(b, seen)) return true;
+    }
+    return false;
+  }
+
+  const frontier = [];
+  const blocked = [];
+  const dangling_edges = [];
+
+  for (const p of all) {
+    for (const d of p.dangling) {
+      dangling_edges.push({ from: p.id, to: d });
+    }
+  }
+
+  const pending = all.filter((p) => p.state === 'pendente');
+
+  if (ordering_mode === 'onda') {
+    const pendingWaves = pending.map((p) => Number(p.wave));
+    if (pendingWaves.length > 0) {
+      const minWave = Math.min(...pendingWaves);
+      for (const p of pending) {
+        if (Number(p.wave) === minWave) frontier.push({ id: p.id });
+      }
+    }
+  } else {
+    for (const p of pending) {
+      if (dependsOnFailed(p.id)) {
+        const failBlocker = p.edges.find((b) => failedSet.has(b) || dependsOnFailed(b));
+        blocked.push({ id: p.id, reason: 'depends_on_failed', blocker: failBlocker || null });
+        continue;
+      }
+      const br = blockersReady(p);
+      if (br.ok) frontier.push({ id: p.id });
+      else if (br.reason === 'falho') {
+        blocked.push({ id: p.id, reason: 'depends_on_failed', blocker: br.blocker });
+      }
+    }
+  }
+
+  // Ciclo: restam pendentes, nenhum falho os bloqueia, fronteira vazia
+  let cycle = [];
+  const stillPending = pending.filter((p) => !frontier.some((f) => f.id === p.id) && !blocked.some((b) => b.id === p.id));
+  if (frontier.length === 0 && stillPending.length > 0) {
+    // Heuristica: todos os stillPending que se referenciam formam ciclo
+    cycle = stillPending.map((p) => p.id);
+  }
+
+  // Onda derivada: comprimento do caminho de bloqueio mais longo ate o plano
+  const derived_waves = {};
+  function longestPath(id, stack = new Set()) {
+    if (stack.has(id)) return 0;
+    const p = byId.get(id);
+    if (!p || p.edges.length === 0) return 0;
+    stack.add(id);
+    let max = 0;
+    for (const b of p.edges) {
+      if (!byId.has(b)) continue;
+      max = Math.max(max, 1 + longestPath(b, stack));
+    }
+    stack.delete(id);
+    return max;
+  }
+  for (const p of all) {
+    if (ordering_mode === 'onda') {
+      derived_waves[p.id] = Number(p.wave);
+    } else {
+      derived_waves[p.id] = longestPath(p.id);
+    }
+  }
+
+  const hasFailed = all.some((p) => p.state === 'falho');
+  const hasPending = pending.length > 0;
+  const exhausted = !hasPending && !hasFailed;
+
+  // Ordenar fronteira por id
+  frontier.sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true }));
+
+  return {
+    frontier,
+    blocked,
+    dangling_edges,
+    cycle,
+    exhausted,
+    ordering_mode,
+    derived_waves,
+  };
+}
+
 module.exports = {
   classifyPlanFile,
   inventoryPhase,
   pairSummaries,
+  normalizeEdges,
+  deriveFrontier,
   // helpers exportados para testes e consumidores futuros
   canonicalizeId,
   stripPhasePrefix,

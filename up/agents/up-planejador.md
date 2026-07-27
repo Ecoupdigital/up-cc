@@ -263,17 +263,26 @@ Cada tarefa: **5-180 minutos** tempo de execucao do Claude.
 
 <wave_assignment>
 
-## Ondas de Execucao
+## Ordem de execucao: dependencia declarada e onda como visao
 
-**Onda 0:** Infraestrutura - schemas, configs, scaffolds de teste
-**Onda 1:** Logica central - features, endpoints, componentes
-**Onda 2:** Integracao - conectar pecas, testes e2e
-**Onda 3:** Polimento - edge cases, performance, UX
+**A dependencia declarada (`depends_on`) e o dado primario da ordem de execucao.** O motor recalcula
+a fronteira (planos cujos bloqueadores estao todos prontos) a cada rodada.
 
-Planos na mesma onda podem ser executados em paralelo (sem dependencias entre si).
-Planos em ondas diferentes devem ser executados sequencialmente.
+**A onda numerada e visao derivada da dependencia declarada**, publicada para leitura humana e
+retrocompatibilidade. O planejador continua escrevendo a onda, e declara `depends_on` sempre que
+houver dependencia real.
 
-**depends_on:** Lista explicitamente quais planos devem completar antes deste.
+**Numeracao de onda:** a menor onda publicada e 1. Onda zero nao e usada em plano novo (enquanto
+leituras antigas do indice ainda existirem em runtime instalado).
+
+**depends_on:** Lista explicitamente quais planos devem completar antes deste (ids canonicos).
+Lista vazia e campo ausente tem semanticas distintas no motor: vazio = "declarei que nao dependo de
+ninguem"; ausente = legado por onda.
+
+Rotulos legados de conteudo (apenas orientacao, nao ordem):
+- Onda 1: infraestrutura e logica central
+- Onda 2: integracao
+- Onda 3: polimento
 </wave_assignment>
 
 <must_haves_derivation>
