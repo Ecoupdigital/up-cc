@@ -1,0 +1,37 @@
+=== .plano/fases/17-planejamento-por-grafo/001-PLAN.md ===
+{
+  "pass": false,
+
+=== .plano/fases/17-planejamento-por-grafo/001-SUMMARY.md ===
+{
+  "pass": false,
+
+=== .plano/fases/17-planejamento-por-grafo/002-PLAN.md ===
+{
+  "pass": false,
+
+=== .plano/fases/17-planejamento-por-grafo/002-SUMMARY.md ===
+{
+  "pass": false,
+
+=== .plano/fases/17-planejamento-por-grafo/003-PLAN.md ===
+{
+  "pass": false,
+
+=== .plano/fases/17-planejamento-por-grafo/003-SUMMARY.md ===
+{
+  "pass": false,
+
+=== .plano/fases/17-planejamento-por-grafo/004-PLAN.md ===
+{
+  "pass": false,
+
+=== .plano/fases/17-planejamento-por-grafo/004-SUMMARY.md ===
+{
+  "pass": false,
+
+=== .plano/fases/17-planejamento-por-grafo/005-PLAN.md ===
+{
+  "pass": false,
+
+sem travessao

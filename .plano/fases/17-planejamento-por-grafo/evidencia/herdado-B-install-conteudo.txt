@@ -1,0 +1,54 @@
+# Item herdado B: instalacao conferida por conteudo
+HOME temp: /tmp/tmp.j7ouCdRcMw
+## grep gate verdict / frontier / phase-plan-index
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:202:A lista de planos e resolvida pela biblioteca de planos (via `phase-plan-index`), com a mesma
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:204:Lista vazia com PLAN-READY presente e falha explicita ("nenhum plano resolvido"), nao sucesso silencioso.
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:213:  IDX=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index "$phase_num" --raw 2>/dev/null || echo '{}')
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:236:  echo "FALHA: nenhum plano resolvido a partir do PLAN-READY.md (lista vazia nao e sucesso)."
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:412:PLAN_INDEX=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index {phase_number} --cwd "$WORKTREE" --raw)
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:414:# phase-plan-index retorna: phase, plans[] (cada: id, wave [int], autonomous [bool], objective,
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:423:> Por que paralelizar dentro da fronteira e SEGURO: a aresta declarada (`depends_on`) garante que os
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:431:recalculada a cada rodada a partir de `depends_on`. A onda numerada continua no indice como
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:437:  PLAN_INDEX=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index {phase_number} \
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:438:    --failed "$FAILED_IDS" --cwd "$WORKTREE" --raw)
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:444:  FRONTIER_IDS=$(echo "$PLAN_INDEX" | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{console.log((JSON.parse(s).frontier||[]).map(x=>x.id||x).join(' '))}catch{}}")
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:557:PLAN_INDEX=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index ${PHASE_NUMBER} --cwd "$WORKTREE" --raw)
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:592:PLAN_INDEX=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index ${PHASE_NUMBER} --cwd "$WORKTREE" --raw)
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:820:GATE_PASS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" $SEAMS_FLAG --field pass)
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:821:DECISION=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --field decision)
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:822:GATE_REASONS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" $SEAMS_FLAG --field reasons)
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:835:O leitor unico (`gate verdict`) localiza fase, veredito e evidencia por conteudo, funciona com ou
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md:1092:- [ ] GATE de fase deterministico passou via leitor unico (`gate verdict`): APPROVE + evidence do tipo certo, ou forced approval com debito
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/governance.md:66:- A leitura de historico e feita por um unico subcomando (`gate verdict` / `gate entries`), que localiza campo por conteudo.
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/governance.md:80:GATE_PASS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" --field pass)
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/governance.md:81:DECISION=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --field decision)
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/governance.md:82:GATE_REASONS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" --field reasons)
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/plan.md:260:# Contagem via phase-plan-index (reconhece as tres convencoes de nome), nao curinga de sufixo.
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/plan.md:261:PLAN_COUNT=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index ${phase_number} --raw 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{console.log((JSON.parse(s).plans||[]).length)}catch{console.log(0)}}")
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/plan.md:334:DECISION=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --scope planning --field decision)
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/plan.md:435:- [ ] GATE de planejamento deterministico passou via leitor unico (`gate verdict --scope planning`): APPROVE ou forced approval
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:202:A lista de planos e resolvida pela biblioteca de planos (via `phase-plan-index`), com a mesma
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:204:Lista vazia com PLAN-READY presente e falha explicita ("nenhum plano resolvido"), nao sucesso silencioso.
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:213:  IDX=$(node "$HOME/.gemini/up/bin/up-tools.cjs" phase-plan-index "$phase_num" --raw 2>/dev/null || echo '{}')
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:236:  echo "FALHA: nenhum plano resolvido a partir do PLAN-READY.md (lista vazia nao e sucesso)."
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:412:PLAN_INDEX=$(node "$HOME/.gemini/up/bin/up-tools.cjs" phase-plan-index {phase_number} --cwd "$WORKTREE" --raw)
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:414:# phase-plan-index retorna: phase, plans[] (cada: id, wave [int], autonomous [bool], objective,
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:423:> Por que paralelizar dentro da fronteira e SEGURO: a aresta declarada (`depends_on`) garante que os
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:431:recalculada a cada rodada a partir de `depends_on`. A onda numerada continua no indice como
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:437:  PLAN_INDEX=$(node "$HOME/.gemini/up/bin/up-tools.cjs" phase-plan-index {phase_number} \
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:438:    --failed "$FAILED_IDS" --cwd "$WORKTREE" --raw)
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:444:  FRONTIER_IDS=$(echo "$PLAN_INDEX" | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{console.log((JSON.parse(s).frontier||[]).map(x=>x.id||x).join(' '))}catch{}}")
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:557:PLAN_INDEX=$(node "$HOME/.gemini/up/bin/up-tools.cjs" phase-plan-index ${PHASE_NUMBER} --cwd "$WORKTREE" --raw)
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:592:PLAN_INDEX=$(node "$HOME/.gemini/up/bin/up-tools.cjs" phase-plan-index ${PHASE_NUMBER} --cwd "$WORKTREE" --raw)
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md:820:GATE_PASS=$(node "$HOME/.gemini/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" $SEAMS_FLAG --field pass)
+
+## skills doctrine present?
+/tmp/tmp.j7ouCdRcMw/.gemini/up/skills/up-brainstorm
+/tmp/tmp.j7ouCdRcMw/.claude/skills/up-brainstorm
+/tmp/tmp.j7ouCdRcMw/.claude/up/skills/up-brainstorm
+/tmp/tmp.j7ouCdRcMw/.codex/up/skills/up-brainstorm
+/tmp/tmp.j7ouCdRcMw/.gemini/up/skills/usando-up
+/tmp/tmp.j7ouCdRcMw/.claude/skills/usando-up
+/tmp/tmp.j7ouCdRcMw/.claude/up/skills/usando-up
+/tmp/tmp.j7ouCdRcMw/.codex/up/skills/usando-up
+CONFERIDO: workflows instalados citam phase-plan-index/frontier e gate.

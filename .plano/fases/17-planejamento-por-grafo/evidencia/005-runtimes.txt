@@ -1,0 +1,146 @@
+=== install claude ===
+
+[36m  ██╗   ██╗██████╗
+  ██║   ██║██╔══██╗
+  ██║   ██║██████╔╝
+  ██║   ██║██╔═══╝
+  ╚██████╔╝██║
+   ╚═════╝ ╚═╝[0m
+
+  UP [2mv2.2.0[0m
+  Simplified spec-driven development for Claude Code, Gemini and OpenCode.
+
+  Installing for [36mClaude Code[0m to [36m~/.claude[0m
+
+  [32m✓[0m Installed up/ (126 files)
+  [32m✓[0m Installed 7 commands
+  [32m✓[0m Installed 12 agents
+  [32m✓[0m Installed 3 hooks
+  [32m✓[0m Configured statusLine, context monitor and session-start hook
+  [32m✓[0m Installed 4 skills
+  [32m✓[0m Installed 7 command-skills (Grok Build)
+  [32m✓[0m Wrote VERSION (2.2.0)
+  [32m✓[0m Wrote package.json (CommonJS mode)
+
+  [32mDone![0m Run [36m/up:up "sua ideia"[0m in Claude Code to get started.
+
+=== install gemini ===
+
+[36m  ██╗   ██╗██████╗
+  ██║   ██║██╔══██╗
+  ██║   ██║██████╔╝
+  ██║   ██║██╔═══╝
+  ╚██████╔╝██║
+   ╚═════╝ ╚═╝[0m
+
+  UP [2mv2.2.0[0m
+  Simplified spec-driven development for Claude Code, Gemini and OpenCode.
+
+  Installing for [36mGemini[0m to [36m~/.gemini[0m
+
+  [32m✓[0m Installed up/ (126 files)
+  [32m✓[0m Installed 7 commands
+  [32m✓[0m Installed 12 agents
+  [32m✓[0m Brainstorm-first em GEMINI.md (bootstrap UP)
+  [32m✓[0m Wrote VERSION (2.2.0)
+  [32m✓[0m Wrote package.json (CommonJS mode)
+
+  [32mDone![0m Run [36m/up:up "sua ideia"[0m in Gemini to get started.
+
+=== install opencode ===
+
+[36m  ██╗   ██╗██████╗
+  ██║   ██║██╔══██╗
+  ██║   ██║██████╔╝
+  ██║   ██║██╔═══╝
+  ╚██████╔╝██║
+   ╚═════╝ ╚═╝[0m
+
+  UP [2mv2.2.0[0m
+  Simplified spec-driven development for Claude Code, Gemini and OpenCode.
+
+  Installing for [36mOpenCode[0m to [36m/root/.orca-relay/opencode-overlays/3c8d28750efde2f805376a3afa6e82e1[0m
+
+  [32m✓[0m Installed up/ (126 files)
+  [32m✓[0m Installed 7 commands to command/
+  [32m✓[0m Installed 12 agents
+  [32m✓[0m Brainstorm-first em AGENTS.md (bootstrap UP)
+  [32m✓[0m Wrote VERSION (2.2.0)
+
+  [32mDone![0m Run [36m/up-up "sua ideia"[0m in OpenCode to get started.
+
+=== install codex ===
+
+[36m  ██╗   ██╗██████╗
+  ██║   ██║██╔══██╗
+  ██║   ██║██████╔╝
+  ██║   ██║██╔═══╝
+  ╚██████╔╝██║
+   ╚═════╝ ╚═╝[0m
+
+  UP [2mv2.2.0[0m
+  Simplified spec-driven development for Claude Code, Gemini and OpenCode.
+
+  Installing for [36mCodex CLI[0m to [36m~/.codex[0m
+
+  [32m✓[0m Installed up/ (126 files)
+  [32m✓[0m Installed 7 skills (commands)
+  [32m✓[0m Installed 12 agents
+  [32m✓[0m Configured config.toml ([agents] max_depth=4, max_threads=8)
+  [32m✓[0m Brainstorm-first em AGENTS.md (bootstrap UP)
+  [32m✓[0m Wrote VERSION (2.2.0)
+  [32m✓[0m Wrote package.json (CommonJS mode)
+
+  [32mDone![0m Run [36m$up-up "sua ideia"[0m in Codex CLI to get started.
+
+md count: 320
+=== content grep installed workflows ===
+/tmp/tmp.j7ouCdRcMw/.gemini/commands/up/plan.toml
+/tmp/tmp.j7ouCdRcMw/.gemini/commands/up/build.toml
+/tmp/tmp.j7ouCdRcMw/.gemini/up/templates/plan-ready.md
+/tmp/tmp.j7ouCdRcMw/.gemini/up/templates/audit-plan.md
+/tmp/tmp.j7ouCdRcMw/.gemini/up/templates/builder-defaults.md
+/tmp/tmp.j7ouCdRcMw/.gemini/up/bin/lib/plans.test.cjs
+/tmp/tmp.j7ouCdRcMw/.gemini/up/bin/lib/plan-checks.test.cjs
+/tmp/tmp.j7ouCdRcMw/.gemini/up/bin/lib/plans.cjs
+/tmp/tmp.j7ouCdRcMw/.gemini/up/bin/lib/plan-checks.cjs
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/plan.md
+/tmp/tmp.j7ouCdRcMw/.gemini/up/commands/build.md
+/tmp/tmp.j7ouCdRcMw/.gemini/up/commands/plan.md
+/tmp/tmp.j7ouCdRcMw/.gemini/up/agents/up-planejador.md
+/tmp/tmp.j7ouCdRcMw/.gemini/agents/up-planejador.md
+/tmp/tmp.j7ouCdRcMw/.claude/commands/up/build.md
+/tmp/tmp.j7ouCdRcMw/.claude/commands/up/plan.md
+/tmp/tmp.j7ouCdRcMw/.claude/up/templates/plan-ready.md
+/tmp/tmp.j7ouCdRcMw/.claude/up/templates/audit-plan.md
+/tmp/tmp.j7ouCdRcMw/.claude/up/templates/builder-defaults.md
+/tmp/tmp.j7ouCdRcMw/.gemini/up/bin/lib/plans.test.cjs
+/tmp/tmp.j7ouCdRcMw/.gemini/up/bin/lib/plan-checks.test.cjs
+/tmp/tmp.j7ouCdRcMw/.gemini/up/bin/lib/plans.cjs
+/tmp/tmp.j7ouCdRcMw/.gemini/up/bin/lib/plan-checks.cjs
+/tmp/tmp.j7ouCdRcMw/.gemini/up/bin/up-tools.cjs
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/build.md
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/governance.md
+/tmp/tmp.j7ouCdRcMw/.gemini/up/workflows/plan.md
+/tmp/tmp.j7ouCdRcMw/.gemini/up/references/tdd-evidence-types.md
+/tmp/tmp.j7ouCdRcMw/.claude/up/bin/lib/plans.test.cjs
+/tmp/tmp.j7ouCdRcMw/.claude/up/bin/lib/plan-checks.test.cjs
+/tmp/tmp.j7ouCdRcMw/.claude/up/bin/lib/plans.cjs
+/tmp/tmp.j7ouCdRcMw/.claude/up/bin/lib/plan-checks.cjs
+/tmp/tmp.j7ouCdRcMw/.claude/up/bin/up-tools.cjs
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/build.md
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/governance.md
+/tmp/tmp.j7ouCdRcMw/.claude/up/workflows/plan.md
+/tmp/tmp.j7ouCdRcMw/.claude/up/references/tdd-evidence-types.md
+/tmp/tmp.j7ouCdRcMw/.codex/up/bin/lib/plans.test.cjs
+/tmp/tmp.j7ouCdRcMw/.codex/up/bin/lib/plan-checks.test.cjs
+/tmp/tmp.j7ouCdRcMw/.codex/up/bin/lib/plans.cjs
+/tmp/tmp.j7ouCdRcMw/.codex/up/bin/lib/plan-checks.cjs
+/tmp/tmp.j7ouCdRcMw/.codex/up/bin/up-tools.cjs
+/tmp/tmp.j7ouCdRcMw/.codex/up/workflows/build.md
+/tmp/tmp.j7ouCdRcMw/.codex/up/workflows/governance.md
+/tmp/tmp.j7ouCdRcMw/.codex/up/workflows/plan.md
+/tmp/tmp.j7ouCdRcMw/.codex/up/references/tdd-evidence-types.md
+FALHOU count: 0
+TEMP_HOME=/tmp/tmp.j7ouCdRcMw

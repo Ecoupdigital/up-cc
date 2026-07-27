@@ -1,0 +1,16 @@
+# Conferencia verbete de onda - SAIDA 1 (confere)
+Arquivo: up/references/glossario-up.md
+Frase do verbete:
+### onda
+**Definição:** Visão derivada da dependência declarada entre planos, que agrupa os planos cujos bloqueadores já estão prontos. A onda é leitura do grafo de dependência, e não a ordem primária de execução: quem define a ordem é a aresta de bloqueio declarada no plano.
+**Formas:** onda, ondas
+**Evitar:** wave, batch, lote, rodada, sprint, estágio
+
+### gate
+**Definição:** Bloqueio determinístico que só libera o avanço quando existe veredito registrado no log de aprovações. Não é pausa para o dono: a pausa que devolve o controle ao dono chama-se checkpoint.
+
+Comportamento correspondente (plano 002):
+- depends_on e dado primario; deriveFrontier recalcula fronteira
+- ordering_mode onda quando campo ausente; aresta quando declarado
+- onda numerada e visao (waves/derived_wave), nao motor do build.md
+Conferencia: CONFERE. Nada editado.

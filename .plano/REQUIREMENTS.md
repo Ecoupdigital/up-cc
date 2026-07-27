@@ -157,19 +157,19 @@ comportamento observável, sem citar caminho de arquivo: o mapa de superfícies 
 
 ### Planejamento por grafo (PLANO)
 
-- [ ] PLANO-01: Cada plano de fase declara explicitamente de quais planos ele depende
-- [ ] PLANO-02: A fronteira de execução (planos cujos bloqueadores estão todos prontos) é recalculada em tempo de execução a partir das arestas declaradas
-- [ ] PLANO-03: A onda numerada continua existindo como visão de leitura e deixa de ser a verdade que define a ordem de execução
-- [ ] PLANO-04: Quando um plano falha ou atrasa, a fronteira é recalculada e a ordem restante se reorganiza sem intervenção manual
-- [ ] PLANO-05: Cadeia totalmente sequencial degrada naturalmente, sem caso especial
-- [ ] PLANO-06: Projeto planejado antes das arestas continua executando pela visão de onda numerada, sem migração obrigatória
-- [ ] PLANO-07: Cada plano cabe em cem mil tokens de janela fresca, e a decisão de quebrar uma fase em vários planos registra a estimativa usada
-- [ ] PLANO-08: Regras de tamanho e de quantidade são expressas em número. A verificação estática recusa regra de tamanho enunciada apenas por adjetivo, contra a lista fechada de adjetivos declarada na própria doutrina
-- [ ] PLANO-09: Plano fica proibido de conter caminho de arquivo e trecho de código
-- [ ] PLANO-10: A única exceção é trecho vindo de protótipo que codifica uma decisão com mais precisão que a prosa, inlinado apenas nas partes ricas em decisão e marcado como origem protótipo
-- [ ] PLANO-11: Todo plano tem campo obrigatório de fora de escopo
-- [ ] PLANO-12: Os templates de plano trazem exemplo ruim anotado ao lado do exemplo bom, com o motivo de cada linha ruim ser ruim
-- [ ] PLANO-13: A leitura de planos e de resumos de uma fase reconhece as duas convenções de nome em uso no repositório (identificador antes do rótulo e rótulo antes do identificador, com ou sem prefixo de número da fase), e a derivação da fronteira enxerga todos os planos gravados por qualquer uma delas. O mesmo vale para o pareamento entre resumo e plano, hoje falso-negativo em fase já concluída
+- [x] PLANO-01: Cada plano de fase declara explicitamente de quais planos ele depende
+- [x] PLANO-02: A fronteira de execução (planos cujos bloqueadores estão todos prontos) é recalculada em tempo de execução a partir das arestas declaradas
+- [x] PLANO-03: A onda numerada continua existindo como visão de leitura e deixa de ser a verdade que define a ordem de execução
+- [x] PLANO-04: Quando um plano falha ou atrasa, a fronteira é recalculada e a ordem restante se reorganiza sem intervenção manual
+- [x] PLANO-05: Cadeia totalmente sequencial degrada naturalmente, sem caso especial
+- [x] PLANO-06: Projeto planejado antes das arestas continua executando pela visão de onda numerada, sem migração obrigatória
+- [x] PLANO-07: Cada plano cabe em cem mil tokens de janela fresca, e a decisão de quebrar uma fase em vários planos registra a estimativa usada
+- [x] PLANO-08: Regras de tamanho e de quantidade são expressas em número. A verificação estática recusa regra de tamanho enunciada apenas por adjetivo, contra a lista fechada de adjetivos declarada na própria doutrina
+- [x] PLANO-09: Plano fica proibido de conter caminho de arquivo e trecho de código
+- [x] PLANO-10: A única exceção é trecho vindo de protótipo que codifica uma decisão com mais precisão que a prosa, inlinado apenas nas partes ricas em decisão e marcado como origem protótipo
+- [x] PLANO-11: Todo plano tem campo obrigatório de fora de escopo
+- [x] PLANO-12: Os templates de plano trazem exemplo ruim anotado ao lado do exemplo bom, com o motivo de cada linha ruim ser ruim
+- [x] PLANO-13: A leitura de planos e de resumos de uma fase reconhece as duas convenções de nome em uso no repositório (identificador antes do rótulo e rótulo antes do identificador, com ou sem prefixo de número da fase), e a derivação da fronteira enxerga todos os planos gravados por qualquer uma delas. O mesmo vale para o pareamento entre resumo e plano, hoje falso-negativo em fase já concluída
 
 **Fora de escopo da fase 17**: o template do plano pronto e os templates de plano carregam sedimento da versão anterior (aprovações de CEO, chiefs e supervisores). Esta fase edita esses templates apenas para acrescentar o campo de fora de escopo e o exemplo ruim anotado. Remover o sedimento restante é passe separado, com briefing próprio.
 

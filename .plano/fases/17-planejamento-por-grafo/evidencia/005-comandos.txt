@@ -1,0 +1,12 @@
+7 commands listed
+7
+ok up/commands/auditar.md -> workflows/auditar.md
+ok up/commands/build.md -> workflows/build.md
+ok up/commands/depurar.md -> (self-contained, sem ref workflows/*.md)
+ok up/commands/plan.md -> workflows/plan.md
+ok up/commands/rapido.md -> workflows/rapido.md
+ok up/commands/testar.md -> workflows/dcrv.md
+ok up/commands/up.md -> workflows/up.md
+GATE build: 36
+frontier loop present: 1
+gate plan-ready present: 4

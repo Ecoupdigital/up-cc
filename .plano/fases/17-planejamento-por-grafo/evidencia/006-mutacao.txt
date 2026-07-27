@@ -1,0 +1,110 @@
+# Matriz de mutacao fase 17 (prova por mutacao)
+Cada mutacao e aplicada, a suite roda, depois reverte.
+
+## Mutacao: M1 classifyPlanFile sempre none
+```
+  ok  - F7. ciclo: fronteira vazia, ciclo reportado, nao esgotada
+  ok  - F8. aresta pendente: nao bloqueia, entra em dangling
+  ok  - F9. aresta composta com numero da fase resolve
+  ok  - F10. autoaresta: descartada como pendente, nao trava
+  ok  - F11. fase esgotada: todos com resumo
+  ok  - F12. onda zero preservada: so os de wave 0 na primeira fronteira
+
+12 passed, 10 failed
+```
+
+## Mutacao: M2 pairSummaries nunca pareia
+```
+  FAIL - F11. fase esgotada: todos com resumo 
+      Expected values to be strictly equal:
+
+1 !== 0
+
+  ok  - F12. onda zero preservada: so os de wave 0 na primeira fronteira
+
+13 passed, 9 failed
+```
+
+## Mutacao: M3 deriveFrontier nao enfileira fronteira
+```
+  FAIL - require plans.cjs
+      Unexpected token '}'
+
+0 passed, 1 failed
+```
+
+## Mutacao: M4 countTasks sempre 0
+```
+  ok  - D8. sem secao fora de escopo: ocorrencia
+  ok  - D9. secao fora de escopo vazia: ocorrencia
+  ok  - D10. secao com frase padrao: sem ocorrencia
+  ok  - D11. plano limpo: veredito pass
+  ok  - D12. legado sem schema: avisos, sem fail
+  ok  - D13. exemplo ruim com violacoes: sem ocorrencia
+
+22 passed, 1 failed
+```
+
+## Mutacao: M5 checkAdjectives lista vazia de adjetivos (via parse)
+```
+  ok  - D7. marcador prototipo a duas linhas: bloco conta
+  ok  - D8. sem secao fora de escopo: ocorrencia
+  ok  - D9. secao fora de escopo vazia: ocorrencia
+  ok  - D10. secao com frase padrao: sem ocorrencia
+  FAIL - D11. plano limpo: veredito pass 
+      [].split is not a function
+  ok  - D12. legado sem schema: avisos, sem fail
+  ok  - D13. exemplo ruim com violacoes: sem ocorrencia
+
+15 passed, 8 failed
+```
+
+## Mutacao: M6 findPaths sempre vazio
+```
+  ok  - D6. contrato entre crases simples: sem ocorrencia
+  ok  - D7. marcador prototipo a duas linhas: bloco conta
+  ok  - D8. sem secao fora de escopo: ocorrencia
+  ok  - D9. secao fora de escopo vazia: ocorrencia
+  ok  - D10. secao com frase padrao: sem ocorrencia
+  ok  - D11. plano limpo: veredito pass
+  ok  - D12. legado sem schema: avisos, sem fail
+  ok  - D13. exemplo ruim com violacoes: sem ocorrencia
+
+21 passed, 2 failed
+```
+
+## Tabela resumo
+| Mutacao | Casos derrubados (esperado) |
+|---|---|
+| M1 classify none | inventário e pareamento (casos 1-10) |
+| M2 pair never | casos com has_summary / F4 F11 |
+| M3 frontier muted | F1-F6 F8-F10 F12 |
+| M4 countTasks 0 | caso 9 |
+| M5 adjective list empty | casos 1,5,7,8 de adjetivos |
+| M6 findPaths empty | D1 D5 de durabilidade |
+
+## Suite limpa apos reversoes
+
+22 passed, 0 failed
+
+23 passed, 0 failed
+
+## Mutacao: M3b deriveFrontier push -> void 0 (sintaxe valida)
+```
+  assert.ok(r.frontier.map((x) => x.id || x).includes('001'))
+
+  ok  - F11. fase esgotada: todos com resumo
+  FAIL - F12. onda zero preservada: so os de wave 0 na primeira fronteira 
+      Expected values to be strictly deep-equal:
+[32m+ actual[39m [31m- expected[39m
+
+[32m+[39m []
+[31m-[39m [
+[31m-[39m   '001',
+[31m-[39m   '002'
+[31m-[39m ]
+
+
+12 passed, 10 failed
+```
+Derruba: F1-F6, F8-F10, F12 (fronteira vazia indevida)

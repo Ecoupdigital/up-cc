@@ -24,7 +24,7 @@
 - [x] **Fase 14: Memória do projeto** - Glossário, registro de decisão com alternativas rejeitadas e base de rejeições (completed 2026-07-26)
 - [x] **Fase 15: Modo grill** - Questionamento profundo como piso automático, com três portas de saída (completed 2026-07-26)
 - [ ] **Fase 16: Honestidade da prova** - Fronteiras de teste pré-acordadas e regra anti-tautologia
-- [ ] **Fase 17: Planejamento por grafo** - Arestas de bloqueio, fronteira derivada, tamanho por janela e durabilidade do plano
+- [x] **Fase 17: Planejamento por grafo** - Arestas de bloqueio, fronteira derivada, tamanho por janela e durabilidade do plano (completed 2026-07-27)
 - [ ] **Fase 18: Contexto e revisão** - Higiene de contexto prescrita, handoff e revisão em dois eixos paralelos
 - [ ] **Fase 19: Auditoria visual e escopada** - Escopo por concentração de mudança e relatório HTML com gate de handoff
 - [ ] **Fase 20: Névoa e fronteira do roadmap** - Auto-aborto do planejamento, seção de não especificado e fora de escopo
@@ -257,7 +257,9 @@
   9. O verbete de onda do glossário interno confere com o comportamento entregue nesta fase, fechando a janela aberta entre a publicação do glossário na fase 14 e a derivação da fronteira aqui
   10. Os sete comandos e os quatro runtimes continuam funcionando, e projeto com planejamento anterior a este ciclo continua funcionando sem migração
 **Prova exigida**: lógica, vermelho e verde (critérios 7 e 8 do briefing)
-**Planos**: 0/5 (ondas 1 a 3 em diamante: 001 leitura nas duas convenções e 003 tamanho por janela sem bloqueador na onda 1; 002 grafo e fronteira derivada e 004 durabilidade na onda 2; 005 fechamento e verbete de onda na onda 3)
+**Planos**: 5/5 completo
+**Evidência**: commits locais na branch `up/fase-17-planejamento-por-grafo`; testes `plans.test.cjs` (22) e `plan-checks.test.cjs` (23); mutacao em `evidencia/006-mutacao.txt`; itens herdados A/B da fase 16; verbete de onda confere com glossario-up.md
+**Completado**: 2026-07-27
 
 ### Fase 18: Contexto e revisão
 **Objetivo**: O sistema para de empurrar trabalho com contexto degradado e para de esconder problema de qualidade atrás de falha de conformidade

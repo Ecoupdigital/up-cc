@@ -1,0 +1,22 @@
+# Item herdado A: PLAN-READY schema 2 real
+path: /tmp/tmp.AJFuyqiaPr/.plano/PLAN-READY.md
+{
+  "path": "/tmp/tmp.AJFuyqiaPr/.plano/PLAN-READY.md",
+  "exists": true,
+  "pass": true,
+  "errors": [],
+  "warnings": [],
+  "seams": [
+    {
+      "contrato": "phase-plan-index",
+      "tipo": "comando",
+      "estado": "existente",
+      "nivel": "superficie publica CLI do UP",
+      "justificativa": ""
+    }
+  ],
+  "seam_count": 1,
+  "schema": 2,
+  "legacy": false
+}
+true

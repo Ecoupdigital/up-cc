@@ -1,0 +1,77 @@
+=== validate-plan legado (com must_haves, sem plan_schema) ===
+{
+  "pass": true,
+  "plan_path": "../../../../../tmp/tmp.fZIC6U7lGE/.plano/fases/01-legado/001-PLAN.md",
+  "bytes": 205,
+  "tasks": 1,
+  "frontmatter_keys": [
+    "phase",
+    "plan",
+    "wave",
+    "must_haves"
+  ],
+  "has_verification": true,
+  "issues": [],
+  "suggestions": [],
+  "warnings": [
+    {
+      "rule": "durability_path",
+      "line": 10,
+      "excerpt": "src/a.ts",
+      "message": "ocorrencia em severidade aviso (plano legado ou sem plan_schema>=2)"
+    }
+  ],
+  "limits": {
+    "max_bytes": 25600,
+    "max_tasks": 12
+  },
+  "window_estimate_tokens": 40197,
+  "window_budget_tokens": 100000,
+  "window_percent": 40.2,
+  "window_over_ceiling": false
+}
+=== phase-plan-index ===
+{
+  "phase": "01",
+  "plans": [
+    {
+      "id": "001",
+      "wave": 1,
+      "autonomous": true,
+      "objective": null,
+      "files_modified": [],
+      "task_count": 1,
+      "has_summary": false,
+      "file": "001-PLAN.md",
+      "summary_file": null,
+      "edges": [],
+      "derived_wave": 1,
+      "state": "pendente"
+    }
+  ],
+  "waves": {
+    "1": [
+      "001"
+    ]
+  },
+  "incomplete": [
+    "001"
+  ],
+  "has_checkpoints": false,
+  "id_conflicts": [],
+  "orphan_summaries": [],
+  "frontier": [
+    {
+      "id": "001"
+    }
+  ],
+  "blocked": [],
+  "dangling_edges": [],
+  "cycle": [],
+  "ordering_mode": "onda",
+  "exhausted": false
+}
+mode onda
+(node:3240706) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS (legado com avisos, ordering_mode=onda)
