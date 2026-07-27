@@ -60,6 +60,7 @@ const ARQUIVOS_LIMPOS = [MOTOR, SKILL_BRAINSTORM, SKILL_BOOTSTRAP, README];
 // Arquivos criticos: ausencia e erro de execucao (exit 2), nao FAIL de conteudo.
 const ARQUIVOS_CRITICOS = [...new Set([MOTOR, ...SUPERFICIES_VIVAS])];
 
+// Item herdado B (revisao fase 15): forma por extenso e exit 2
 // Formas numericas E por extenso do piso antigo. A forma numerica sozinha deixava passar
 // "Pequena: uma pergunta" (item herdado B da revisao da fase 15).
 const REGEX_PISO_ANTIGO = new RegExp(

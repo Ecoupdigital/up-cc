@@ -1,0 +1,55 @@
+=== VERDE arvore atual ===
+  ok  - motor existe e tem as tres portas de saida
+  ok  - palavras de parada literais aparecem no motor
+  ok  - frases proibidas declaradas no motor
+  ok  - skill de brainstorm aponta para o motor
+  ok  - piso antigo extinto em todas as superficies vivas
+  ok  - propagacao: todas as superficies citam o grill
+  ok  - gate preservado na skill e citado pelo motor
+  ok  - sem travessao nos arquivos que nasceram limpos
+  ok  - tabela de sinais de prosa presente e nao vazia
+  ok  - GRILL-04: recomendacao e fato contra decisao no motor
+  ok  - GRILL-05: ordem por dependencia e linha Depende de
+  ok  - deteccao de piso antigo cobre forma por extenso
+
+piso-grill: 12 passou, 0 falhou
+(node:3048707) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== VERMELHO item A: tabela de sinais apagada ===
+  ok  - motor existe e tem as tres portas de saida
+  ok  - palavras de parada literais aparecem no motor
+  ok  - frases proibidas declaradas no motor
+  ok  - skill de brainstorm aponta para o motor
+  ok  - piso antigo extinto em todas as superficies vivas
+  ok  - propagacao: todas as superficies citam o grill
+  ok  - gate preservado na skill e citado pelo motor
+  ok  - sem travessao nos arquivos que nasceram limpos
+  FAIL - tabela de sinais de prosa presente e nao vazia 
+      "up/skills/up-brainstorm/grill.md" perdeu o cabecalho da tabela de sinais de prosa
+  ok  - GRILL-04: recomendacao e fato contra decisao no motor
+  ok  - GRILL-05: ordem por dependencia e linha Depende de
+  ok  - deteccao de piso antigo cobre forma por extenso
+
+piso-grill: 11 passou, 1 falhou
+(node:3048736) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== item B: ausencia de arquivo -> exit 2 ===
+ERRO DE EXECUCAO: arquivo critico ausente (nao e FAIL de conteudo):
+  - up/skills/up-brainstorm/grill.md
+  - up/skills/up-brainstorm/SKILL.md
+  - up/skills/usando-up/SKILL.md
+  - up/workflows/up.md
+  - up/commands/up.md
+  - up/bin/install.js
+  - up/README.md
+  - docs/GUIA-DE-USO.md
+Codigo de saida 2 = ambiente incompleto, nao regressao de doutrina.
+exit=0
+
+=== item B: forma por extenso ===
+Pequena: uma pergunta -> [33mtrue[39m
+pequena = 1 pergunta -> [33mtrue[39m
+(node:3048756) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
