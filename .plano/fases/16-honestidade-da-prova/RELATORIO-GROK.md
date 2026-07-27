@@ -15,8 +15,8 @@ Branch: `up/fase-16-honestidade-da-prova` (commits locais apenas; sem push/PR/me
 | 005 Anti-tautologia | Completo | `db44f2a` | logic:test_pass: 7 casos, red/green; overall nao falha por warn; log com seams+logic+glue |
 | Herdado A (GRILL-04/05 + tabela) | Completo | `e2f270e` | Assercoes 9-11; apagar tabela -> FAIL (evidencia `herdado-ab-piso-grill.txt`) |
 | Herdado B (ENOENT + extenso) | Completo | `f170494` | exit 2 sem arquivos; regex casa "Pequena: uma pergunta" |
-| RG-003 contagem tautologia | Completo | 3bf239a | summary conta arquivos com achado; red/green `rg003-*.txt` |
-| RG-001 prova por mutacao | Completo | 3bf239a | M1-M8 em `evidencia/006-mutacao.txt`; ver secao abaixo |
+| RG-003 contagem tautologia | Completo | `3bf239a` | summary conta arquivos com achado; red/green `rg003-*.txt` |
+| RG-001 prova por mutacao | Completo | `f6c6aca` | M1-M8 em `evidencia/006-mutacao.txt`; ver secao abaixo |
 
 ## Testes existentes e como rodar
 
