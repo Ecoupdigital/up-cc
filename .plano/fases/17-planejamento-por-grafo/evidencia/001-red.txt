@@ -1,0 +1,6 @@
+  FAIL - require plans.cjs
+      Cannot find module './plans.cjs'
+Require stack:
+- /home/projects/.up-worktrees/up-cc/fase-17-planejamento-por-grafo/up/bin/lib/plans.test.cjs
+
+0 passed, 1 failed

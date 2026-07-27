@@ -1,5 +1,5 @@
 <purpose>
-Workflow `/up:plan` — Planejamento completo de projeto OU de fase.
+Workflow `/up:plan` - Planejamento completo de projeto OU de fase.
 
 Conduz Arquitetura + Planejamento exaustivo de TODAS as fases + Planning Review + PLAN-READY.
 
@@ -20,7 +20,7 @@ up-pesquisador -> up-arquiteto (absorve system-designer) -> up-roteirista
   -> up-sintetizador (valida REQUIREMENTS) -> [GATE approvals.log] -> up-revisor
 ```
 
-O intake/brainstorm NAO acontece aqui — ja rodou no `/up` (workflows/up.md, inline, sem CEO) e produziu
+O intake/brainstorm NAO acontece aqui - ja rodou no `/up` (workflows/up.md, inline, sem CEO) e produziu
 `.plano/BRIEFING.md`. `/up:plan` consome o BRIEFING. Se for chamado direto sem BRIEFING, faz um intake
 minimo inline (sem CEO).
 
@@ -30,7 +30,7 @@ MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config resolve-model {agent-nam
 ```
 Default fixo: Opus planeja, Sonnet executa. `default` -> nao passar model=.
 
-**Sonnet-ready obrigatorio** — todos os planos em nivel maximo de detalhe.
+**Sonnet-ready obrigatorio** - todos os planos em nivel maximo de detalhe.
 
 **SEPARACAO RIGIDA DE AGENTES:** cada passo e um `Agent()` SEPARADO. O enforcement e o GATE
 deterministico do `approvals.log` (ver `@~/.claude/up/workflows/governance.md`), nao supervisores.
@@ -108,7 +108,7 @@ if ls package.json src/ app/ pages/ components/ 2>/dev/null; then MODE=brownfiel
 ### 2.2 Pesquisa OU Mapeamento (paralelo)
 
 **Greenfield:** se a pesquisa de dominio ainda nao rodou no `/up`, spawnar 4x `up-pesquisador`
-(modo dominio) em paralelo + `up-sintetizador` (modo research) — ver `workflows/up.md` Passo 2.4.
+(modo dominio) em paralelo + `up-sintetizador` (modo research) - ver `workflows/up.md` Passo 2.4.
 Se `.plano/pesquisa/SUMMARY.md` ja existe, reutilizar.
 
 **Brownfield:** se `.plano/codebase/` nao existe, sugerir `/up:mapear-codigo`
@@ -168,7 +168,7 @@ fi
 ```
 
 ```python
-# PASSO 2: Sintetizador valida os REQUIREMENTS (modo validacao — 13 checks)
+# PASSO 2: Sintetizador valida os REQUIREMENTS (modo validacao - 13 checks)
 # Absorve requirements-validator: completude, testabilidade, cobertura, ausencia de ambiguidade.
 Agent(subagent_type="up-sintetizador", prompt="""
   <modo>validacao</modo>
@@ -225,7 +225,7 @@ echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-${PHASE_NUMBER} | up-planejador | C
 Nota: `CONFIRMED` nao e veredito de fase. Ele soma evidencia e nunca substitui a evidencia do tipo
 da fase, que continua exigida.
 
-Para cada fase — `up-planejador` faz self-check (sem camada de revisao intermediaria):
+Para cada fase - `up-planejador` faz self-check (sem camada de revisao intermediaria):
 
 ```python
 Agent(
@@ -255,7 +255,8 @@ Agent(
 
 ```bash
 # GATE: planos da fase existem?
-PLAN_COUNT=$(ls .plano/fases/${PHASE_DIR}/*-PLAN.md 2>/dev/null | wc -l)
+# Contagem via phase-plan-index (reconhece as tres convencoes de nome), nao curinga de sufixo.
+PLAN_COUNT=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index ${phase_number} --raw 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{console.log((JSON.parse(s).plans||[]).length)}catch{console.log(0)}}")
 [ "$PLAN_COUNT" -eq 0 ] && echo "GATE FALHOU: nenhum PLAN.md para fase ${phase_number}. Re-spawnar planejador." && exit 1
 echo "OK: ${PLAN_COUNT} planos para fase ${phase_number}"
 ```
@@ -300,9 +301,9 @@ Agent(
   prompt="""
     Revisar o planejamento completo (escopo: planning). Two-stage adaptado ao planejamento:
 
-    STAGE 1 — spec-compliance cetico: os planos cobrem 100% dos REQUIREMENTS? Ha plano "rapido demais"
+    STAGE 1 - spec-compliance cetico: os planos cobrem 100% dos REQUIREMENTS? Ha plano "rapido demais"
     que pula um REQ? Calcular Planning Confidence Score (0-100).
-    STAGE 2 — qualidade: coerencia cross-fase, dependencias/waves corretas, Sonnet-readiness (detalhe
+    STAGE 2 - qualidade: coerencia cross-fase, dependencias/waves corretas, Sonnet-readiness (detalhe
     suficiente pra executar sem ambiguidade), sem contradicao entre SYSTEM-DESIGN e planos.
 
     <files_to_read>
@@ -391,7 +392,7 @@ Pendencias: {de PENDING.md}.
 Proximo passo:
   /up:build              ← executar neste runtime
 Ou em outro runtime:
-  cd <projeto> && /up:build  (OpenCode / Gemini CLI — plano viaja no .plano/)
+  cd <projeto> && /up:build  (OpenCode / Gemini CLI - plano viaja no .plano/)
 
 Estado completo em .plano/
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

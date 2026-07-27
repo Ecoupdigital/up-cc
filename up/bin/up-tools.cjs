@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * UP Tools — CLI utility for UP workflow operations
+ * UP Tools - CLI utility for UP workflow operations
  *
- * UP Tools — Single file CLI (+ core.cjs).
+ * UP Tools - Single file CLI (+ core.cjs).
  *
  * Usage: node up-tools.cjs <command> [args] [--raw] [--cwd <path>]
  *
@@ -42,6 +42,7 @@ const github = require('./lib/github.cjs');
 const multica = require('./lib/multica.cjs');
 const gate = require('./lib/gate.cjs');
 const tautologia = require('./lib/tautologia.cjs');
+const plansLib = require('./lib/plans.cjs');
 
 // --- Frontmatter helpers ---
 
@@ -596,6 +597,20 @@ function cmdInitExecutarFase(cwd, phase, raw) {
   const config = loadConfig(cwd);
   const phaseInfo = findPhaseInternal(cwd, phase);
 
+  // Inventario via plans.cjs (duas convencoes de nome), nao via filtro literal do core.
+  let planFiles = [];
+  let incompletePlans = [];
+  if (phaseInfo?.directory) {
+    const phaseDirFull = path.join(cwd, phaseInfo.directory);
+    let phaseFiles = [];
+    try { phaseFiles = fs.readdirSync(phaseDirFull); } catch {}
+    const phaseNum = phaseInfo.phase_number || phase;
+    const inv = plansLib.inventoryPhase(phaseFiles, phaseNum);
+    const paired = plansLib.pairSummaries(inv);
+    planFiles = paired.plans.map(p => p.file);
+    incompletePlans = paired.plans.filter(p => !p.has_summary).map(p => p.file);
+  }
+
   const result = {
     commit_docs: config.commit_docs,
     paralelizacao: config.paralelizacao,
@@ -606,10 +621,10 @@ function cmdInitExecutarFase(cwd, phase, raw) {
     phase_name: phaseInfo?.phase_name || null,
     phase_slug: phaseInfo?.phase_slug || null,
 
-    plans: phaseInfo?.plans || [],
-    incomplete_plans: phaseInfo?.incomplete_plans || [],
-    plan_count: phaseInfo?.plans?.length || 0,
-    incomplete_count: phaseInfo?.incomplete_plans?.length || 0,
+    plans: planFiles,
+    incomplete_plans: incompletePlans,
+    plan_count: planFiles.length,
+    incomplete_count: incompletePlans.length,
 
     state_exists: pathExistsInternal(cwd, '.plano/STATE.md'),
     roadmap_exists: pathExistsInternal(cwd, '.plano/ROADMAP.md'),
@@ -847,12 +862,13 @@ function cmdInitProgresso(cwd, raw) {
       const phasePath = path.join(fasesDir, dir);
       const phaseFiles = fs.readdirSync(phasePath);
 
-      const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
-      const summaries = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+      const invProg = plansLib.inventoryPhase(phaseFiles, phaseNumber);
+      const planCount = invProg.plans.length;
+      const summaryCount = invProg.summaries.length;
       const hasResearch = phaseFiles.some(f => f.endsWith('-RESEARCH.md') || f === 'RESEARCH.md');
 
-      const status = summaries.length >= plans.length && plans.length > 0 ? 'complete' :
-                     plans.length > 0 ? 'in_progress' :
+      const status = summaryCount >= planCount && planCount > 0 ? 'complete' :
+                     planCount > 0 ? 'in_progress' :
                      hasResearch ? 'researched' : 'pending';
 
       const phaseInfo = {
@@ -860,8 +876,8 @@ function cmdInitProgresso(cwd, raw) {
         name: phaseName,
         directory: '.plano/fases/' + dir,
         status,
-        plan_count: plans.length,
-        summary_count: summaries.length,
+        plan_count: planCount,
+        summary_count: summaryCount,
         has_research: hasResearch,
       };
 
@@ -1320,7 +1336,7 @@ function cmdStateSnapshot(cwd, raw) {
 
 function cmdStateSaveSession(cwd, options, raw) {
   const statePath = path.join(cwd, '.plano', 'STATE.md');
-  if (!fs.existsSync(statePath)) { output({ error: 'STATE.md not found — project not initialized with UP' }, raw); return; }
+  if (!fs.existsSync(statePath)) { output({ error: 'STATE.md not found - project not initialized with UP' }, raw); return; }
 
   const { summary, decision, phase, no_commit } = options;
   if (!summary) { output({ error: '--summary required: describe what was done in this session' }, raw); return; }
@@ -1382,7 +1398,7 @@ function cmdStateSaveSession(cwd, options, raw) {
         committed = true;
       }
     } catch (e) {
-      // commit failed — not critical, state was still saved to disk
+      // commit failed - not critical, state was still saved to disk
     }
   }
 
@@ -1469,8 +1485,9 @@ function cmdRoadmapAnalyze(cwd, raw) {
 
       if (dirMatch) {
         const phaseFiles = fs.readdirSync(path.join(phasesDir, dirMatch));
-        planCount = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md').length;
-        summaryCount = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md').length;
+        const invDisk = plansLib.inventoryPhase(phaseFiles, phaseNum);
+        planCount = invDisk.plans.length;
+        summaryCount = invDisk.summaries.length;
 
         if (summaryCount >= planCount && planCount > 0) diskStatus = 'complete';
         else if (summaryCount > 0) diskStatus = 'partial';
@@ -1604,16 +1621,17 @@ function cmdPhaseFind(cwd, phase, raw) {
 
     const phaseDir = path.join(phasesDir, match);
     const phaseFiles = fs.readdirSync(phaseDir);
-    const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md').sort();
-    const summaries = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md').sort();
+    const invFind = plansLib.inventoryPhase(phaseFiles, phaseNumber);
+    const planList = invFind.plans.map(p => p.file);
+    const summaryList = invFind.summaries.map(s => s.file);
 
     output({
       found: true,
       directory: toPosixPath(path.join('.plano', 'fases', match)),
       phase_number: phaseNumber,
       phase_name: phaseName,
-      plans,
-      summaries,
+      plans: planList,
+      summaries: summaryList,
     }, raw, toPosixPath(path.join('.plano', 'fases', match)));
   } catch {
     output(notFound, raw, '');
@@ -1693,9 +1711,9 @@ function cmdPhaseRemove(cwd, targetPhase, options, raw) {
   if (targetDir && !force) {
     const targetPath = path.join(phasesDir, targetDir);
     const files = fs.readdirSync(targetPath);
-    const summaries = files.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
-    if (summaries.length > 0) {
-      error(`Phase ${targetPhase} has ${summaries.length} executed plan(s). Use --force to remove anyway.`);
+    const invRemove = plansLib.inventoryPhase(files, targetPhase);
+    if (invRemove.summaries.length > 0) {
+      error(`Phase ${targetPhase} has ${invRemove.summaries.length} executed plan(s). Use --force to remove anyway.`);
     }
   }
 
@@ -2315,29 +2333,34 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
   }
 
   const phaseFiles = fs.readdirSync(phaseDir);
-  const planFiles = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md').sort();
-  const summaryFiles = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+  // Numero da fase a partir do diretorio (ex.: 17-planejamento-por-grafo -> 17)
+  const phaseNumMatch = path.basename(phaseDir).match(/^(\d+)/);
+  const phaseNumber = phaseNumMatch ? phaseNumMatch[1] : normalized;
 
-  const completedPlanIds = new Set(
-    summaryFiles.map(s => s.replace('-SUMMARY.md', '').replace('SUMMARY.md', ''))
-  );
+  const inv = plansLib.inventoryPhase(phaseFiles, phaseNumber);
+  const paired = plansLib.pairSummaries(inv);
 
-  const plans = [];
+  const plansOut = [];
   const waves = {};
   const incomplete = [];
   let hasCheckpoints = false;
 
-  for (const planFile of planFiles) {
-    const planId = planFile.replace('-PLAN.md', '').replace('PLAN.md', '');
-    const planPath = path.join(phaseDir, planFile);
-    const content = fs.readFileSync(planPath, 'utf-8');
+  for (const p of paired.plans) {
+    const planPath = path.join(phaseDir, p.file);
+    let content = '';
+    try { content = fs.readFileSync(planPath, 'utf-8'); } catch { content = ''; }
     const fm = extractFrontmatter(content);
 
     const xmlTasks = content.match(/<task[\s>]/gi) || [];
     const mdTasks = content.match(/##\s*Task\s*\d+/gi) || [];
     const taskCount = xmlTasks.length || mdTasks.length;
 
-    const wave = parseInt(fm.wave, 10) || 1;
+    // Plano sem frontmatter: wave 1, autonomous true (fase 11 esta gravada assim)
+    let wave = 1;
+    if (fm.wave !== undefined && fm.wave !== null && fm.wave !== '') {
+      const parsed = parseInt(fm.wave, 10);
+      wave = Number.isFinite(parsed) ? parsed : 1;
+    }
 
     let autonomous = true;
     if (fm.autonomous !== undefined) {
@@ -2351,25 +2374,34 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
       filesModified = Array.isArray(fmFiles) ? fmFiles : [fmFiles];
     }
 
-    const hasSummary = completedPlanIds.has(planId);
-    if (!hasSummary) incomplete.push(planId);
+    if (!p.has_summary) incomplete.push(p.id);
 
-    plans.push({
-      id: planId,
+    plansOut.push({
+      id: p.id,
       wave,
       autonomous,
       objective: extractObjective(content) || fm.objective || null,
       files_modified: filesModified,
       task_count: taskCount,
-      has_summary: hasSummary,
+      has_summary: p.has_summary,
+      file: p.file,
+      summary_file: p.summary_file,
     });
 
     const waveKey = String(wave);
     if (!waves[waveKey]) waves[waveKey] = [];
-    waves[waveKey].push(planId);
+    waves[waveKey].push(p.id);
   }
 
-  output({ phase: normalized, plans, waves, incomplete, has_checkpoints: hasCheckpoints }, raw);
+  output({
+    phase: normalized,
+    plans: plansOut,
+    waves,
+    incomplete,
+    has_checkpoints: hasCheckpoints,
+    id_conflicts: inv.id_conflicts,
+    orphan_summaries: paired.orphan_summaries,
+  }, raw);
 }
 
 function cmdSummaryExtract(cwd, summaryPath, fields, raw) {
@@ -2599,13 +2631,13 @@ function cmdBudget(cwd, raw) {
       cwd,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
-      timeout: 30000, // 30s cap — fail open if jsonl scan is slow
+      timeout: 30000, // 30s cap - fail open if jsonl scan is slow
     });
     report = JSON.parse(out);
     spend = report.total_cost_usd ?? 0;
     agentCount = (report.agents ?? []).reduce((sum, a) => sum + (a.invocations || 0), 0);
   } catch (err) {
-    // instrumentation may fail on non-Claude Code runtimes or timeout — return zero spend
+    // instrumentation may fail on non-Claude Code runtimes or timeout - return zero spend
     spend = 0;
   }
 
@@ -2641,7 +2673,7 @@ function cmdBudget(cwd, raw) {
 }
 
 // =====================================================================
-// TIMEOUT COMMAND (Wave 3 — soft/idle/hard timeouts)
+// TIMEOUT COMMAND (Wave 3 - soft/idle/hard timeouts)
 // =====================================================================
 
 /**
@@ -2656,10 +2688,10 @@ function cmdBudget(cwd, raw) {
  *     idle_secs, idle_status }
  *
  * Status values:
- *   ok           — under all limits
- *   soft_warning — past soft, warn but continue
- *   idle_warning — idle for too long, may be stuck
- *   hard_abort   — past hard, abort immediately
+ *   ok           - under all limits
+ *   soft_warning - past soft, warn but continue
+ *   idle_warning - idle for too long, may be stuck
+ *   hard_abort   - past hard, abort immediately
  *
  * Defaults match gsd-2:
  *   soft=1200 (20m), hard=1800 (30m), idle=600 (10m)
@@ -2713,7 +2745,7 @@ function cmdTimeout(args, raw) {
 }
 
 // =====================================================================
-// STUCK CHECK COMMAND (Wave 3 — sliding window pattern detector)
+// STUCK CHECK COMMAND (Wave 3 - sliding window pattern detector)
 // =====================================================================
 
 /**
@@ -2790,7 +2822,7 @@ function cmdStuckCheck(cwd, args, raw) {
 }
 
 // =====================================================================
-// VALIDATE-PLAN COMMAND (Wave 6 — iron rule)
+// VALIDATE-PLAN COMMAND (Wave 6 - iron rule)
 // =====================================================================
 
 /**
@@ -2846,7 +2878,7 @@ function cmdValidatePlan(cwd, args, raw) {
   }
 
   // Task count
-  // Detect tasks via multiple shapes — <task> XML tags (preferred), or
+  // Detect tasks via multiple shapes - <task> XML tags (preferred), or
   // numbered/bulleted markdown headings/items at start of line.
   const taskMatches = (content.match(/<task\b/gi) || []).length;
   const numberedHeadings = (content.match(/^#{2,4}\s+(?:Task\s+)?\d+[.:)]?\s/gmi) || []).length;
@@ -2893,22 +2925,22 @@ function cmdValidatePlan(cwd, args, raw) {
     raw,
     pass
       ? `validate-plan: PASS (${(bytes/1024).toFixed(1)}kB, ${tasks} tasks)`
-      : `validate-plan: FAIL (${issues.length} issues) — ${issues.join(', ')}`
+      : `validate-plan: FAIL (${issues.length} issues) - ${issues.join(', ')}`
   );
 }
 
 // =====================================================================
-// SKILL-MANIFEST COMMAND (Wave 6 — per unit-type refs)
+// SKILL-MANIFEST COMMAND (Wave 6 - per unit-type refs)
 // =====================================================================
 
 const SKILL_MANIFEST = {
-  // Execution agents — fokus em principles + production reqs.
+  // Execution agents - fokus em principles + production reqs.
   // up-executor roteia frontend/backend/database por contexto (carrega
   // ui-brand + production-requirements sob demanda quando o dominio exige).
   'up-executor': ['engineering-principles-compressed', 'ui-brand', 'production-requirements-compressed'],
   'up-depurador': ['engineering-principles-compressed'],
 
-  // Planning agents — fokus em arquitetura + reqs
+  // Planning agents - fokus em arquitetura + reqs
   'up-planejador': ['engineering-principles-compressed'],
   'up-arquiteto': ['engineering-principles-compressed', 'production-requirements-compressed'],
   'up-roteirista': [],
@@ -2916,7 +2948,7 @@ const SKILL_MANIFEST = {
   'up-sintetizador': ['production-requirements-compressed'],
   'up-mapeador-codigo': [],
 
-  // Review & Testing — fokus em quality.
+  // Review & Testing - fokus em quality.
   // up-tester funde visual + exhaustive + api (multi-pass via Playwright).
   'up-verificador': ['production-requirements-compressed'],
   'up-revisor': ['engineering-principles-compressed', 'production-requirements-compressed'],
@@ -2961,7 +2993,7 @@ function cmdSkillManifest(args, raw) {
 }
 
 // =====================================================================
-// MULTICA COMMAND (Fase 5 — espelho de board OPT-IN)
+// MULTICA COMMAND (Fase 5 - espelho de board OPT-IN)
 // =====================================================================
 
 /**
@@ -3071,7 +3103,7 @@ function persistMulticaIssue(cwd, phase, multicaIssueId) {
 }
 
 // =====================================================================
-// CLASSIFY-TASK COMMAND (Wave 5 — complexity-based routing)
+// CLASSIFY-TASK COMMAND (Wave 5 - complexity-based routing)
 // =====================================================================
 
 /**
@@ -3180,7 +3212,7 @@ function classifyContent(content) {
   }
 
   // Task count (count <task> tags or numbered sections)
-  // Detect tasks via multiple shapes — <task> XML tags (preferred), or
+  // Detect tasks via multiple shapes - <task> XML tags (preferred), or
   // numbered/bulleted markdown headings/items at start of line.
   const taskMatches = (content.match(/<task\b/gi) || []).length;
   const numberedHeadings = (content.match(/^#{2,4}\s+(?:Task\s+)?\d+[.:)]?\s/gmi) || []).length;
@@ -3222,7 +3254,7 @@ function classifyContent(content) {
 }
 
 // =====================================================================
-// RESOLVE-MODEL-FOR-PLAN (Wave 5 — combined router)
+// RESOLVE-MODEL-FOR-PLAN (Wave 5 - combined router)
 // =====================================================================
 
 /**
@@ -3293,7 +3325,7 @@ function cmdResolveModelForPlan(cwd, args, raw) {
 }
 
 // =====================================================================
-// ROUTING-LOG (Wave 5 — append routing decision + outcome)
+// ROUTING-LOG (Wave 5 - append routing decision + outcome)
 // =====================================================================
 
 /**
@@ -3357,7 +3389,7 @@ function cmdRoutingLog(cwd, args, raw) {
       output({ updated: true, path: path.relative(cwd, logPath), line }, raw, line);
       return;
     }
-    // No match found — fall through to append
+    // No match found - fall through to append
   }
 
   fs.appendFileSync(logPath, line + '\n');
@@ -3365,7 +3397,7 @@ function cmdRoutingLog(cwd, args, raw) {
 }
 
 // =====================================================================
-// ANALYZE-ROUTING (Wave 5 — post-mortem of routing decisions)
+// ANALYZE-ROUTING (Wave 5 - post-mortem of routing decisions)
 // =====================================================================
 
 /**
@@ -3389,7 +3421,7 @@ function cmdAnalyzeRouting(cwd, raw) {
     return;
   }
 
-  // Dedupe by (plan, agent) — keep latest entry. Without this, --update vs
+  // Dedupe by (plan, agent) - keep latest entry. Without this, --update vs
   // append confusion or duplicate logs would inflate counts.
   const latestByKey = new Map();
   for (const line of lines) {
@@ -3421,25 +3453,25 @@ function cmdAnalyzeRouting(cwd, raw) {
     summary.push({ complexity, model, total: s.total, success_rate: Number(successRate), avg_rework_cycles: Number(avgRework), aborts: s.abort });
 
     if (Number(successRate) < 60 && s.total >= 3) {
-      suggestions.push(`${complexity}+${model}: success rate ${successRate}% (${s.total} runs) — consider bumping to bigger model`);
+      suggestions.push(`${complexity}+${model}: success rate ${successRate}% (${s.total} runs) - consider bumping to bigger model`);
     }
     if (Number(avgRework) >= 1.5 && s.total >= 3) {
-      suggestions.push(`${complexity}+${model}: avg ${avgRework} rework cycles — model may be undersized for this complexity`);
+      suggestions.push(`${complexity}+${model}: avg ${avgRework} rework cycles - model may be undersized for this complexity`);
     }
     if (s.abort > 0 && s.total >= 3 && (s.abort / s.total) > 0.2) {
-      suggestions.push(`${complexity}+${model}: ${s.abort}/${s.total} aborts — review timeout config or upgrade model`);
+      suggestions.push(`${complexity}+${model}: ${s.abort}/${s.total} aborts - review timeout config or upgrade model`);
     }
   }
 
   output(
     { entries: lines.length, summary, suggestions },
     raw,
-    `analyzed ${lines.length} entries — ${summary.length} buckets, ${suggestions.length} suggestions`
+    `analyzed ${lines.length} entries - ${summary.length} buckets, ${suggestions.length} suggestions`
   );
 }
 
 // =====================================================================
-// VERIFY-STATIC COMMAND (Wave 4 — deterministic verification ladder)
+// VERIFY-STATIC COMMAND (Wave 4 - deterministic verification ladder)
 // =====================================================================
 
 /**
@@ -3579,7 +3611,7 @@ function cmdVerifyStatic(cwd, args, raw) {
     }
   }
 
-  // Test — detect runner and pick the right non-interactive flag
+  // Test - detect runner and pick the right non-interactive flag
   if (flags.all || flags.test) {
     if (scripts.test) {
       // Read deps to detect vitest (default watch mode needs --run to exit)
@@ -3712,7 +3744,7 @@ function cmdVerifyStatic(cwd, args, raw) {
 }
 
 // =====================================================================
-// CONTEXT COMMAND (pre-inline helper — Wave 2)
+// CONTEXT COMMAND (pre-inline helper - Wave 2)
 // =====================================================================
 
 /**
@@ -3770,7 +3802,7 @@ function cmdContext(cwd, args, raw) {
       const buf = Buffer.alloc(maxBytes);
       fs.readSync(fd, buf, 0, maxBytes, 0);
       fs.closeSync(fd);
-      return buf.toString('utf-8') + `\n\n[TRUNCATED at ${maxBytes} bytes — full file at ${filePath}]\n`;
+      return buf.toString('utf-8') + `\n\n[TRUNCATED at ${maxBytes} bytes - full file at ${filePath}]\n`;
     } catch {
       return null;
     }
@@ -3845,7 +3877,7 @@ function cmdContext(cwd, args, raw) {
     }
   }
 
-  // Wave 6 — skill manifest: include only refs relevant to the agent's role
+  // Wave 6 - skill manifest: include only refs relevant to the agent's role
   if (flags.manifest) {
     const refs = SKILL_MANIFEST[flags.manifest] || [];
     const homeRefDir = path.join(require('os').homedir(), '.claude', 'up', 'references');
@@ -3876,7 +3908,7 @@ function cmdContext(cwd, args, raw) {
 }
 
 // =====================================================================
-// STATUS COMMAND (headless aggregator — no LLM needed)
+// STATUS COMMAND (headless aggregator - no LLM needed)
 // =====================================================================
 
 function cmdStatus(cwd, raw) {
@@ -3896,8 +3928,9 @@ function cmdStatus(cwd, raw) {
       const phaseNum = dm ? dm[1] : dir;
       const phaseName = dm && dm[2] ? dm[2].replace(/-/g, ' ') : '';
       const phaseFiles = fs.readdirSync(path.join(phasesDir, dir));
-      const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md').length;
-      const summaries = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md').length;
+      const invStatus = plansLib.inventoryPhase(phaseFiles, phaseNum);
+      const plans = invStatus.plans.length;
+      const summaries = invStatus.summaries.length;
       const verifications = phaseFiles.filter(f => f.endsWith('-VERIFICATION.md') || f === 'VERIFICATION.md').length;
       totalPlans += plans;
       totalSummaries += summaries;
@@ -4010,8 +4043,9 @@ function cmdProgress(cwd, format, raw) {
       const phaseNum = dm ? dm[1] : dir;
       const phaseName = dm && dm[2] ? dm[2].replace(/-/g, ' ') : '';
       const phaseFiles = fs.readdirSync(path.join(phasesDir, dir));
-      const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md').length;
-      const summaries = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md').length;
+      const invBar = plansLib.inventoryPhase(phaseFiles, phaseNum);
+      const plans = invBar.plans.length;
+      const summaries = invBar.summaries.length;
 
       totalPlans += plans;
       totalSummaries += summaries;

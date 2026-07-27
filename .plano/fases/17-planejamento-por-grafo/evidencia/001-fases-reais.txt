@@ -1,0 +1,251 @@
+{
+  "phase": "03",
+  "plans": [
+    {
+      "id": "001",
+      "wave": 0,
+      "autonomous": true,
+      "objective": null,
+      "files_modified": [],
+      "task_count": 2,
+      "has_summary": true,
+      "file": "001-PLAN.md",
+      "summary_file": "03-001-SUMMARY.md"
+    }
+  ],
+  "waves": {
+    "0": [
+      "001"
+    ]
+  },
+  "incomplete": [],
+  "has_checkpoints": false,
+  "id_conflicts": [],
+  "orphan_summaries": []
+}
+{
+  "phase": "09",
+  "plans": [
+    {
+      "id": "001",
+      "wave": 0,
+      "autonomous": true,
+      "objective": "`, `<execution_context>` com `@~/.claude/up/workflows/melhorias.md`, `<context>`, `<process>`",
+      "files_modified": [],
+      "task_count": 3,
+      "has_summary": true,
+      "file": "001-PLAN.md",
+      "summary_file": "001-SUMMARY.md"
+    },
+    {
+      "id": "002",
+      "wave": 1,
+      "autonomous": true,
+      "objective": "Analisar o codebase deste projeto para identificar gaps funcionais e oportunidades de features novas.",
+      "files_modified": [],
+      "task_count": 1,
+      "has_summary": true,
+      "file": "002-PLAN.md",
+      "summary_file": "09-002-SUMMARY.md"
+    }
+  ],
+  "waves": {
+    "0": [
+      "001"
+    ],
+    "1": [
+      "002"
+    ]
+  },
+  "incomplete": [],
+  "has_checkpoints": false,
+  "id_conflicts": [],
+  "orphan_summaries": []
+}
+{
+  "phase": "10",
+  "plans": [
+    {
+      "id": "001",
+      "wave": 0,
+      "autonomous": true,
+      "objective": null,
+      "files_modified": [],
+      "task_count": 2,
+      "has_summary": true,
+      "file": "001-PLAN.md",
+      "summary_file": "001-SUMMARY.md"
+    },
+    {
+      "id": "002",
+      "wave": 1,
+      "autonomous": true,
+      "objective": "`:",
+      "files_modified": [],
+      "task_count": 3,
+      "has_summary": true,
+      "file": "002-PLAN.md",
+      "summary_file": "002-SUMMARY.md"
+    }
+  ],
+  "waves": {
+    "0": [
+      "001"
+    ],
+    "1": [
+      "002"
+    ]
+  },
+  "incomplete": [],
+  "has_checkpoints": false,
+  "id_conflicts": [],
+  "orphan_summaries": []
+}
+{
+  "phase": "11",
+  "plans": [
+    {
+      "id": "001",
+      "wave": 1,
+      "autonomous": true,
+      "objective": null,
+      "files_modified": [],
+      "task_count": 0,
+      "has_summary": true,
+      "file": "PLAN-001.md",
+      "summary_file": "SUMMARY-001.md"
+    }
+  ],
+  "waves": {
+    "1": [
+      "001"
+    ]
+  },
+  "incomplete": [],
+  "has_checkpoints": false,
+  "id_conflicts": [],
+  "orphan_summaries": []
+}
+{
+  "phase": "17",
+  "plans": [
+    {
+      "id": "001",
+      "wave": 1,
+      "autonomous": true,
+      "objective": "Fazer o inventário de uma fase enxergar todo plano e todo resumo gravado em disco, qualquer que seja a convenção de nome em uso no repositório, e concentrar essa decisão num único lugar. Sem isso, a fronteira derivada do plano 002 nasce cega justamente para a fase mais recente do repositório.",
+      "files_modified": [
+        "up/bin/lib/plans.cjs",
+        "up/bin/lib/plans.test.cjs",
+        "up/bin/up-tools.cjs",
+        "up/workflows/build.md",
+        "up/workflows/plan.md",
+        ".plano/fases/17-planejamento-por-grafo/evidencia/001-red.txt",
+        ".plano/fases/17-planejamento-por-grafo/evidencia/001-green.txt"
+      ],
+      "task_count": 7,
+      "has_summary": false,
+      "file": "001-PLAN.md",
+      "summary_file": null
+    },
+    {
+      "id": "002",
+      "wave": 2,
+      "autonomous": true,
+      "objective": "Trocar a onda numerada por dependência declarada como verdade da ordem de execução. A fronteira, que é o conjunto de planos cujos bloqueadores estão todos prontos, passa a ser recalculada durante a execução. A onda continua existindo como visão de leitura.",
+      "files_modified": [
+        "up/bin/lib/plans.cjs",
+        "up/bin/lib/plans.test.cjs",
+        "up/bin/up-tools.cjs",
+        "up/workflows/build.md",
+        "up/agents/up-planejador.md",
+        ".plano/fases/17-planejamento-por-grafo/evidencia/002-red.txt",
+        ".plano/fases/17-planejamento-por-grafo/evidencia/002-green.txt"
+      ],
+      "task_count": 8,
+      "has_summary": false,
+      "file": "002-PLAN.md",
+      "summary_file": null
+    },
+    {
+      "id": "003",
+      "wave": 1,
+      "autonomous": true,
+      "objective": "Trocar adjetivo por número na decisão de quebrar uma fase em vários planos, e dar à verificação estática o poder de recusar regra de tamanho enunciada só por adjetivo. O modelo cumpre número e negocia adjetivo.",
+      "files_modified": [
+        "up/bin/lib/plan-checks.cjs",
+        "up/bin/lib/plan-checks.test.cjs",
+        "up/bin/up-tools.cjs",
+        "up/agents/up-planejador.md",
+        "up/workflows/plan.md",
+        ".plano/fases/17-planejamento-por-grafo/evidencia/003-red.txt",
+        ".plano/fases/17-planejamento-por-grafo/evidencia/003-green.txt"
+      ],
+      "task_count": 8,
+      "has_summary": false,
+      "file": "003-PLAN.md",
+      "summary_file": null
+    },
+    {
+      "id": "004",
+      "wave": 2,
+      "autonomous": true,
+      "objective": "Fazer o plano sobreviver ao tempo entre ser escrito e ser executado. Caminho de arquivo e trecho de código envelhecem rápido, e o plano pronto deste sistema é feito para ser escrito num runtime e executado noutro, com o código já mexido. No lugar deles entram interface, tipo e contrato de comportamento.",
+      "files_modified": [
+        "up/bin/lib/plan-checks.cjs",
+        "up/bin/lib/plan-checks.test.cjs",
+        "up/bin/up-tools.cjs",
+        "up/agents/up-planejador.md",
+        "up/templates/plan-ready.md",
+        ".plano/fases/17-planejamento-por-grafo/evidencia/004-red.txt",
+        ".plano/fases/17-planejamento-por-grafo/evidencia/004-green.txt"
+      ],
+      "task_count": 8,
+      "has_summary": false,
+      "file": "004-PLAN.md",
+      "summary_file": null
+    },
+    {
+      "id": "005",
+      "wave": 3,
+      "autonomous": true,
+      "objective": "Fechar a fase com prova de que nada regrediu e com a janela entre esta fase e a fase 14 fechada. A fase 14 escreve o verbete de onda na forma derivada, e esta fase confirma que o comportamento entregue é aquele.",
+      "files_modified": [
+        ".plano/ROADMAP.md",
+        ".plano/STATE.md",
+        ".plano/governance/approvals.log",
+        ".plano/fases/17-planejamento-por-grafo/evidencia/005-comandos.txt",
+        ".plano/fases/17-planejamento-por-grafo/evidencia/005-runtimes.txt",
+        ".plano/fases/17-planejamento-por-grafo/evidencia/005-projeto-antigo.txt",
+        ".plano/fases/17-planejamento-por-grafo/evidencia/005-suite.txt"
+      ],
+      "task_count": 7,
+      "has_summary": false,
+      "file": "005-PLAN.md",
+      "summary_file": null
+    }
+  ],
+  "waves": {
+    "1": [
+      "001",
+      "003"
+    ],
+    "2": [
+      "002",
+      "004"
+    ],
+    "3": [
+      "005"
+    ]
+  },
+  "incomplete": [
+    "001",
+    "002",
+    "003",
+    "004",
+    "005"
+  ],
+  "has_checkpoints": false,
+  "id_conflicts": [],
+  "orphan_summaries": []
+}

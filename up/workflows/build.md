@@ -1,8 +1,8 @@
 <purpose>
-Workflow `/up:build` — Execucao de projeto previamente planejado.
+Workflow `/up:build` - Execucao de projeto previamente planejado.
 
 Requer `.plano/PLAN-READY.md` (gerado por `/up:plan`). Conduz Build (loop por fase) + Quality Gate
-global + Delivery. Pode executar projeto planejado em outro runtime — confia no PLAN-READY.md.
+global + Delivery. Pode executar projeto planejado em outro runtime - confia no PLAN-READY.md.
 
 Este e o MOTOR UNICO de execucao do redesign v2. Absorveu executar-fase.md, executar-plano.md e a
 parte de execucao do modo-builder (builder.md, que foi deletado).
@@ -199,11 +199,43 @@ Opções: Seguir neste runtime | Abortar e executar no runtime planejado
 
 ### V.4 Validar Planos Listados
 
+A lista de planos e resolvida pela biblioteca de planos (via `phase-plan-index`), com a mesma
+canonicalizacao das demais superficies. Nao usar padrao de nome que so casa com uma convencao.
+Lista vazia com PLAN-READY presente e falha explicita ("nenhum plano resolvido"), nao sucesso silencioso.
+
 ```bash
-PLANS=$(grep -oE "fases/[0-9]+-[a-z-]+/[0-9]+-[0-9]+-PLAN.md" .plano/PLAN-READY.md)
-for plan in $PLANS; do
-  [ ! -f ".plano/$plan" ] && echo "FALTANDO: $plan" && FAIL=1
+# Extrair numeros de fase citados no PLAN-READY e resolver cada um pelo indice.
+PLANS_RESOLVED=0
+PHASE_NUMS=$(grep -oE 'fases/[0-9]+' .plano/PLAN-READY.md | grep -oE '[0-9]+' | sort -u)
+[ -z "$PHASE_NUMS" ] && PHASE_NUMS=$(grep -oE '(Fase|Phase)[[:space:]]+[0-9]+' .plano/PLAN-READY.md | grep -oE '[0-9]+' | sort -u)
+
+for phase_num in $PHASE_NUMS; do
+  IDX=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index "$phase_num" --raw 2>/dev/null || echo '{}')
+  if [[ "$IDX" == @file:* ]]; then IDX=$(cat "${IDX#@file:}"); fi
+  COUNT=$(echo "$IDX" | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{const o=JSON.parse(s);console.log((o.plans||[]).length)}catch{console.log(0)}}")
+  PLANS_RESOLVED=$((PLANS_RESOLVED + COUNT))
+  # Cada plano listado precisa existir em disco (campo file do indice)
+  echo "$IDX" | node -e "
+    let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{
+      const fs=require('fs'), path=require('path');
+      let o; try { o=JSON.parse(s); } catch { process.exit(0); }
+      if (o.error || !(o.plans||[]).length) process.exit(0);
+      const dirs=fs.readdirSync('.plano/fases');
+      const phaseDir=dirs.find(d => d===String(o.phase) || d.startsWith(o.phase+'-') || d.startsWith(String(o.phase).padStart(2,'0')));
+      if (!phaseDir) { console.error('FALTANDO: diretorio da fase '+o.phase); process.exit(2); }
+      for (const p of o.plans) {
+        const full=path.join('.plano/fases', phaseDir, p.file);
+        if (!fs.existsSync(full)) { console.error('FALTANDO: '+full); process.exit(2); }
+        console.log('OK plano resolvido: '+p.file);
+      }
+    });
+  " || FAIL=1
 done
+
+if [ "${PLANS_RESOLVED:-0}" -eq 0 ]; then
+  echo "FALHA: nenhum plano resolvido a partir do PLAN-READY.md (lista vazia nao e sucesso)."
+  FAIL=1
+fi
 ```
 
 ### V.5 Decidir
@@ -275,7 +307,7 @@ Opções: Iniciar | Mudar o modo antes de iniciar | Não iniciar agora
 Se houver pendência bloqueante em `.plano/PENDING.md`, a recomendação inverte para "Não iniciar agora" e a
 linha Porque nomeia a pendência. A recomendação é calculada, não fixa.
 
-## Estagio 3: BUILD (loop por fase — com GATE deterministico)
+## Estagio 3: BUILD (loop por fase - com GATE deterministico)
 
 **Inicializar governance** (ver `@~/.claude/up/workflows/governance.md`):
 ```bash
@@ -384,8 +416,9 @@ if [[ "$PLAN_INDEX" == @file:* ]]; then PLAN_INDEX=$(cat "${PLAN_INDEX#@file:}")
 ```
 
 Parsear de `$PLAN_INDEX`: a lista `plans[]` e o mapa `waves` (chave = numero da wave, valor = ids dos
-planos daquela wave). Ordenar as waves por numero CRESCENTE. Para resolver o arquivo de um plano a partir
-do id: `PLAN="$PHASE_DIR/${id}-PLAN.md"` (fallback `"$PHASE_DIR/PLAN.md"` se id vazio).
+planos daquela wave). Ordenar as waves por numero CRESCENTE. Para resolver o arquivo de um plano, usar
+o campo `file` devolvido pelo indice (nunca montar o nome a partir do id):
+`PLAN="$PHASE_DIR/${file}"` onde `file` vem de `plans[].file`.
 
 > Por que paralelizar dentro da wave e SEGURO: o agrupamento por wave ja garante que os planos da MESMA
 > wave sao INDEPENDENTES entre si (arquivos disjuntos, sem dependencia mutua). Qualquer plano que dependa
@@ -403,7 +436,7 @@ Iterar as waves em ordem crescente. Para CADA wave:
 2. **Para CADA plano selecionado da wave, montar contexto e detectar tipo (PRE-spawn, por plano):**
 
 ```bash
-# Roda UMA VEZ por plano da wave (PLAN = $PHASE_DIR/<id>-PLAN.md).
+# Roda UMA VEZ por plano da wave (PLAN = $PHASE_DIR/<file do indice>, nunca reconstruir o nome).
 EXECUTOR_AGENT="up-executor"   # SEMPRE up-executor (Onda 2: sem specialists separados)
 
 # 3.2 (por plano): tipo apenas informa o executor qual dominio carregar; o agente nao muda.
@@ -492,10 +525,14 @@ Agent(
 
 ```bash
 echo "=== GATE A: artefatos da wave ${wave} (Fase ${PHASE_NUMBER}) ==="
-# Espera-se 1 SUMMARY por plano nao-pulado da wave. Conferir cada id da wave:
+# Espera-se 1 SUMMARY por plano nao-pulado da wave. Usar has_summary do indice (nao montar nome).
 WAVE_MISSING=0
-for PLAN_ID in $WAVE_PLAN_IDS; do   # WAVE_PLAN_IDS = ids dos planos selecionados desta wave
-  [ -f "${PHASE_DIR}/${PLAN_ID}-SUMMARY.md" ] || { echo "GATE A: SUMMARY faltando para plano ${PLAN_ID}"; WAVE_MISSING=$((WAVE_MISSING+1)); }
+# Reconsultar o indice apos a rodada
+PLAN_INDEX=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index ${PHASE_NUMBER} --cwd "$WORKTREE" --raw)
+if [[ "$PLAN_INDEX" == @file:* ]]; then PLAN_INDEX=$(cat "${PLAN_INDEX#@file:}"); fi
+for PLAN_ID in $WAVE_PLAN_IDS; do
+  HAS=$(echo "$PLAN_INDEX" | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const o=JSON.parse(s);const p=(o.plans||[]).find(x=>x.id===process.argv[1]);console.log(p&&p.has_summary?'true':'false')})" "$PLAN_ID")
+  [ "$HAS" = "true" ] || { echo "GATE A: SUMMARY faltando para plano ${PLAN_ID}"; WAVE_MISSING=$((WAVE_MISSING+1)); }
 done
 [ "$WAVE_MISSING" -gt 0 ] && echo "GATE A FALHOU na wave ${wave}: ${WAVE_MISSING} SUMMARY(s) ausente(s). Re-executar o(s) plano(s) faltante(s)." && exit 1
 echo "GATE A OK (wave ${wave})"
@@ -521,7 +558,11 @@ existe), a recomendação vira "Re-planejar a fase" e a linha Porque cita o acha
 
 ```bash
 echo "=== GATE A consolidado (Fase ${PHASE_NUMBER}) ==="
-SUMMARY_COUNT=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
+# Contagem de resumos vem do indice (has_summary), nao de curinga de sufixo.
+PLAN_INDEX=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index ${PHASE_NUMBER} --cwd "$WORKTREE" --raw)
+if [[ "$PLAN_INDEX" == @file:* ]]; then PLAN_INDEX=$(cat "${PLAN_INDEX#@file:}"); fi
+SUMMARY_COUNT=$(echo "$PLAN_INDEX" | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const o=JSON.parse(s);console.log((o.plans||[]).filter(p=>p.has_summary).length)})")
+PLAN_COUNT=$(echo "$PLAN_INDEX" | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const o=JSON.parse(s);console.log((o.plans||[]).length)})")
 [ "$SUMMARY_COUNT" -lt "$PLAN_COUNT" ] && echo "GATE A FALHOU: ${SUMMARY_COUNT}/${PLAN_COUNT} SUMMARY(s). Re-executar plano(s) faltante(s)." && exit 1
 echo "GATE A OK: ${SUMMARY_COUNT}/${PLAN_COUNT} SUMMARY(s) (todas as waves)"
 ```
@@ -581,7 +622,7 @@ Opções: Parar e revisar comigo | Forçar mais um re-planejamento | Seguir com 
 </pergunta>
 
 ```python
-# Re-plan LOCAL — Agent SEPARADO (so up-planejador, sem camada de revisao intermediaria)
+# Re-plan LOCAL - Agent SEPARADO (so up-planejador, sem camada de revisao intermediaria)
 Agent(subagent_type="up-planejador", prompt=f"""
   RE-PLAN da Fase {phase_number}.
   Plano original: {PLAN}
@@ -698,10 +739,10 @@ Agent(
   prompt=f"""
     Revisar a Fase {phase_number} consolidada (two-stage).
 
-    STAGE 1 — spec-compliance cetico: assuma que "terminou rapido demais". Valide o comportamento
+    STAGE 1 - spec-compliance cetico: assuma que "terminou rapido demais". Valide o comportamento
     contra os REQUIREMENTS desta fase navegando/inspecionando o resultado real (nao confie no codigo
     nem no SUMMARY). Emita um Confidence Score (0-100) de delivery.
-    STAGE 2 — code-quality: padroes, edge cases, OWASP/security, wiring ponta a ponta.
+    STAGE 2 - code-quality: padroes, edge cases, OWASP/security, wiring ponta a ponta.
 
     <files_to_read>
     - {PHASE_DIR}/*-PLAN.md (TODOS os planos da fase)
