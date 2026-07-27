@@ -319,12 +319,200 @@ function evaluateGate(verdict, { expectEvidence, requireSeams } = {}) {
   return { pass: reasons.length === 0, reasons };
 }
 
+// --- Fronteiras de teste (plan-ready / PROVA-02, PROVA-03) ---
+
+// Lista fechada: tipos de fronteira aceitos.
+const SEAM_TIPOS = ['modulo', 'interface', 'comando', 'rota'];
+
+/**
+ * Heuristica fechada: o texto parece caminho de arquivo?
+ * Rota como POST /api/auth/login NAO casa nenhuma das tres, e isso e intencional.
+ */
+function pareceCaminho(texto) {
+  const s = String(texto || '');
+  // (a) prefixo de sistema de arquivos, relativo ou absoluto
+  if (/(^|\s)(\.{1,2}\/|\/(home|usr|etc|var|opt|tmp)\/)/.test(s)) return true;
+  // (b) caminho com extensao de arquivo fonte
+  if (/[\w-]+\/[\w./-]*\.(md|js|cjs|mjs|ts|tsx|jsx|py|json|ya?ml|toml|sh|css|html)\b/.test(s)) {
+    return true;
+  }
+  // (c) prefixos de diretorio de projeto
+  if (/^(src|lib|app|up|bin|tests|scripts|components|pages)\//.test(s)) return true;
+  return false;
+}
+
+/**
+ * Analisador dedicado do bloco seams: no frontmatter.
+ * O analisador generico do up-tools nao entende lista de mapeamentos.
+ * @returns {Array|null} null quando seams: ausente; array (possivelmente vazio) quando presente
+ */
+function parseSeamsBlock(frontmatterText) {
+  if (frontmatterText == null) return null;
+  const lines = String(frontmatterText).split(/\r?\n/);
+  let start = -1;
+  let baseIndent = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed === 'seams:') {
+      start = i;
+      const m = lines[i].match(/^(\s*)/);
+      baseIndent = m ? m[1].length : 0;
+      break;
+    }
+  }
+  if (start < 0) return null;
+
+  const items = [];
+  let current = null;
+
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim()) continue;
+    const indentMatch = line.match(/^(\s*)/);
+    const indent = indentMatch ? indentMatch[1].length : 0;
+    if (indent <= baseIndent) break;
+
+    const trimmed = line.trim();
+    if (trimmed.startsWith('- ')) {
+      current = {};
+      items.push(current);
+      const rest = trimmed.slice(2);
+      const km = rest.match(/^([a-z_]+):\s*(.*)$/);
+      if (km) {
+        let val = km[2].trim();
+        if (
+          (val.startsWith('"') && val.endsWith('"')) ||
+          (val.startsWith("'") && val.endsWith("'"))
+        ) {
+          val = val.slice(1, -1);
+        }
+        current[km[1]] = val;
+      }
+      continue;
+    }
+
+    const km = trimmed.match(/^([a-z_]+):\s*(.*)$/);
+    if (km && current) {
+      let val = km[2].trim();
+      if (
+        (val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))
+      ) {
+        val = val.slice(1, -1);
+      }
+      current[km[1]] = val;
+    }
+  }
+
+  return items;
+}
+
+/**
+ * Valida o campo de fronteiras no PLAN-READY.md.
+ * Legado (sem plan_schema ou schema < 2): achados viram warnings com sufixo _legacy, pass=true.
+ * plan_ready_missing e erro nos dois casos.
+ */
+function checkPlanReadySeams({ cwd, planPath } = {}) {
+  const root = cwd || process.cwd();
+  const rel = planPath || path.join('.plano', 'PLAN-READY.md');
+  const full = path.isAbsolute(rel) ? rel : path.join(root, rel);
+
+  const base = {
+    path: full,
+    exists: false,
+    pass: false,
+    errors: [],
+    warnings: [],
+    seams: [],
+    seam_count: 0,
+    schema: null,
+    legacy: true,
+  };
+
+  let text;
+  try {
+    text = fs.readFileSync(full, 'utf-8');
+  } catch {
+    base.errors = ['plan_ready_missing'];
+    return base;
+  }
+
+  base.exists = true;
+
+  const fmMatch = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  const fmText = fmMatch ? fmMatch[1] : '';
+
+  let schema = null;
+  const schemaM = fmText.match(/^plan_schema:\s*(\d+)/m);
+  if (schemaM) schema = Number(schemaM[1]);
+  base.schema = schema;
+  base.legacy = schema === null || schema < 2;
+
+  const findings = [];
+  const seams = parseSeamsBlock(fmText);
+  if (seams === null) {
+    findings.push('seams_field_missing');
+  } else if (seams.length === 0) {
+    findings.push('seams_field_empty');
+  } else {
+    base.seams = seams;
+    base.seam_count = seams.length;
+    for (const s of seams) {
+      if (!s.contrato || !String(s.contrato).trim()) {
+        findings.push('seam_sem_contrato');
+      } else if (pareceCaminho(s.contrato)) {
+        findings.push('seam_parece_caminho:' + s.contrato);
+      }
+      if (s.tipo && !SEAM_TIPOS.includes(String(s.tipo).toLowerCase())) {
+        findings.push('seam_tipo_invalido');
+      } else if (!s.tipo || !String(s.tipo).trim()) {
+        findings.push('seam_tipo_invalido');
+      }
+      const est = s.estado ? String(s.estado).toLowerCase() : '';
+      if (est !== 'existente' && est !== 'nova') {
+        findings.push('seam_estado_invalido');
+      }
+      if (!s.nivel || !String(s.nivel).trim()) {
+        findings.push('seam_sem_nivel');
+      }
+    }
+    if (seams.length > 1) {
+      const semJust = seams.some(
+        (s) => !s.justificativa || !String(s.justificativa).trim()
+      );
+      if (semJust) findings.push('seam_sem_justificativa');
+    }
+  }
+
+  if (base.legacy) {
+    base.errors = [];
+    base.warnings = findings.map((f) => {
+      if (f.startsWith('seam_parece_caminho:')) {
+        return 'seam_parece_caminho_legacy';
+      }
+      return f.endsWith('_legacy') ? f : f + '_legacy';
+    });
+    // Dedupe simple codes for test matching: keep original codes too in string
+    base.pass = true;
+  } else {
+    base.errors = findings;
+    base.warnings = [];
+    base.pass = findings.length === 0;
+  }
+
+  return base;
+}
+
 module.exports = {
   DECISION_WORDS,
   EVIDENCE_TYPE_ALIASES,
   PASS_RESULTS,
+  SEAM_TIPOS,
   parseApprovalLine,
   readApprovals,
   verdictForPhase,
   evaluateGate,
+  pareceCaminho,
+  parseSeamsBlock,
+  checkPlanReadySeams,
 };

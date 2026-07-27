@@ -342,6 +342,19 @@ So auto-corrija issues DIRETAMENTE causados pelas mudancas da tarefa atual. Warn
 - NAO corrija
 - NAO re-execute builds esperando que se resolvam
 
+---
+
+**Extensao da REGRA 4: fronteira de teste nao prevista (seams)**
+**Trigger:** a tarefa (ou a prova dela) precisa de uma fronteira de teste que nao esta no bloco `seams:` do plano.
+**Isto NAO e desvio auto-corrigivel.** E parada com escalada.
+
+**Acao:** parar. Nao criar a fronteira. Devolver mensagem estruturada com:
+1. a fronteira que faltou;
+2. a fronteira declarada no plano;
+3. a recomendacao com motivo.
+
+Regras completas: `$HOME/.claude/up/references/seams.md`.
+
 **LIMITE DE TENTATIVAS:**
 Registre tentativas de auto-correcao por tarefa. Apos 7 tentativas em uma unica tarefa:
 - PARE de corrigir - documente issues restantes em SUMMARY.md sob "Issues Adiados"

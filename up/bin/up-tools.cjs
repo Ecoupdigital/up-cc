@@ -24,6 +24,7 @@
  *   summary-extract <path> [--fields field1,field2]
  *   gate verdict --phase N | --scope planning [--expect-evidence <tipo>] [--require-seams] [--field <campo>]
  *   gate entries [--phase N]
+ *   gate plan-ready [--path <caminho>] [--field <campo>]
  */
 
 const fs = require('fs');
@@ -3969,8 +3970,8 @@ function cmdProgress(cwd, format, raw) {
  */
 function cmdGate(cwd, args, raw) {
   const sub = args[0];
-  if (!sub || (sub !== 'verdict' && sub !== 'entries')) {
-    error('Usage: gate verdict --phase N | gate entries');
+  if (!sub || (sub !== 'verdict' && sub !== 'entries' && sub !== 'plan-ready')) {
+    error('Usage: gate verdict --phase N | gate entries | gate plan-ready');
   }
 
   let phase = null;
@@ -3979,6 +3980,7 @@ function cmdGate(cwd, args, raw) {
   let expectEvidence = null;
   let requireSeams = false;
   let field = null;
+  let planPath = null;
 
   for (let i = 1; i < args.length; i++) {
     const a = args[i];
@@ -4010,6 +4012,12 @@ function cmdGate(cwd, args, raw) {
       expectEvidence = a.slice('--expect-evidence='.length);
     } else if (a === '--require-seams') {
       requireSeams = true;
+    } else if (a === '--path') {
+      const v = args[++i];
+      if (!v || v.startsWith('--')) error('Missing value for --path');
+      planPath = v;
+    } else if (a.startsWith('--path=')) {
+      planPath = a.slice('--path='.length);
     } else if (a === '--field') {
       const v = args[++i];
       if (!v || v.startsWith('--')) error('Missing value for --field');
@@ -4017,6 +4025,30 @@ function cmdGate(cwd, args, raw) {
     } else if (a.startsWith('--field=')) {
       field = a.slice('--field='.length);
     }
+  }
+
+  if (sub === 'plan-ready') {
+    const result = gate.checkPlanReadySeams({ cwd, planPath });
+    if (field) {
+      if (!(field in result)) error('Unknown field: ' + field);
+      const val = result[field];
+      const asString = Array.isArray(val)
+        ? val.join(',')
+        : typeof val === 'boolean'
+          ? (val ? 'true' : 'false')
+          : val == null
+            ? ''
+            : String(val);
+      output(result, true, asString);
+      return;
+    }
+    const resumo =
+      `gate plan-ready: pass=${result.pass}` +
+      ` schema=${result.schema == null ? 'null' : result.schema}` +
+      ` seams=${result.seam_count}` +
+      ` avisos=${(result.warnings || []).length}`;
+    output(result, raw, resumo);
+    return;
   }
 
   const read = gate.readApprovals({ cwd, logPath });

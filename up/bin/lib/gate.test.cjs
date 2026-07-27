@@ -210,4 +210,163 @@ t('ultima decisao vence', () => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// gate plan-ready (PROVA-02, PROVA-03) - fronteiras no plano pronto
+// ---------------------------------------------------------------------------
+
+function fm(body) {
+  return '---\n' + body + '\n---\n\n# PLAN-READY\n';
+}
+
+function withPlan(content) {
+  return mkTempProject({ '.plano/PLAN-READY.md': content });
+}
+
+const SEAM_OK = `  - contrato: "subcomando da CLI de ferramentas do UP"
+    tipo: comando
+    estado: existente
+    nivel: "superficie publica mais alta"
+    justificativa: ""`;
+
+t('legado passa e avisa', () => {
+  const dir = withPlan('# PLAN-READY\n\nSem frontmatter.\n');
+  try {
+    const r = runUpToolsJson(['gate', 'plan-ready'], dir);
+    assert.strictEqual(r.pass, true, 'legado deve passar; got=' + JSON.stringify(r));
+    assert.strictEqual(r.legacy, true);
+    assert.ok(Array.isArray(r.warnings) && r.warnings.some((w) => String(w).includes('seams_field_missing_legacy')),
+      'warnings deve ter seams_field_missing_legacy; got=' + JSON.stringify(r.warnings));
+    assert.ok(Array.isArray(r.errors) && r.errors.length === 0, 'errors vazio; got=' + JSON.stringify(r.errors));
+  } finally {
+    cleanup(dir);
+  }
+});
+
+t('esquema 2 sem fronteira bloqueia', () => {
+  const dir = withPlan(fm('plan_schema: 2\nproject_name: x\n'));
+  try {
+    const r = runUpToolsJson(['gate', 'plan-ready'], dir);
+    assert.strictEqual(r.pass, false);
+    assert.ok(r.errors && r.errors.some((e) => String(e).includes('seams_field_missing')),
+      'errors deve ter seams_field_missing; got=' + JSON.stringify(r.errors));
+  } finally {
+    cleanup(dir);
+  }
+});
+
+t('esquema 2 com uma fronteira passa', () => {
+  const dir = withPlan(fm('plan_schema: 2\nseams:\n' + SEAM_OK + '\n'));
+  try {
+    const r = runUpToolsJson(['gate', 'plan-ready'], dir);
+    assert.strictEqual(r.pass, true, 'deve passar; got=' + JSON.stringify(r));
+    assert.strictEqual(r.seam_count, 1);
+    assert.ok(Array.isArray(r.errors) && r.errors.length === 0);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+t('contrato que parece caminho de arquivo bloqueia', () => {
+  const dir = withPlan(fm(
+    'plan_schema: 2\nseams:\n' +
+    '  - contrato: "up/bin/lib/gate.cjs"\n' +
+    '    tipo: modulo\n' +
+    '    estado: existente\n' +
+    '    nivel: "arquivo"\n' +
+    '    justificativa: ""\n'
+  ));
+  try {
+    const r = runUpToolsJson(['gate', 'plan-ready'], dir);
+    assert.strictEqual(r.pass, false);
+    assert.ok(r.errors && r.errors.some((e) => String(e).includes('seam_parece_caminho')),
+      'errors deve ter seam_parece_caminho; got=' + JSON.stringify(r.errors));
+  } finally {
+    cleanup(dir);
+  }
+});
+
+t('rota nao e confundida com caminho', () => {
+  const dir = withPlan(fm(
+    'plan_schema: 2\nseams:\n' +
+    '  - contrato: "POST /api/auth/login"\n' +
+    '    tipo: rota\n' +
+    '    estado: existente\n' +
+    '    nivel: "rota de rede"\n' +
+    '    justificativa: ""\n'
+  ));
+  try {
+    const r = runUpToolsJson(['gate', 'plan-ready'], dir);
+    assert.strictEqual(r.pass, true, 'rota deve passar; got=' + JSON.stringify(r));
+    assert.ok(Array.isArray(r.errors) && r.errors.length === 0);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+t('duas fronteiras sem justificativa bloqueiam', () => {
+  const dir = withPlan(fm(
+    'plan_schema: 2\nseams:\n' +
+    SEAM_OK + '\n' +
+    '  - contrato: "outra fronteira publica"\n' +
+    '    tipo: interface\n' +
+    '    estado: nova\n' +
+    '    nivel: "contrato de tipo"\n' +
+    '    justificativa: ""\n'
+  ));
+  try {
+    const r = runUpToolsJson(['gate', 'plan-ready'], dir);
+    assert.strictEqual(r.pass, false);
+    assert.ok(r.errors && r.errors.some((e) => String(e).includes('seam_sem_justificativa')),
+      'errors deve ter seam_sem_justificativa; got=' + JSON.stringify(r.errors));
+  } finally {
+    cleanup(dir);
+  }
+});
+
+t('tipo fora da lista fechada bloqueia', () => {
+  const dir = withPlan(fm(
+    'plan_schema: 2\nseams:\n' +
+    '  - contrato: "algo"\n' +
+    '    tipo: arquivo\n' +
+    '    estado: existente\n' +
+    '    nivel: "x"\n' +
+    '    justificativa: ""\n'
+  ));
+  try {
+    const r = runUpToolsJson(['gate', 'plan-ready'], dir);
+    assert.strictEqual(r.pass, false);
+    assert.ok(r.errors && r.errors.some((e) => String(e).includes('seam_tipo_invalido')),
+      'errors deve ter seam_tipo_invalido; got=' + JSON.stringify(r.errors));
+  } finally {
+    cleanup(dir);
+  }
+});
+
+t('campo escalar plan-ready', () => {
+  const dir = withPlan('# PLAN-READY\n');
+  try {
+    const r = runUpTools(['gate', 'plan-ready', '--field', 'pass'], dir);
+    assert.ok(r.stdout.trim() === 'true' || r.stdout.trim() === 'false',
+      'deve imprimir true/false; got=' + JSON.stringify(r.stdout));
+    assert.ok(!r.stdout.includes('{'), 'sem JSON');
+  } finally {
+    cleanup(dir);
+  }
+});
+
+t('arquivo ausente nao explode', () => {
+  const dir = mkTempProject({});
+  try {
+    const raw = runUpTools(['gate', 'plan-ready'], dir);
+    assert.strictEqual(raw.exitCode, 0, 'exit 0; stderr=' + raw.stderr);
+    const r = runUpToolsJson(['gate', 'plan-ready'], dir);
+    assert.strictEqual(r.exists, false);
+    assert.strictEqual(r.pass, false);
+    assert.ok(r.errors && r.errors.some((e) => String(e).includes('plan_ready_missing')),
+      'errors deve ter plan_ready_missing; got=' + JSON.stringify(r.errors));
+  } finally {
+    cleanup(dir);
+  }
+});
+
 done();

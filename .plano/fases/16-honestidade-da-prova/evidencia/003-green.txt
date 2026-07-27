@@ -1,0 +1,23 @@
+  ok  - seletor: acha a fase 11 sem coluna de agente
+  ok  - posicao: veredito nao e evidencia
+  ok  - vocabulario: smoke:pass normaliza para glue
+  ok  - vocabulario: test:red-green normaliza para logic
+  ok  - forma canonica de seis colunas continua lida
+  ok  - fragmento sem veredito e ignorado
+  ok  - fase inexistente nao explode
+  ok  - escopo nao numerico
+  ok  - campo escalar
+  ok  - evidencia esperada casa e nao casa
+  ok  - log inexistente nao explode
+  ok  - ultima decisao vence
+  ok  - legado passa e avisa
+  ok  - esquema 2 sem fronteira bloqueia
+  ok  - esquema 2 com uma fronteira passa
+  ok  - contrato que parece caminho de arquivo bloqueia
+  ok  - rota nao e confundida com caminho
+  ok  - duas fronteiras sem justificativa bloqueiam
+  ok  - tipo fora da lista fechada bloqueia
+  ok  - campo escalar plan-ready
+  ok  - arquivo ausente nao explode
+
+21 passed, 0 failed

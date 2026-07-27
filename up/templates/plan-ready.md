@@ -11,6 +11,14 @@ Lido por `/up:build` como gate de entrada.
 ```yaml
 ---
 version: "0.6.0"
+plan_schema: 2         # marcador de esquema. 2 = ciclo com fronteiras confirmadas obrigatorias
+seams:                 # fronteiras confirmadas com o dono ANTES do planejamento
+  - contrato: ""       # nome do contrato publico. NUNCA caminho de arquivo
+    tipo: ""           # modulo | interface | comando | rota
+    estado: ""         # existente | nova
+    nivel: ""          # quao alto esta a fronteira, em uma frase
+    justificativa: ""  # obrigatoria quando ha mais de uma fronteira
+fora_de_escopo: []     # o que este plano deliberadamente NAO faz, uma linha por item
 planned_at: ""
 planned_by:
   runtime: ""           # claude-code | opencode | gemini-cli
@@ -58,6 +66,19 @@ salvo em `.plano/`.
 | 1 | [nome] | [N] | [M] | 0 | planejada |
 | 2 | [nome] | [N] | [M] | 1 | planejada |
 | 3 | [nome] | [N] | [M] | 1 | planejada |
+
+## Fronteiras Confirmadas
+
+| Contrato | Tipo | Estado | Nivel |
+|----------|------|--------|-------|
+| [contrato publico] | comando | existente | superficie publica mais alta |
+
+Confirmadas com o dono antes do planejamento. A execucao esta proibida de criar fronteira nao
+listada aqui: ao precisar de uma, escala. Regras em `seams.md`.
+
+## Fora de Escopo
+
+- [item]: [motivo em uma linha]
 
 ## Aprovacoes Obtidas
 
@@ -123,9 +144,12 @@ Ver `.plano/PENDING.md` para detalhes.
 
 1. Gate de entrada: arquivo deve existir
 2. Parse YAML frontmatter
-3. Para cada plano listado, verificar se arquivo existe no disco
-4. Se algum plano falta: alertar e oferecer planejamento local
-5. Se tudo OK: prosseguir com execucao
+3. Antes de executar, o build roda `gate plan-ready`, que bloqueia quando `plan_schema` e 2 ou
+   maior e o campo de fronteiras esta ausente, e apenas avisa quando o marcador de esquema esta
+   ausente (plano anterior ao ciclo)
+4. Para cada plano listado, verificar se arquivo existe no disco
+5. Se algum plano falta: alertar e oferecer planejamento local
+6. Se tudo OK: prosseguir com execucao
 
 ## Quando este arquivo e atualizado
 
