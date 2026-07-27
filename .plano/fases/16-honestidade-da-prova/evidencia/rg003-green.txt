@@ -1,0 +1,10 @@
+  ok  - tautologico e sinalizado
+  ok  - honesto nao gera achado
+  ok  - asserção que repete a implementacao e sinalizada
+  ok  - heuristica nao bloqueia
+  ok  - sem arquivo de teste, a checagem e pulada
+  ok  - achado citavel
+  ok  - log de achados gravado
+  ok  - summary conta arquivos com achado, nao varridos
+
+8 passed, 0 failed

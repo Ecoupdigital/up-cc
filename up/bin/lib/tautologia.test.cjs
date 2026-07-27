@@ -177,4 +177,49 @@ t('log de achados gravado', () => {
   }
 });
 
+// RG-003: summary conta arquivos COM achado, nao arquivos varridos.
+// Tres arquivos varridos, achados so no tautologico: "em 1 arquivo", nunca "em 3 arquivos".
+t('summary conta arquivos com achado, nao varridos', () => {
+  const dir = projectWithTests({
+    'testes/slug-tautologico.test.cjs': FIX_TAUT,
+    'testes/slug-honesto.test.cjs': FIX_HONESTO,
+    'testes/outro-honesto.test.cjs': FIX_HONESTO,
+  });
+  try {
+    const paths =
+      'testes/slug-tautologico.test.cjs,testes/slug-honesto.test.cjs,testes/outro-honesto.test.cjs';
+    const r = verifyTaut(dir, paths);
+    const check = (r.checks || []).find((c) => c.name === 'tautologia');
+    assert.ok(check, 'checagem existe');
+    assert.strictEqual(check.status, 'warn');
+    assert.ok(
+      (check.findings || []).length >= 1,
+      'precisa ter achados; got=' + JSON.stringify(check.findings)
+    );
+    // Campo explicito se existir
+    if (check.files_with_findings != null) {
+      assert.strictEqual(
+        check.files_with_findings,
+        1,
+        'files_with_findings deve ser 1; got=' + check.files_with_findings
+      );
+    }
+    // A frase ao revisor nao pode sugerir tres arquivos contaminados
+    assert.ok(
+      /em 1 arquivo\b/.test(check.summary),
+      'summary deve dizer "em 1 arquivo"; got=' + JSON.stringify(check.summary)
+    );
+    assert.ok(
+      !/em 3 arquivos/.test(check.summary),
+      'summary nao deve contar varridos como contaminados; got=' + JSON.stringify(check.summary)
+    );
+    assert.ok(
+      !/em 1 arquivos\b/.test(check.summary),
+      'singular: "1 arquivo", nao "1 arquivos"; got=' + JSON.stringify(check.summary)
+    );
+  } finally {
+    cleanup(dir);
+  }
+});
+
 done();

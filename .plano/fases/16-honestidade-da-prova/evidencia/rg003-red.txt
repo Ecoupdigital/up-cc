@@ -1,0 +1,11 @@
+  ok  - tautologico e sinalizado
+  ok  - honesto nao gera achado
+  ok  - asserção que repete a implementacao e sinalizada
+  ok  - heuristica nao bloqueia
+  ok  - sem arquivo de teste, a checagem e pulada
+  ok  - achado citavel
+  ok  - log de achados gravado
+  FAIL - summary conta arquivos com achado, nao varridos 
+      summary deve dizer "em 1 arquivo"; got="1 sinais de tautologia em 3 arquivos (sinaliza, nao bloqueia)"
+
+7 passed, 1 failed

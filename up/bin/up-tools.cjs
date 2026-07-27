@@ -3646,14 +3646,25 @@ function cmdVerifyStatic(cwd, args, raw) {
       });
     } else if (allFindings.length > 0) {
       const shown = allFindings.slice(0, 20);
+      // Conta arquivos DISTINTOS com achado (nao o total varrido). PROVA-08 / RG-003:
+      // a frase ao revisor nao pode sugerir contaminacao em arquivos limpos.
+      const filesWithFindings = new Set(
+        allFindings.map((f) => f.file).filter(Boolean)
+      ).size;
+      const nSinais = allFindings.length;
+      const nArqs = filesWithFindings;
+      const palavraSinal = nSinais === 1 ? 'sinal' : 'sinais';
+      const palavraArquivo = nArqs === 1 ? 'arquivo' : 'arquivos';
       checks.push({
         name: 'tautologia',
         status: 'warn',
         exit_code: null,
-        summary: `${allFindings.length} sinais de tautologia em ${scan.files_scanned} arquivos (sinaliza, nao bloqueia)`,
+        summary: `${nSinais} ${palavraSinal} de tautologia em ${nArqs} ${palavraArquivo} (sinaliza, nao bloqueia)`,
         output_path: path.relative(cwd, logPath),
         findings: shown,
         findings_total: allFindings.length,
+        files_with_findings: filesWithFindings,
+        files_scanned: scan.files_scanned,
       });
     } else {
       checks.push({
