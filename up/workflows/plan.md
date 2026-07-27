@@ -295,9 +295,8 @@ Agent(
 ```bash
 echo "=== GATE: planning ==="
 [ -f .plano/AUDIT-PLAN.md ] || { echo "FALHA: sem AUDIT-PLAN.md"; exit 1; }
-REVISOR_ENTRY=$(grep "planning.*up-revisor" .plano/governance/approvals.log 2>/dev/null | tail -1)
-[ -z "$REVISOR_ENTRY" ] && echo "FALHA: up-revisor NAO logou planning" && exit 1
-DECISION=$(echo "$REVISOR_ENTRY" | awk -F'|' '{gsub(/ /,"",$4); print $4}')
+DECISION=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --scope planning --field decision)
+[ -z "$DECISION" ] && echo "FALHA: up-revisor NAO logou planning" && exit 1
 ```
 
 **Processar:**
@@ -387,7 +386,7 @@ Sem stream ao vivo: o board reflete so status. O `/up:build --board` continua a 
 - [ ] up-sintetizador validou REQUIREMENTS (modo validacao, absorveu requirements-validator)
 - [ ] TODAS as fases planejadas com PLAN.md (self-check do planejador)
 - [ ] up-revisor fez a revisao consolidada do planejamento e LOGOU em approvals.log
-- [ ] GATE de planejamento deterministico passou (APPROVE ou forced approval)
+- [ ] GATE de planejamento deterministico passou via leitor unico (`gate verdict --scope planning`): APPROVE ou forced approval
 - [ ] AUDIT-PLAN.md gerado com Planning Confidence Score
 - [ ] PLAN-READY.md gerado e committado
 - [ ] `--board` (se passado, MODO PROJETO): 1 issue-filha Multica por fase criada batched (via `multica init --from-roadmap`), idempotente e fail-open

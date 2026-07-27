@@ -1,0 +1,358 @@
+=== varredura segunda implementacao ===
+--- grep up-revisor + grep/awk nos workflows ---
+(vazio)
+--- awk -F nos workflows ---
+(vazio)
+--- contagem gate verdict ---
+up/workflows/build.md:5
+up/workflows/governance.md:4
+up/workflows/plan.md:2
+
+=== node scripts/run-up-tests.cjs ===
+
+>>> up/bin/lib/gate.test.cjs
+  ok  - seletor: acha a fase 11 sem coluna de agente
+  ok  - posicao: veredito nao e evidencia
+  ok  - vocabulario: smoke:pass normaliza para glue
+  ok  - vocabulario: test:red-green normaliza para logic
+  ok  - forma canonica de seis colunas continua lida
+  ok  - fragmento sem veredito e ignorado
+  ok  - fase inexistente nao explode
+  ok  - escopo nao numerico
+  ok  - campo escalar
+  ok  - evidencia esperada casa e nao casa
+  ok  - log inexistente nao explode
+  ok  - ultima decisao vence
+
+12 passed, 0 failed
+
+>>> up/bin/lib/github.test.cjs
+  ok  - local: sem worktree/issue, branch atual
+  ok  - sem remote: worktree criado, git-local
+  ok  - remote sem gh: github-mcp pendente
+  ok  - solo nao desliga github (vira github-mcp, nao local)
+  ok  - recordIssue grava issue no git-map
+  ok  - issueTransport: local->none; sem remote->none
+  ok  - finish local: noop status done
+  ok  - finish auto sem remote: merge local
+  ok  - finish auto remote sem gh: sinaliza needs-mcp-pr
+  ok  - recordPr merged: grava pr, status merged, limpa worktree
+
+10 passed, 0 failed
+
+>>> up/bin/lib/memoria-decisao.test.cjs
+  ok  - proximo-numero: diretorio ausente devolve 1 e nao cria nada
+  ok  - proximo-numero: sequencia 1, 2 e 7 devolve 8 (buraco nao preenchido)
+  ok  - dois registros criados em sequencia recebem numeros distintos e crescentes
+  ok  - listar: diretorio ausente devolve lista vazia
+  ok  - gate: falta dificil-reverter falha e nao cria diretorio
+  ok  - gate: falta surpreendente falha e nao cria diretorio
+  ok  - gate: falta trade-off falha e nao cria diretorio
+  ok  - gate: justificativa com menos de tres palavras falha
+  ok  - gate: mensagem nomeia as duas condicoes quando faltam duas de uma vez
+  ok  - alternativas: sem nenhuma alternativa falha
+  ok  - alternativas: ocorrencia fora do formato falha citando a ocorrencia
+  ok  - status invalido na criacao (substituida) falha
+  ok  - criar: chamada completa cria arquivo com as cinco secoes e uma linha por alternativa
+  ok  - criar: campo de fase so aparece no frontmatter quando a flag foi passada
+  ok  - slug com travessia de diretorio nao escreve fora de .plano/decisoes
+  ok  - slug com travessia de diretorio e so pontos e barras cai no slug padrao
+  ok  - titulo com dois-pontos gera frontmatter valido e volta identico na leitura
+  ok  - titulo com quebra de linha seguida de "---" (payload que fechava o frontmatter cedo) e rejeitado sem tocar disco
+  ok  - titulo com quebra de linha falha e nao registra nada
+  ok  - fase com quebra de linha falha e nao registra nada
+  ok  - status: muda para proposta e depois para aceita
+  ok  - status: substituida sem substituidor falha
+  ok  - status: substituidor inexistente falha
+  ok  - status: substituidor valido grava status e substituida_por, preservando o corpo
+  ok  - status: registro inexistente falha citando o numero procurado
+  ok  - roteamento: submodulo desconhecido falha com codigo de saida 1
+  ok  - roteamento: submodulo instalado (glossario, tarefa 4 da fase) delega e erro de acao chega sem rastro de pilha
+  ok  - roteamento: memoria sem submodulo falha listando os quatro nomes
+  ok  - linha de comando: proximo-numero aprovado sai com codigo 0
+  ok  - linha de comando: criar reprovado (sem gate) sai com codigo 1
+  ok  - linha de comando: criar aprovado sai com codigo 0 e grava o arquivo
+(node:2989307) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  - corrida: 12 decisoes concorrentes de titulo distinto produzem 12 numeros unicos e 12 arquivos
+  ok  - corrida: 10 decisoes concorrentes do MESMO titulo produzem 10 numeros unicos, nenhum arquivo destruido
+
+33 passed, 0 failed
+
+>>> up/bin/lib/memoria-e2e.test.cjs
+
+=== Jornada 1 (criterio 3 do briefing): criacao preguicosa, gate e numeracao ===
+
+  ok  - estado inicial: glossario do projeto, decisoes e fora-de-escopo nao existem
+  ok  - consulta em base vazia: buscar rejeicao devolve vazio e nao cria nada
+  ok  - consulta em base vazia: listar termos devolve vazio e nao cria nada
+  ok  - decisao recusada: falta a justificativa de trade-off, nao cria o diretorio
+  ok  - decisao recusada: falta a condicao de dificil-reverter, nao cria o diretorio
+  ok  - decisao recusada: sem alternativa nenhuma, nao cria o diretorio
+  ok  - decisao aceita: criacao completa nasce com numero inicial e as duas alternativas
+  ok  - segunda decisao: numero seguinte, distinto e crescente
+  ok  - termo do projeto: glossario nasce agora, com a regra de admissao e a regra de higiene
+  ok  - aceite da jornada 1: exatamente duas decisoes e um termo no glossario do projeto
+
+=== Jornada 2 (criterio 4 do briefing): reproposta de conceito recusado ===
+
+  ok  - registro da recusa: base de rejeicoes nasce agora
+  ok  - reproposta: pedido com as palavras do conceito traz o achado, motivo, data e pergunta pronta
+  ok  - pedido diferente: uma unica palavra compartilhada com o conceito nao casa
+  ok  - porta fechada: motivo de item ja implementado e recusado e nao cria arquivo
+  ok  - porta fechada: motivo de adiamento e recusado e nao cria arquivo
+  ok  - aceite da jornada 2: a base de rejeicoes continua com exatamente um arquivo
+
+16 passed, 0 failed
+
+>>> up/bin/lib/memoria-glossario.test.cjs
+  ok  - lerTermos: fixture completa com nove verbetes devolve nove entradas com formas e evitar
+  ok  - lerTermos: verbete sem a linha de formas lanca excecao citando o termo
+  ok  - lerTermos: glossario interno real devolve nove verbetes com formas e evitar nao vazios
+  ok  - arquivosVarridos: raiz real devolve arquivos de markdown das seis pastas, sem o glossario
+  ok  - check: fixture com uma linha em cada uma das quatro formas conta quatro achados nomeados
+  ok  - check: mesma fixture citando o nome do glossario na linha conta zero
+  ok  - check: rotulo de campo com prosa curta (menos de oito palavras) nao conta
+  ok  - check: linha dentro de bloco de codigo nao conta, mesmo com as quatro formas presentes
+  ok  - check: linha de tabela que e o cabecalho da tabela nao conta, mesmo casando o termo
+  ok  - check: modo estrito com achado lanca excecao listando o achado
+  ok  - check: modo estrito sem achado nao lanca
+  ok  - check: --pastas restringe a varredura, ignorando arquivo de outra pasta
+  ok  - citacao: agente sem citar e agente citando devolve um faltando
+  ok  - citacao: os dois arquivos citando aprova com zero faltando
+  ok  - citacao: modo estrito com arquivo faltando lanca excecao
+  ok  - citacao: nao considera arquivo de comandos ou templates
+  ok  - roteamento: memoria glossario com acao desconhecida falha com mensagem legivel
+  ok  - linha de comando: check estrito contra fixture com achado sai com codigo diferente de zero
+  ok  - linha de comando: check estrito contra fixture sem achado sai com codigo zero e imprime o total
+
+19 passed, 0 failed
+
+>>> up/bin/lib/memoria-rejeicoes.test.cjs
+  ok  - normalizar: minusculas, sem acento, so letra/digito, espacos colapsados
+  ok  - tokensSignificativos: descarta palavra vazia e token curto, sem repeticao
+  ok  - listarRejeicoes: base ausente devolve lista vazia e nao cria diretorio
+  ok  - acao listar: base ausente devolve lista vazia, booleano falso, sem criar diretorio
+  ok  - acao buscar: base ausente devolve lista vazia sem erro e sem criar diretorio
+  ok  - listarRejeicoes: dois arquivos gravados a mao voltam com conceito, titulo, apelidos e motivo
+  ok  - registrar: motivo com marca de implementado falha e nao cria a base
+  ok  - registrar: motivo com marca de adiamento falha e nao cria a base
+  ok  - registrar: contracao "pra" da marca "deixar pra depois" falha igual a "deixar para depois"
+  ok  - registrar: forma "deixar para depois" continua barrada apos a normalizacao de contracao
+  ok  - registrar: "ja esta implementado" (flexao de "ja implementado") falha como item ja implementado
+  ok  - registrar: "ja foi implementado" falha como item ja implementado
+  ok  - registrar: "ja entregamos" falha como item ja implementado
+  ok  - registrar: "nao e prioridade" falha como adiamento
+  ok  - registrar: "postergar" falha como adiamento
+  ok  - escape hatch 1/5: "Caminho pela integracao nativa" e barrado sem --forcar (motivo estrutural, marca por coincidencia)
+  ok  - escape hatch 1/5: "Caminho pela integracao nativa" com --forcar e --justificativa e aceito e grava a justificativa
+  ok  - escape hatch 2/5: "Estado global proibido por arquitetura" e barrado sem --forcar (motivo estrutural, marca por coincidencia)
+  ok  - escape hatch 2/5: "Estado global proibido por arquitetura" com --forcar e --justificativa e aceito e grava a justificativa
+  ok  - escape hatch 3/5: "Seis anos sem o recurso" e barrado sem --forcar (motivo estrutural, marca por coincidencia)
+  ok  - escape hatch 3/5: "Seis anos sem o recurso" com --forcar e --justificativa e aceito e grava a justificativa
+  ok  - escape hatch 4/5: "Muda o publico alvo da empresa" e barrado sem --forcar (motivo estrutural, marca por coincidencia)
+  ok  - escape hatch 4/5: "Muda o publico alvo da empresa" com --forcar e --justificativa e aceito e grava a justificativa
+  ok  - escape hatch 5/5: "Valor suficiente pelo caminho atual" e barrado sem --forcar (motivo estrutural, marca por coincidencia)
+  ok  - escape hatch 5/5: "Valor suficiente pelo caminho atual" com --forcar e --justificativa e aceito e grava a justificativa
+  ok  - escape hatch: --forcar sem --justificativa continua falhando (nao vira bypass silencioso)
+  ok  - escape hatch: --forcar em motivo sem nenhuma marca nao exige --justificativa (nao muda o caminho feliz)
+  ok  - registrar: palavra solta "depois" em prosa legitima nao produz recusa falsa
+  ok  - registrar: motivo estrutural cria a base e o arquivo
+  ok  - registrar: mesmo conceito duas vezes falha na segunda
+  ok  - registrar: campos obrigatorios ausentes falham citando os campos
+  ok  - titulo com dois-pontos gera frontmatter valido e volta identico na leitura
+  ok  - alias com dois-pontos volta identico na leitura
+  ok  - titulo com quebra de linha seguida de "---" e rejeitado sem tocar disco
+  ok  - alias com quebra de linha e rejeitado sem tocar disco
+  ok  - alias: acrescentar dois apelidos grava os dois e preserva o corpo
+  ok  - alias: apelido repetido devolve zero acrescentados, sem erro
+  ok  - alias: conceito inexistente falha citando o conceito procurado
+  ok  - buscar: pedido que compartilha uma unica palavra com o conceito NAO casa
+  ok  - buscar: pedido que contem todos os tokens significativos do titulo casa
+  ok  - buscar: apelido de duas palavras casa em ordem trocada
+  ok  - buscar: forma contigua de apelido de uma palavra casa
+  ok  - buscar: resultado ordenado por pontuacao decrescente e cortado no limite
+  ok  - pergunta: traz as tres partes, semelhanca, motivo original e recomendacao com pergunta
+  ok  - pergunta: achado com gatilho de reabertura declarado traz o gatilho no texto
+  ok  - roteamento: memoria fora-de-escopo listar (base ausente) via CLI sai com codigo 0
+  ok  - linha de comando: registrar recusado (marca de implementado) sai com codigo 1
+  ok  - linha de comando: registrar aprovado sai com codigo 0 e grava o arquivo
+  ok  - linha de comando: registrar com marca por coincidencia mais --forcar e --justificativa sai com codigo 0
+  ok  - linha de comando: registrar com marca por coincidencia mais --forcar sem --justificativa sai com codigo 1
+(node:2989789) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  - corrida: 10 apelidos concorrentes no MESMO conceito produzem 10 apelidos gravados, nenhum perdido
+
+51 passed, 0 failed
+
+>>> up/bin/lib/memoria-termo.test.cjs
+  ok  - listar: arquivo ausente devolve lista vazia e nao cria nada
+  ok  - regras: arquivo ausente devolve o texto do template, sem criar nada
+  ok  - registrar: primeira gravacao cria o arquivo com o cabecalho completo
+  ok  - nenhuma gravacao recusada cria o arquivo (higiene, admissao e duplicidade)
+  ok  - higiene: definicao com caminho de arquivo falha
+  ok  - higiene: definicao com bloco de codigo falha
+  ok  - higiene: definicao limpa passa
+  ok  - admissao: termo da lista fechada falha sem --forcar
+  ok  - admissao: termo da lista fechada com --forcar sem --justificativa falha
+  ok  - admissao: termo da lista fechada com --forcar e --justificativa passa e grava a justificativa
+  ok  - conteudo: verbete tem a linha de definicao
+  ok  - conteudo: linha de evitar so aparece quando a flag foi passada
+  ok  - ordem: tres termos gravados fora de ordem ficam em ordem alfabetica
+  ok  - atualizacao: termo repetido sem --atualizar falha citando a definicao atual
+  ok  - atualizacao: termo repetido com --atualizar substitui a definicao e preserva os demais verbetes
+  ok  - template ausente: gravacao continua funcionando com cabecalho embutido e aviso no retorno
+  ok  - roteamento: memoria termo listar via binario real devolve lista vazia com codigo 0
+  ok  - linha de comando: registrar recusado (higiene) sai com codigo 1 e nao cria arquivo
+  ok  - linha de comando: registrar aprovado sai com codigo 0 e grava o arquivo
+(node:2989978) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  - corrida: 10 registros de termo concorrentes de nome distinto produzem 10 verbetes, cabecalho intacto
+
+20 passed, 0 failed
+
+>>> up/bin/lib/memoria.test.cjs
+[memoria] lock orfao roubado: "/tmp/up-mem-lock-CaBRIM/.orfao.lock" estava parado ha 10000ms, mais velho que o limite de orfandade. O dono original provavelmente morreu no meio da escrita.
+  ok  - comLockDiretorio: lock orfao (mtime mais velho que o limiar) e roubado e o trabalho conclui
+  ok  - comLockDiretorio: lock vivo (mtime recente) continua respeitado, nunca e roubado
+  ok  - comLockDiretorio: excecao dentro de fn() ainda libera o lock (comportamento pre-existente preservado)
+[memoria] lock orfao roubado: "/tmp/up-mem-lock-3f06EV/.orfao-duas-vezes.lock" estava parado ha 10000ms, mais velho que o limite de orfandade. O dono original provavelmente morreu no meio da escrita.
+[memoria] lock orfao roubado: "/tmp/up-mem-lock-3f06EV/.orfao-duas-vezes.lock" estava parado ha 10000ms, mais velho que o limite de orfandade. O dono original provavelmente morreu no meio da escrita.
+  ok  - comLockDiretorio: dois lock orfaos em sequencia (dois donos mortos) sao roubados um apos o outro
+  ok  - resolverCaminhoContido: caminho que escaparia do diretorio lanca excecao
+
+5 passed, 0 failed
+
+>>> up/bin/lib/perguntas.test.cjs
+vermelho: 9 erro(s) detectado(s) -> id_declarado_sem_tag, tag_sem_declaracao, rotulo_vazio, id_esperado_ausente, pontos_abaixo_do_piso, superficies_abaixo_do_piso
+perguntas: vermelho OK (4 defeitos detectados), verde OK (19 pontos verificados)
+(node:2990110) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+>>> up/hooks/up-session-start.test.cjs
+  ok  - clear com .plano: injeta bootstrap + estado
+  ok  - clear sem .plano: so bootstrap
+  ok  - startup com .plano: injeta estado
+  ok  - resume: nenhum output
+  ok  - STATE.md gigante: capado
+
+5 passed, 0 failed
+
+>>> up/tests/piso-grill.test.cjs
+  ok  - motor existe e tem as tres portas de saida
+  ok  - palavras de parada literais aparecem no motor
+  ok  - frases proibidas declaradas no motor
+  ok  - skill de brainstorm aponta para o motor
+  ok  - piso antigo extinto em todas as superficies vivas
+  ok  - propagacao: todas as superficies citam o grill
+  ok  - gate preservado na skill e citado pelo motor
+  ok  - sem travessao nos arquivos que nasceram limpos
+
+piso-grill: 8 passou, 0 falhou
+(node:2990160) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+up tests: 11 arquivos, 0 falharam
+exit=0
+
+=== npm test (esperado: Missing script pre-existente) ===
+npm error Missing script: "test"
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-07-27T02_16_02_385Z-debug-0.log
+
+=== instalacao 4 runtimes em HOME temp ===
+  [32m✓[0m Installed 4 skills
+  [32m✓[0m Installed 7 command-skills (Grok Build)
+  [32m✓[0m Wrote VERSION (2.2.0)
+  [32m✓[0m Wrote package.json (CommonJS mode)
+
+  [32mDone![0m Run [36m/up:up "sua ideia"[0m in Claude Code to get started.
+
+  Installing for [36mGemini[0m to [36m~/.gemini[0m
+
+  [32m✓[0m Installed up/ (119 files)
+  [32m✓[0m Installed 7 commands
+  [32m✓[0m Installed 12 agents
+  [32m✓[0m Brainstorm-first em GEMINI.md (bootstrap UP)
+  [32m✓[0m Wrote VERSION (2.2.0)
+  [32m✓[0m Wrote package.json (CommonJS mode)
+
+  [32mDone![0m Run [36m/up:up "sua ideia"[0m in Gemini to get started.
+
+  Installing for [36mOpenCode[0m to [36m/root/.orca-relay/opencode-overlays/3c8d28750efde2f805376a3afa6e82e1[0m
+
+  [32m✓[0m Installed up/ (119 files)
+  [32m✓[0m Installed 7 commands to command/
+  [32m✓[0m Installed 12 agents
+  [32m✓[0m Brainstorm-first em AGENTS.md (bootstrap UP)
+  [32m✓[0m Wrote VERSION (2.2.0)
+
+  [32mDone![0m Run [36m/up-up "sua ideia"[0m in OpenCode to get started.
+
+  Installing for [36mCodex CLI[0m to [36m~/.codex[0m
+
+  [32m✓[0m Installed up/ (119 files)
+  [32m✓[0m Installed 7 skills (commands)
+  [32m✓[0m Installed 12 agents
+  [32m✓[0m Configured config.toml ([agents] max_depth=4, max_threads=8)
+  [32m✓[0m Brainstorm-first em AGENTS.md (bootstrap UP)
+  [32m✓[0m Wrote VERSION (2.2.0)
+  [32m✓[0m Wrote package.json (CommonJS mode)
+
+  [32mDone![0m Run [36m$up-up "sua ideia"[0m in Codex CLI to get started.
+
+install exit=0
+comandos em HOME temp:
+AGENTS.md
+auditar.md
+auditar.toml
+audit.md
+audit-modernidade.md
+audit-performance.md
+audit-plan.md
+audit-report.md
+audit-ux.md
+booking.md
+builder-defaults.md
+build.md
+build.toml
+CHANGELOG.md
+checklist.md
+checkpoints.md
+community.md
+config.toml
+continue-here.md
+crm.md
+dashboard.md
+data-management.md
+dcrv.md
+delivery.md
+depurar.md
+depurar.toml
+design-tokens.md
+ecommerce.md
+engineering-principles-compressed.md
+engineering-principles.md
+GEMINI.md
+git-integration.md
+glossario-up.md
+glossary.md
+governance.md
+governance-rules-compressed.md
+governance-rules.md
+grill.md
+mapear-codigo.md
+marketplace.md
+auditar.md
+build.md
+depurar.md
+plan.md
+rapido.md
+testar.md
+up.md
+
+=== REG-03 log real fases 11 e 12 ===
+phase 11 decision=APPROVE
+phase 12 decision=APPROVE

@@ -714,28 +714,26 @@ Aplicar o gate de `@~/.claude/up/workflows/governance.md`:
 echo "=== GATE: Fase ${PHASE_NUMBER} ==="
 SUMMARY_OK=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
 VERIF_OK=$(ls ${PHASE_DIR}/*-VERIFICATION.md 2>/dev/null | wc -l)
-REVISOR_ENTRY=$(grep "phase-${PHASE_NUMBER}.*up-revisor" .plano/governance/approvals.log 2>/dev/null | tail -1)
+
+GATE_PASS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" --field pass)
+DECISION=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --field decision)
+GATE_REASONS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" --field reasons)
 
 PASS=true
 [ "$SUMMARY_OK" -eq 0 ] && echo "FALHA: sem SUMMARY.md" && PASS=false
 [ "$VERIF_OK" -eq 0 ] && echo "FALHA: sem VERIFICATION.md" && PASS=false
-[ -z "$REVISOR_ENTRY" ] && echo "FALHA: up-revisor NAO logou" && PASS=false
-
-# Fase 3 - TDD: a entry do revisor PRECISA ter o campo evidence=<tipo>:<resultado> do tipo certo.
-EVIDENCE_FIELD=$(echo "$REVISOR_ENTRY" | grep -oE 'evidence=(logic|ui|glue):(test_pass|visual|smoke)')
-if [ -z "$EVIDENCE_FIELD" ]; then
-  echo "FALHA: up-revisor logou sem campo evidence=<tipo>:<resultado>. Re-rodar revisor com prova fresca." && PASS=false
-elif [ -n "$EVIDENCE_TYPE" ] && ! echo "$EVIDENCE_FIELD" | grep -q "evidence=${EVIDENCE_TYPE}:"; then
-  echo "FALHA: evidence de tipo errado ($EVIDENCE_FIELD; esperado ${EVIDENCE_TYPE}). Re-rodar com prova certa." && PASS=false
-fi
-
-DECISION=$(echo "$REVISOR_ENTRY" | awk -F'|' '{gsub(/ /,"",$4); print $4}')
+[ "$GATE_PASS" != "true" ] && echo "FALHA no veredito: ${GATE_REASONS}" && PASS=false
 
 if [ "$PASS" = false ]; then
   echo "GATE FALHOU: spawnar o agente faltante e re-rodar."
   exit 1
 fi
 ```
+
+O leitor unico (`gate verdict`) localiza fase, veredito e evidencia por conteudo, funciona com ou
+sem a coluna do agente, aceita as notacoes `phase-N` e `fase=N`, aceita as gramaticas de evidencia
+ja gravadas em disco e ignora apenas linha sem palavra de veredito. O escritor da secao 3.7 nao
+muda: continua emitindo as seis colunas documentadas.
 
 **Processar o veredito:**
 - `APPROVE`: prosseguir para 3.8.
@@ -984,7 +982,7 @@ final_confidence: [do up-revisor de delivery]
 - [ ] Verificador produziu VERIFICATION.md por fase (GATE B); ladder estatica usada quando possivel
 - [ ] E2E + DCRV rodaram por fase (delegado a dcrv.md)
 - [ ] up-revisor emitiu veredito por fase e LOGOU em approvals.log COM campo evidence=<tipo>:<resultado>
-- [ ] GATE de fase deterministico passou (APPROVE + evidence do tipo certo, ou forced approval com debito)
+- [ ] GATE de fase deterministico passou via leitor unico (`gate verdict`): APPROVE + evidence do tipo certo, ou forced approval com debito
 - [ ] GitHub-nativo (default): worktree+branch+issue por fase via `github start-phase` (transporte gh OU
       MCP); menu 4 opcoes / `github finish-phase` no fim. `--solo`/`--auto` mantem GitHub (autonomia, nao
       desliga). `--local` degrada para commit na branch atual (sem worktree/issue/PR)

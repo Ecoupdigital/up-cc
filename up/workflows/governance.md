@@ -60,6 +60,12 @@ echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-${PHASE_NUMBER} | up-revisor | APPR
   >> .plano/governance/approvals.log
 ```
 
+### Leitura do historico
+
+- O escritor continua emitindo as seis colunas documentadas.
+- A leitura de historico e feita por um unico subcomando (`gate verdict` / `gate entries`), que localiza campo por conteudo.
+- Regra dura: ninguem le este arquivo com `grep` mais `awk` fora dele. Segunda implementacao e proibida, porque foi exatamente isso que produziu os tres pontos de quebra (seletor por agente, posicao de coluna e vocabulario fechado demais).
+
 ## 3. O GATE de fase (verificacao deterministica)
 
 Apos executor + verificador + revisor de uma fase, o orquestrador roda o gate. Ele NAO chama LLM:
@@ -71,25 +77,14 @@ echo "=== GATE: Fase ${PHASE_NUMBER} ==="
 SUMMARY_OK=$(ls "${PHASE_DIR}"/*-SUMMARY.md 2>/dev/null | wc -l)
 VERIF_OK=$(ls "${PHASE_DIR}"/*-VERIFICATION.md 2>/dev/null | wc -l)
 
-# Veredito do revisor logado para esta fase?
-REVISOR_ENTRY=$(grep "phase-${PHASE_NUMBER}.*up-revisor" .plano/governance/approvals.log 2>/dev/null | tail -1)
+GATE_PASS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" --field pass)
+DECISION=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --field decision)
+GATE_REASONS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" --field reasons)
 
 PASS=true
 [ "$SUMMARY_OK" -eq 0 ] && echo "FALHA: sem SUMMARY.md" && PASS=false
 [ "$VERIF_OK" -eq 0 ] && echo "FALHA: sem VERIFICATION.md" && PASS=false
-[ -z "$REVISOR_ENTRY" ] && echo "FALHA: up-revisor NAO logou veredito" && PASS=false
-
-# Fase 3 - TDD: a entry PRECISA carregar evidence=<tipo>:<resultado> do tipo certo.
-# $EVIDENCE_TYPE e derivado no build.md (3.7) do type do plano; se vazio, exige so a presenca do campo.
-EVIDENCE_FIELD=$(echo "$REVISOR_ENTRY" | grep -oE 'evidence=(logic|ui|glue):(test_pass|visual|smoke)')
-if [ -z "$EVIDENCE_FIELD" ]; then
-  echo "FALHA: up-revisor sem campo evidence=<tipo>:<resultado>" && PASS=false
-elif [ -n "$EVIDENCE_TYPE" ] && ! echo "$EVIDENCE_FIELD" | grep -q "evidence=${EVIDENCE_TYPE}:"; then
-  echo "FALHA: evidence de tipo errado ($EVIDENCE_FIELD; esperado ${EVIDENCE_TYPE})" && PASS=false
-fi
-
-# Se logou, qual foi a decisao?
-DECISION=$(echo "$REVISOR_ENTRY" | awk -F'|' '{gsub(/ /,"",$4); print $4}')
+[ "$GATE_PASS" != "true" ] && echo "FALHA no veredito: ${GATE_REASONS}" && PASS=false
 
 if [ "$PASS" = false ]; then
   echo "GATE FALHOU: spawnar o agente faltante (verificador ou up-revisor) e re-rodar o gate."
@@ -143,7 +138,8 @@ re-planejar a fase (via `/up:plan`) ou abandonar.
 <success_criteria>
 - [ ] .plano/governance/approvals.log inicializado
 - [ ] Gate verifica artefatos (SUMMARY + VERIFICATION) e o veredito do up-revisor
-- [ ] Gate nao avanca sem entry do up-revisor para a fase
+- [ ] O gate le o veredito pelo leitor unico, que localiza campo por conteudo
+- [ ] Gate nao avanca sem entry com veredito para a fase
 - [ ] Gate exige campo evidence=<tipo>:<resultado> do tipo certo na entry (Fase 3 - TDD); forced approval
       tambem carrega evidence
 - [ ] Cap de rework de 1 round respeitado; forced approval registra debito tecnico
