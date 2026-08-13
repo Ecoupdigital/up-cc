@@ -26,7 +26,7 @@ Absorve `/up:discutir-fase`, `/up:planejar-fase` e `/up:adicionar-fase`. **Detec
 Conduz (projeto):
 1. Intake (inline no orquestrador, sem CEO) — entrada = BRIEFING.md do brainstorm de `/up`
 2. Arquitetura completa (`up-arquiteto` faz pesquisa, roadmap e auto-checagem de requisitos num passe)
-3. Planejamento exaustivo de TODAS as fases (Sonnet-ready)
+3. Planejamento de TODAS as fases como contrato (objetivo, entregas, prova)
 4. GATE. `--review` spawna `up-revisor`; sem a flag, self-check do planejador basta
 5. Gera PLAN-READY.md (arquivo-flag pra `/up:build`)
 
@@ -68,7 +68,7 @@ Se NAO existir: rodar onboarding primeiro (workflow onboarding.md). Sem profile,
 
 **Sem model routing:** O runtime decide o modelo. NAO especificar `model=` em nenhum spawn.
 
-**Sonnet-ready obrigatorio:** Todos planos devem ser gerados em nivel maximo de detalhe.
+**Planos sao contrato:** objetivo, fora de escopo, o que cada fase entrega, a prova. Sem receita de codigo.
 
 **Passo 0 — Detectar projeto vs fase:**
 - Argumento e numero/decimal/sufixo-letra de fase -> rota FASE.

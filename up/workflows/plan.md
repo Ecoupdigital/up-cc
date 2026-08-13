@@ -34,7 +34,7 @@ MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config resolve-model {agent-nam
 ```
 Default fixo: Opus planeja, Sonnet executa. `default` -> nao passar model=.
 
-**Sonnet-ready obrigatorio** — todos os planos em nivel maximo de detalhe.
+**Planos sao contrato.** Objetivo, fora de escopo, entregas e prova. Sem receita de codigo.
 
 **SEPARACAO RIGIDA DE AGENTES:** cada passo e um `Agent()` SEPARADO. O enforcement e o GATE
 deterministico do `approvals.log` (ver `@~/.claude/up/workflows/governance.md`), nao supervisores.
@@ -229,7 +229,7 @@ Agent(
     Planejar Fase {phase_number}: {phase_name}.
 
     Modo: builder (autonomo, sem AskUserQuestion no MODO PROJETO; no MODO FASE pode coletar contexto).
-    Sonnet-ready: SEMPRE.
+    Plano = contrato: o que fica verdadeiro, o que fica de fora, a prova. Sem import, SQL ou caminho de arquivo.
 
     <files_to_read>
     TIER 1: .plano/STATE.md, .plano/fases/{phase_number}/PHASE.md,
@@ -240,7 +240,8 @@ Agent(
     </files_to_read>
 
     REQs da fase: {phase_req_ids}
-    Gerar 5-8 planos com nivel maximo de detalhe.
+    Gerar o menor numero de planos que separe o que e independente. Fase pequena = 1 plano.
+    Cada plano: 2-5 entregas de resultado, sem receita de implementacao.
 
     SELF-CHECK obrigatorio antes de retornar: confirme que cada tarefa e implementavel, que os REQs da
     fase estao 100% cobertos, e que dependencias/waves estao corretas. Corrija o que falhar.
@@ -309,8 +310,8 @@ Agent(
 
     STAGE 1 — spec-compliance cetico: os planos cobrem 100% dos REQUIREMENTS? Ha plano "rapido demais"
     que pula um REQ? Calcular Planning Confidence Score (0-100).
-    STAGE 2 — qualidade: coerencia cross-fase, dependencias/waves corretas, Sonnet-readiness (detalhe
-    suficiente pra executar sem ambiguidade), sem contradicao entre SYSTEM-DESIGN e planos.
+    STAGE 2 — qualidade: coerencia cross-fase, dependencias/waves corretas, plano como contrato
+    (objetivo e prova, sem receita de codigo), sem contradicao entre SYSTEM-DESIGN e planos.
 
     <files_to_read>
     - .plano/PROJECT.md, .plano/ROADMAP.md, .plano/REQUIREMENTS.md, .plano/SYSTEM-DESIGN.md

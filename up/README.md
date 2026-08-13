@@ -185,7 +185,7 @@ O UP usa 12 agentes especializados que rodam como subprocessos. Os antigos speci
 | Agente | Funcao | Caminho quente |
 |--------|--------|----------------|
 | **up-arquiteto** | Design, pesquisa inline, roadmap e auto-checagem de requisitos | `/up:plan` |
-| **up-planejador** | Planeja fases com self-check | `/up:plan` e replan no build |
+| **up-planejador** | Contrato da fase: objetivo, entregas, prova. Sem receita de codigo | `/up:plan` e replan no build |
 | **up-executor** | Executa planos com commits atomicos; roteia dominio por contexto | `/up:build`, `/up:rapido` |
 | **up-verificador** | Verificacao goal-backward e clone-fidelity | so `--review` ou clone |
 | **up-mapeador-codigo** | Analisa codebases existentes (e extrai design no modo clone) | brownfield / clone |

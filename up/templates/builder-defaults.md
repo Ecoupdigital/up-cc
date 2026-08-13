@@ -43,7 +43,7 @@ O usuario customiza uma vez e vale para todos os projetos criados com `/up:modo-
 - Em OpenCode: usa o modelo do opencode.json
 - Em Gemini CLI: usa o modelo do runtime
 
-Planos sao sempre gerados em nivel detalhado (Sonnet-ready) independente do modelo executor.
+Planos sao contrato (objetivo, entregas, prova), nao receita de implementacao.
 
 ## Nao usar
 - (liste aqui tecnologias que voce NAO quer em nenhum projeto)

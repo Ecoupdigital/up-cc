@@ -21,6 +21,9 @@ e [SemVer](https://semver.org/). v2.0.0 e um **major** (breaking change).
   `--review` no `/up:plan` devolve o revisor de planejamento; `--no-audit` vira o default.
 - **`/up:rapido` sem planejador e sem DCRV.** Executa na sessao (ou um executor), Lei de Ferro,
   commit na branch atual. ROADMAP nao e obrigatorio.
+- **Plano como contrato.** O planejador escreve objetivo, fora de escopo, o que a fase entrega e
+  a prova. Sai o modo ultra-detalhado (import, SQL, tipo, "implementar sem pensar"). Fase pequena
+  = 1 plano, 2-5 entregas. O executor le o codebase e decide o como.
 
 ### Removido do caminho quente
 

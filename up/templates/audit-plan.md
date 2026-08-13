@@ -54,9 +54,9 @@ Para cada fase em ROADMAP.md:
 - [ ] Existe pasta `.plano/fases/XX-nome/`
 - [ ] Existe pelo menos 1 PLAN.md
 - [ ] Cada PLAN.md tem frontmatter valido
-- [ ] Cada PLAN.md tem 5-8 tarefas
-- [ ] Cada PLAN.md tem must_haves
-- [ ] Cada PLAN.md passou no planning-supervisor (PLAN-REVIEW.md existe)
+- [ ] Cada PLAN.md tem 2-5 entregas de resultado (nao receita)
+- [ ] Cada PLAN.md tem must_haves e fora de escopo
+- [ ] Cada PLAN.md e contrato: objetivo e prova, sem import/SQL/caminho como receita
 
 ### Cobertura de Requisitos
 
@@ -67,16 +67,13 @@ Para cada fase em ROADMAP.md:
 
 **Cobertura:** {covered}/{total} ({%})
 
-### Sonnet-readiness
+### Contrato do plano
 
-Para cada PLAN.md, checar nivel de detalhe:
+Para cada PLAN.md, checar se e contrato e nao receita:
 
-| Plan | Imports | Tipos | Endpoints | SQL | Score |
-|------|---------|-------|-----------|-----|-------|
-| 01-01-PLAN.md | ✓ | ✓ | ✓ | N/A | 100% |
-| 01-02-PLAN.md | ✓ | ✓ | ✓ | ✓ | 100% |
-
-**Score medio Sonnet-ready:** {%}
+| Plan | Objetivo | Fora de escopo | Prova | Sem receita de codigo |
+|------|----------|----------------|-------|------------------------|
+| 01-01-PLAN.md | ✓ | ✓ | ✓ | ✓ |
 
 ### Dependency Graph
 
