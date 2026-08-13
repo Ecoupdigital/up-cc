@@ -248,54 +248,13 @@ Migrado de novo-projeto.md (4 pesquisadores) e do research-inline do builder.md.
 
 **Brownfield com mapa de codebase:** pular (stack/arquitetura ja conhecidas). Pesquisar so o que e NOVO.
 
-**Greenfield + dominio desconhecido (ou usuario pediu):** spawnar 4 `up-pesquisador` em PARALELO
-(modo dominio). Para tarefa trivial/pequena, pular a pesquisa.
+**Greenfield + dominio desconhecido (ou usuario pediu):** o orquestrador (ou o `up-arquiteto` no
+`/up:plan`) faz UM passe de pesquisa inline (web search) e escreve `.plano/pesquisa/SUMMARY.md`.
+Nao spawnar `up-pesquisador`. Nao spawnar `up-sintetizador`. Para tarefa trivial/pequena, pular
+a pesquisa.
 
 ```bash
 mkdir -p .plano/pesquisa
-```
-
-```
-# Os 4 Task na MESMA mensagem (paralelo). modo=dominio.
-Task(subagent_type="up-pesquisador", description="Pesquisa de Stack", prompt="
-<modo>dominio</modo>
-<dimensao>Stack</dimensao>
-<question>Qual a stack padrao atual para [dominio]?</question>
-<output>Write to: .plano/pesquisa/STACK.md</output>
-")
-Task(subagent_type="up-pesquisador", description="Pesquisa de Features", prompt="
-<modo>dominio</modo>
-<dimensao>Features</dimensao>
-<question>Quais features produtos de [dominio] tem? Obrigatorio vs diferenciador?</question>
-<output>Write to: .plano/pesquisa/FEATURES.md</output>
-")
-Task(subagent_type="up-pesquisador", description="Pesquisa de Arquitetura", prompt="
-<modo>dominio</modo>
-<dimensao>Arquitetura</dimensao>
-<question>Como sistemas de [dominio] sao estruturados? Componentes principais?</question>
-<output>Write to: .plano/pesquisa/ARCHITECTURE.md</output>
-")
-Task(subagent_type="up-pesquisador", description="Pesquisa de Armadilhas", prompt="
-<modo>dominio</modo>
-<dimensao>Armadilhas</dimensao>
-<question>O que projetos de [dominio] comumente erram? Erros criticos?</question>
-<output>Write to: .plano/pesquisa/PITFALLS.md</output>
-")
-```
-
-Apos os 4 retornarem, spawnar o sintetizador (modo research) para consolidar:
-
-```
-Task(subagent_type="up-sintetizador", description="Sintetizar pesquisa", prompt="
-<modo>research</modo>
-<files_to_read>
-- .plano/pesquisa/STACK.md
-- .plano/pesquisa/FEATURES.md
-- .plano/pesquisa/ARCHITECTURE.md
-- .plano/pesquisa/PITFALLS.md
-</files_to_read>
-<output>Write to: .plano/pesquisa/SUMMARY.md. Commit apos escrever.</output>
-")
 ```
 
 ### 2.5 Estruturar o projeto (BRIEFING + PROJECT + config)
@@ -476,7 +435,7 @@ Opções: manter como está | modo | granularidade | paralelização
 - [ ] Sem arg: STATE.md carregado (ou reconstruido), trabalho incompleto detectado, proxima acao clara
 - [ ] Com descricao: modo detectado, piso definido pela heuristica de prosa (nunca por classify-task), brainstorm escalado (0 em trivial, grill nos demais), e o pedido manual do dono tem precedencia sobre a classificacao automatica
 - [ ] Intake inline cobriu briefing + (design/credenciais/refs/restricoes na complex), SEM CEO
-- [ ] Greenfield: pesquisa inline com 4x up-pesquisador (modo dominio) + up-sintetizador (quando util)
+- [ ] Greenfield: pesquisa inline no orquestrador ou no arquiteto (um passe, sem 4 pesquisadores)
 - [ ] BRIEFING/PROJECT/config gerados e committados atomicamente
 - [ ] Persistencia injetada no CLAUDE.md do projeto
 - [ ] Clone: up-mapeador-codigo modo clone gerou CLONE-PRD; roteado pro /up:plan

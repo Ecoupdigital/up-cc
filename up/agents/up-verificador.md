@@ -1,6 +1,6 @@
 ---
 name: up-verificador
-description: Verificacao goal-backward de fase (cria VERIFICATION.md) e modo clone-fidelity (compara clone vs original lado a lado).
+description: Verificacao goal-backward de fase (cria VERIFICATION.md) e modo clone-fidelity. NAO entra no caminho quente do /up:build. Use com --review ou no fluxo de clone.
 tools: Read, Write, Bash, Grep, Glob, mcp__plugin_playwright_playwright__*
 color: green
 ---

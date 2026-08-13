@@ -101,9 +101,8 @@ Zero worktree, zero issue, zero PR, zero rede. `/up:rapido` (ou `--local` no bui
 /up "adiciona filtro por data no dashboard"
   -> heuristica de prosa: PEQUENA -> modo grill: perguntas ilimitadas, uma por vez, com resposta
      recomendada, ate palavra de parada, checkpoint a cada tres ou auto-convergencia declarada
-  -> BRIEFING.md curto, commitado
-  -> /up:plan gera PLAN-READY.md (1 plano = 1 agente)
-  -> /up:build (GitHub-nativo): worktree + issue, TDD por tipo, teste visual se tem UI
+  -> se for ajuste: implementa (Lei de Ferro). se for fase nova: /up:plan -> /up:build
+  -> /up:build (GitHub-nativo): worktree + issue, prova barata, teste visual se tem UI
   -> menu de fim de fase (merge local / abrir PR / deixa a branch / descarta)
 ```
 
@@ -183,20 +182,20 @@ Espelha o progresso das fases no board do [Multica](https://multica.ai) (issue t
 
 O UP usa 12 agentes especializados que rodam como subprocessos. Os antigos specialists (frontend/backend/database) fundiram no `up-executor`, que roteia dominio por contexto.
 
-| Agente | Funcao |
-|--------|--------|
-| **up-arquiteto** | Design upfront a partir do brainstorm |
-| **up-planejador** | Planeja fases com research inline e self-check |
-| **up-executor** | Executa planos com commits atomicos; roteia frontend/backend/database por contexto |
-| **up-verificador** | Verificacao goal-backward com evidencia fresca por tipo |
-| **up-mapeador-codigo** | Analisa codebases existentes (e extrai design/features no modo clone) |
-| **up-depurador** | Investigacao de bugs com metodo cientifico |
-| **up-pesquisador** | Pesquisa de dominio, tecnologia e mercado |
-| **up-revisor** | Review two-stage: spec-compliance cetico + qualidade de codigo |
-| **up-tester** | Roda o app via Playwright num spawn multi-pass: visual + exhaustive + API |
-| **up-auditor** | Auditoria de UX + performance + modernidade num passe |
-| **up-sintetizador** | Sintetiza research, melhorias, ideias e requisitos |
-| **up-roteirista** | Conteudo (roadmap, carrosseis, aulas) |
+| Agente | Funcao | Caminho quente |
+|--------|--------|----------------|
+| **up-arquiteto** | Design, pesquisa inline, roadmap e auto-checagem de requisitos | `/up:plan` |
+| **up-planejador** | Planeja fases com self-check | `/up:plan` e replan no build |
+| **up-executor** | Executa planos com commits atomicos; roteia dominio por contexto | `/up:build`, `/up:rapido` |
+| **up-verificador** | Verificacao goal-backward e clone-fidelity | so `--review` ou clone |
+| **up-mapeador-codigo** | Analisa codebases existentes (e extrai design no modo clone) | brownfield / clone |
+| **up-depurador** | Investigacao de bugs com metodo cientifico | `/up:depurar` |
+| **up-pesquisador** | Pesquisa isolada de dominio e mercado | fora do pipeline |
+| **up-revisor** | Review two-stage (spec + qualidade) | so `--review` |
+| **up-tester** | Playwright em 3 passes (visual, exhaustive, API) | `/up:testar` ou `--testar` |
+| **up-auditor** | Auditoria UX + performance + modernidade + RELATORIO.md | `/up:auditar` |
+| **up-sintetizador** | Consolidacao isolada | fora do pipeline |
+| **up-roteirista** | Roadmap isolado | fora do pipeline (arquiteto absorveu) |
 
 ## Hooks
 

@@ -6,6 +6,35 @@ e [SemVer](https://semver.org/). v2.0.0 e um **major** (breaking change).
 
 ## Nao lancado
 
+> O caminho quente ficou lento: hard-gate em todo ajuste, `/up:rapido` ainda spawna planejador e
+> DCRV, e o build empilha verificador + tester + revisor depois do codigo pronto. Grill e
+> GitHub-nativo ficam. O resto do caminho quente enxuga.
+
+### Adicionado
+
+- **Hard-gate so em projeto ou fase nova.** Ajuste e bug passam pelo grill (o piso nao muda) e
+  depois implementam. Sem `/up:plan` obrigatorio. A palavra de parada continua encerrando as
+  perguntas a qualquer momento.
+- **Flags `--review` e `--testar` no `/up:build`.** Default nao spawna DCRV nem revisor
+  two-stage. O orquestrador grava `evidence=` a partir da prova barata (`verify-static` ou a
+  prova do executor). `--review` devolve verificador + revisor. `--testar` devolve o laco DCRV.
+  `--review` no `/up:plan` devolve o revisor de planejamento; `--no-audit` vira o default.
+- **`/up:rapido` sem planejador e sem DCRV.** Executa na sessao (ou um executor), Lei de Ferro,
+  commit na branch atual. ROADMAP nao e obrigatorio.
+
+### Removido do caminho quente
+
+- Spawn de `up-pesquisador`, `up-roteirista` e `up-sintetizador` em `/up:plan`, `/up` e
+  `/up:auditar`. O arquiteto absorve pesquisa, roteiro e auto-checagem. O auditor escreve o
+  RELATORIO.md. Os tres agentes continuam no pacote para uso isolado, fora do pipeline.
+
+### Mantido
+
+- Grill como piso automatico fora de Trivial, com palavra de parada.
+- GitHub-nativo como default do `/up:build` (worktree, issue, PR, menu).
+
+---
+
 > O piso de perguntas era raso: tarefa pequena passava com uma unica pergunta fixa, e nao havia
 > como o dono dizer "chega" sem o agente confirmar antes de fechar. Agora perguntar de menos deixa
 > de ser o default.
@@ -30,11 +59,10 @@ e [SemVer](https://semver.org/). v2.0.0 e um **major** (breaking change).
   turno em que caem (glossario do projeto e registro de decisao), nunca acumulados pra gravar em
   lote no fim da conversa.
 
-### Mantido
+### Mantido (ciclo grill)
 
-- O gate de aprovacao do design continua exigido integralmente: encerrar as perguntas nao aprova o
-  design, e o estado terminal (projeto ou feature aprovado vai pro `/up:plan`, nunca direto pra
-  codigo) nao muda.
+- O grill continua como piso. Encerrar as perguntas nao apaga a trilha: projeto ou fase nova
+  ainda vai para `/up:plan`; ajuste ou bug implementa depois da destilacao.
 
 ## 2.3.0
 

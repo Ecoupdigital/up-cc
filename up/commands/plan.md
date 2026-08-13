@@ -25,9 +25,9 @@ Absorve `/up:discutir-fase`, `/up:planejar-fase` e `/up:adicionar-fase`. **Detec
 
 Conduz (projeto):
 1. Intake (inline no orquestrador, sem CEO) — entrada = BRIEFING.md do brainstorm de `/up`
-2. Arquitetura completa (`up-pesquisador` -> `up-arquiteto` que absorveu o system-designer -> `up-sintetizador` valida requisitos)
+2. Arquitetura completa (`up-arquiteto` faz pesquisa, roadmap e auto-checagem de requisitos num passe)
 3. Planejamento exaustivo de TODAS as fases (Sonnet-ready)
-4. GATE + `up-revisor` (Confidence Score de planejamento)
+4. GATE. `--review` spawna `up-revisor`; sem a flag, self-check do planejador basta
 5. Gera PLAN-READY.md (arquivo-flag pra `/up:build`)
 
 **Caso de uso principal:** planejar em Claude Code (modelo capaz pra arquitetura) e executar em OpenCode/Gemini (mais barato pra rodar volume).
@@ -46,7 +46,8 @@ $ARGUMENTS
 **Flags:**
 - `--execution-runtime=<runtime>` — Informa qual runtime sera usado pra executar.
   Valores: same | claude-code | opencode | gemini-cli | any. Default: same.
-- `--no-audit` — Pula o review de planejamento (nao recomendado em producao).
+- `--no-audit` — Pula o review de planejamento (agora e o default; flag mantida por compatibilidade).
+- `--review` — Opt-in. Roda o `up-revisor` no planejamento.
 - `--gaps` — Modo fechamento de gaps de uma fase (le VERIFICATION.md, pula research). Absorve `planejar-fase --gaps`.
 
 O restante e o briefing/descricao em texto livre, ou um numero de fase.
@@ -79,9 +80,9 @@ Se NAO existir: rodar onboarding primeiro (workflow onboarding.md). Sem profile,
 
 Estagios (PROJETO):
 1. Intake inline (orquestrador le BRIEFING.md OU pergunta) — interativo
-2. Arquitetura: greenfield (up-pesquisador -> up-arquiteto -> up-sintetizador valida reqs) | brownfield (mapear -> up-arquiteto -> up-sintetizador)
+2. Arquitetura: `up-arquiteto` (pesquisa inline + roadmap + auto-checagem). Sem pesquisador, roteirista ou sintetizador
 3. Planejamento exaustivo (TODAS as fases, self-check do planejador)
-4. GATE + up-revisor (Confidence Score de planejamento; salvo no template audit-plan.md)
+4. GATE. `--review` spawna up-revisor; default e self-check
 5. PLAN-READY.md gerado
 6. Orquestrador apresenta o resumo direto (sem CEO)
 
@@ -99,7 +100,7 @@ Estagios (FASE):
 - [ ] Owner profile garantido
 - [ ] Projeto vs fase detectado automaticamente
 - [ ] Sem ceo-intake: intake inline no orquestrador
-- [ ] PROJETO: pesquisa + arquiteto (absorve system-designer) + sintetizador valida reqs + revisor
+- [ ] PROJETO: arquiteto (pesquisa + roadmap + auto-checagem) + planejador; revisor so com `--review`
 - [ ] FASE: contexto (ex-discutir) + research inline + planos + self-check
 - [ ] PLAN-READY.md (projeto) ou PLAN-NNN.md (fase) gerados, nada executado
 </success_criteria>

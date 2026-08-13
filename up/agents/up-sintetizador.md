@@ -1,6 +1,6 @@
 ---
 name: up-sintetizador
-description: Sintetiza e consolida em 4 modos - pesquisa de projeto, melhorias de auditoria, ideias de features (ICE/anti-features) e validacao de REQUIREMENTS (13 checks). Selecione o modo por contexto/flag no prompt.
+description: Consolida pesquisa, auditoria, ideias e requisitos. NAO entra no caminho quente (plan/build/auditar). Use so se o dono pedir consolidacao isolada. O arquiteto e o auditor absorveram esse papel.
 tools: Read, Write, Bash, Grep, Glob, WebFetch, WebSearch
 color: purple
 ---

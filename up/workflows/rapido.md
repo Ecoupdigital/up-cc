@@ -1,5 +1,9 @@
 <purpose>
-Executar tarefas pequenas e ad-hoc com garantias UP (commits atomicos, rastreamento STATE.md). Modo rapido spawna up-planejador (modo rapido) + up-executor(s), rastreia tarefas em `.plano/rapido/`, e atualiza tabela "Tarefas Rapidas Completadas" do STATE.md.
+Executar tarefas pequenas e ad-hoc com garantias UP (commits atomicos, rastreamento STATE.md).
+O orquestrador executa na propria sessao (ou spawna um `up-executor` se a tarefa passar de um
+arquivo). Sem planejador. Sem DCRV. Lei de Ferro na mesma sessao: evidencia fresca antes de
+afirmar pronto. Rastreia em `.plano/rapido/` e atualiza a tabela "Tarefas Rapidas Completadas"
+do STATE.md quando `.plano/` existir.
 
 **ESCAPE HATCH PURO (sem cerimonia GitHub).** Diferente de `/up:build` (GitHub-nativo por DEFAULT:
 worktree -> branch `up/fase-NN` -> issue -> PR -> menu), o modo rapido NUNCA cria worktree, NUNCA cria
@@ -48,7 +52,8 @@ if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 
 Parse JSON: `commit_docs`, `next_num`, `slug`, `date`, `timestamp`, `quick_dir`, `task_dir`, `roadmap_exists`, `planning_exists`.
 
-**Se `roadmap_exists` = false:** Erro -- Modo rapido requer projeto ativo com ROADMAP.md. Execute `/up:novo-projeto` primeiro.
+ROADMAP.md NAO e obrigatorio. Se `.plano/` nao existe, criar so o necessario para rastrear a
+tarefa (`.plano/rapido/` e um STATE.md minimo). Sem roadmap, sem fase, sem PLAN-READY.
 
 ---
 
@@ -67,103 +72,18 @@ Diretorio: ${QUICK_DIR}
 
 ---
 
-**Passo 4: Spawn planejador (modo rapido)**
+**Passo 4: Executar (orquestrador na sessao, sem planejador)**
 
-```
-Task(
-  prompt="
-<planning_context>
+Nao spawne `up-planejador`. Nao escreva PLAN.md obrigatorio. Nao rode DCRV.
 
-**Modo:** quick
-**Diretorio:** ${QUICK_DIR}
-**Descricao:** ${DESCRIPTION}
-
-<files_to_read>
-- .plano/STATE.md (Estado do Projeto)
-- ./CLAUDE.md (se existir -- seguir diretrizes do projeto)
-</files_to_read>
-
-</planning_context>
-
-<constraints>
-- Criar UM UNICO plano com 1-3 tarefas focadas
-- Tarefas rapidas devem ser atomicas e autocontidas
-- Sem fase de pesquisa
-- Alvo ~10% uso de contexto (simples, focado)
-</constraints>
-
-<output>
-Escrever plano em: ${QUICK_DIR}/${next_num}-PLAN.md
-Retornar: ## PLANNING COMPLETE com caminho do plano
-</output>
-",
-  subagent_type="up-planejador",
-  description="Plano rapido: ${DESCRIPTION}"
-)
-```
-
-Apos planejador retornar:
-1. Verificar plano existe em `${QUICK_DIR}/${next_num}-PLAN.md`
-2. Reportar: "Plano criado: ${QUICK_DIR}/${next_num}-PLAN.md"
-
----
-
-**Passo 5: Spawn executor**
-
-```
-Task(
-  prompt="
-Executar tarefa rapida ${next_num}.
-
-<files_to_read>
-- ${QUICK_DIR}/${next_num}-PLAN.md (Plano)
-- .plano/STATE.md (Estado do projeto)
-- ./CLAUDE.md (Instrucoes do projeto, se existir)
-</files_to_read>
-
-<constraints>
-- Executar todas tarefas do plano
-- Commitar cada tarefa atomicamente
-- Criar summary em: ${QUICK_DIR}/${next_num}-SUMMARY.md
-- NAO atualizar ROADMAP.md (tarefas rapidas sao separadas de fases planejadas)
-</constraints>
-",
-  subagent_type="up-executor",
-  description="Executar: ${DESCRIPTION}"
-)
-```
-
-Apos executor retornar:
-1. Verificar summary existe em `${QUICK_DIR}/${next_num}-SUMMARY.md`
-2. Se summary nao encontrado, erro: "Executor falhou ao criar ${next_num}-SUMMARY.md"
-
----
-
-**Passo 5.5: DCRV Light (se criou UI ou API)**
-
-Detectar se tarefa criou/modificou UI ou API:
-```bash
-# Checar SUMMARY por arquivos de UI/API
-UI_MATCH=$(grep -c "page.tsx\|component\|\.css\|\.tsx" "${QUICK_DIR}/${next_num}-SUMMARY.md" 2>/dev/null)
-API_MATCH=$(grep -c "route.ts\|api/\|endpoint\|handler" "${QUICK_DIR}/${next_num}-SUMMARY.md" 2>/dev/null)
-```
-
-**Se UI_MATCH > 0 ou API_MATCH > 0:**
-
-Rodar DCRV light (1 ciclo, apenas relatorio + correcao rapida):
-
-```
-Referencia: @~/.claude/up/workflows/dcrv.md
-SCOPE=light, MAX_CYCLES=1, MAX_ISSUES_PER_CYCLE=10, AUTO_FIX=true
-DCRV_DIR=${QUICK_DIR}/dcrv
-```
-
-Reportar resultado brevemente:
-```
-DCRV Light: {resolved}/{total} issues corrigidas
-```
-
-**Se nenhum match:** Pular silenciosamente (tarefa nao tem UI/API).
+1. Anuncie em uma linha o que vai mudar e onde.
+2. Execute na propria sessao. So spawne `up-executor` se a tarefa passar de um arquivo ou
+   exigir isolamento. Um spawn, sem cadeia.
+3. Aplique a Lei de Ferro nesta mensagem: rode a prova do tipo certo (teste, captura ou smoke)
+   e leia a saida antes de afirmar pronto. Detalhe em `up-verificar-antes-de-concluir`.
+4. Commit atomico na branch atual.
+5. Escreva um SUMMARY curto em `${QUICK_DIR}/${next_num}-SUMMARY.md` (o que mudou, a prova
+   rodada, o hash do commit). Sem plano, sem DCRV, sem VERIFICATION.md.
 
 ---
 
@@ -205,7 +125,7 @@ Usar ferramenta Edit para fazer mudancas atomicamente.
 Stagear e commitar artefatos da tarefa rapida:
 
 ```bash
-node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs(rapido-${next_num}): ${DESCRIPTION}" --files ${QUICK_DIR}/${next_num}-PLAN.md ${QUICK_DIR}/${next_num}-SUMMARY.md .plano/STATE.md
+node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs(rapido-${next_num}): ${DESCRIPTION}" --files ${QUICK_DIR}/${next_num}-SUMMARY.md .plano/STATE.md
 ```
 
 Obter hash do commit final:
@@ -238,8 +158,8 @@ Pronto para proxima tarefa: /up:rapido
 - [ ] Slug gerado (minusculo, hifens, max 40 chars)
 - [ ] Proximo numero calculado (001, 002, 003...)
 - [ ] Diretorio criado em `.plano/rapido/NNN-slug/`
-- [ ] `${next_num}-PLAN.md` criado pelo planejador
-- [ ] `${next_num}-SUMMARY.md` criado pelo executor
+- [ ] Sem spawn de up-planejador e sem DCRV
+- [ ] `${next_num}-SUMMARY.md` escrito com a prova da Lei de Ferro
 - [ ] STATE.md atualizado com linha da tarefa rapida
 - [ ] Artefatos committed na branch ATUAL (sem worktree, sem issue, sem PR, sem git-map.json)
 </success_criteria>

@@ -13,12 +13,16 @@ ou uma FASE especifica (`/up:plan` vs `/up:plan N`).
 > Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
 
 <core_principle>
-Pipeline final (redesign v2):
+Pipeline final (caminho quente):
 
 ```
-up-pesquisador -> up-arquiteto (absorve system-designer) -> up-roteirista
-  -> up-sintetizador (valida REQUIREMENTS) -> [GATE approvals.log] -> up-revisor
+up-arquiteto (pesquisa inline + roadmap + auto-checagem de REQUIREMENTS)
+  -> up-planejador por fase -> PLAN-READY.md
 ```
+
+`--review` devolve o `up-revisor` de planejamento. Sem a flag, o orquestrador gera PLAN-READY
+depois do self-check do planejador. `up-pesquisador`, `up-roteirista` e `up-sintetizador` nao
+entram como processo. O arquiteto absorve pesquisa, roteiro e validacao.
 
 O intake/brainstorm NAO acontece aqui — ja rodou no `/up` (workflows/up.md, inline, sem CEO) e produziu
 `.plano/BRIEFING.md`. `/up:plan` consome o BRIEFING. Se for chamado direto sem BRIEFING, faz um intake
@@ -107,9 +111,9 @@ if ls package.json src/ app/ pages/ components/ 2>/dev/null; then MODE=brownfiel
 
 ### 2.2 Pesquisa OU Mapeamento (paralelo)
 
-**Greenfield:** se a pesquisa de dominio ainda nao rodou no `/up`, spawnar 4x `up-pesquisador`
-(modo dominio) em paralelo + `up-sintetizador` (modo research) — ver `workflows/up.md` Passo 2.4.
-Se `.plano/pesquisa/SUMMARY.md` ja existe, reutilizar.
+**Greenfield:** se `.plano/pesquisa/SUMMARY.md` nao existe, o `up-arquiteto` faz a pesquisa
+inline (web search, um passe) e escreve o SUMMARY. Nao spawnar `up-pesquisador` nem
+`up-sintetizador`.
 
 **Brownfield:** se `.plano/codebase/` nao existe, sugerir `/up:mapear-codigo`
 (`@~/.claude/up/workflows/mapear-codigo.md`); senao reutilizar o mapa.
@@ -138,11 +142,15 @@ Agent(subagent_type="up-arquiteto", prompt="""
   Sob demanda: $HOME/.claude/up/references/production-requirements.md
   </files_to_read>
 
+  Pesquisa, roteiro e auto-checagem sao SEUS. Nao espere pesquisador, roteirista ou sintetizador.
+  Se .plano/pesquisa/SUMMARY.md nao existe (greenfield), faca um passe de WebSearch e escreva-o.
+
   Produzir:
   - .plano/SYSTEM-DESIGN.md (modulos, roles, data model/schema, rotas, permissoes, blueprints de prod)
   - .plano/PROJECT.md (visao do produto, requisitos, decisoes-chave)
   - .plano/ROADMAP.md (fases derivadas dos requisitos, com criterios de sucesso)
   - .plano/REQUIREMENTS.md (REQ-IDs por categoria, rastreabilidade fase<->requisito)
+  - Auto-checagem: cada REQ especifico, testavel, mapeado a uma fase
 """)
 ```
 
@@ -167,22 +175,9 @@ if [ "$BOARD" = "true" ] && [ "$MODE_FASE" != "true" ]; then
 fi
 ```
 
-```python
-# PASSO 2: Sintetizador valida os REQUIREMENTS (modo validacao — 13 checks)
-# Absorve requirements-validator: completude, testabilidade, cobertura, ausencia de ambiguidade.
-Agent(subagent_type="up-sintetizador", prompt="""
-  <modo>validacao</modo>
-  Validar .plano/REQUIREMENTS.md contra o BRIEFING e o SYSTEM-DESIGN (13 checks: cada REQ e
-  especifico, testavel, mapeado a uma fase, sem contradicao, com criterio de aceite claro, etc).
-  Se houver gaps, registrar em .plano/REQUIREMENTS-VALIDATION.md e sugerir correcoes ao arquiteto.
-  <files_to_read>
-  - .plano/REQUIREMENTS.md
-  - .plano/BRIEFING.md
-  - .plano/SYSTEM-DESIGN.md
-  - .plano/ROADMAP.md
-  </files_to_read>
-""")
-```
+O arquiteto ja escreveu e auto-checou os REQUIREMENTS no passo 1. Nao spawnar `up-sintetizador`.
+Se o orquestrador achar buraco obvio (REQ sem fase, fase sem criterio), devolve ao arquiteto
+na mesma rodada. Sem agente extra.
 
 ## Estagio 2.5: PLANEJAMENTO EXAUSTIVO
 
@@ -289,10 +284,22 @@ Opções: {Recomendo} | {cada item de Alternativas} | outro (descreva)
 
 Este estágio roda no MODO PROJETO e no MODO FASE. No MODO FASE, os blocos vêm apenas dos planejadores.
 
-## Estagio P: PLANNING REVIEW (up-revisor)
+## Estagio P: PLANNING REVIEW, somente com `--review`
 
-Spawnar `up-revisor` para a revisao consolidada do planejamento. Substitui planning-auditor +
-chief-engineer cross-phase + chief-architect + supervisores.
+Default: PULAR. `--no-audit` continua existindo como alias de pular (agora e o comportamento
+padrao). `--review` spawna `up-revisor` para a revisao consolidada do planejamento.
+
+Sem `--review`, o orquestrador gera um AUDIT-PLAN.md minimo (confidence inferida do self-check
+dos planejadores, sem nota inventada alta) e grava no log:
+
+```bash
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | planning | up-planejador | APPROVE | self-check dos planos | confidence=skip" \
+  >> .plano/governance/approvals.log
+```
+
+Depois segue para o Estagio PR.
+
+Se `--review`, spawnar `up-revisor`:
 
 ```python
 Agent(
@@ -411,7 +418,11 @@ Marca em PLAN-READY.md; o build valida compatibilidade.
 ```
 
 ### --no-audit
-Pula o Planning Review (estagio P). Util pra dev rapido. NAO recomendado em producao.
+Alias de pular o Planning Review (estagio P). Agora e o default. Mantido para nao quebrar invocacoes antigas.
+
+### --review
+Opt-in. Roda o Planning Review com `up-revisor` (estagio P). Sem esta flag, o orquestrador segue
+depois do self-check do planejador.
 
 ### --board
 Espelha o plano no Multica (OPT-IN). Ao gerar o ROADMAP (MODO PROJETO), cria 1 issue-filha por fase
@@ -425,12 +436,11 @@ Sem stream ao vivo: o board reflete so status. O `/up:build --board` continua a 
 - [ ] Owner profile validado
 - [ ] Intake consumido de BRIEFING.md (ou intake minimo inline, sem CEO)
 - [ ] Deteccao projeto vs fase (absorve discutir-fase/planejar-fase)
-- [ ] up-arquiteto gerou SYSTEM-DESIGN + PROJECT + ROADMAP + REQUIREMENTS (absorveu system-designer)
-- [ ] up-sintetizador validou REQUIREMENTS (modo validacao, absorveu requirements-validator)
+- [ ] up-arquiteto gerou SYSTEM-DESIGN + PROJECT + ROADMAP + REQUIREMENTS (pesquisa, roteiro e validacao inline; sem pesquisador/roteirista/sintetizador)
 - [ ] TODAS as fases planejadas com PLAN.md (self-check do planejador)
-- [ ] up-revisor fez a revisao consolidada do planejamento e LOGOU em approvals.log
+- [ ] Revisao de planejamento somente com `--review`. Default: orquestrador grava APPROVE de self-check
 - [ ] GATE de planejamento deterministico passou via leitor unico (`gate verdict --scope planning`): APPROVE ou forced approval
-- [ ] AUDIT-PLAN.md gerado com Planning Confidence Score
+- [ ] AUDIT-PLAN.md gerado (minimo no default; completo com `--review`)
 - [ ] Fronteiras esbocadas e confirmadas com o dono antes do planejamento (entrada evidence=seams:confirmed)
 - [ ] PLAN-READY.md gerado com plan_schema 2 e seams, aprovado por `gate plan-ready`, e committado
 - [ ] `--board` (se passado, MODO PROJETO): 1 issue-filha Multica por fase criada batched (via `multica init --from-roadmap`), idempotente e fail-open
