@@ -4,11 +4,13 @@ Todas as mudancas relevantes do `up-cc` ficam documentadas aqui. O formato segue
 o espirito de [Keep a Changelog](https://keepachangelog.com/) e o versionamento
 e [SemVer](https://semver.org/). v2.0.0 e um **major** (breaking change).
 
-## Nao lancado
+## 2.4.0
 
 > O caminho quente ficou lento: hard-gate em todo ajuste, `/up:rapido` ainda spawna planejador e
 > DCRV, e o build empilha verificador + tester + revisor depois do codigo pronto. Grill e
-> GitHub-nativo ficam. O resto do caminho quente enxuga.
+> GitHub-nativo ficam. O resto do caminho quente enxuga. Este lancamento tambem leva o ciclo 2
+> que ja estava na main e ainda nao tinha ido pro npm (formato de pergunta, memoria, grill,
+> honestidade da prova).
 
 ### Adicionado
 
@@ -36,13 +38,11 @@ e [SemVer](https://semver.org/). v2.0.0 e um **major** (breaking change).
 - Grill como piso automatico fora de Trivial, com palavra de parada.
 - GitHub-nativo como default do `/up:build` (worktree, issue, PR, menu).
 
----
+### Tambem neste lancamento (ciclo 2, ja na main)
 
 > O piso de perguntas era raso: tarefa pequena passava com uma unica pergunta fixa, e nao havia
 > como o dono dizer "chega" sem o agente confirmar antes de fechar. Agora perguntar de menos deixa
 > de ser o default.
-
-### Adicionado
 
 - **Modo grill no `up-brainstorm`.** Tarefa pequena, media e grande entram automaticamente em modo
   grill: perguntas ilimitadas, uma por vez, cada uma com resposta recomendada e ordem pela arvore de
