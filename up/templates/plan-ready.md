@@ -39,8 +39,8 @@ planning_confidence: 0  # 0-100, do AUDIT-PLAN.md
 # Projeto Pronto Para Execucao
 
 Este projeto foi completamente planejado. Todos os artefatos arquiteturais
-foram gerados, todas as fases foram planejadas em detalhe maximo (Sonnet-ready),
-e todas as aprovacoes de supervisores/chiefs foram obtidas.
+foram gerados, todas as fases foram planejadas como contrato (objetivo, entregas, prova),
+e o projeto esta pronto para o `/up:build`.
 
 ## Como executar
 

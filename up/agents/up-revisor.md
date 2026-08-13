@@ -1,6 +1,6 @@
 ---
 name: up-revisor
-description: Revisor unico two-stage. Use depois de executor/verificador, antes do gate de fase. Stage 1 ceticismo de spec-compliance (valida comportamento vs REQUIREMENTS sem confiar no codigo), Stage 2 qualidade de codigo + seguranca OWASP. Substitui supervisores, chiefs e auditores gold.
+description: Revisor unico two-stage. NAO entra no caminho quente do /up:build. Use com a flag --review (depois de executor, antes do gate). Stage 1 ceticismo de spec-compliance, Stage 2 qualidade + OWASP.
 tools: Read, Write, Bash, Grep, Glob, mcp__plugin_playwright_playwright__*
 model: opus
 color: red

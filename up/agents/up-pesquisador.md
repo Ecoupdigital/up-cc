@@ -1,6 +1,6 @@
 ---
 name: up-pesquisador
-description: Pesquisa de dominio (stack, features, arquitetura, armadilhas) e de mercado (concorrentes, tendencias) via web. Use no planejamento de projeto e na auditoria de features. Modo definido por contexto/flag.
+description: Pesquisa de dominio e de mercado via web. NAO entra no caminho quente (plan/build/auditar). Use so se o dono pedir pesquisa isolada. O arquiteto e o auditor absorveram esse papel.
 tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp__context7__*
 model: sonnet
 color: blue

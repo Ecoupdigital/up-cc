@@ -193,13 +193,12 @@ isso vem à tona antes de explorar a intenção. Não redefina a regra aqui: apo
 
 ## O gate continua
 
-Encerrar as perguntas não é aprovar o design. O gate duro da skill continua valendo integralmente.
+Encerrar as perguntas não é o fim da trilha. O gate duro da skill continua valendo, e a trilha
+decide o destino.
 
-A palavra de parada encerra as PERGUNTAS. A aprovação do design continua sendo exigida, e a
-destilação termina pedindo essa aprovação.
-
-O estado terminal também não muda: projeto ou feature aprovado vai para o planejamento, nunca
-direto para código.
+A palavra de parada encerra as PERGUNTAS. Em projeto novo ou fase nova, a destilação ainda pede
+aprovação do design e o estado terminal é `/up:plan`. Em ajuste ou bug, a destilação fecha e a
+próxima ação é implementar.
 
 ## Red flags do grill
 
@@ -208,7 +207,7 @@ direto para código.
 | "Junto essas três perguntas numa mensagem só para poupar o dono" | Uma por vez. Bloco de perguntas é interrogatório e ele responde mal |
 | "Anoto os termos e gravo tudo no fim" | O que não é gravado no instante morre no corte de contexto |
 | "Ele disse chega, mas melhor confirmar" | Confirmar é a falha número um desta feature. Feche |
-| "Acabaram minhas perguntas, vou implementar" | Perguntas acabaram, aprovação não. O gate continua |
+| "Acabaram minhas perguntas, vou implementar" | Em projeto ou fase nova, o gate continua: destile e peca aprovacao. Em ajuste ou bug, implemente |
 | "Essa é pequena, uma pergunta basta" | O piso mudou. Pequena entra em grill |
 | "Pergunto B agora e volto em A depois" | Fora de ordem faz o dono responder duas vezes. Siga a dependência |
 | "Ele não declarou nada, então sigo no automático" | No automático, Pequena, Média e Grande entram em grill. Só Trivial escapa |

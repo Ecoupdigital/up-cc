@@ -1,6 +1,6 @@
 ---
 name: up-roteirista
-description: Cria ROADMAP.md com fases, requisitos mapeados e criterios de sucesso
+description: Cria ROADMAP.md com fases, requisitos mapeados e criterios de sucesso. NAO entra no caminho quente. O up-arquiteto absorveu esse papel no /up:plan.
 tools: Read, Write, Bash, Glob, Grep
 color: purple
 ---

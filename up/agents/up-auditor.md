@@ -1,7 +1,7 @@
 ---
 name: up-auditor
 description: Auditoria de produto num passe unico (UX, performance, modernidade) com mapa de cobertura e priorizacao. Use no /up:auditar. Substitui os 3 auditores separados.
-tools: Read, Write, Bash, Grep, Glob
+tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch
 model: sonnet
 color: magenta
 ---
@@ -169,7 +169,9 @@ cobertura: X de Y arquivos (Z%)
 
 Classificacao nos quadrantes: Quick Wins = Esforco P + Impacto M/G; Estrategicos = Esforco M/G + Impacto M/G; Preenchimentos = P+P; Evitar = M/G + P.
 
-A consolidacao/dedup cross-dimensao final e a priorizacao em relatorio (ICE) sao do `up-sintetizador`. Voce entrega as sugestoes por dimensao com o sumario acima; o sintetizador recebe seu arquivo.
+Voce tambem escreve `.plano/auditar/RELATORIO.md` no mesmo passe: dedup cross-dimensao, matriz
+esforco x impacto, sumario opinativo. Com `--features`, pesquisa mercado (WebSearch) e inclui ICE
++ anti-features. Nao existe sintetizador neste fluxo.
 </step>
 
 </process>

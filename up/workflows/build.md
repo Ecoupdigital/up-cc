@@ -15,7 +15,7 @@ O antigo builder.md (3416 linhas) foi deletado. Capacidades reais migradas para 
 SEM trazer governanca hierarquica/supervisores/CEO:
 
 - **Intake autonomo de projeto + pesquisa inline de stack:** migrado para `workflows/up.md` (Passo 2,
-  heuristica de prosa do brainstorm escala o brainstorm; greenfield spawna 4x up-pesquisador; modo light = mini-scan inline).
+  heuristica de prosa do brainstorm escala o brainstorm; greenfield faz pesquisa inline no arquiteto; modo light = mini-scan inline).
   `/up:build` assume que isso ja rodou e que existe PLAN-READY.md.
 - **Crash recovery via LOCK.md:** preservado aqui (Estagio 0.3).
 - **Routing por tipo de plano (frontend/backend/database/misto):** preservado (Estagio 3.2), AGORA via
@@ -31,12 +31,16 @@ de aprovacao LLM, updates periodicos ao dono.
 </migrado_de_builder>
 
 <core_principle>
-Pipeline final por fase (redesign v2):
+Pipeline final por fase (caminho quente):
 
 ```
-[up-planejador (replan LOCAL, so se preciso)] -> up-executor (roteia por contexto) -> up-verificador
-  -> [GATE approvals.log] -> up-revisor -> marcar completa
+[up-planejador (replan LOCAL, so se preciso)] -> up-executor (roteia por contexto)
+  -> verify-static (se o projeto tiver teste) -> orquestrador grava evidence= no approvals.log
+  -> [GATE approvals.log] -> marcar completa
 ```
+
+`--review` devolve o caminho antigo: `up-verificador` + `up-revisor` two-stage.
+`--testar` roda o laço DCRV (`up-tester`) depois do executor. Sem essas flags, nenhum dos dois entra.
 
 **Model routing configuravel (v0.9.0+):**
 Antes de spawnar qualquer agente, resolver o modelo:
@@ -77,15 +81,22 @@ independentes. As flags mexem so na interacao; o GitHub fica ligado sempre que d
   blocked`), nunca cada tool_use. Chamadas via `up-tools.cjs multica {init|sync|board}` (que usa
   `multica.cjs`, deteccao `uname -s` Mac->`ssh server-ecoup`, FAIL-OPEN: se `multica` indisponivel, avisa
   e segue sem board, nunca crasha). So roda quando `--board` ligado.
+- `--review`: opt-in. Spawna `up-verificador` (se a prova estatica nao bastar) e `up-revisor`
+  two-stage. Sem esta flag, o orquestrador escreve a linha de evidencia a partir da prova barata
+  (teste, smoke ou captura do executor) e o gate le essa linha.
+- `--testar`: opt-in. Roda o laço DCRV (`up-tester`) depois do executor. Sem esta flag, DCRV nao
+  entra no build. Quem quer o laço completo usa `/up:testar`.
 
 **Resumo das flags** (GitHub = artefatos; demais = interacao):
 
-| Flag | GitHub | Menu fim | Gate visual | Merge |
-|------|:---:|:---:|:---:|---|
-| (nenhum) | SIM | SIM (4 opcoes) | SIM | conforme menu |
-| `--auto` | SIM | NAO | SIM (a menos require_visual_test=false) | auto squash |
-| `--solo` | SIM | NAO | NAO (pula sempre) | auto squash |
-| `--local` | NAO | NAO | NAO | commit na branch atual |
+| Flag | GitHub | Menu fim | Gate visual | Merge | DCRV / revisor |
+|------|:---:|:---:|:---:|---|---|
+| (nenhum) | SIM | SIM (4 opcoes) | SIM | conforme menu | NAO |
+| `--auto` | SIM | NAO | SIM (a menos require_visual_test=false) | auto squash | NAO |
+| `--solo` | SIM | NAO | NAO (pula sempre) | auto squash | NAO |
+| `--local` | NAO | NAO | NAO | commit na branch atual | NAO |
+| `--review` | (herda) | (herda) | (herda) | (herda) | revisor + verificador |
+| `--testar` | (herda) | (herda) | (herda) | (herda) | DCRV |
 
 **Contrato de pergunta (obrigatório):** antes da primeira pergunta, carregue
 `Read $HOME/.claude/up/references/questioning.md` e aplique o bloco `<contrato_de_pergunta>`. Nenhuma pergunta
@@ -621,9 +632,17 @@ EOF
 fi
 ```
 
-Se STATIC=fail ou skip: spawnar `up-verificador` com os logs estaticos como contexto:
+Se STATIC=pass: o orquestrador escreve um VERIFICATION.md curto (status passed, verifier: static-only)
+e segue. Nao spawna `up-verificador`.
+
+Se STATIC=fail: o executor corrige e o orquestrador re-roda `verify-static`. Sem `--review`, nao
+spawna `up-verificador`.
+
+Se STATIC=skip (projeto sem suite) ou o dono passou `--review`: aih sim spawnar `up-verificador`
+com os logs estaticos como contexto.
 
 ```python
+# SOMENTE com --review (ou static skip E o dono pediu revisao)
 Agent(subagent_type="up-verificador", prompt=f"""
   Verificar a FASE {phase_number} INTEIRA (todos os planos / todos os SUMMARYs juntos, nao 1 plano).
   Conferir o objetivo da fase contra o codebase real e cruzar os REQUIREMENTS desta fase com o que
@@ -635,6 +654,9 @@ Agent(subagent_type="up-verificador", prompt=f"""
 """)
 ```
 
+Sem `--review` e sem VERIFICATION.md ainda: o orquestrador escreve um VERIFICATION.md minimo a
+partir da prova do executor (comando rodado, exit code, tipo de evidencia). Isso satisfaz o GATE B.
+
 ### --- GATE B: artefatos da verificacao ---
 
 ```bash
@@ -644,20 +666,34 @@ VERIF_COUNT=$(ls ${PHASE_DIR}/*-VERIFICATION.md 2>/dev/null | wc -l)
 echo "GATE B OK: ${VERIF_COUNT} VERIFICATION(s)"
 ```
 
-### 3.6 E2E + DCRV (PASSO 3)
+### 3.6 E2E + DCRV (PASSO 3), somente com `--testar`
 
-Delegar ao loop DCRV (que absorveu builder-e2e). Ver `@~/.claude/up/workflows/dcrv.md`.
+Default: PULAR. O laço DCRV nao entra no caminho quente.
+
+Se `--testar` (ou o dono pediu `/up:testar` nesta fase): delegar ao loop DCRV. Ver
+`@~/.claude/up/workflows/dcrv.md`.
 
 ```
 SCOPE=phase, PHASE_DIR={PHASE_DIR}, PHASE_NUMBER={phase_number}, AUTO_FIX=true, MAX_CYCLES=3
 ```
 
-Pular se a fase nao tem UI nem API (infra/schema).
+Pular se a fase nao tem UI nem API (infra/schema), mesmo com `--testar`.
 
-### 3.7 Revisao da FASE (PASSO 4 - Agent SEPARADO)
+### 3.7 Revisao da FASE, somente com `--review`
 
-Roda UMA VEZ por fase, depois de TODAS as waves. O revisor revisa a FASE consolidada (todos os planos /
-todos os SUMMARYs juntos).
+Default: NAO spawnar `up-revisor`. O orquestrador confirma a prova do tipo certo (saida do teste,
+captura ou smoke desta sessao) e escreve a linha do `approvals.log` ele mesmo:
+
+```bash
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | up-executor | APPROVE | prova {EVIDENCE_TYPE} nesta sessao | evidence={EVIDENCE_TYPE}:{EVIDENCE_RESULT}" \
+  >> .plano/governance/approvals.log
+```
+
+Se nao houve prova (static skip e o executor nao rodou nada): gravar `evidence={tipo}:exempted` e
+dizer isso em uma linha. Nao inventar teste. Nao spawnar revisor para tapar o buraco.
+
+`--review` devolve o caminho abaixo. Roda UMA VEZ por fase, depois de TODAS as waves. O revisor
+revisa a FASE consolidada (todos os planos / todos os SUMMARYs juntos).
 
 **Derivar o tipo de evidencia esperado (Fase 3 - TDD por tipo).** A fase pode ter VARIOS planos de tipos
 diferentes; agregamos o `type` do frontmatter de TODOS os planos da fase e exigimos a evidencia mais forte
@@ -690,7 +726,7 @@ TAUT_LOG=".plano/runtime/verify-static-tautologia.log"
 [ -s "$TAUT_LOG" ] && echo "Achados de tautologia para o revisor confirmar: $(wc -l < "$TAUT_LOG")"
 ```
 
-Spawnar `up-revisor` (UNICO, two-stage). Substitui supervisores, chiefs e auditores gold.
+Spawnar `up-revisor` (UNICO, two-stage) SOMENTE com `--review`. Sem a flag, pule este bloco.
 
 ```python
 Agent(
@@ -842,7 +878,7 @@ Opções: Aprovado, pode mergear | Achei problema, quero ajustar
 </pergunta>
 
    - **"Achei problema, quero ajustar":** pedir a descricao do problema, re-spawnar `up-executor` pra corrigir
-     NA WORKTREE (mesma branch da fase), re-rodar `up-verificador` + GATE (3.6/3.7), e VOLTAR pro 3.8.0
+     NA WORKTREE (mesma branch da fase), re-rodar a prova barata + GATE (3.5/3.7), e VOLTAR pro 3.8.0
      (re-testa com o dev server). Loop ate o dono aprovar. (E o "quando eu disser nao, ajusta; quando eu
      disser sim, merge".)
    - **"Aprovado, pode mergear":** segue como "Pode mergear".
@@ -950,9 +986,11 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: reassessment apos fase {X
 
 Log de 1 linha: `Reassessment: [sem mudancas | X ajustadas | Y removidas | Z adicionadas]`. Sem mudanca: seguir silenciosamente. Diferente do re-plan LOCAL do Estagio 3.4 (que so corrige a fase corrente): aqui poda/ajusta o roadmap FUTURO a luz do que ja foi construido.
 
-## Estagio 4: QUALITY GATE GLOBAL
+## Estagio 4: QUALITY GATE GLOBAL, somente com `--testar`
 
-Rodar DCRV em escopo global apos todas as fases:
+Default: PULAR. Sem `--testar`, nao roda DCRV global. O dono dispara `/up:testar` quando quiser.
+
+Se `--testar`, rodar DCRV em escopo global apos todas as fases:
 
 ```
 SCOPE=global, AUTO_FIX=true, MAX_CYCLES=5
@@ -961,10 +999,11 @@ SCOPE=global, AUTO_FIX=true, MAX_CYCLES=5
 Ver `@~/.claude/up/workflows/dcrv.md`. Carryover de issues por fase ja foi acumulado em
 `.plano/issues-carryover/`.
 
-## Estagio 4.5: REVISAO DE DELIVERY (consolidada)
+## Estagio 4.5: REVISAO DE DELIVERY, somente com `--review`
 
-Spawnar `up-revisor` em escopo global (Confidence Score de delivery do projeto inteiro). Substitui a
-antiga auditoria de delivery dedicada.
+Default: PULAR. Sem `--review`, nao spawna `up-revisor` de delivery.
+
+Se `--review`, spawnar `up-revisor` em escopo global (Confidence Score de delivery do projeto inteiro).
 
 ```python
 Agent(subagent_type="up-revisor", prompt="""
@@ -1015,11 +1054,11 @@ final_confidence: [do up-revisor de delivery]
 - [ ] Governance inicializada (.plano/governance/approvals.log)
 - [ ] Todas as fases executadas com SUMMARY.md (GATE A)
 - [ ] Decisoes arquiteturais escaladas pelos executores (Regra 4) recolhidas em 3.3.5 e perguntadas ao dono no formato do contrato antes do fechamento da fase, nunca decididas ou silenciadas
-- [ ] Verificador produziu VERIFICATION.md por fase (GATE B); ladder estatica usada quando possivel
-- [ ] E2E + DCRV rodaram por fase (delegado a dcrv.md)
-- [ ] up-revisor emitiu veredito por fase e LOGOU em approvals.log COM campo evidence=<tipo>:<resultado>
+- [ ] VERIFICATION.md por fase existe (GATE B): ladder estatica, ou minimo escrito pelo orquestrador a partir da prova do executor. `up-verificador` so com `--review`
+- [ ] DCRV por fase somente com `--testar` (delegado a dcrv.md). Default: pulado
+- [ ] Linha no approvals.log COM evidence=<tipo>:<resultado> escrita pelo orquestrador (default) ou pelo up-revisor (`--review`)
 - [ ] GATE de fase deterministico passou via leitor unico (`gate verdict`): APPROVE + evidence do tipo certo, ou forced approval com debito
-- [ ] Achados de tautologia apresentados ao revisor, confirmados ou descartados, e nenhum deles bloqueando o gate por conta propria
+- [ ] Sem `--review`, tautologia nao bloqueia e nao spawna revisor
 - [ ] GitHub-nativo (default): worktree+branch+issue por fase via `github start-phase` (transporte gh OU
       MCP); menu 4 opcoes / `github finish-phase` no fim. `--solo`/`--auto` mantem GitHub (autonomia, nao
       desliga). `--local` degrada para commit na branch atual (sem worktree/issue/PR)
@@ -1030,8 +1069,8 @@ final_confidence: [do up-revisor de delivery]
       fail-open (nunca crasha) e batched (nao por microtransicao). Sem `--board`: zero chamada Multica
 - [ ] Cap de rework de 1 round respeitado
 - [ ] Re-plans locais registrados (se houve, max 2)
-- [ ] Quality Gate global rodou
-- [ ] up-revisor fez revisao de delivery consolidada
+- [ ] Quality Gate global somente com `--testar`
+- [ ] Revisao de delivery somente com `--review`
 - [ ] PLAN-READY.md -> PROJECT-COMPLETE.md
 - [ ] Nenhuma referencia a CEO, chiefs, camadas de revisao intermediaria, auditores gold ou builder-e2e
 - [ ] Nenhuma referencia aos 3 specialists de dominio nem aos 3 detectores DCRV antigos (6 agentes

@@ -6,10 +6,13 @@ description: "Use antes de QUALQUER trabalho criativo: criar feature, montar com
 # UP Brainstorm
 
 <HARD-GATE>
-NAO invoque skill de implementacao, NAO escreva codigo, NAO faca scaffold, NAO tome acao de implementacao ate ter apresentado um design e o usuario ter aprovado. Vale para TODO projeto, independente da simplicidade percebida. O design pode ser curto, mas TEM que ser apresentado e aprovado.
+Classifique a trilha ANTES de agir. O grill (perguntas) vale nas duas. O que muda e o que vem depois.
+
+- **PROJETO NOVO ou FASE NOVA** (greenfield, feature que vira fase, mudanca de arquitetura): NAO escreva codigo, NAO faca scaffold, NAO tome acao de implementacao ate ter apresentado um design e o usuario ter aprovado. Depois da aprovacao, o estado terminal e `/up:plan`.
+- **AJUSTE ou BUG** (correcao, polish, config, copy, um arquivo conhecido, debito pontual): o grill continua ate uma porta de saida. Depois da destilacao, implemente. Nao peca aprovacao formal de design. Nao roteie para `/up:plan`.
 </HARD-GATE>
 
-Anti-padrao combatido: "isso e simples demais pra precisar de design". Mesmo um todo list ou mudanca de config passa pelo processo. O design escala, o gate nao.
+Anti-padrao combatido: "isso e um projeto novo, mas vou so comecar a codar". Projeto e fase nova pedem design aprovado. Ajuste e bug nao.
 
 ## Antes de perguntar (contrato de pergunta)
 
@@ -33,18 +36,18 @@ Se voce se pegar pensando uma dessas, PARE. E o sinal de que esta prestes a fura
 
 | Voce pensa | Realidade |
 |------------|-----------|
-| "Isso e simples demais pra brainstorm" | O gate nao e opcional. Tier Trivial ja e a saida leve (0 perguntas). Anuncie e siga, mas pelo gate. |
-| "Vou so escrever o codigo, depois explico" | Implementar antes de apresentar o design fura o HARD-GATE. Apresente primeiro. |
+| "Isso e simples demais pra brainstorm" | O grill nao e opcional fora de Trivial. Tier Trivial ja e a saida leve (0 perguntas). Anuncie e siga. |
+| "Vou so escrever o codigo, depois explico" | Em projeto ou fase nova, fura o HARD-GATE. Em ajuste ou bug, o grill roda e depois voce implementa. |
 | "Preciso de mais contexto antes de decidir o tier" | Aplique a heuristica de prosa AGORA (nº arquivos, arquitetura, schema/API/auth, tabela em `grill.md`). O tier sai dos sinais, nao do seu humor. O piso automatico e grill fora de Trivial. |
-| "Marco como Trivial pra ir mais rapido" | Se toca schema/API/auth ou >1 subsistema, NAO e Trivial. Rebaixar o tier e furar o gate disfarcado. |
-| "O usuario tem pressa, pulo a aprovacao" | Pressa muda a PROFUNDIDADE (tier), nunca remove a aprovacao. Ate Trivial anuncia antes de agir. |
-| "Ja sei o que ele quer" | Suposicao nao e aprovacao. Pequena entra em grill: pergunte, nao suponha. |
-| "Design aprovado, agora vou codar/criar a fundacao" | NAO. Projeto/feature: o estado terminal e `/up:plan`, nunca implementacao direta. Registre BRIEFING/PROJECT, entregue o handoff e PARE. |
-| "Vou so deixar o scaffold pronto enquanto isso" | Scaffold E implementacao. Sem `.plano/PLAN-READY.md`, nada de codigo/estrutura. |
+| "Marco como Trivial pra ir mais rapido" | Se toca schema/API/auth ou >1 subsistema, NAO e Trivial. Rebaixar o tier e furar o grill disfarcado. |
+| "O usuario tem pressa, pulo as perguntas" | Pressa muda a PROFUNDIDADE (tier), nunca remove o grill sozinho. A palavra de parada e a saida. |
+| "Ja sei o que ele quer" | Suposicao nao substitui o grill. Pequena pergunta, nao assume. |
+| "Design aprovado, agora vou codar/criar a fundacao" | So em projeto ou fase nova: o estado terminal e `/up:plan`. Em ajuste ou bug, depois da destilacao voce implementa. |
+| "Vou so deixar o scaffold pronto enquanto isso" | Em projeto ou fase nova, scaffold E implementacao. Sem `.plano/PLAN-READY.md`, nada de fundacao. |
 | "Vou anotar tudo no fim da conversa" | O lote perde o contexto em que o termo ou a decisão caiu e, na prática, costuma simplesmente não acontecer. |
 | "Essa escolha é obviamente importante, já registro" | O gate das três condições é conjuntivo por definição: existe justamente para o histórico não virar lista de tudo que foi falado. |
 
-A unica forma legitima de ir rapido e o tier Trivial, nao furar o gate.
+A palavra de parada encerra as perguntas. Nao use isso como desculpa para pular o grill sozinho.
 
 ## Consulta à memória antes de explorar
 
@@ -201,7 +204,7 @@ Diferenca do full: o full valida um design que o usuario ja tem na cabeca; a exp
 5. So depois do "Fechar e seguir" do checkpoint, **destile** a ideia num paragrafo claro: o que e, pra quem, por que, o diferencial. Confirme com o usuario.
 6. So ENTAO transicione pro design (full) ou direto pro `BRIEFING.md`, conforme o tamanho do que emergiu.
 
-A exploracao termina numa ideia destilada e aprovada, que vira BRIEFING. Continua valendo o estado terminal: codigo so depois de `/up:plan`.
+A exploracao termina numa ideia destilada e aprovada, que vira BRIEFING. Se o que emergiu e um projeto ou fase nova, o estado terminal e `/up:plan`. Se emergiu um ajuste, implemente.
 
 ## Trilha NAO-codigo (documento, relatorio, analise, conteudo, plano de negocio)
 
@@ -230,6 +233,9 @@ Principios: uma pergunta por vez, multipla escolha, YAGNI sem piedade, sempre al
 
 ## Estado terminal (regra dura)
 
-Aprovado o design de um PROJETO ou FEATURE, o estado terminal e `/up:plan` (gera `.plano/PLAN-READY.md`). Voce NAO escreve codigo, NAO cria fundacao, NAO faz scaffold a partir daqui: registra os artefatos (BRIEFING/PROJECT), entrega o handoff e PARA. Quem implementa e o `/up:build`, e so depois que existe `PLAN-READY.md`.
+Depois do grill (ou do anuncio em Trivial), a trilha decide o destino:
 
-Excecao unica: tarefa Trivial pontual declarada via `/up:rapido` pode ir direto, sem plan. Projeto/feature nao-trivial, nunca.
+- **Projeto novo ou fase nova:** o estado terminal e `/up:plan` (gera `.plano/PLAN-READY.md`). Voce NAO escreve codigo, NAO cria fundacao, NAO faz scaffold: registra BRIEFING/PROJECT, entrega o handoff e PARA. Quem implementa e o `/up:build`.
+- **Ajuste ou bug:** depois da destilacao, implemente. Vale `/up:rapido` ou a propria sessao. Nao peca `/up:plan`. Nao invente fase.
+
+A palavra de parada encerra as perguntas, nao a trilha. Projeto novo ainda vai para o plano. Ajuste segue para o codigo.

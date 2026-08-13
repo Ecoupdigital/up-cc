@@ -18,13 +18,14 @@ Executar tarefas pontuais com as garantias minimas do UP, pulando o roadmap inte
 **O escape hatch nomeado.** E o caminho mais curto do sistema: commit atomico na branch ATUAL, rastreamento em STATE.md, e nada mais. **Sem worktree, sem issue, sem PR, sem Multica, sem roadmap, sem rede.** Cobre a maior parte do trabalho do dia a dia (fix, config, glue, ajuste).
 
 O mesmo sistema do UP num caminho enxuto:
-- Planeja e executa num fluxo direto.
+- Executa na sessao (ou um `up-executor` se passar de um arquivo). Sem planejador. Sem DCRV.
+- Lei de Ferro: prova fresca na mesma mensagem antes de afirmar pronto.
 - Tarefas rapidas vivem em `.plano/rapido/`, separadas das fases planejadas.
-- Atualiza a tabela "Tarefas Rapidas" do STATE.md (NAO o ROADMAP.md).
+- Atualiza a tabela "Tarefas Rapidas" do STATE.md (NAO o ROADMAP.md). ROADMAP nao e obrigatorio.
 
-**Default:** pula pesquisa, discussao, plan-checker e verificador pesado. Use quando voce sabe exatamente o que fazer.
+**Default:** pula pesquisa, plan, verificador, revisor e DCRV. Use quando voce sabe o que fazer.
 
-Diferenca de `/up:build`: o build executa um projeto planejado (PLAN-READY.md) com gate e revisor, e expoe as flags GitHub-nativas (`--pr`/`--board`/`--auto`). O `/up:rapido` ignora tudo isso de proposito. Se quiser cerimonia GitHub, use `/up:build`.
+Diferenca de `/up:build`: o build executa um projeto planejado (PLAN-READY.md) com GitHub-nativo. O `/up:rapido` ignora isso de proposito. Se quiser worktree/issue/PR, use `/up:build`.
 </objective>
 
 <execution_context>
@@ -40,7 +41,7 @@ A descricao da tarefa em texto livre. As garantias UP minimas (commit atomico + 
 
 <process>
 Execute the rapido workflow from @~/.claude/up/workflows/rapido.md end-to-end.
-Preserve todos os gates do workflow (validacao, descricao da tarefa, planejamento, execucao, atualizacao de estado, commits atomicos).
+Preserve os passos do workflow (descricao, execucao na sessao, Lei de Ferro, atualizacao de estado, commits atomicos). Sem planejador. Sem DCRV.
 
 **Sempre na branch atual.** Nunca cria worktree, nunca abre PR, nunca toca no ROADMAP. Esse e o ponto do comando.
 </process>

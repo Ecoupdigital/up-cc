@@ -1,9 +1,9 @@
 <purpose>
 Workflow `/up:auditar` — Auditoria priorizada de produto num passe unico.
 
-Funde melhorias.md + ideias.md. Spawna `up-auditor` (1x, passe unico de UX + performance + modernidade)
-e `up-sintetizador` (consolida, dedup, prioriza). Com `--features`, tambem spawna `up-pesquisador`
-modo mercado pra sugerir features novas (analise de gaps + concorrentes/tendencias).
+Funde melhorias.md + ideias.md. Spawna `up-auditor` (1x, passe unico de UX + performance +
+modernidade + consolidacao do RELATORIO.md). Com `--features`, o mesmo auditor pesquisa mercado
+inline. Sem `up-sintetizador`. Sem `up-pesquisador`.
 
 Standalone: nao requer projeto UP inicializado.
 </purpose>
@@ -13,11 +13,9 @@ Standalone: nao requer projeto UP inicializado.
 <core_principle>
 Antes eram 3 auditores (ux/perf/modernidade) + 1 sintetizador-melhorias para `/up:melhorias`, e
 analista-codigo + pesquisador-mercado + consolidador-ideias para `/up:ideias`. Agora:
-- `up-auditor` faz o passe unico das 3 dimensoes (carrega as refs audit-ux/audit-performance/audit-modernidade
-  sob demanda) e, com `--features`, tambem analisa gaps funcionais.
-- `up-pesquisador` (modo mercado) so entra com `--features` pra trazer evidencia de mercado.
-- `up-sintetizador` consolida tudo: dedup cross-dimensao, matriz esforco x impacto (melhorias),
-  ICE scoring + anti-features (features), sumario opinativo.
+- `up-auditor` faz o passe unico das 3 dimensoes e escreve o RELATORIO.md consolidado.
+- Com `--features`, o mesmo auditor pesquisa mercado (WebSearch) e inclui ICE + anti-features.
+- Nao spawnar `up-pesquisador` nem `up-sintetizador`.
 
 Relatorio e informativo. NAO commitar automaticamente. NAO mexer em STATE.md (auditoria e standalone).
 
@@ -98,12 +96,13 @@ obrigatorio. Salvar resultado por dimensao.
 - Carregar template: $HOME/.claude/up/templates/suggestion.md
 - Detectar a stack (primeiro passo)
 - Produzir sugestoes UX-NNN, PERF-NNN, MOD-NNN no formato do template, com mapa de cobertura
-- {Se --features: produzir IDEA-NNN para gaps funcionais com Dimensao=Ideias}
+- {Se --features: produzir IDEA-NNN para gaps funcionais com Dimensao=Ideias; pesquisar mercado via WebSearch}
 - Salvar em:
   - .plano/auditar/ux-sugestoes.md
   - .plano/auditar/performance-sugestoes.md
   - .plano/auditar/modernidade-sugestoes.md
   {Se --features: .plano/auditar/gaps-sugestoes.md}
+- Escrever tambem .plano/auditar/RELATORIO.md (dedup, matriz esforco x impacto; + ICE/anti-features se --features)
 - Retornar resumo no formato: ## AUDITORIA COMPLETA (com contagem por dimensao e cobertura)
 </constraints>
 "
@@ -112,35 +111,9 @@ obrigatorio. Salvar resultado por dimensao.
 
 ## Passo 3b: Pesquisa de mercado (SO com --features)
 
-Se `--features` estiver presente, spawnar `up-pesquisador` modo mercado EM PARALELO com nada
-(ja que o auditor ja rodou; pode rodar logo apos, ou junto se preferir 1 mensagem com os dois Task).
-
-```
-Task(
-  subagent_type="up-pesquisador",
-  description="Pesquisa de mercado para features",
-  prompt="
-<modo>mercado</modo>
-<objective>
-Pesquisar concorrentes e tendencias de mercado pra sugerir features novas para este projeto.
-Salvar em .plano/auditar/mercado-sugestoes.md
-</objective>
-
-<files_to_read>
-- ./CLAUDE.md, ./README.md, ./package.json (se existirem -- dominio e dependencias)
-</files_to_read>
-
-<constraints>
-- Carregar template: $HOME/.claude/up/templates/suggestion.md
-- Entender o dominio, pesquisar concorrentes e tendencias via WebSearch
-- Cada sugestao IDEA-NNN com evidencia de mercado (concorrente ou tendencia)
-- Sinalizar LOW confidence quando baseado so em dados de treinamento
-- Limitar a 10-15 sugestoes
-- Retornar resumo no formato: ## PESQUISA DE MERCADO COMPLETA
-</constraints>
-"
-)
-```
+Nao spawnar `up-pesquisador`. O prompt do auditor no passo 3 ja pede WebSearch e a secao de
+features no RELATORIO.md. Este passo so confirma que a secao existe; se faltar, o orquestrador
+faz um passe curto de WebSearch e emenda o relatorio, sem agente extra.
 
 ## Passo 4: Verificar resultados
 
@@ -159,47 +132,16 @@ disponiveis (o sintetizador aceita subconjunto).
 [se --features] | Gaps/Features | N | - | Completo |
 ```
 
-## Passo 5: Spawn do sintetizador (consolida)
+## Passo 5: Relatorio consolidado (o auditor ja escreveu)
 
-Spawnar `up-sintetizador` SEQUENCIALMENTE (apos confirmar os arquivos).
+Nao spawnar `up-sintetizador`. O `up-auditor` escreve `.plano/auditar/RELATORIO.md` no mesmo
+passe (dedup, matriz esforco x impacto, e ICE/anti-features se `--features`).
 
-```
-Task(
-  subagent_type="up-sintetizador",
-  description="Consolidar auditoria",
-  prompt="
-<modo>auditoria</modo>
-<objective>
-Consolidar as sugestoes em relatorio unico. Deduplicar cross-dimensao, detectar conflitos,
-classificar melhorias na matriz esforco x impacto (4 quadrantes).
-{Se --features: aplicar ICE scoring as features e gerar anti-features (ceil(positivas/3)).}
-Salvar em .plano/auditar/RELATORIO.md
-</objective>
+Se o RELATORIO.md nao existir, o orquestrador consolida as sugestoes inline e escreve o arquivo
+(dedup, matriz esforco x impacto, ICE se `--features`). Sem agente extra.
 
-<files_to_read>
-- .plano/auditar/ux-sugestoes.md
-- .plano/auditar/performance-sugestoes.md
-- .plano/auditar/modernidade-sugestoes.md
-{Se --features:}
-- .plano/auditar/gaps-sugestoes.md
-- .plano/auditar/mercado-sugestoes.md
-- ./CLAUDE.md (se existir)
-</files_to_read>
-
-<constraints>
-- Carregar templates: $HOME/.claude/up/templates/report.md e $HOME/.claude/up/templates/suggestion.md
-- Dedup cross-dimensao (mesmo arquivo, linhas sobrepostas, problema similar)
-- Melhorias: renumerar para MELH-NNN, classificar nos 4 quadrantes
-- {Features: ICE scoring por feature, anti-features, ranking por ICE decrescente, IDs IDEA-NNN}
-- Sumario executivo OPINATIVO (por onde comecar; top features se --features)
-- Salvar em .plano/auditar/RELATORIO.md
-- Retornar resumo no formato: ## SINTESE COMPLETA
-</constraints>
-"
-)
-```
-
-Confirmar que `.plano/auditar/RELATORIO.md` existe. Se nao, erro: "Sintetizador falhou ao criar RELATORIO.md".
+Contrato do RELATORIO.md: template `report.md` + `suggestion.md`; IDs MELH-NNN; com `--features`,
+IDs IDEA-NNN + anti-features. Confirmar que o arquivo existe antes do passo 6.
 
 ## Passo 6: Apresentar relatorio
 
@@ -274,10 +216,10 @@ Substituir `approved_ids` pela selecao real. Apresentar resumo das fases criadas
 <success_criteria>
 - [ ] Init auditar retornou JSON valido; flag --features detectada
 - [ ] Diretorio .plano/auditar/ criado (standalone)
-- [ ] up-auditor rodou o passe unico (UX + performance + modernidade; + gaps se --features)
-- [ ] Com --features: up-pesquisador modo mercado rodou
+- [ ] up-auditor rodou o passe unico (UX + performance + modernidade; + gaps/mercado se --features)
+- [ ] Sem spawn de up-pesquisador e sem spawn de up-sintetizador
 - [ ] Pelo menos 1 arquivo de sugestoes gerado
-- [ ] up-sintetizador gerou RELATORIO.md (matriz; + ICE/anti-features se --features)
+- [ ] RELATORIO.md gerado pelo auditor (ou fallback do orquestrador)
 - [ ] Relatorio apresentado; NAO commitado; STATE.md intocado
 - [ ] Integracao com roadmap oferecida (opcional)
 </success_criteria>

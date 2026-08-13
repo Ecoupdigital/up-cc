@@ -8,7 +8,7 @@ Versão: `up-cc` 2.0.0.
 
 ## 1. TL;DR
 
-O UP é um sistema de desenvolvimento orientado a especificação que vive dentro do seu CLI de IA. Ele força brainstorm antes de codar, planeja em fases, executa com agentes em paralelo e (por padrão) trabalha GitHub-nativo: cada fase abre worktree, issue e PR.
+O UP é um sistema de desenvolvimento orientado a especificação que vive dentro do seu CLI de IA. Ele pergunta (grill) antes de agir, planeja em fases quando o trabalho é projeto ou fase nova, executa com agentes em paralelo e (por padrão) trabalha GitHub-nativo: cada fase abre worktree, issue e PR. Ajuste e bug, depois do grill, implementam direto.
 
 A porta única é `/up`:
 
@@ -17,7 +17,9 @@ A porta única é `/up`:
 - `/up:build` -> executa o que foi planejado, fase por fase.
 - `/up` (sem argumento) -> continua de onde você parou (lê `.plano/STATE.md`).
 
-Ciclo curto: descreva -> brainstorm -> `/up:plan` -> `/up:build` -> (no fim de cada fase de UI) testa na tela -> merge.
+Ciclo de projeto/fase nova: descreva -> grill -> `/up:plan` -> `/up:build` -> (no fim de cada fase de UI) testa na tela -> merge.
+
+Ciclo de ajuste/bug: descreva -> grill -> implementa (`/up:rapido` ou a sessao) -> Lei de Ferro.
 
 ---
 
@@ -90,7 +92,7 @@ Iniciando brainstorm. Vou confirmar intenção, requisitos e design antes de pla
 
 > Primeira vez no runtime: se `~/.claude/up/owner-profile.md` ainda não existe, o UP roda o onboarding do dono antes do brainstorm (senão o brainstorm sai genérico).
 
-O brainstorm gera um `BRIEFING.md`. Em greenfield, o pipeline ainda roda pesquisa e síntese antes de planejar.
+O brainstorm gera um `BRIEFING.md`. Em greenfield, o arquiteto faz um passe de pesquisa inline antes de planejar. Sem quatro pesquisadores e sem sintetizador.
 
 ### 3.3 Planejar
 
@@ -124,7 +126,7 @@ Saída: `.plano/PLAN-READY.md` mais a estrutura de planejamento. Nada de código
 Por padrão (config `github_native: true`), para CADA fase o build:
 
 1. Abre uma worktree + branch `up/fase-NN-slug` + uma issue no GitHub.
-2. Roda os planos da fase (executor -> verificador -> gate determinístico -> revisor).
+2. Roda os planos da fase (executor -> prova barata / verify-static -> gate). `--review` devolve verificador + revisor. `--testar` devolve o laco DCRV.
 3. Se a fase tem UI, sobe o dev server DENTRO da worktree e pede aprovação visual antes do merge.
 4. Apresenta o menu de fim de fase.
 
@@ -224,7 +226,7 @@ Quando é um ajuste pontual e você NÃO quer roadmap nem cerimônia GitHub:
 /up:rapido "corrige o typo no título da home e ajusta o padding do header"
 ```
 
-O `/up:rapido` faz um commit atômico na branch ATUAL, com rastro mínimo em `STATE.md`. Zero worktree, zero issue, zero PR, zero fase. É o escape hatch nomeado para pular o `/up:build`.
+O `/up:rapido` executa na sessao (sem planejador, sem DCRV), aplica a Lei de Ferro e faz um commit atômico na branch ATUAL, com rastro mínimo em `STATE.md`. Zero worktree, zero issue, zero PR, zero fase. É o escape hatch nomeado para pular o `/up:build`.
 
 Use quando:
 - O fix cabe num commit e você já sabe exatamente o que fazer.

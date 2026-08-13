@@ -5,6 +5,9 @@ Reescrito no redesign v2: a hierarquia CEO -> chief -> supervisor foi removida (
 modelo-burro). O que sobra e o mecanismo deterministico que importa: o GATE de fase baseado em
 `approvals.log`, com cap de rework de 1 round. Sem spawns de LLM aqui — so o contrato do gate.
 
+O escritor default da linha e o **orquestrador** (a partir da prova do `up-executor` ou do
+`verify-static`). O `up-revisor` so escreve quando o dono passou `--review`.
+
 @-referenciado por build.md. O check de approvals.log e OURO: este arquivo preserva sua semantica
 intacta, apenas tira a camada de supervisores/chiefs/CEO que decidia em volta dele.
 </purpose>
@@ -14,13 +17,14 @@ intacta, apenas tira a camada de supervisores/chiefs/CEO que decidia em volta de
 <core_principle>
 A seguranca do UP nunca foram os agentes de governanca; era (1) o `approvals.log` deterministico que
 um GATE em bash verifica, e (2) os detectores que rodam o app de verdade (DCRV). Este workflow define
-SO o (1). O veredito que alimenta o log vem de UM agente — `up-revisor` (two-stage) — nao de uma
-piramide de supervisores.
+SO o (1). O veredito que alimenta o log vem da prova barata (teste, smoke, captura ou `verify-static`).
+O orquestrador (ou o `up-executor`) escreve a linha. O `up-revisor` so entra com `--review`.
 
 Regras duras:
 - Cap de rework: **1 round**. Apos 1 ciclo sem melhoria, forca aprovacao com debito tecnico registrado.
-- O GATE nao avanca sem a entry esperada no `approvals.log`. Se faltar, spawnar o agente faltante.
-- Nenhum spawn de CEO/chief/supervisor. O revisor decide; o gate verifica.
+- O GATE nao avanca sem a entry esperada no `approvals.log`. Se faltar, o orquestrador escreve a
+  linha a partir da prova ja rodada. So spawna `up-revisor` se `--review`.
+- Nenhum spawn de CEO/chief/supervisor. O gate verifica a linha, nao a identidade do escritor.
 </core_principle>
 
 <process>
@@ -36,11 +40,15 @@ touch .plano/governance/approvals.log
 
 ## 2. Contrato do approvals.log
 
-O `up-revisor` (e so ele) escreve no log ANTES de retornar. Formato ESTENDIDO (Fase 3 - TDD) de uma entry:
+O orquestrador (default) ou o `up-revisor` (`--review`) escreve no log ANTES de avancar. Formato
+ESTENDIDO (Fase 3 - TDD) de uma entry:
 
 ```
-<timestamp ISO> | <escopo> | up-revisor | <DECISAO> | <motivo> | evidence=<tipo>:<resultado>
+<timestamp ISO> | <escopo> | up-executor | <DECISAO> | <motivo> | evidence=<tipo>:<resultado>
 ```
+
+A coluna do agente aceita `up-executor`, `up-revisor` ou fica vazia. O leitor localiza o veredito
+por conteudo, nao pelo nome do agente.
 
 Onde:
 - `<escopo>` = `phase-N` (gate de fase no build) ou `planning` / `architecture` (gate no plan).
@@ -137,7 +145,7 @@ re-planejar a fase (via `/up:plan`) ou abandonar.
 
 <success_criteria>
 - [ ] .plano/governance/approvals.log inicializado
-- [ ] Gate verifica artefatos (SUMMARY + VERIFICATION) e o veredito do up-revisor
+- [ ] Gate verifica artefatos (SUMMARY + VERIFICATION) e o veredito (orquestrador ou up-revisor)
 - [ ] O gate le o veredito pelo leitor unico, que localiza campo por conteudo
 - [ ] Gate nao avanca sem entry com veredito para a fase
 - [ ] Gate exige campo evidence=<tipo>:<resultado> do tipo certo na entry (Fase 3 - TDD); forced approval

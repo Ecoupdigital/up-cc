@@ -1,8 +1,9 @@
 # TDD por Tipo: Evidência Exigida pelo Gate
 
-Referência operacional carregada sob demanda pelo `up-verificador` e citada pelas skills
-`up-tdd` e `up-verificar-antes-de-concluir`. Define os 3 tipos de evidência, a prova
-exigida de cada um e o formato do campo `evidence=` no `approvals.log`.
+Referência operacional citada pelas skills `up-tdd` e `up-verificar-antes-de-concluir`.
+Define os 3 tipos de evidência, a prova exigida de cada um e o formato do campo
+`evidence=` no `approvals.log`. O escritor default da linha e o orquestrador. O
+`up-verificador` e o `up-revisor` so entram com `--review`.
 
 A Lei de Ferro do UP nao é "TDD-unit sempre". É "evidência fresca do TIPO CERTO antes de
 afirmar pronto". TDD-unit red-green é UMA das três provas. O tipo de código decide qual prova
@@ -60,7 +61,8 @@ Nesse caso exija a evidência de CADA tipo presente e registre uma linha `eviden
 
 ## Formato no approvals.log (formato estendido, Fase 3)
 
-O gate de fase só APROVA com uma entrada `up-revisor` que carregue o campo `evidence=` do tipo certo.
+O gate de fase só APROVA com uma entrada que carregue o campo `evidence=` do tipo certo.
+O escritor pode ser o orquestrador (`up-executor`) ou o `up-revisor` (`--review`).
 Formato da linha (uma por veredito; o `evidence=` vai na MESMA linha):
 
 ```
