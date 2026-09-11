@@ -1,6 +1,6 @@
 ---
 name: up:build
-description: Use quando o usuario quer EXECUTAR um projeto ja planejado (existe .plano/PLAN-READY.md). Default GitHub-nativo por fase (worktree, issue, PR, merge) via gh OU MCP. Caminho quente: executor + prova barata + gate, sem DCRV e sem revisor. Flag --review devolve verificador+revisor; --testar roda DCRV; --solo = autonomo total mantendo GitHub; --auto pula so o menu; --local pula o GitHub; --board espelha no Multica.
+description: Use quando o usuario quer EXECUTAR um projeto ja planejado (existe .plano/PLAN-READY.md). Default GitHub-nativo por fase (worktree, issue, PR, merge) via gh OU MCP. Caminho quente: executor + prova no SUMMARY + teste visual, sem gate, sem DCRV e sem revisor. Flag --review devolve verificador+revisor; --testar roda DCRV; --solo = autonomo total mantendo GitHub; --auto pula so o menu; --local pula o GitHub; --board espelha no Multica.
 argument-hint: "[--solo] [--auto] [--local] [--board] [--review] [--testar]"
 allowed-tools:
   - Read
@@ -20,23 +20,22 @@ Absorve `/up:executar-fase`, `/up:executar-plano` e a parte de EXECUCAO do antig
 
 Conduz, por fase:
 1. Validacao light do plano (artefatos existem, planos OK)
-2. Execucao em WAVES PARALELAS (varios `up-executor` por wave; planejador local se precisar replan)
-3. Prova barata: `verify-static` se houver teste, senão a prova do executor. Orquestrador grava `evidence=` no `approvals.log`
-4. **GATE deterministico** via `approvals.log` (sem supervisor LLM)
-5. `--review` (opt-in): `up-verificador` + `up-revisor` two-stage. `--testar` (opt-in): laço DCRV
-6. Teste visual antes do merge (fase de UI) + menu de fim de fase
+2. Execucao em ONDAS PARALELAS (varios `up-executor` por onda; planejador local se precisar replan)
+3. Conferencia dos SUMMARYs (secao `## Prova` de cada plano) e `verify-static` se o projeto tiver suite
+4. `--review` (opt-in): `up-verificador` + `up-revisor` two-stage. `--testar` (opt-in): laco DCRV
+5. Teste visual antes do merge (fase de UI) + menu de fim de fase
 
 **Caso de uso principal:** executar projeto planejado, possivelmente em runtime diferente do que planejou.
 Exemplo: planejou em Claude Code (`/up:plan "X"`), agora roda em OpenCode (`/up-build`).
 
-**Re-plan local permitido (max 1 round):** se durante a execucao ficar claro que o plano esta inviavel, o `up-planejador` LOCAL refaz a fase (self-check). Nao volta pro runtime que planejou originalmente. Registrar em `.plano/governance/replans.log`.
+**Re-plan local permitido (max 2 por projeto):** se durante a execucao ficar claro que um plano esta inviavel, o `up-planejador` LOCAL refaz esse plano (self-check). Nao volta pro runtime que planejou originalmente. Registrar em `.plano/governance/replans.log`.
 </objective>
 
 <execution_context>
 @~/.claude/up/workflows/build.md
-@~/.claude/up/workflows/dcrv.md
-@~/.claude/up/workflows/governance.md
 </execution_context>
+
+Com `--testar`, carregar tambem `@~/.claude/up/workflows/dcrv.md` no momento do laco.
 
 <context>
 $ARGUMENTS
@@ -47,7 +46,7 @@ $ARGUMENTS
 - `--auto` - pula so o menu de fim de fase (merge automatico). Mantem GitHub. O teste visual ainda roda se `require_visual_test=true`.
 - `--local` - **ESCAPE HATCH sem GitHub**. Commit atomico na branch ATUAL, zero worktree/issue/PR/board. (Mesmo que `/up:rapido`.) Unico jeito de pular o GitHub.
 - `--board` - espelha o progresso das fases no Multica (board opt-in, batched, fail-open).
-- `--review` - opt-in. Spawna verificador (se a estatica nao bastar) e revisor two-stage. Sem esta flag, o orquestrador escreve a evidencia.
+- `--review` - opt-in. Spawna verificador e revisor two-stage depois das ondas. Sem esta flag, a prova do SUMMARY basta.
 - `--testar` - opt-in. Roda o laço DCRV depois do executor. Sem esta flag, DCRV nao entra. Use `/up:testar` para o laço completo.
 
 O comando le o resto de `.plano/PLAN-READY.md`.
@@ -82,7 +81,7 @@ Se algo falta: alertar e oferecer planejamento local OU abortar.
 **Parsear flags primeiro:** extrair `--solo`/`--auto`/`--local`/`--board`/`--review`/`--testar`. Sem flag = GitHub-nativo (default), sem DCRV e sem revisor.
 
 **Modo de orquestracao (resolver antes de comecar):**
-- DEFAULT (sem `--local`): GitHub-nativo. Por fase: `up-tools.cjs github start-phase` (worktree + branch + issue via gh OU MCP, fail-open) -> executa as waves -> gate -> teste visual pre-merge (se UI) -> `github finish-phase` (PR -> merge squash -> cleanup) conforme o menu. `--auto` pula o menu (mantem GitHub). `--solo` pula menu E gate visual (autonomo total, mantem GitHub). `--board` adiciona `multica init/sync` (batched).
+- DEFAULT (sem `--local`): GitHub-nativo. Por fase: `up-tools.cjs github start-phase` (worktree + branch + issue via gh OU MCP, fail-open) -> executa as ondas -> confere SUMMARYs e prova -> teste visual pre-merge (se UI) -> `github finish-phase` (PR -> merge squash -> cleanup) conforme o menu. `--auto` pula o menu (mantem GitHub). `--solo` pula menu E gate visual (autonomo total, mantem GitHub). `--board` adiciona `multica init/sync` (batched).
 - `--local`: executa local, commits atomicos na branch atual. Sem worktree/issue/PR/board.
 
 **Execute the build workflow from @~/.claude/up/workflows/build.md end-to-end.**
@@ -90,16 +89,16 @@ Se algo falta: alertar e oferecer planejamento local OU abortar.
 Pipeline por fase:
 1. Validacao light
 2. `github start-phase` (worktree + issue via gh OU MCP; pulado so em `--local`)
-3. Execucao em WAVES PARALELAS: os planos da mesma wave rodam ao mesmo tempo (varios `up-executor`); waves em sequencia. Re-plan local se algum plano ficar inviavel.
-4. Prova barata: `verify-static` se houver teste; senao a prova do executor. Orquestrador grava `evidence=` e um VERIFICATION.md minimo
-5. **GATE deterministico** `approvals.log` (governance.md, gate-only; exige `evidence=`)
+3. Execucao em ONDAS PARALELAS: os planos da mesma onda rodam ao mesmo tempo (varios `up-executor`); ondas em sequencia. Re-plan local se algum plano ficar inviavel.
+4. Conferir cada SUMMARY (secao `## Prova` presente, diff bate com o relato) e rodar `verify-static` se o projeto tiver suite
+5. Decisoes escaladas pelos executores viram pergunta ao dono
 6. `--review`: up-verificador + up-revisor two-stage. Sem a flag, pular
-7. `--testar`: laço DCRV. Sem a flag, pular (use `/up:testar`)
+7. `--testar`: laco DCRV. Sem a flag, pular (use `/up:testar`)
 8. **Teste visual pre-merge** (fase de UI e `require_visual_test=true`): sobe o dev server na worktree, "testar primeiro ou pode mergear?", loop de ajuste ate aprovar
 9. **Menu de fim de fase** (GitHub-nativo, fora `--auto`/`--solo`): merge local / abrir PR / deixa a branch / descarta. Autonomo (`--solo`/`--auto`) auto-mergeia sem menu. Em `--local`, ja committou na branch atual
 10. Reassessment do roadmap antes da proxima fase
 
-**Re-plan local permitido (max 1 round por fase):**
+**Re-plan local permitido (max 2 por projeto):**
 Se ficar inviavel, o up-planejador LOCAL refaz a fase. Registrar em `.plano/governance/replans.log`.
 
 **A partir do inicio do build, ZERO interacao com usuario** (exceto alertas criticos e o menu de fim de fase).
@@ -108,8 +107,8 @@ Se ficar inviavel, o up-planejador LOCAL refaz a fase. Registrar em `.plano/gove
 <success_criteria>
 - [ ] PLAN-READY.md validado
 - [ ] Flags parseadas (default = GitHub-nativo; --solo/--auto = autonomia mantendo GitHub; --local = escape sem GitHub)
-- [ ] Build rodou todas as fases; planos da mesma wave em paralelo
-- [ ] GATE approvals.log respeitado (deterministico, com evidence= por tipo)
+- [ ] Build rodou todas as fases; planos da mesma onda em paralelo
+- [ ] Todo plano com SUMMARY e secao `## Prova`
 - [ ] Teste visual pre-merge em fase de UI (require_visual_test; pulado em --solo)
 - [ ] Fechamento por fase: menu (GitHub-nativo), auto-merge (--solo/--auto) ou commit na branch (--local)
 </success_criteria>

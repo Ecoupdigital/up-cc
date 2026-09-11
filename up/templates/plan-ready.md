@@ -4,20 +4,13 @@ Template para `.plano/PLAN-READY.md` — arquivo-flag que indica que o projeto f
 completamente planejado e esta pronto para execucao.
 
 Gerado por `/up:plan` ao final do planejamento.
-Lido por `/up:build` como gate de entrada.
+Lido por `/up:build` como pre-requisito de entrada.
 
 <template>
 
 ```yaml
 ---
-version: "0.6.0"
-plan_schema: 2         # marcador de esquema. 2 = ciclo com fronteiras confirmadas obrigatorias
-seams:                 # fronteiras confirmadas com o dono ANTES do planejamento
-  - contrato: ""       # nome do contrato publico. NUNCA caminho de arquivo
-    tipo: ""           # modulo | interface | comando | rota
-    estado: ""         # existente | nova
-    nivel: ""          # quao alto esta a fronteira, em uma frase
-    justificativa: ""  # obrigatoria quando ha mais de uma fronteira
+version: "3.0.0"
 fora_de_escopo: []     # o que este plano deliberadamente NAO faz, uma linha por item
 planned_at: ""
 planned_by:
@@ -33,7 +26,7 @@ total_plans: 0
 total_requirements: 0
 estimated_tasks: 0
 status: ready_for_execution
-planning_confidence: 0  # 0-100, do AUDIT-PLAN.md
+planning_confidence: 0  # 0-100, do AUDIT-PLAN.md (--review) ou do self-check do planejador
 ---
 
 # Projeto Pronto Para Execucao
@@ -67,30 +60,9 @@ salvo em `.plano/`.
 | 2 | [nome] | [N] | [M] | 1 | planejada |
 | 3 | [nome] | [N] | [M] | 1 | planejada |
 
-## Fronteiras Confirmadas
-
-| Contrato | Tipo | Estado | Nivel |
-|----------|------|--------|-------|
-| [contrato publico] | comando | existente | superficie publica mais alta |
-
-Confirmadas com o dono antes do planejamento. A execucao esta proibida de criar fronteira nao
-listada aqui: ao precisar de uma, escala. Regras em `seams.md`.
-
 ## Fora de Escopo
 
 - [item]: [motivo em uma linha]
-
-## Aprovacoes Obtidas
-
-Todas estas aprovacoes foram registradas em governance/approvals.log:
-
-- [x] CEO: Briefing aprovado, intake completo
-- [x] Chief-architect: Arquitetura aprovada
-- [x] Chief-product: Fit com briefing confirmado
-- [x] Architecture-supervisor: PROJECT, ROADMAP, SYSTEM-DESIGN, REQUIREMENTS aprovados
-- [x] Planning-supervisor: Todos planos aprovados
-- [x] Chief-engineer: Planejamento consistente cross-fase
-- [x] Planning-auditor: Confidence score [N]/100
 
 ## Artefatos Disponiveis
 
@@ -105,13 +77,11 @@ Todas estas aprovacoes foram registradas em governance/approvals.log:
 ├── PROJECT.md
 ├── ROADMAP.md
 ├── REQUIREMENTS.md
-├── AUDIT-PLAN.md           ← relatorio do planning auditor
-├── CHECKLIST.md
+├── AUDIT-PLAN.md           ← so com --review
 ├── PLAN-READY.md           ← este arquivo
 └── fases/
     ├── 01-[nome]/
     │   ├── 01-01-PLAN.md
-    │   ├── 01-01-PLAN-REVIEW.md
     │   └── 01-02-PLAN.md
     ├── 02-[nome]/
     └── ...
@@ -142,14 +112,11 @@ Ver `.plano/PENDING.md` para detalhes.
 
 ## Como o /up:build usa este arquivo
 
-1. Gate de entrada: arquivo deve existir
+1. Arquivo deve existir
 2. Parse YAML frontmatter
-3. Antes de executar, o build roda `gate plan-ready`, que bloqueia quando `plan_schema` e 2 ou
-   maior e o campo de fronteiras esta ausente, e apenas avisa quando o marcador de esquema esta
-   ausente (plano anterior ao ciclo)
-4. Para cada plano listado, verificar se arquivo existe no disco
-5. Se algum plano falta: alertar e oferecer planejamento local
-6. Se tudo OK: prosseguir com execucao
+3. Para cada plano listado, verificar se arquivo existe no disco
+4. Se algum plano falta: alertar e oferecer planejamento local
+5. Se tudo OK: prosseguir com execucao
 
 ## Quando este arquivo e atualizado
 

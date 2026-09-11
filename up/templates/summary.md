@@ -74,6 +74,14 @@ Each task was committed atomically:
 
 _Note: TDD tasks may have multiple commits (test -> feat -> refactor)_
 
+## Prova
+
+| Entrega | Tipo | Comando ou acao | Resultado |
+|---------|------|-----------------|-----------|
+| [entrega] | logica \| ui \| integracao | `npm test -- auth` | 12 passed, 0 failed |
+
+Secao obrigatoria: e o unico registro de prova que o build le. Prova nao rodada: escreva "nao rodada" e o motivo.
+
 ## Files Created/Modified
 - `path/to/file.ts` - What it does
 - `path/to/another.ts` - What it does
