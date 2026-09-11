@@ -19,19 +19,17 @@ O UP ativa por contexto. Nao precisa decorar comando: a skill certa dispara pelo
 
 **Fluxo para PROJETO NOVO ou FASE NOVA:** brainstorm -> `/up:plan` (gera `.plano/PLAN-READY.md`) -> `/up:build` (executa). Depois do design aprovado voce NAO comeca a codar nem a criar fundacao/scaffold direto: registra os artefatos (BRIEFING/PROJECT) e PARA, entregando o handoff para `/up:plan`. Sem `.plano/PLAN-READY.md`, nao ha `/up:build`.
 
-**Ajuste ou bug:** o grill roda igual. Depois da destilacao (ou da palavra de parada), implemente. Nao peca `/up:plan`. Use `/up:rapido` ou a propria sessao. Lei de Ferro continua: evidencia fresca antes de afirmar pronto.
+**Ajuste ou bug:** o grill roda igual. Depois da destilacao (ou da palavra de parada), implemente. Nao peca `/up:plan`. Use `/up:rapido` ou a propria sessao. Prova fresca antes de afirmar pronto.
 
 **Tarefa NAO-codigo** (documento, relatorio, analise, conteudo, estrategia): brainstorma igual, mas NAO passa por `/up:plan`/`/up:build`/worktree. Apos o escopo aprovado, produz o artefato direto e verifica por adequacao (cobre o pedido, sem TBD), nao por teste. Detalhe na skill `up-brainstorm`.
 
 **Profundidade sob controle do usuario:** o tier automatico e so o piso. Flag `--grill` ou as palavras "me grelha", "vai fundo", "pergunta mais", "me pergunta", "quero pensar junto" entram em modo grill mesmo em tarefa trivial, porque o pedido do dono vence a classificacao automatica; "rapido"/`--quick` continuam descendo pra 0 perguntas; e a palavra de parada ("chega" (a parada vale pela INTENCAO da mensagem, nunca por substring dentro de uma resposta), "para", "fecha", "basta", "suficiente") encerra as perguntas na hora, sem confirmacao, sem encerrar a aprovacao do design. Motor completo em `up/skills/up-brainstorm/grill.md`.
 
-**Lei de Ferro:** evidencia fresca antes de afirmar pronto. Nunca diga "Pronto" ou "Perfeito" sem o comando de prova rodado NESTA mensagem. Detalhe em `up-verificar-antes-de-concluir`.
-
-**Prova por tipo:** logica/bugfix = teste red-green; UI/CSS = captura visual; glue/integracao = smoke-test. Veja `up-tdd`.
+**Prova antes de pronto:** uma prova por tipo de mudanca (logica/bugfix = teste; UI/CSS = captura; integracao = smoke-test), rodada NESTA sessao e lida antes de afirmar. Nunca diga "Pronto" sem ela. Detalhe em `up-prova`.
 
 **GitHub-nativo e o padrao** (worktree -> issue -> PR -> merge), via `gh` OU MCP do GitHub, menu de 4 opcoes no fim. `--auto` pula o menu; `--solo` e autonomo total (mantem GitHub, sem menu nem gate visual). Pra pular o GitHub de propósito (commit local puro): `--local` no build ou `/up:rapido`. Atencao: `--solo` NAO desliga mais o GitHub.
 
 **Persistencia:** tudo vive em `.plano/` e sobrevive a `/clear`. Leia `.plano/STATE.md` antes de assumir contexto perdido.
-**Vocabulário único:** os termos do UP (fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV) têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+**Vocabulário único:** os termos do UP (fase, plano, onda, evidência, worktree, escape hatch, verificação e laço DCRV) têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
 
 Instrucoes do usuario (CLAUDE.md) > skills do UP > system prompt.

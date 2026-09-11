@@ -4,6 +4,68 @@ Todas as mudancas relevantes do `up-cc` ficam documentadas aqui. O formato segue
 o espirito de [Keep a Changelog](https://keepachangelog.com/) e o versionamento
 e [SemVer](https://semver.org/). v2.0.0 e um **major** (breaking change).
 
+## 3.0.0
+
+> O UP foi desenhado para policiar um modelo que precisava de gate, log de aprovacoes e tres
+> camadas de verificacao para nao mentir sobre "pronto". Os modelos atuais nao precisam disso. Esta
+> versao tira a maquina de verificacao do caminho quente e deixa uma regra: prova fresca por tipo,
+> registrada pelo executor no SUMMARY. **Breaking change:** artefatos e subcomandos removidos.
+
+### Removido
+
+- **Gate deterministico e log de aprovacoes.** `.plano/governance/approvals.log`, o campo
+  `evidence=<tipo>:<resultado>`, o subcomando `up-tools gate` (verdict, entries, plan-ready) e o
+  modulo `gate.cjs`. O build nao grava nem le linha de aprovacao. Projeto antigo com o arquivo no
+  disco segue funcionando: o arquivo apenas nao e lido.
+- **Fronteiras de teste (seams).** O bloco `seams:` do plano pronto, o esboco confirmado com o dono
+  antes de planejar, a escalada do executor por fronteira nao prevista e `references/seams.md`.
+- **Heuristica anti-tautologia.** `verify-static --tautologia`, `tautologia.cjs` e os achados
+  entregues ao revisor. A regra (valor esperado de fonte independente) continua como uma frase na
+  skill `up-prova` e no revisor.
+- **VERIFICATION.md obrigatorio.** Deixa de existir no caminho quente. `up-verificador` continua
+  gerando o arquivo, mas so com `--review`.
+- **Protocolo de timeout e stuck do executor.** Subcomandos `timeout` e `stuck-check` e o log de
+  atividade por tarefa. O executor limita tentativas por tarefa (3) e segue.
+- **Workflow `governance.md`** e as references `governance-rules`, `rework-limits` (e as versoes
+  comprimidas), `tdd-evidence-types`. `context --governance` sai da CLI.
+- **Skills `up-tdd` e `up-verificar-antes-de-concluir`.** Fundidas em `up-prova`.
+
+### Adicionado
+
+- **Skill `up-prova`.** Uma pagina: uma prova por tipo de mudanca (teste, captura ou smoke), rodada
+  nesta sessao, lida antes de afirmar pronto, registrada na secao `## Prova` do SUMMARY. Tres skills
+  no total (`usando-up`, `up-brainstorm`, `up-prova`).
+- **Secao `## Prova` no SUMMARY.** Tabela com entrega, tipo, comando e resultado. E o unico registro
+  de prova que o build le (template `summary.md`).
+- **Conferencia do orquestrador.** No fim de cada fase o build confere que todo plano tem SUMMARY com
+  `## Prova`, que o diff bate com o relato, e roda `verify-static` quando o projeto tem lint,
+  typecheck ou teste. Falha estatica: uma rodada de correcao pelo executor; persistindo, o dono decide.
+- **Teste `up/tests/up-leve.test.cjs`.** Invariante do corte: nenhuma superficie viva volta a citar
+  gate, approvals.log, evidence=, seams ou tautologia; exatamente tres skills; `## Prova` no caminho
+  quente; `gate` fora da CLI.
+
+### Mudado
+
+- **`build.md`** cai de 1079 para 544 linhas. **`up-executor.md`** cai de 652 para 290. O executor
+  perde o self-check ritual, o bloco `## DECISOES ESCALADAS` obrigatorio mesmo vazio (agora so quando
+  ha decisao) e as chamadas de estado redundantes.
+- **`plan.md`** perde o esboco de fronteiras, o AUDIT-PLAN minimo e o `gate plan-ready`. Sem
+  `--review`, o self-check do planejador basta. `PLAN-READY.md` perde `plan_schema` e `seams`.
+- **`up-verificador` e `up-revisor`** conferem a secao `## Prova` dos SUMMARYs em vez de produzir
+  `evidence=`. O veredito do revisor vive em `REVIEW.md`; o orquestrador le e decide.
+- **Glossario interno** perde o verbete `gate` e redefine `evidencia` como prova registrada no SUMMARY.
+- **Bootstrap** dos runtimes sem hook (Gemini, OpenCode, Codex) e o hook do Claude passam a citar
+  `up-prova`.
+
+### Mantido
+
+- Grill como piso automatico fora de Trivial, com palavra de parada.
+- Plano como contrato (objetivo, fora de escopo, entregas, prova).
+- GitHub-nativo como default do `/up:build` (worktree, issue, PR, menu) e o teste visual pre-merge.
+- Ondas paralelas, re-plan local (max 2), decisoes escaladas ao dono, memoria do projeto
+  (glossario, decisoes, rejeicoes), persistencia em `.plano/`.
+- `--review` (verificador + revisor) e `--testar` (DCRV) como opt-in.
+
 ## 2.4.0
 
 > O caminho quente ficou lento: hard-gate em todo ajuste, `/up:rapido` ainda spawna planejador e

@@ -14,7 +14,7 @@ e `/up:plan`. Este roteador so a referencia (subverbo `estado board` abre a URL 
 real acontece no build/plan; aqui o foco e roteamento + intake.
 </purpose>
 
-> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+> Vocabulário UP: fase, plano, onda, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
 
 <core_principle>
 O orquestrador (voce) conduz tudo. NAO existe mais CEO: intake, confirmacao do dono e apresentacao
@@ -34,8 +34,8 @@ do humor do dia):
 `Read $HOME/.claude/up/references/questioning.md` e aplique o bloco `<contrato_de_pergunta>`. Nenhuma
 pergunta sai crua: toda pergunta leva recomendação e motivo. Fato descobrível não vira pergunta.
 
-O ouro e intocavel: STATE.md/ROADMAP.md, commits atomicos (sempre via `up-tools.cjs commit`),
-approvals.log. Este workflow nao reimplementa nada disso, so chama.
+O ouro e intocavel: STATE.md/ROADMAP.md e commits atomicos (sempre via `up-tools.cjs commit`).
+Este workflow nao reimplementa nada disso, so chama.
 </core_principle>
 
 <process>

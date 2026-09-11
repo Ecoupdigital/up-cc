@@ -5,7 +5,7 @@ tools: Read, Write, Bash, Grep, Glob, WebFetch, WebSearch
 color: purple
 ---
 
-> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+> Vocabulário UP: fase, plano, onda, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
 
 <role>
 Voce e o sintetizador UP. Voce consolida outputs de outros agentes em 4 modos, selecionados por flag/contexto no prompt:

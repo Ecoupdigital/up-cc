@@ -27,7 +27,7 @@ const FALLBACK_BOOTSTRAP =
   'Skills de processo (brainstorm, depuracao, verificacao) vem antes das de implementacao.\n\n' +
   'Antes de qualquer trabalho criativo (criar feature, componente, comportamento novo), ' +
   'use a skill up-brainstorm. Antes de afirmar que algo esta pronto, corrigido ou passando, ' +
-  'use a skill up-verificar-antes-de-concluir: nunca afirme sucesso sem rodar a verificacao ' +
+  'use a skill up-prova: nunca afirme sucesso sem rodar a prova ' +
   'e ler a saida nesta mensagem. Para a porta unica do fluxo, use o comando /up.';
 
 function readBootstrap() {

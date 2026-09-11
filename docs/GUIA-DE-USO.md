@@ -2,7 +2,7 @@
 
 Como usar o UP no dia a dia. Para você que vibe-coda com Claude Code, OpenCode, Gemini ou Codex.
 
-Versão: `up-cc` 2.0.0.
+Versão: `up-cc` 3.0.0.
 
 ---
 
@@ -19,7 +19,7 @@ A porta única é `/up`:
 
 Ciclo de projeto/fase nova: descreva -> grill -> `/up:plan` -> `/up:build` -> (no fim de cada fase de UI) testa na tela -> merge.
 
-Ciclo de ajuste/bug: descreva -> grill -> implementa (`/up:rapido` ou a sessao) -> Lei de Ferro.
+Ciclo de ajuste/bug: descreva -> grill -> implementa (`/up:rapido` ou a sessao) -> prova fresca antes de dizer pronto.
 
 ---
 
@@ -41,13 +41,13 @@ Via npm (publicado como `up-cc`):
 npx up-cc --claude --global
 ```
 
-Depois de instalar no **Claude Code**, rode `/clear` para ativar. O install configura um hook `SessionStart` que injeta o bootstrap `usando-up` e habilita as 4 skills (que ativam por contexto), a statusLine e o `up-context-monitor`. Sem o `/clear`, a sessão atual não enxerga o que acabou de ser instalado.
+Depois de instalar no **Claude Code**, rode `/clear` para ativar. O install configura um hook `SessionStart` que injeta o bootstrap `usando-up` e habilita as 3 skills (que ativam por contexto), a statusLine e o `up-context-monitor`. Sem o `/clear`, a sessão atual não enxerga o que acabou de ser instalado.
 
 Invocação por runtime (mesmo comando, prefixo diferente):
 
 | Runtime | Invocação | Ativação da doutrina |
 |---|---|---|
-| Claude Code | `/up:plan` | hook SessionStart + 4 skills nativas |
+| Claude Code | `/up:plan` | hook SessionStart + 3 skills nativas |
 | Gemini CLI | `/up:plan` | bootstrap injetado no `GEMINI.md` |
 | OpenCode | `/up-plan` | bootstrap injetado no `AGENTS.md` |
 | Codex | `$up-plan` | bootstrap injetado no `AGENTS.md` |
@@ -114,7 +114,6 @@ Saída: `.plano/PLAN-READY.md` mais a estrutura de planejamento. Nada de código
   PLAN-READY.md     # o selo de "pode buildar"
   fase-01-schema/   # CONTEXT, PLAN-001, etc.
   fase-02-ui/
-  governance/approvals.log
 ```
 
 ### 3.4 Buildar
@@ -126,7 +125,7 @@ Saída: `.plano/PLAN-READY.md` mais a estrutura de planejamento. Nada de código
 Por padrão (config `github_native: true`), para CADA fase o build:
 
 1. Abre uma worktree + branch `up/fase-NN-slug` + uma issue no GitHub.
-2. Roda os planos da fase (executor -> prova barata / verify-static -> gate). `--review` devolve verificador + revisor. `--testar` devolve o laco DCRV.
+2. Roda os planos da fase (executor com prova no SUMMARY; `verify-static` se o projeto tiver suite). `--review` acrescenta verificador + revisor. `--testar` acrescenta o laco DCRV.
 3. Se a fase tem UI, sobe o dev server DENTRO da worktree e pede aprovação visual antes do merge.
 4. Apresenta o menu de fim de fase.
 
@@ -141,9 +140,8 @@ Fase 02 (UI): abrindo worktree...
   worktree: ../grana-fase-02-ui
 
 [executor] implementando lançamento de despesa...
-[verificador] VERIFICATION.md emitido (evidência fresca)
-[gate] approvals.log: APROVADO
-[revisor] spec-compliance OK / code-quality OK
+[executor] SUMMARY 02-01 com prova: captura da tela de lançamento + teste do cálculo mensal
+[build] 1/1 SUMMARY com prova. verify-static: pass.
 
 Subi o dev server em http://localhost:3000 com o código desta fase.
 Testar primeiro ou pode mergear?
@@ -158,7 +156,7 @@ Aprovado, pode mergear
 Achei problema, quero ajustar
 ```
 
-"Achei problema" re-spawna o `up-executor` para corrigir, re-roda o gate, re-testa. Loop até você aprovar.
+"Achei problema" re-spawna o `up-executor` para corrigir, re-roda a prova, re-testa. Loop até você aprovar.
 
 Quando aprova, mata o dev server e cai no menu de fim de fase:
 
@@ -226,7 +224,7 @@ Quando é um ajuste pontual e você NÃO quer roadmap nem cerimônia GitHub:
 /up:rapido "corrige o typo no título da home e ajusta o padding do header"
 ```
 
-O `/up:rapido` executa na sessao (sem planejador, sem DCRV), aplica a Lei de Ferro e faz um commit atômico na branch ATUAL, com rastro mínimo em `STATE.md`. Zero worktree, zero issue, zero PR, zero fase. É o escape hatch nomeado para pular o `/up:build`.
+O `/up:rapido` executa na sessao (sem planejador, sem DCRV), roda a prova fresca e faz um commit atômico na branch ATUAL, com rastro mínimo em `STATE.md`. Zero worktree, zero issue, zero PR, zero fase. É o escape hatch nomeado para pular o `/up:build`.
 
 Use quando:
 - O fix cabe num commit e você já sabe exatamente o que fazer.
@@ -255,19 +253,19 @@ Fase 03: 4 planos em 2 waves
   Wave 1 (paralelo): [001-schema] [002-api-base]
   Wave 2 (paralelo): [003-ui-form] [004-ui-grafico]   (dependem da wave 1)
 
-[wave 1] spawnando 2 executores em paralelo...
-[gate A] 2/2 SUMMARYs presentes. OK.
-[wave 2] spawnando 2 executores em paralelo...
-[gate A] 4/4 SUMMARYs (todas as waves). OK.
+[onda 1] spawnando 2 executores em paralelo...
+[build] 2/2 SUMMARYs com prova. OK.
+[onda 2] spawnando 2 executores em paralelo...
+[build] 4/4 SUMMARYs com prova (todas as ondas). OK.
 ```
 
-Cada wave tem um gate (GATE A) que confere que todo plano não-pulado gerou seu SUMMARY antes de seguir. Se um plano falha, o build re-spawna só o executor daquele plano. Para desligar o paralelismo, ver `paralelizacao` na seção 14.
+No fim de cada onda o build confere que todo plano não-pulado gerou seu SUMMARY com a seção `## Prova` antes de seguir. Se um plano falha, o build re-spawna só o executor daquele plano. Para desligar o paralelismo, ver `paralelizacao` na seção 14.
 
 ---
 
 ## 7. Teste visual antes do merge
 
-Este é o gate de produção. Config: `require_visual_test` (default `true`).
+Este é o checkpoint de produção. Config: `require_visual_test` (default `true`).
 
 Quando uma fase tem UI, no fim dela o build:
 
@@ -286,7 +284,7 @@ Aprovado, pode mergear
 Achei problema, quero ajustar
 ```
 
-- **Achei problema, quero ajustar**: você descreve o problema, o `up-executor` corrige, re-roda o gate e re-testa com o dev server. Loop até você aprovar. (É o "quando eu disser não, ajusta; quando eu disser sim, mergeia".)
+- **Achei problema, quero ajustar**: você descreve o problema, o `up-executor` corrige, re-roda a prova e re-testa com o dev server. Loop até você aprovar. (É o "quando eu disser não, ajusta; quando eu disser sim, mergeia".)
 - **Aprovado, pode mergear**: mata o dev server e segue para o merge.
 
 Fase SEM UI (schema, backend puro, infra) pula o passo do dev server, mas ainda apresenta o menu de 4 opções.
@@ -331,17 +329,17 @@ Edite `.plano/config.json` (ver seção 14). Ex: para um projeto que você prefe
 
 ---
 
-## 9. TDD por tipo
+## 9. Prova por tipo
 
-O gate de teste é por TIPO de código (registrado em `.plano/governance/approvals.log` com `evidence=<tipo>:<resultado>`). A prova exigida varia:
+A regra do UP é uma só: nenhuma afirmação de "pronto" sem prova fresca rodada na sessão. A prova varia pelo tipo de mudança:
 
-| Tipo de código | Prova exigida |
+| Tipo de mudança | Prova |
 |---|---|
-| Lógica / parser / bugfix | Teste **red-green** (falha antes, passa depois). |
-| UI / CSS | **Prova visual** antes/depois (captura). |
-| Glue / integração | **Smoke-test** (sobe e responde). |
+| Lógica / parser / bugfix | Teste automatizado (bugfix: teste que reproduz o bug). |
+| UI / CSS | Captura de tela (antes/depois quando a mudança é visual). |
+| Integração externa | Smoke-test com resposta real. |
 
-A skill `up-tdd` ativa por contexto e cobra a prova certa antes de você escrever a implementação. Você não escolhe o tipo na unha: o agente detecta e exige a evidência adequada. Sem evidência no `approvals.log`, o gate determinístico não aprova a fase.
+A skill `up-prova` ativa por contexto. No build, cada executor registra a prova na seção `## Prova` do SUMMARY do plano, e o orquestrador lê essa seção, roda `verify-static` quando o projeto tem suite e confere o diff. Não há gate determinístico nem log de aprovações. Revisão formal (verificador + revisor two-stage) só com `--review`.
 
 ---
 
@@ -418,8 +416,7 @@ Todo o estado vive em `.plano/` e sobrevive a `/clear`:
   ROADMAP.md                # fases e status
   PROJECT.md, REQUIREMENTS.md
   config.json
-  fase-NN-slug/             # CONTEXT, RESEARCH, PLAN-NNN, SUMMARY-NNN, VERIFICATION
-  governance/approvals.log  # gate determinístico
+  fase-NN-slug/             # CONTEXT, RESEARCH, PLAN-NNN, SUMMARY-NNN (com Prova)
   git-map.json              # worktree/branch/issue/PR por fase
 ```
 
@@ -459,7 +456,7 @@ O `/up:build` confia no `PLAN-READY.md` e não re-roda o planejamento inteiro. S
 
 Diferenças por runtime:
 
-- **Claude Code**: completo. Hook SessionStart + 4 skills nativas + statusLine + context-monitor.
+- **Claude Code**: completo. Hook SessionStart + 3 skills nativas + statusLine + context-monitor.
 - **Gemini / OpenCode / Codex**: comandos e agentes convertidos; sem hook nem skills nativas, mas a doutrina (brainstorm-first) carrega sempre via bootstrap injetado no arquivo de instruções (`GEMINI.md` / `AGENTS.md`).
 
 Invocação: `/up:X` (Claude, Gemini), `/up-X` (OpenCode), `$up-X` (Codex).

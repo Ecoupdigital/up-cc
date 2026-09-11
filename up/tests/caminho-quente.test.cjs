@@ -9,6 +9,7 @@
  * volta a spawnar planejador ou DCRV, quando o build default volta a exigir
  * verificador + DCRV + revisor, ou quando o plan default volta a spawnar
  * pesquisador/roteirista/sintetizador como processo obrigatorio.
+ * (v3: o gate deterministico e o approvals.log sairam; ver up-leve.test.cjs.)
  */
 'use strict';
 
@@ -28,7 +29,6 @@ const UP = 'up/workflows/up.md';
 const CMD_BUILD = 'up/commands/build.md';
 const CMD_RAPIDO = 'up/commands/rapido.md';
 const CMD_PLAN = 'up/commands/plan.md';
-const GOVERNANCE = 'up/workflows/governance.md';
 
 const ARQUIVOS = [
   SKILL_BRAINSTORM,
@@ -41,7 +41,6 @@ const ARQUIVOS = [
   CMD_BUILD,
   CMD_RAPIDO,
   CMD_PLAN,
-  GOVERNANCE,
 ];
 
 let pass = 0;
@@ -108,8 +107,8 @@ t('rapido nao spawna planejador nem DCRV', () => {
   assert.ok(!/dcrv\.md/i.test(wf), 'rapido.md ainda referencia dcrv.md');
   assert.ok(!/DCRV Light/i.test(wf), 'rapido.md ainda roda DCRV Light');
   assert.ok(
-    /Lei de Ferro|prova fresca|verificar-antes/i.test(wf + '\n' + cmd),
-    'rapido perdeu a Lei de Ferro'
+    /prova fresca|up-prova/i.test(wf + '\n' + cmd),
+    'rapido perdeu a prova fresca'
   );
 });
 
@@ -122,7 +121,7 @@ t('build default nao exige DCRV nem revisor two-stage', () => {
     /so com --testar|somente com --testar|opt-in|--testar/i.test(wf),
     'build.md nao declara DCRV como opt-in'
   );
-  const defaultBlock = wf.match(/Pipeline final por fase[\s\S]{0,400}/);
+  const defaultBlock = wf.match(/Pipeline por fase[\s\S]{0,400}/);
   assert.ok(defaultBlock, 'build.md perdeu o diagrama do pipeline');
   assert.ok(
     !/up-verificador/.test(defaultBlock[0]) || /--review/.test(defaultBlock[0]),
@@ -160,14 +159,6 @@ t('porta unica nao spawna 4 pesquisadores em paralelo', () => {
   assert.ok(
     !/4 `up-pesquisador`|4x `up-pesquisador`/.test(wf),
     'up.md ainda spawna 4 pesquisadores'
-  );
-});
-
-t('gate aceita prova barata sem exigir up-revisor', () => {
-  const gov = ler(GOVERNANCE);
-  assert.ok(
-    /orquestrador|up-executor/i.test(gov),
-    'governance.md precisa aceitar escritor alem do up-revisor'
   );
 });
 

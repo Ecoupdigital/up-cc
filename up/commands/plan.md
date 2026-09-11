@@ -27,7 +27,7 @@ Conduz (projeto):
 1. Intake (inline no orquestrador, sem CEO) — entrada = BRIEFING.md do brainstorm de `/up`
 2. Arquitetura completa (`up-arquiteto` faz pesquisa, roadmap e auto-checagem de requisitos num passe)
 3. Planejamento de TODAS as fases como contrato (objetivo, entregas, prova)
-4. GATE. `--review` spawna `up-revisor`; sem a flag, self-check do planejador basta
+4. `--review` spawna `up-revisor`; sem a flag, self-check do planejador basta
 5. Gera PLAN-READY.md (arquivo-flag pra `/up:build`)
 
 **Caso de uso principal:** planejar em Claude Code (modelo capaz pra arquitetura) e executar em OpenCode/Gemini (mais barato pra rodar volume).
@@ -82,7 +82,7 @@ Estagios (PROJETO):
 1. Intake inline (orquestrador le BRIEFING.md OU pergunta) — interativo
 2. Arquitetura: `up-arquiteto` (pesquisa inline + roadmap + auto-checagem). Sem pesquisador, roteirista ou sintetizador
 3. Planejamento exaustivo (TODAS as fases, self-check do planejador)
-4. GATE. `--review` spawna up-revisor; default e self-check
+4. `--review` spawna up-revisor; default e self-check
 5. PLAN-READY.md gerado
 6. Orquestrador apresenta o resumo direto (sem CEO)
 

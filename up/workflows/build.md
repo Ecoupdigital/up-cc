@@ -1,196 +1,123 @@
 <purpose>
-Workflow `/up:build` — Execucao de projeto previamente planejado.
+Workflow `/up:build`: execucao de projeto previamente planejado.
 
-Requer `.plano/PLAN-READY.md` (gerado por `/up:plan`). Conduz Build (loop por fase) + Quality Gate
-global + Delivery. Pode executar projeto planejado em outro runtime — confia no PLAN-READY.md.
+Requer `.plano/PLAN-READY.md` (gerado por `/up:plan`). Conduz o loop por fase e a entrega. Pode
+executar um projeto planejado em outro runtime: confia no PLAN-READY.md.
 
-Este e o MOTOR UNICO de execucao do redesign v2. Absorveu executar-fase.md, executar-plano.md e a
-parte de execucao do modo-builder (builder.md, que foi deletado).
+Este e o motor unico de execucao do UP. Na v3 ele ficou leve: o modelo e capaz, o UP guia em vez
+de policiar. Uma prova por plano, escrita por quem executou, no SUMMARY. Sem log de aprovacoes, sem
+gate deterministico, sem verificador nem revisor no caminho quente (continuam como opt-in).
 </purpose>
 
-> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
-
-<migrado_de_builder>
-O antigo builder.md (3416 linhas) foi deletado. Capacidades reais migradas para ca (ou pro up.md/plan.md),
-SEM trazer governanca hierarquica/supervisores/CEO:
-
-- **Intake autonomo de projeto + pesquisa inline de stack:** migrado para `workflows/up.md` (Passo 2,
-  heuristica de prosa do brainstorm escala o brainstorm; greenfield faz pesquisa inline no arquiteto; modo light = mini-scan inline).
-  `/up:build` assume que isso ja rodou e que existe PLAN-READY.md.
-- **Crash recovery via LOCK.md:** preservado aqui (Estagio 0.3).
-- **Routing por tipo de plano (frontend/backend/database/misto):** preservado (Estagio 3.2), AGORA via
-  CONTEXTO no `up-executor` (carrega skill/ref de dominio sob demanda), sem agentes specialist separados.
-- **Pre-inline de contexto via `up-tools.cjs context`:** preservado (Estagio 3.3), economiza tokens por spawn.
-- **Verification ladder deterministica (verify-static antes do verificador-LLM):** preservada (Estagio 3.6).
-- **E2E + DCRV por fase:** delega a `@~/.claude/up/workflows/dcrv.md` (que absorveu builder-e2e.md).
-- **Modo light (pipeline enxuto):** o conceito de "feature pequena = menos cerimonia" agora e decidido
-  upstream pelo heuristica de prosa do brainstorm (em up.md). Aqui o pipeline e o mesmo; o cap de rework e 1 round.
-
-NAO migrado (morto de proposito): CEO/chiefs/supervisores, governanca hierarquica, re-plans com 2 niveis
-de aprovacao LLM, updates periodicos ao dono.
-</migrado_de_builder>
+> Vocabulário UP: fase, plano, onda, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
 
 <core_principle>
-Pipeline final por fase (caminho quente):
+Pipeline por fase (caminho quente):
 
 ```
-[up-planejador (replan LOCAL, so se preciso)] -> up-executor (roteia por contexto)
-  -> verify-static (se o projeto tiver teste) -> orquestrador grava evidence= no approvals.log
-  -> [GATE approvals.log] -> marcar completa
+abrir fase (worktree + branch + issue)
+  -> ondas de up-executor (paralelo dentro da onda, ondas em sequencia)
+  -> conferir SUMMARY de cada plano (com secao Prova)
+  -> verify-static (so se o projeto tiver lint/typecheck/teste)
+  -> decisoes escaladas (se houver)
+  -> teste visual pre-merge (se a fase tem UI)
+  -> menu de fechamento -> merge
 ```
 
-`--review` devolve o caminho antigo: `up-verificador` + `up-revisor` two-stage.
-`--testar` roda o laço DCRV (`up-tester`) depois do executor. Sem essas flags, nenhum dos dois entra.
+`--review` acrescenta `up-verificador` + `up-revisor` depois das ondas. `--testar` acrescenta o laco
+DCRV (`up-tester`). Sem essas flags, nenhum dos dois entra.
 
-**Model routing configuravel (v0.9.0+):**
-Antes de spawnar qualquer agente, resolver o modelo:
-```bash
-MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config resolve-model {agent-name} --raw)
-```
-Se `default`: nao passar `model=`. Se `opus/sonnet/haiku`: passar `model="{MODEL}"` no spawn.
+**Modelo dos agentes:** antes de spawnar, resolver `MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config resolve-model {agent} --raw)`.
+Se `default`, nao passar `model=`.
 
-**Re-plan local permitido (max 2):**
-Se durante a execucao ficar claro que um plano e inviavel, o orquestrador pode re-planejar a fase
-LOCALMENTE via `up-planejador` (self-check). NUNCA volta pro runtime que planejou originalmente.
+**Re-plan local (max 2 por projeto):** se um plano se revelar inviavel durante a execucao, o orquestrador
+re-planeja SO aquele plano via `up-planejador`. Nunca volta pro runtime que planejou.
 
-**SEPARACAO RIGIDA DE AGENTES:**
-O LLM tende a colapsar passos (mesmo agente executa + verifica). Isso e PROIBIDO. Cada passo do Stage 3
-e um `Agent()` SEPARADO. O enforcement e o GATE deterministico do `approvals.log`
-(ver `@~/.claude/up/workflows/governance.md`), nao uma piramide de supervisores.
+**Um agente por passo.** Executor executa; quem confere e o orquestrador lendo o SUMMARY e o diff. Nao
+peca ao executor que se auto-aprove nem crie agente de aprovacao.
 
-**GitHub-nativo e o DEFAULT (v2): DOIS EIXOS SEPARADOS:**
+**GitHub-nativo e o default. GitHub e interacao humana sao eixos separados:**
 
-O GitHub (worktree/branch/issue/PR) e a INTERACAO humana (menu/gate visual/merge) sao eixos
-independentes. As flags mexem so na interacao; o GitHub fica ligado sempre que da.
+- **Eixo GitHub:** ligado sempre que ha remote e (`gh` autenticado ou MCP do GitHub). Worktree e branch sao
+  git local e sempre acontecem. Issue e PR usam o transporte (`gh` ou `mcp`). Desliga so com `--local` ou
+  `config.github_native=false`.
+- `--local`: escape hatch sem GitHub. Commit atomico na branch atual, zero worktree/issue/PR.
+- `--solo`: autonomo total. Mantem GitHub (branch/worktree/issue/PR + auto-merge), sem menu e sem gate visual.
+- `--auto`: pula o menu de fechamento (auto-merge). O gate visual ainda roda se `require_visual_test=true`.
+- **Teste visual pre-merge** (`require_visual_test`, default true): fase com UI sobe o dev server e o dono
+  aprova na tela antes do merge. `--solo` pula sempre; `--auto` so pula com `require_visual_test=false`.
+- `--board`: espelha status no Multica (opt-in, batched, fail-open).
+- `--review`: opt-in. `up-verificador` + `up-revisor` depois das ondas.
+- `--testar`: opt-in. Laco DCRV depois das ondas.
 
-- **Eixo GitHub:** LIGADO sempre que ha remote E (`gh` autenticado OU MCP do GitHub conectado).
-  Worktree+branch sao git local e SEMPRE acontecem (offline-ok). Issue/PR usam o transporte:
-  `gh` (CLI cria direto) ou `mcp` (o workflow cria via `mcp__...github__*` e grava com
-  `record-issue`/`record-pr`). DESLIGA so com `--local` ou `config.github_native=false`.
-- `--local`: ESCAPE HATCH sem GitHub. Commit atomico na branch ATUAL. Zero worktree/issue/PR/rede.
-  (Mesmo comportamento de `/up:rapido`.) **Este e o unico jeito de pular o GitHub no build.**
-- `--solo`: NAO desliga o GitHub. Solo = autonomo total: GitHub completo (branch/worktree/issue/PR
-  + auto-merge), SEM menu e SEM gate visual. Pra loop/headless onde ninguem aprova nada.
-- `--auto`: pula o MENU de fechamento (auto-merge), MAS o gate visual (3.8.0) ainda roda se
-  `require_visual_test=true`. Mantem GitHub ligado.
-- **Teste visual antes do merge (`require_visual_test`, default true):** fase de UI sobe dev server e exige
-  o dono aprovar na tela ANTES do merge (3.8.0). `--solo` pula sempre; `--auto` so pula com `require_visual_test=false`.
-  Projeto em PRODUCAO: deixe ligado e nao use `--solo` (nada sobe sem voce ver).
-- `--board`: espelha status no Multica (espelho de board OPT-IN, BATCHED no fim da onda/fase). NAO ha
-  stream ao vivo no fluxo local: o board mostra so o status (`todo -> in_progress -> in_review -> done /
-  blocked`), nunca cada tool_use. Chamadas via `up-tools.cjs multica {init|sync|board}` (que usa
-  `multica.cjs`, deteccao `uname -s` Mac->`ssh server-ecoup`, FAIL-OPEN: se `multica` indisponivel, avisa
-  e segue sem board, nunca crasha). So roda quando `--board` ligado.
-- `--review`: opt-in. Spawna `up-verificador` (se a prova estatica nao bastar) e `up-revisor`
-  two-stage. Sem esta flag, o orquestrador escreve a linha de evidencia a partir da prova barata
-  (teste, smoke ou captura do executor) e o gate le essa linha.
-- `--testar`: opt-in. Roda o laço DCRV (`up-tester`) depois do executor. Sem esta flag, DCRV nao
-  entra no build. Quem quer o laço completo usa `/up:testar`.
-
-**Resumo das flags** (GitHub = artefatos; demais = interacao):
-
-| Flag | GitHub | Menu fim | Gate visual | Merge | DCRV / revisor |
+| Flag | GitHub | Menu fim | Gate visual | Merge | Revisor / DCRV |
 |------|:---:|:---:|:---:|---|---|
-| (nenhum) | SIM | SIM (4 opcoes) | SIM | conforme menu | NAO |
-| `--auto` | SIM | NAO | SIM (a menos require_visual_test=false) | auto squash | NAO |
-| `--solo` | SIM | NAO | NAO (pula sempre) | auto squash | NAO |
+| (nenhum) | SIM | SIM | SIM | conforme menu | NAO |
+| `--auto` | SIM | NAO | SIM (salvo require_visual_test=false) | auto squash | NAO |
+| `--solo` | SIM | NAO | NAO | auto squash | NAO |
 | `--local` | NAO | NAO | NAO | commit na branch atual | NAO |
-| `--review` | (herda) | (herda) | (herda) | (herda) | revisor + verificador |
+| `--review` | (herda) | (herda) | (herda) | (herda) | verificador + revisor |
 | `--testar` | (herda) | (herda) | (herda) | (herda) | DCRV |
 
-**Contrato de pergunta (obrigatório):** antes da primeira pergunta, carregue
-`Read $HOME/.claude/up/references/questioning.md` e aplique o bloco `<contrato_de_pergunta>`. Nenhuma pergunta
-sai crua: toda pergunta leva recomendação e motivo, com a opção recomendada em primeiro lugar.
+**Contrato de pergunta:** antes da primeira pergunta, carregue `Read $HOME/.claude/up/references/questioning.md`
+e aplique `<contrato_de_pergunta>`. Toda pergunta leva recomendacao e motivo, recomendada em primeiro.
 
-**O que este workflow resolve sozinho e NUNCA pergunta:** runtime atual (detectado pelo diretório de
-configuração), modo de repositório e autonomia (resolvidos das flags e da configuração do projeto), estratégia
-de merge (configuração), se a fase tem interface (tipo dos planos e scripts do manifesto), contagem de planos,
-resumos, ondas e veredito do gate (leitura de arquivo), estado do worktree, da branch, da issue e do PR (mapa
-git). Tudo isso é anunciado em uma linha, nunca perguntado. Perguntar qualquer um desses itens é violação do
-contrato.
+**O que este workflow resolve sozinho e nunca pergunta:** runtime atual, modo de repositorio e autonomia
+(flags e config), estrategia de merge (config), se a fase tem interface (tipo dos planos e scripts do
+manifesto), contagem de planos, resumos e ondas (leitura de arquivo), estado de worktree, branch, issue e PR
+(mapa git). Tudo isso e anunciado em uma linha.
 
-**FAIL-OPEN universal:** `start-phase`/`finish-phase` detectam remote + transporte (`gh`/`mcp`/`none`).
-Sem remote, degradam para git local (worktree local + merge local; issue/PR = null) com aviso, NUNCA
-crasham. `git worktree` e sempre local e funciona offline. Sem `gh` mas com MCP, o transporte e `mcp`:
-worktree/branch/push acontecem no `.cjs` e o workflow cria issue/PR via MCP. Com `--local` nao ha nem
-worktree (commit direto na branch atual).
+**Fail-open:** `start-phase` e `finish-phase` detectam remote e transporte. Sem remote, degradam para git
+local com aviso. Nunca crasham.
 
-**Onde o estado vive:** `git-map.json` e canonico no working dir PRINCIPAL (`.plano/git-map.json`). O `.plano/`
-de cada fase viaja na branch da fase (worktree) e volta pra main no merge. STATE.md permanece a fonte humana
-de "onde estou"; git-map.json e o indice maquina de "onde esta cada fase no GitHub".
+**Onde o estado vive:** `git-map.json` e canonico no working dir principal. O `.plano/` da fase viaja na branch
+da fase e volta pra main no merge. STATE.md e a fonte humana de "onde estou".
 </core_principle>
 
 <process>
 
-## Estagio 0: GATES OBRIGATORIOS
+## Estagio 0: Pre-requisitos
 
-### 0.1 Owner Profile (LOCAL)
-
-```bash
-if [ ! -f ~/.claude/up/owner-profile.md ]; then
-  echo "Owner profile nao existe NESTE runtime. Rodando onboarding..."
-  # Delegar pro workflow @~/.claude/up/workflows/onboarding.md
-fi
-```
-
-O profile e do RUNTIME ATUAL, nao do runtime que planejou.
-
-### 0.2 PLAN-READY.md Existe?
+### 0.1 Owner profile
 
 ```bash
-if [ ! -f .plano/PLAN-READY.md ]; then
-  echo "ERRO: Este projeto nao foi planejado."
-  echo "Use /up:plan primeiro. Ou /up \"descricao\" -> /up:plan -> /up:build."
-  exit 1
-fi
+[ -f ~/.claude/up/owner-profile.md ] || echo "Owner profile ausente neste runtime. Rodar onboarding (@~/.claude/up/workflows/onboarding.md)."
 ```
 
-### 0.3 Crash Recovery
+### 0.2 PLAN-READY.md
+
+```bash
+[ -f .plano/PLAN-READY.md ] || { echo "ERRO: projeto nao planejado. Use /up:plan primeiro."; exit 1; }
+```
+
+### 0.3 Crash recovery
 
 ```bash
 ls .plano/LOCK.md 2>/dev/null
 ```
 
-Se LOCK.md existe e `stage: build`: retomar do passo/fase correto (pular o que ja tem SUMMARY/VERIFICATION).
-Se `status: completed`: deletar LOCK.md e iniciar normalmente.
+Se existe com `stage: build`: retomar da fase e plano certos (pular o que ja tem SUMMARY). Se
+`status: completed`: apagar e iniciar normalmente.
 
-## Estagio V: VALIDACAO LIGHT
+## Estagio V: Validacao light
 
-**Confiar no PLAN-READY.md, mas spot-check estrutura.**
-
-### V.1 Parsear PLAN-READY.md
+Confiar no PLAN-READY.md, conferindo so a estrutura.
 
 ```bash
-PLANNED_RUNTIME=$(grep "runtime:" .plano/PLAN-READY.md | head -1 | awk '{print $2}')
 INTENDED_RUNTIME=$(grep -A1 "intended_execution:" .plano/PLAN-READY.md | tail -1 | awk '{print $2}')
 TOTAL_PHASES=$(grep "total_phases:" .plano/PLAN-READY.md | awk '{print $2}')
-CONFIDENCE=$(grep "planning_confidence:" .plano/PLAN-READY.md | awk '{print $2}')
-
-PR_PASS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate plan-ready --field pass)
-PR_SCHEMA=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate plan-ready --field schema)
-PR_WARN=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate plan-ready --field warnings)
-
-if [ "$PR_PASS" != "true" ]; then
-  echo "BLOQUEADO: plano pronto sem fronteiras confirmadas. Rode /up:plan para esbocar e confirmar as fronteiras."
-  exit 1
-fi
-[ -n "$PR_WARN" ] && echo "AVISO: ${PR_WARN} (plano anterior a este ciclo; seguindo sem bloquear)"
-```
-
-Plano pronto anterior a este ciclo nao tem marcador de esquema, entao a ausencia do campo sai como
-aviso e a execucao segue. Plano gerado a partir deste ciclo tem `plan_schema` 2 ou maior e a
-ausencia bloqueia.
-
-### V.2 Validacao de Compatibilidade
-
-```bash
 CURRENT_RUNTIME="claude-code"
 [ -d ~/.config/opencode ] && CURRENT_RUNTIME="opencode"
 [ -d ~/.gemini ] && CURRENT_RUNTIME="gemini-cli"
+
+FAIL=0
+for f in PROJECT.md ROADMAP.md REQUIREMENTS.md; do [ -f ".plano/$f" ] || { echo "FALTANDO: $f"; FAIL=1; }; done
+for plan in $(grep -oE "fases/[0-9]+-[a-z-]+/[0-9]+-[0-9]+-PLAN.md" .plano/PLAN-READY.md); do
+  [ -f ".plano/$plan" ] || { echo "FALTANDO: $plan"; FAIL=1; }
+done
 ```
 
-Se `$INTENDED_RUNTIME` for diferente de `same`, de `any` e de `$CURRENT_RUNTIME`, perguntar (ferramenta de
-pergunta do runtime) com este conteúdo:
+Se `$INTENDED_RUNTIME` nao for `same`, `any` nem `$CURRENT_RUNTIME`:
 
 <pergunta id="build.runtime-divergente">
 Pergunta: O plano foi feito para {INTENDED_RUNTIME} e você está em {CURRENT_RUNTIME}. Sigo assim?
@@ -199,82 +126,43 @@ Porque: o plano pronto viaja inteiro no diretório de planejamento e não depend
 Opções: Seguir neste runtime | Abortar e executar no runtime planejado
 </pergunta>
 
-### V.3 Validar Artefatos Esperados
-
-```bash
-[ -f .plano/PROJECT.md ] || { echo "FALTANDO: PROJECT.md"; FAIL=1; }
-[ -f .plano/ROADMAP.md ] || { echo "FALTANDO: ROADMAP.md"; FAIL=1; }
-[ -f .plano/REQUIREMENTS.md ] || { echo "FALTANDO: REQUIREMENTS.md"; FAIL=1; }
-[ -f .plano/SYSTEM-DESIGN.md ] || { echo "FALTANDO: SYSTEM-DESIGN.md"; FAIL=1; }
-```
-
-### V.4 Validar Planos Listados
-
-```bash
-PLANS=$(grep -oE "fases/[0-9]+-[a-z-]+/[0-9]+-[0-9]+-PLAN.md" .plano/PLAN-READY.md)
-for plan in $PLANS; do
-  [ ! -f ".plano/$plan" ] && echo "FALTANDO: $plan" && FAIL=1
-done
-```
-
-### V.5 Decidir
-
-**Tudo OK:** prosseguir. **Falta algo:** perguntar ao dono com este conteúdo:
+Se `FAIL=1`:
 
 <pergunta id="build.plano-incompleto">
 Pergunta: Falta {lista dos artefatos ausentes} para executar. O que fazer?
 Recomendo: Re-planejar localmente
-Porque: {o que está faltando} não é recuperável na execução, e o re-planejamento local reaproveita o que já existe em vez de refazer a fase.
+Porque: {o que está faltando} não é recuperável na execução, e o re-planejamento local reaproveita o que já existe.
 Opções: Re-planejar localmente | Abortar
 </pergunta>
 
-## Estagio C: CONFIRMACAO DO DONO (orquestrador, sem CEO)
+## Estagio C: Confirmacao do dono
 
-Output direto do orquestrador (le owner-profile pra tom):
+Resolver o modo antes do banner:
+
+```bash
+if [ "$LOCAL" = "true" ]; then GITHUB_NATIVE=false
+else
+  GITHUB_NATIVE=$(node "$HOME/.claude/up/bin/up-tools.cjs" config get github_native --raw 2>/dev/null)
+  [ -z "$GITHUB_NATIVE" ] && GITHUB_NATIVE=true
+fi
+AUTONOMO=false; { [ "$SOLO" = "true" ] || [ "$AUTO" = "true" ]; } && AUTONOMO=true
+if [ "$GITHUB_NATIVE" = "true" ]; then
+  GITHUB_MODE="GitHub-nativo (worktree + issue + PR/menu por fase)"
+  [ "$AUTO" = "true" ] && GITHUB_MODE="GitHub-nativo --auto (PR + merge squash; gate visual ainda roda)"
+  [ "$SOLO" = "true" ] && GITHUB_MODE="GitHub-nativo --solo (autonomo total, sem gate visual)"
+else
+  GITHUB_MODE="--local (commit atomico na branch atual)"
+fi
+BOARD=false; [ "$BOARD_FLAG" = "true" ] && BOARD=true
+```
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  UP > BUILD
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Projeto planejado em {runtime}.
-Resumo: {N} fases, {M} planos. Planning confidence: {X}/100.
-Pendencias conhecidas: {de PENDING.md}.
-
-Modo git: {GITHUB_MODE}   (GitHub-nativo e o default; --local desliga; --solo/--auto sao autonomia, nao desligam)
+Resumo: {N} fases, {M} planos. Pendencias: {de PENDING.md}.
+Modo git: {GITHUB_MODE}
 ```
-
-Resolver `GITHUB_MODE` antes do banner. `$LOCAL`/`$SOLO`/`$AUTO`/`$BOARD_FLAG` vem das flags da
-invocacao. **`--solo` NAO desliga o GitHub** (so `--local` desliga):
-
-```bash
-# So --local (ou config github_native=false) desliga o GitHub.
-if [ "$LOCAL" = "true" ]; then
-  GITHUB_NATIVE=false
-else
-  GITHUB_NATIVE=$(node "$HOME/.claude/up/bin/up-tools.cjs" config get github_native --raw 2>/dev/null)
-  [ -z "$GITHUB_NATIVE" ] && GITHUB_NATIVE=true   # default TRUE
-fi
-
-# --solo e --auto sao AUTONOMIA (sem menu). --solo tambem pula o gate visual.
-AUTONOMO=false
-{ [ "$SOLO" = "true" ] || [ "$AUTO" = "true" ]; } && AUTONOMO=true
-
-if [ "$GITHUB_NATIVE" = "true" ]; then
-  GITHUB_MODE="GitHub-nativo (worktree + issue + PR/menu por fase)"
-  [ "$AUTO" = "true" ]  && GITHUB_MODE="GitHub-nativo --auto (PR + merge squash; gate visual ainda roda)"
-  [ "$SOLO" = "true" ]  && GITHUB_MODE="GitHub-nativo --solo (autonomo total: PR + merge, SEM gate visual)"
-else
-  GITHUB_MODE="--local (commit atomico na branch atual, sem worktree/issue/PR)"
-fi
-
-# --board liga o espelho Multica (OPT-IN). So tem efeito se passado explicitamente.
-BOARD=false
-[ "$BOARD_FLAG" = "true" ] && BOARD=true
-[ "$BOARD" = "true" ] && GITHUB_MODE="$GITHUB_MODE + Multica board (espelho de status, batched, fail-open)"
-```
-
-Confirmar com este conteúdo (ferramenta de pergunta do runtime). Se recusar: abortar.
 
 <pergunta id="build.iniciar-execucao">
 Pergunta: Inicio a execução agora?
@@ -283,46 +171,25 @@ Porque: o plano pronto passou na validação, o modo de repositório resolvido �
 Opções: Iniciar | Mudar o modo antes de iniciar | Não iniciar agora
 </pergunta>
 
-Se houver pendência bloqueante em `.plano/PENDING.md`, a recomendação inverte para "Não iniciar agora" e a
-linha Porque nomeia a pendência. A recomendação é calculada, não fixa.
+Pendencia bloqueante em `.plano/PENDING.md` inverte a recomendacao para "Não iniciar agora" e a nomeia.
+Em `--solo` ou `--auto`, nao perguntar: anunciar o modo e iniciar.
 
-## Estagio 3: BUILD (loop por fase — com GATE deterministico)
-
-**Inicializar governance** (ver `@~/.claude/up/workflows/governance.md`):
-```bash
-mkdir -p .plano/governance
-touch .plano/governance/approvals.log
-[ -s .plano/governance/approvals.log ] || \
-  echo "# Build governance initialized at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .plano/governance/approvals.log
-```
-
-**Inicializar board no Multica (so se `--board`, UMA vez no inicio do projeto):**
-`multica init` garante o `project` no Multica + a issue-pai (e as issues-filhas por fase, se `/up:plan`
-ja as criou) e grava `metadata up_project=<repo>`. FAIL-OPEN: se `multica` indisponivel ou der erro,
-avisa e segue sem board (nunca crasha o build). Deteccao `uname -s` fica dentro de `multica.cjs`.
+**Board (so `--board`, uma vez):**
 
 ```bash
-if [ "$BOARD" = "true" ]; then
-  # init = ensureProject + issue-pai (idempotente; reconcilia via metadata up_project).
-  MULTICA_INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" multica init --raw 2>/dev/null) \
-    || echo "AVISO: Multica indisponivel (init). Seguindo sem board."
-fi
+[ "$BOARD" = "true" ] && { node "$HOME/.claude/up/bin/up-tools.cjs" multica init --raw 2>/dev/null || echo "AVISO: Multica indisponivel. Seguindo sem board."; }
 ```
 
-Para cada fase em ROADMAP.md (em ordem):
+## Estagio 3: Loop por fase
 
-### 3.0 Abrir a fase (GitHub-nativo - DEFAULT)
+Para cada fase do ROADMAP.md, em ordem:
 
-A menos que `--local` (ou `github_native=false`), abrir worktree + branch + issue ANTES de executar a fase.
+### 3.0 Abrir a fase
 
 ```bash
 PHASE_SLUG=$(node "$HOME/.claude/up/bin/up-tools.cjs" slug "{phase_name}" --raw)
-
 if [ "$GITHUB_NATIVE" = "true" ]; then
-  # Cria worktree + branch up/fase-NN-slug SEMPRE (git local). Issue por transporte:
-  #   gh  -> issue criada aqui;  mcp -> retorna pending.issue (workflow cria via MCP);  none -> sem remote.
-  START=$(node "$HOME/.claude/up/bin/up-tools.cjs" github start-phase \
-    --phase {phase_number} --slug "$PHASE_SLUG" --raw)
+  START=$(node "$HOME/.claude/up/bin/up-tools.cjs" github start-phase --phase {phase_number} --slug "$PHASE_SLUG" --raw)
   if [[ "$START" == @file:* ]]; then START=$(cat "${START#@file:}"); fi
   WORKTREE=$(echo "$START"  | grep -oE '"worktree"[^,}]*'  | sed 's/.*: *"//;s/"//')
   BRANCH=$(echo "$START"    | grep -oE '"branch"[^,}]*'    | sed 's/.*: *"//;s/"//')
@@ -330,750 +197,348 @@ if [ "$GITHUB_NATIVE" = "true" ]; then
   TRANSPORT=$(echo "$START" | grep -oE '"transport"[^,}]*' | sed 's/.*: *"//;s/"//')
   echo "Fase {phase_number}: branch=$BRANCH worktree=$WORKTREE issue=${ISSUE:-null} transport=$TRANSPORT"
 else
-  # --local: sem worktree/issue. Trabalho acontece na branch atual.
   WORKTREE="$(pwd)"; BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"; ISSUE=""; TRANSPORT=none
 fi
 ```
 
-**Issue via MCP (quando `transport=mcp`):** sem `gh` mas com remote, `start-phase` ja criou worktree+branch
-e devolveu `pending.issue {title, body}` no JSON. Se voce (orquestrador) TEM as tools `mcp__...github__*`,
-crie a issue agora e grave o numero de volta:
+**Issue via MCP (`transport=mcp`):** `start-phase` devolveu `pending.issue {title, body}`. Se voce tem as tools
+`mcp__...github__*`, crie a issue e grave: `github record-issue --phase {phase_number} --issue <num> --url <url>`.
+Sem MCP: siga sem issue.
 
-> Ao detectar `transport=mcp` no `$START`: extraia `pending.issue.title`/`pending.issue.body`, chame
-> `mcp__plugin_github_github__issue_write` (create) no repo do remote, pegue o numero retornado e rode
-> `node "$HOME/.claude/up/bin/up-tools.cjs" github record-issue --phase {phase_number} --issue <num> --url <url>`.
-> Se voce NAO tem MCP do GitHub: siga sem issue (worktree/branch ja existem; PR pode degradar pra merge local no fim).
-
-**Entrar na worktree (so se github_native):** o trabalho da fase (executor, commits) acontece
-DENTRO de `$WORKTREE`. Preferir a tool nativa do harness **EnterWorktree** apontando para `$WORKTREE`; se
-indisponivel, a worktree ja foi criada por `start-phase` (basta usar `--cwd "$WORKTREE"` nos comandos
-`up-tools.cjs` e `cd "$WORKTREE"` antes de `git add/commit`). O `.plano/` da fase viaja na branch da fase;
-`git-map.json` permanece canonico no working dir principal. Ao terminar a fase usar **ExitWorktree** (ou
-voltar `cd` para o repo principal) antes de atualizar `git-map.json` na main.
-
-> Em `--local`, IGNORAR EnterWorktree/ExitWorktree: tudo na branch atual. Em `--solo` HA worktree (solo nao desliga GitHub).
-
-**Multica: marcar a fase em execucao (so se `--board`, 1 chamada na ENTRADA da fase).**
-Uma transicao por fase (nao por microtransicao): status `in_progress` + metadata `gh_issue`/`branch`.
-FAIL-OPEN: erro ou `multica` indisponivel -> avisa e segue.
+**Entrar na worktree (so GitHub-nativo):** preferir **EnterWorktree** apontando para `$WORKTREE`. Sem a
+tool, usar `--cwd "$WORKTREE"` nos comandos e `cd "$WORKTREE"` antes de commitar. Ao fechar a fase, sair
+(**ExitWorktree** ou `cd` de volta) antes de tocar `git-map.json`.
 
 ```bash
-if [ "$BOARD" = "true" ]; then
-  node "$HOME/.claude/up/bin/up-tools.cjs" multica sync \
-    --phase {phase_number} --status in_progress \
-    --gh-issue "${ISSUE:-}" --branch "${BRANCH:-}" --raw 2>/dev/null \
-    || echo "AVISO: Multica indisponivel (sync in_progress fase {phase_number}). Seguindo."
-fi
+[ "$BOARD" = "true" ] && node "$HOME/.claude/up/bin/up-tools.cjs" multica sync --phase {phase_number} --status in_progress --gh-issue "${ISSUE:-}" --branch "${BRANCH:-}" --raw 2>/dev/null
 ```
 
-### 3.1 Descobrir planos + waves da fase (MULTI-PLANO)
-
-Uma fase tem N planos agrupados em WAVES. O motor de waves vive em `up-tools.cjs`; aqui so o consumimos.
-NAO existe mais "1 plano por fase" (era a regressao do `head -1`): descobrimos TODOS os planos e o
-agrupamento por wave do disco.
-
-Os planos vivem DENTRO de `$WORKTREE` (a `.plano/` da fase viaja na branch da fase). Por isso TODA chamada
-de descoberta usa `--cwd "$WORKTREE"` (em `--local`, `$WORKTREE` = repo principal, entao funciona igual).
+### 3.1 Descobrir planos e ondas
 
 ```bash
-# (a) Metadados da fase + flag de paralelizacao (config). Trata @file: (saida > 50KB).
 INIT=$(node "$HOME/.claude/up/bin/up-tools.cjs" init executar-fase {phase_number} --cwd "$WORKTREE" --raw)
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
-# init executar-fase retorna: phase_found, phase_dir, phase_number, phase_name, phase_slug,
-# plans[] (nomes de arquivo), incomplete_plans[], plan_count, incomplete_count, paralelizacao, commit_docs.
 PHASE_DIR="$WORKTREE/$(echo "$INIT" | grep -oE '"phase_dir"[^,}]*' | sed 's/.*: *"//;s/"//')"
-PARALLELIZATION=$(echo "$INIT" | grep -oE '"paralelizacao"[^,}]*' | grep -oE '(true|false)')
+PARALLELIZATION=$(echo "$INIT" | grep -oE '"paralelizacao"[^,}]*' | grep -oE '(true|false)'); [ -z "$PARALLELIZATION" ] && PARALLELIZATION=true
 PLAN_COUNT=$(echo "$INIT" | grep -oE '"plan_count"[^,}]*' | grep -oE '[0-9]+')
-[ -z "$PARALLELIZATION" ] && PARALLELIZATION=true
-[ "$PLAN_COUNT" = "0" ] && echo "GATE A FALHOU: sem planos na Fase {phase_number}." && exit 1
+[ "$PLAN_COUNT" = "0" ] && echo "Sem planos na Fase {phase_number}. Rode /up:plan {phase_number}." && exit 1
 
-# (b) Inventario com agrupamento por WAVE (este e o motor de waves real).
 PLAN_INDEX=$(node "$HOME/.claude/up/bin/up-tools.cjs" phase-plan-index {phase_number} --cwd "$WORKTREE" --raw)
 if [[ "$PLAN_INDEX" == @file:* ]]; then PLAN_INDEX=$(cat "${PLAN_INDEX#@file:}"); fi
-# phase-plan-index retorna: phase, plans[] (cada: id, wave [int], autonomous [bool], objective,
-# files_modified[], task_count, has_summary [bool]), waves (map wave->[ids]), incomplete[], has_checkpoints.
 ```
 
-Parsear de `$PLAN_INDEX`: a lista `plans[]` e o mapa `waves` (chave = numero da wave, valor = ids dos
-planos daquela wave). Ordenar as waves por numero CRESCENTE. Para resolver o arquivo de um plano a partir
-do id: `PLAN="$PHASE_DIR/${id}-PLAN.md"` (fallback `"$PHASE_DIR/PLAN.md"` se id vazio).
+`phase-plan-index` devolve `plans[]` (id, wave, has_summary) e `waves` (mapa onda -> ids). Ondas em
+ordem crescente. Arquivo de um plano: `$PHASE_DIR/${id}-PLAN.md`.
 
-> Por que paralelizar dentro da wave e SEGURO: o agrupamento por wave ja garante que os planos da MESMA
-> wave sao INDEPENDENTES entre si (arquivos disjuntos, sem dependencia mutua). Qualquer plano que dependa
-> de outro cai numa wave POSTERIOR. Entao rodar todos os planos de uma wave em paralelo nunca causa
-> conflito de escrita. Waves rodam SEMPRE em ordem (a wave N+1 so comeca quando a wave N inteira termina).
+Planos da mesma onda sao independentes (arquivos disjuntos). Por isso rodam em paralelo. A onda N+1 so
+comeca quando a onda N inteira termina.
 
-### 3.2 + 3.3 LOOP DE WAVES: detectar tipo (por plano) + spawnar executor(es)
+### 3.2 Executar as ondas
 
-Iterar as waves em ordem crescente. Para CADA wave:
+Para cada onda:
 
-1. **Selecionar os planos da wave que ainda NAO tem SUMMARY** (resume): pular todo plano com
-   `has_summary: true` no `$PLAN_INDEX` (idempotencia/retomada). Se a wave inteira ja esta concluida,
-   anuncia e pula pra proxima wave.
-
-2. **Para CADA plano selecionado da wave, montar contexto e detectar tipo (PRE-spawn, por plano):**
+1. Selecionar os planos sem SUMMARY (`has_summary: false`). Onda ja concluida: anunciar e pular.
+2. Por plano, montar contexto e resolver o modelo:
 
 ```bash
-# Roda UMA VEZ por plano da wave (PLAN = $PHASE_DIR/<id>-PLAN.md).
-EXECUTOR_AGENT="up-executor"   # SEMPRE up-executor (Onda 2: sem specialists separados)
-
-# 3.2 (por plano): tipo apenas informa o executor qual dominio carregar; o agente nao muda.
 PLAN_TYPE=$(grep -oE '^type:[[:space:]]*[a-z-]+' "$PLAN" | head -1 | sed 's/type:[[:space:]]*//')
-EXECUTOR_DOMAIN="$PLAN_TYPE"   # frontend|backend|database|misto (vazio = misto)
-
-# Pre-inline de contexto (economiza ~30k tokens/spawn), por plano:
-CTX=$(node "$HOME/.claude/up/bin/up-tools.cjs" context \
-  --plan "${PLAN}" \
-  --state \
-  --config \
-  --requirements "${PHASE_NUMBER}" \
-  --manifest "${EXECUTOR_AGENT}" \
-  --cwd "$WORKTREE" --raw)
-
-MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" resolve-model-for-plan \
-  "${PLAN}" "${EXECUTOR_AGENT}" --cwd "$WORKTREE" --raw)
+CTX=$(node "$HOME/.claude/up/bin/up-tools.cjs" context --plan "$PLAN" --state --config --requirements "{phase_number}" --manifest up-executor --cwd "$WORKTREE" --raw)
+MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" resolve-model-for-plan "$PLAN" up-executor --cwd "$WORKTREE" --raw)
 ```
 
-3. **Spawnar o(s) executor(es) da wave:**
-   - **Se `PARALLELIZATION=true`:** spawnar TODOS os executores da wave EM PARALELO (multiplos `Agent()`
-     numa UNICA mensagem do orquestrador, um por plano selecionado da wave).
-   - **Se `PARALLELIZATION=false`:** spawnar os executores da wave um por vez (sequencial), esperando cada
-     um antes do proximo.
-
-   O prompt de cada `Agent` e o bloco abaixo, parametrizado POR PLANO (`{PLAN}`, `{EXECUTOR_DOMAIN}`,
-   `{CTX}` daquele plano). Um executor = um plano.
+3. Spawnar os executores da onda. `PARALLELIZATION=true`: todos numa unica mensagem (um `Agent()` por
+   plano). `false`: um por vez.
 
 ```python
 Agent(
   subagent_type="up-executor",
   prompt=f"""
-    Executar o Plano {PLAN} (Fase {phase_number}, wave {wave}).
+    Executar o plano {PLAN} (Fase {phase_number}, onda {wave}).
 
-    Tipo do plano (dominio a carregar por contexto): {EXECUTOR_DOMAIN}
-    Roteie POR CONTEXTO conforme o tipo: frontend -> carregar skill/ref de UI/CSS e DESIGN-TOKENS;
-    backend -> ref de API/server; database -> ref de schema/migrations; misto -> conforme cada tarefa.
-    NAO existem agentes specialist separados: voce e o unico executor e adapta ao dominio.
-
-    Escopo: SOMENTE este plano. Outros planos da mesma wave rodam em paralelo em arquivos disjuntos;
-    NAO toque em arquivos fora dos <files> das tarefas DESTE plano.
+    Dominio do plano: {PLAN_TYPE} (frontend | backend | database | misto). Adapte-se a ele.
+    Escopo: SOMENTE este plano. Outros planos da mesma onda rodam em paralelo em arquivos disjuntos;
+    nao toque em arquivos fora das areas deste plano.
 
     <prompt_context>
     {CTX}
     </prompt_context>
 
-    <production_requirements_compressed>
-    Categorias a respeitar (71 requisitos):
-    - UIST: loading/error/empty/success em TODA operacao async
-    - ERR: boundaries, try/catch, sessao expirada, 404
-    - PERF: lazy loading, code split, debounce, pagination > 20 items, cache
-    - FORM: validacao inline, mensagens especificas, autofocus, mascaras
-    - RESP: 375px funcional, touch 44x44, hamburger mobile
-    - A11Y: alt, labels, focus visible, keyboard, contraste 4.5:1
-    - SEC: rotas protegidas, CSRF, XSS, rate limit, env vars, RLS
-    - POLISH: hover, transicoes 150-300ms, design tokens
-    </production_requirements_compressed>
+    Ler do disco apenas: ./CLAUDE.md, .plano/fases/{phase_number}/PHASE.md e .plano/DESIGN-TOKENS.md
+    (se existirem) e o codigo que vai editar. O resto ja esta inline.
 
-    <files_to_read>
-    O contexto principal ja esta no <prompt_context>. Ler do disco APENAS:
-    - ./CLAUDE.md (se existir)
-    - .plano/fases/{phase_number}/PHASE.md (se existir)
-    - .plano/DESIGN-TOKENS.md (so se frontend e existir)
-    - Arquivos referenciados em <files> das tarefas DESTE plano (codigo a editar)
-    - @$HOME/.claude/up/references/seams.md (fronteiras de teste; sob demanda se a prova exigir)
-
-    Sob demanda apenas: .plano/PROJECT.md, .plano/SYSTEM-DESIGN.md, .plano/REQUIREMENTS.md
-    NAO refazer Read em PLAN/STATE/config/REQUIREMENTS-SLICE/engineering-principles (ja inline).
-    </files_to_read>
-
-    Regra de execucao (fronteiras): e proibido criar fronteira de teste nao prevista no plano.
-    Ao precisar de uma, PARE e escale com pergunta no formato do ciclo (pergunta, recomendacao,
-    motivo). A decisao volta como ajuste do plano. Ver seams.md.
-
-    Implementar todas as tarefas DESTE plano. Se o plano pedir, gerar tambem artefatos de
-    prod/docs/testes inline (papeis de devops/technical-writer/qa absorvidos pelo executor).
-    Commitar atomicamente. Gerar o SUMMARY.md DESTE plano.
+    O plano e contrato (o que fica verdadeiro e a prova). O como e seu.
+    Implemente todas as entregas, commite atomicamente, rode a prova de cada entrega e escreva o
+    SUMMARY.md deste plano com a secao ## Prova (comando, resultado, tipo).
+    Decisao de arquitetura que aparecer no caminho: aplique sua recomendacao, siga, e devolva no bloco
+    ## DECISOES ESCALADAS do SUMMARY.
   """
 )
 ```
 
-4. **Esperar TODOS os executores da wave terminarem** antes de iniciar a proxima wave (`Agent`/`Task`
-   bloqueia ate retornar; a barreira da wave e o ponto onde se espera todos).
-
-5. **--- GATE A (por wave): todos os planos da wave com SUMMARY ---**
+4. Esperar todos os executores da onda terminarem.
+5. Conferir os resumos da onda:
 
 ```bash
-echo "=== GATE A: artefatos da wave ${wave} (Fase ${PHASE_NUMBER}) ==="
-# Espera-se 1 SUMMARY por plano nao-pulado da wave. Conferir cada id da wave:
-WAVE_MISSING=0
-for PLAN_ID in $WAVE_PLAN_IDS; do   # WAVE_PLAN_IDS = ids dos planos selecionados desta wave
-  [ -f "${PHASE_DIR}/${PLAN_ID}-SUMMARY.md" ] || { echo "GATE A: SUMMARY faltando para plano ${PLAN_ID}"; WAVE_MISSING=$((WAVE_MISSING+1)); }
+MISSING=0
+for PLAN_ID in $WAVE_PLAN_IDS; do
+  [ -f "${PHASE_DIR}/${PLAN_ID}-SUMMARY.md" ] || { echo "Sem SUMMARY: ${PLAN_ID}"; MISSING=$((MISSING+1)); }
 done
-[ "$WAVE_MISSING" -gt 0 ] && echo "GATE A FALHOU na wave ${wave}: ${WAVE_MISSING} SUMMARY(s) ausente(s). Re-executar o(s) plano(s) faltante(s)." && exit 1
-echo "GATE A OK (wave ${wave})"
 ```
 
-   - Se algum SUMMARY da wave faltar: re-spawnar SO o(s) executor(es) do(s) plano(s) faltante(s) (mesmo
-     bloco `Agent`), depois reavaliar o GATE A da wave. Falha real e sistêmica (toda a onda falhou): parar
-     e perguntar com este conteúdo:
+   Faltou SUMMARY em um plano: re-spawnar so aquele executor uma vez. Onda inteira falhou:
 
 <pergunta id="build.onda-falhou">
-Pergunta: A onda {wave} falhou inteira ({WAVE_MISSING} planos sem resumo). Como sigo?
+Pergunta: A onda {wave} falhou inteira ({MISSING} planos sem resumo). Como sigo?
 Recomendo: Re-executar a onda uma vez
-Porque: {o que o gate encontrou}, e falha de todos os planos ao mesmo tempo aponta para causa de execução (ambiente, limite, interrupção), não para plano errado.
+Porque: {o que foi encontrado}, e falha de todos os planos ao mesmo tempo aponta para causa de execução (ambiente, limite, interrupção), não para plano errado.
 Opções: Re-executar a onda | Re-planejar a fase | Parar aqui
 </pergunta>
 
-Se a saída dos executores apontar causa de plano (contrato inexistente, dependência que o plano assumiu e não
-existe), a recomendação vira "Re-planejar a fase" e a linha Porque cita o achado. A recomendação é calculada.
+   Se a saida dos executores apontar causa de plano (contrato inexistente, dependencia assumida que nao
+   existe), a recomendacao vira "Re-planejar a fase".
 
-6. **Prosseguir para a proxima wave.** Repetir 1-5 ate a ultima wave.
+6. Proxima onda.
 
-**Fim do loop de waves:** ao sair do loop, TODOS os planos da fase tem SUMMARY. GATE A consolidado:
+### 3.3 Conferir a fase
+
+Ao sair do loop, todos os planos tem SUMMARY. Ler cada um e conferir duas coisas:
+
+- **Secao `## Prova`** presente, com comando e resultado. SUMMARY sem prova: pedir ao executor daquele
+  plano que rode a prova e complete o SUMMARY (um re-spawn curto, nao re-execucao).
+- **Diff confere com o relato.** `git log --oneline` e `git diff --stat` da fase batem com o que os
+  SUMMARYs dizem. Diferenca grande e sinal de relato otimista: inspecionar antes de seguir.
 
 ```bash
-echo "=== GATE A consolidado (Fase ${PHASE_NUMBER}) ==="
-SUMMARY_COUNT=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
-[ "$SUMMARY_COUNT" -lt "$PLAN_COUNT" ] && echo "GATE A FALHOU: ${SUMMARY_COUNT}/${PLAN_COUNT} SUMMARY(s). Re-executar plano(s) faltante(s)." && exit 1
-echo "GATE A OK: ${SUMMARY_COUNT}/${PLAN_COUNT} SUMMARY(s) (todas as waves)"
+grep -L "## Prova" ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null
+git -C "$WORKTREE" log --oneline "$(git -C "$WORKTREE" merge-base HEAD main 2>/dev/null || echo HEAD~20)..HEAD"
 ```
 
-> A partir daqui (3.4-3.9) o escopo e a FASE INTEIRA (todos os planos / todos os SUMMARYs), nao mais
-> "o plano". Roda UMA VEZ por fase, depois de TODAS as waves.
+### 3.4 Prova estatica (so se o projeto tiver)
 
-### 3.3.5 DECISOES ESCALADAS (execucao)
+```bash
+STATIC=$(node "$HOME/.claude/up/bin/up-tools.cjs" verify-static --cwd "$WORKTREE" --raw)
+STATIC_OVERALL=$(echo "$STATIC" | grep -oE 'overall.{1,20}' | head -1 | grep -oE '"(pass|fail|skip)"' | tr -d '"')
+```
 
-Espelha o Estagio E de `plan.md`, agora do lado da execucao (fecha o gap que PERG-05 deixava aberto: decisao
-arquitetural nascida na execucao tambem sobe ao dono, nao so a nascida no planejamento). O `up-executor` e
-subagente: ao esbarrar numa decisao de arquitetura (Regra 4 de `up/agents/up-executor.md`) ele nao decide
-sozinho e nao para o build para perguntar - aplica a propria recomendacao como hipotese provisoria, continua
-a tarefa, e devolve o bloco `## DECISOES ESCALADAS` no SUMMARY.md do plano. Aqui esse bloco vira pergunta.
+`pass` ou `skip`: seguir. `fail`: re-spawnar o executor do plano que tocou o que quebrou, com o log
+(`.plano/runtime/verify-static-*.log`) como contexto, e rodar de novo. Uma rodada. Se ainda falhar, o
+dono decide:
 
-1. Recolher a secao `## DECISOES ESCALADAS` de TODOS os `${PHASE_DIR}/*-SUMMARY.md` desta fase (todas as
-   waves ja terminaram e o GATE A consolidado ja confirmou que todos existem).
-2. Descartar as linhas `Nenhuma.`. Se sobrou zero decisao, declarar em uma linha ("Nenhuma decisao foi
-   escalada na execucao desta fase") e seguir para 3.4 sem perguntar nada.
-3. Ordenar as decisoes restantes por custo de reverter, da maior para a menor.
-4. Perguntar uma por vez, no formato do contrato:
-
-<pergunta id="build.decisoes-escaladas">
-Pergunta: {Decisao do bloco escalado}. Confirma a recomendação (já aplicada como hipótese durante a execução) ou corrige?
-Recomendo: {Recomendo do bloco escalado}
-Porque: {Porque do bloco escalado}
-Opções: {Recomendo} | {cada item de Alternativas} | outro (descreva)
+<pergunta id="build.estatica-falhou">
+Pergunta: A prova estática ainda falha depois da correção ({resumo do log}). Como sigo?
+Recomendo: Corrigir comigo agora
+Porque: {o check que falha} bloqueia a base e uma segunda rodada automática tende a repetir o mesmo erro.
+Opções: Corrigir comigo agora | Seguir e registrar como dívida | Parar aqui
 </pergunta>
 
-5. Registrar cada resposta via `node "$HOME/.claude/up/bin/up-tools.cjs" state add-decision --phase
-   {phase_number} --summary "{decisao}: {resposta do dono}"`.
-6. Resposta que **confirma** a recomendacao: nada e refeito, o executor ja trabalhou sob ela como hipotese.
-   Resposta que **diverge**: re-executar SO o plano cujo trabalho dependia daquela decisao (mesmo bloco
-   `Agent` de 3.2+3.3, parametrizado por esse plano, com a escolha do dono como decisao travada), depois
-   voltar a este passo antes de seguir para 3.4.
+### 3.5 Decisoes escaladas
 
-### 3.4 Re-plan local (so se um plano especifico se revelar inviavel)
+Recolher `## DECISOES ESCALADAS` de todos os SUMMARYs da fase. Sem bloco ou so `Nenhuma.`: seguir em
+silencio. Com decisoes: ordenar por custo de reverter e perguntar uma por vez:
 
-Por-plano: se durante a execucao de UM plano especifico ficar evidente que ele e fundamentalmente
-errado/inviavel, o orquestrador re-planeja SO aquele plano, LOCALMENTE (max 2 por projeto). Sem
-supervisor: o `up-planejador` faz self-check. `{PLAN}` aqui = o plano inviavel especifico (nao a fase).
+<pergunta id="build.decisoes-escaladas">
+Pergunta: {Decisao do bloco escalado}. Confirma a recomendação (já aplicada como hipótese) ou corrige?
+Recomendo: {Recomendo do bloco}
+Porque: {Porque do bloco}
+Opções: {Recomendo} | {cada Alternativa} | outro (descreva)
+</pergunta>
+
+Registrar cada resposta: `node "$HOME/.claude/up/bin/up-tools.cjs" state add-decision --phase {phase_number} --summary "{decisao}: {resposta}"`.
+Resposta que diverge: re-executar so o plano que dependia dela, com a escolha travada.
+
+### 3.6 Re-plan local (so se um plano for inviavel)
 
 ```bash
 REPLAN_COUNT=$(cat .plano/governance/replans.log 2>/dev/null | wc -l)
-if [ "$REPLAN_COUNT" -ge 2 ]; then
-  echo "Max re-plans atingido. Perguntar ao dono (build.replan-esgotado)."
-else
-  echo "REQUEST_REPLAN. Re-planejando fase {phase_number} localmente..."
-fi
 ```
 
+Se `REPLAN_COUNT` menor que 2: spawnar `up-planejador` com o plano e o motivo, mover o plano antigo para
+`*-PLAN-v1.md`, registrar em `.plano/governance/replans.log`, voltar para 3.2 so com esse plano.
+
+```python
+Agent(subagent_type="up-planejador", prompt=f"""
+  RE-PLAN da Fase {phase_number}. Plano original: {PLAN}. Razao: {motivo descoberto na execucao}.
+  Refaca o plano corrigindo o problema. Confirme viabilidade antes de retornar.
+""")
+```
+
+Limite atingido:
+
 <pergunta id="build.replan-esgotado">
-Pergunta: O limite de {REPLAN_COUNT} re-planejamentos locais acabou. O que fazer?
+Pergunta: O limite de 2 re-planejamentos locais acabou. O que fazer?
 Recomendo: Parar e revisar o plano da fase com você
 Porque: dois re-planejamentos automáticos já falharam no mesmo ponto, então o problema está no plano e não na execução.
 Opções: Parar e revisar comigo | Forçar mais um re-planejamento | Seguir com o plano atual e registrar dívida
 </pergunta>
 
-```python
-# Re-plan LOCAL — Agent SEPARADO (so up-planejador, sem camada de revisao intermediaria)
-Agent(subagent_type="up-planejador", prompt=f"""
-  RE-PLAN da Fase {phase_number}.
-  Plano original: {PLAN}
-  Razao: {motivo descoberto na execucao}
-  Refaca o plano corrigindo o problema. Self-check: confirme viabilidade e completude antes de retornar.
-""")
-```
+### 3.7 Opt-ins: `--review` e `--testar`
 
-```bash
-mv "$PLAN" "${PLAN%-PLAN.md}-PLAN-v1.md"
-echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | up-planejador | REPLAN | {motivo}" >> .plano/governance/replans.log
-# Voltar pro LOOP DE WAVES (3.2+3.3): re-spawnar o executor SO desse plano, na wave dele, com o plano novo.
-```
+Sem flag: pular esta secao inteira.
 
-### 3.5 Verificacao da FASE (PASSO 2 - Agent SEPARADO)
-
-Roda UMA VEZ por fase, depois de TODAS as waves. O verificador valida a FASE INTEIRA (todos os planos /
-todos os SUMMARYs juntos), nao 1 plano isolado. Um unico VERIFICATION.md cobre a fase.
-
-**Verification ladder deterministica primeiro:**
-
-```bash
-STATIC=$(node "$HOME/.claude/up/bin/up-tools.cjs" verify-static --raw)
-STATIC_OVERALL=$(echo "$STATIC" | grep -oE 'overall.{1,20}' | head -1 | grep -oE '"(pass|fail|skip)"' | tr -d '"')
-
-if [ "$STATIC_OVERALL" = "pass" ]; then
-  cat > "${PHASE_DIR}/VERIFICATION.md" <<EOF
----
-status: passed
-verifier: static-only
-phase: ${PHASE_NUMBER}
-checks_passed: lint+typecheck+test+audit
----
-Aprovacao automatica via verificacao estatica.
-EOF
-  echo "Verification: PASSED via static checks (LLM skipped)"
-fi
-```
-
-Se STATIC=pass: o orquestrador escreve um VERIFICATION.md curto (status passed, verifier: static-only)
-e segue. Nao spawna `up-verificador`.
-
-Se STATIC=fail: o executor corrige e o orquestrador re-roda `verify-static`. Sem `--review`, nao
-spawna `up-verificador`.
-
-Se STATIC=skip (projeto sem suite) ou o dono passou `--review`: aih sim spawnar `up-verificador`
-com os logs estaticos como contexto.
-
-```python
-# SOMENTE com --review (ou static skip E o dono pediu revisao)
-Agent(subagent_type="up-verificador", prompt=f"""
-  Verificar a FASE {phase_number} INTEIRA (todos os planos / todos os SUMMARYs juntos, nao 1 plano).
-  Conferir o objetivo da fase contra o codebase real e cruzar os REQUIREMENTS desta fase com o que
-  TODOS os SUMMARYs ({PHASE_DIR}/*-SUMMARY.md) entregaram.
-  <static_check_results overall="{STATIC_OVERALL}">
-  Logs em .plano/runtime/verify-static-*.log
-  </static_check_results>
-  FOCAR no que falhou. Exigir evidencia fresca por tipo de codigo. Gerar UM VERIFICATION.md da fase.
-""")
-```
-
-Sem `--review` e sem VERIFICATION.md ainda: o orquestrador escreve um VERIFICATION.md minimo a
-partir da prova do executor (comando rodado, exit code, tipo de evidencia). Isso satisfaz o GATE B.
-
-### --- GATE B: artefatos da verificacao ---
-
-```bash
-echo "=== GATE B: artefatos da verificacao (Fase ${PHASE_NUMBER}) ==="
-VERIF_COUNT=$(ls ${PHASE_DIR}/*-VERIFICATION.md 2>/dev/null | wc -l)
-[ "$VERIF_COUNT" -eq 0 ] && echo "GATE B FALHOU: sem VERIFICATION.md. Spawnar verificador." && exit 1
-echo "GATE B OK: ${VERIF_COUNT} VERIFICATION(s)"
-```
-
-### 3.6 E2E + DCRV (PASSO 3), somente com `--testar`
-
-Default: PULAR. O laço DCRV nao entra no caminho quente.
-
-Se `--testar` (ou o dono pediu `/up:testar` nesta fase): delegar ao loop DCRV. Ver
-`@~/.claude/up/workflows/dcrv.md`.
-
-```
-SCOPE=phase, PHASE_DIR={PHASE_DIR}, PHASE_NUMBER={phase_number}, AUTO_FIX=true, MAX_CYCLES=3
-```
-
-Pular se a fase nao tem UI nem API (infra/schema), mesmo com `--testar`.
-
-### 3.7 Revisao da FASE, somente com `--review`
-
-Default: NAO spawnar `up-revisor`. O orquestrador confirma a prova do tipo certo (saida do teste,
-captura ou smoke desta sessao) e escreve a linha do `approvals.log` ele mesmo:
-
-```bash
-echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | up-executor | APPROVE | prova {EVIDENCE_TYPE} nesta sessao | evidence={EVIDENCE_TYPE}:{EVIDENCE_RESULT}" \
-  >> .plano/governance/approvals.log
-```
-
-Se nao houve prova (static skip e o executor nao rodou nada): gravar `evidence={tipo}:exempted` e
-dizer isso em uma linha. Nao inventar teste. Nao spawnar revisor para tapar o buraco.
-
-`--review` devolve o caminho abaixo. Roda UMA VEZ por fase, depois de TODAS as waves. O revisor
-revisa a FASE consolidada (todos os planos / todos os SUMMARYs juntos).
-
-**Derivar o tipo de evidencia esperado (Fase 3 - TDD por tipo).** A fase pode ter VARIOS planos de tipos
-diferentes; agregamos o `type` do frontmatter de TODOS os planos da fase e exigimos a evidencia mais forte
-aplicavel (UI > glue > logic): se QUALQUER plano da fase e UI -> exige `ui:visual`; senao se qualquer plano
-e integracao -> `glue:smoke`; senao `logic:test_pass`. O GATE so aprova com `evidence=<tipo>:<resultado>`
-do tipo certo:
-
-```bash
-# Agrega os tipos de TODOS os planos da fase (nao mais 1 plano via head -1).
-PHASE_TYPES=$(grep -hoE '^type:[[:space:]]*[a-z-]+' ${PHASE_DIR}/*-PLAN.md 2>/dev/null | sed 's/type:[[:space:]]*//')
-if echo "$PHASE_TYPES" | grep -qE '^(frontend|ui|css)$'; then
-  EVIDENCE_TYPE="ui";   EVIDENCE_RESULT="visual"      # UI/CSS -> captura visual antes/depois (Playwright)
-elif echo "$PHASE_TYPES" | grep -qE '^(integration|glue|webhook)$'; then
-  EVIDENCE_TYPE="glue"; EVIDENCE_RESULT="smoke"       # integracao (Asaas/uazapi/etc) -> smoke-test
-else
-  EVIDENCE_TYPE="logic"; EVIDENCE_RESULT="test_pass"  # parser/calculo/API-propria/bugfix -> teste red-green
-fi
-echo "Fase {phase_number}: evidence esperada (agregada da fase) = ${EVIDENCE_TYPE}:${EVIDENCE_RESULT}"
-```
-
-A evidencia ja foi PRODUZIDA upstream: `logic:test_pass` pelo verificador (red-green); `ui:visual` pela
-captura visual antes/depois do `up-tester` no DCRV (3.6); `glue:smoke` pelo smoke do DCRV (3.6). O revisor
-apenas CONFIRMA que ela existe e a carimba no approvals.log. Ver `@~/.claude/up/workflows/dcrv.md`.
-
-Antes do spawn do revisor, rodar a heuristica anti-tautologia (sinaliza, nao bloqueia):
-
-```bash
-node "$HOME/.claude/up/bin/up-tools.cjs" verify-static --tautologia --raw
-TAUT_LOG=".plano/runtime/verify-static-tautologia.log"
-[ -s "$TAUT_LOG" ] && echo "Achados de tautologia para o revisor confirmar: $(wc -l < "$TAUT_LOG")"
-```
-
-Spawnar `up-revisor` (UNICO, two-stage) SOMENTE com `--review`. Sem a flag, pule este bloco.
-
-```python
-Agent(
-  subagent_type="up-revisor",
-  prompt=f"""
-    Revisar a Fase {phase_number} consolidada (two-stage).
-
-    STAGE 1 — spec-compliance cetico: assuma que "terminou rapido demais". Valide o comportamento
-    contra os REQUIREMENTS desta fase navegando/inspecionando o resultado real (nao confie no codigo
-    nem no SUMMARY). Emita um Confidence Score (0-100) de delivery.
-    STAGE 2 — code-quality: padroes, edge cases, OWASP/security, wiring ponta a ponta.
-
-    <files_to_read>
-    - {PHASE_DIR}/*-PLAN.md (TODOS os planos da fase)
-    - {PHASE_DIR}/*-SUMMARY.md (TODOS os SUMMARYs da fase)
-    - {PHASE_DIR}/*-VERIFICATION.md
-    - {PHASE_DIR}/dcrv/DCRV-REPORT.md (se existir)
-    - git diff (use Bash)
-    - .plano/fases/{phase_number}/REQUIREMENTS-SLICE.md (se existir)
-    - .plano/runtime/verify-static-tautologia.log (se existir: confirmar ou descartar cada achado,
-      sem tratar achado cru como veredito)
-    Sob demanda: $HOME/.claude/up/references/engineering-principles-compressed.md,
-                 $HOME/.claude/up/references/production-requirements-compressed.md
-    </files_to_read>
-
-    Veredito unico: APPROVE | REQUEST_CHANGES | BLOCK.
-
-    **EVIDENCIA OBRIGATORIA (Fase 3 - TDD por tipo):** so APPROVE se houver evidencia fresca do tipo
-    `{EVIDENCE_TYPE}` desta fase:
-    - logic (parser/calculo/API-propria/bugfix): teste red-green passando -> evidence=logic:test_pass
-    - ui (UI/CSS): captura visual antes/depois (Playwright, do up-tester) -> evidence=ui:visual
-    - glue (integracao Asaas/uazapi/etc): smoke-test passando -> evidence=glue:smoke
-    Se a evidencia do tipo certo NAO existe, o veredito NAO pode ser APPROVE (use REQUEST_CHANGES para
-    forcar a producao da evidencia).
-
-    **OUTPUT OBRIGATORIO (ANTES de retornar) - formato estendido com campo evidence:**
-    ```bash
-    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-{phase_number} | up-revisor | {{DECISAO}} | {{motivo}} | evidence={EVIDENCE_TYPE}:{EVIDENCE_RESULT}" >> .plano/governance/approvals.log
-    ```
-    Sem este log COM o campo evidence preenchido do tipo certo, o GATE de fase bloqueia o avanco.
-  """
-)
-```
-
-### --- GATE de fase: veredito do revisor (deterministico) ---
-
-Aplicar o gate de `@~/.claude/up/workflows/governance.md`:
-
-```bash
-echo "=== GATE: Fase ${PHASE_NUMBER} ==="
-SUMMARY_OK=$(ls ${PHASE_DIR}/*-SUMMARY.md 2>/dev/null | wc -l)
-VERIF_OK=$(ls ${PHASE_DIR}/*-VERIFICATION.md 2>/dev/null | wc -l)
-
-SEAMS_FLAG=""
-if [ -n "$PR_SCHEMA" ] && [ "$PR_SCHEMA" -ge 2 ] 2>/dev/null; then SEAMS_FLAG="--require-seams"; fi
-GATE_PASS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" $SEAMS_FLAG --field pass)
-DECISION=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --field decision)
-GATE_REASONS=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --phase "${PHASE_NUMBER}" --expect-evidence "${EVIDENCE_TYPE}" $SEAMS_FLAG --field reasons)
-
-PASS=true
-[ "$SUMMARY_OK" -eq 0 ] && echo "FALHA: sem SUMMARY.md" && PASS=false
-[ "$VERIF_OK" -eq 0 ] && echo "FALHA: sem VERIFICATION.md" && PASS=false
-[ "$GATE_PASS" != "true" ] && echo "FALHA no veredito: ${GATE_REASONS}" && PASS=false
-
-if [ "$PASS" = false ]; then
-  echo "GATE FALHOU: spawnar o agente faltante e re-rodar."
-  exit 1
-fi
-```
-
-O leitor unico (`gate verdict`) localiza fase, veredito e evidencia por conteudo, funciona com ou
-sem a coluna do agente, aceita as notacoes `phase-N` e `fase=N`, aceita as gramaticas de evidencia
-ja gravadas em disco e ignora apenas linha sem palavra de veredito. O escritor da secao 3.7 nao
-muda: continua emitindo as seis colunas documentadas.
-
-A entrada de fronteiras e ADITIVA. A fase continua exigindo a evidencia do tipo dela, e a entrada
-de fronteiras nao substitui nenhuma evidencia. A exigencia `--require-seams` so entra quando
-`plan_schema` e 2 ou maior.
-
-**Processar o veredito:**
-- `APPROVE`: prosseguir para 3.8.
-- `REQUEST_CHANGES`: cap de rework 1 round (ver governance.md passo 4). Round 0 -> re-spawn do(s)
-  executor(es) do(s) plano(s) apontado(s) no review (mesmo bloco Agent de 3.2+3.3, parametrizado por
-  plano); round >= 1 -> forced approval com debito tecnico. Depois re-rodar verificador da fase + revisor.
-- `BLOCK`: interromper e perguntar com este conteúdo:
+**`--review`:** spawnar `up-verificador` (fase inteira, VERIFICATION.md) e depois `up-revisor` (two-stage,
+REVIEW.md). Veredito `NEEDS_REWORK`: re-spawnar o executor do plano apontado com o REVIEW.md como
+contexto, uma rodada, e re-revisar. `BLOCKED`:
 
 <pergunta id="build.revisor-bloqueou">
 Pergunta: A revisão bloqueou a fase {phase_number}. O que fazer?
 Recomendo: Corrigir o item bloqueante e re-revisar
-Porque: {o motivo registrado pela revisão no log de aprovações}, e é correção dirigida a um item, não retrabalho da fase.
+Porque: {o motivo do REVIEW.md}, e é correção dirigida a um item, não retrabalho da fase.
 Opções: Corrigir e re-revisar | Aceitar como dívida técnica e seguir | Parar aqui
 </pergunta>
 
-### 3.8 Fechar a fase: teste visual (pre-merge) + merge
+```python
+Agent(subagent_type="up-verificador", prompt=f"""
+  Verificar a Fase {phase_number} inteira: objetivo da fase contra o codebase real, REQUIREMENTS da fase
+  contra o que os SUMMARYs ({PHASE_DIR}/*-SUMMARY.md) entregaram. Gerar um VERIFICATION.md da fase.
+""")
+Agent(subagent_type="up-revisor", prompt=f"""
+  Revisar a Fase {phase_number} consolidada (two-stage). Stage 1: spec-compliance cetico, navegando o
+  resultado real. Stage 2: qualidade e OWASP. Ler {PHASE_DIR}/*-PLAN.md, *-SUMMARY.md, *-VERIFICATION.md
+  e o git diff. Escrever REVIEW.md com o veredito.
+""")
+```
 
-So apos o GATE aprovar (APPROVE ou forced approval registrado).
+**`--testar`:** delegar ao laco DCRV (`@~/.claude/up/workflows/dcrv.md`) com
+`SCOPE=phase, PHASE_DIR={PHASE_DIR}, PHASE_NUMBER={phase_number}, AUTO_FIX=true, MAX_CYCLES=3`.
+Pular se a fase nao tem UI nem API.
 
-**Caso `--local` (github_native=false):** nada a fazer aqui. Tudo ja foi committado atomicamente na branch
-atual. Seguir direto para 3.9. (Sem worktree, sem teste-visual-gate, sem merge.)
+### 3.8 Fechar a fase
 
-#### 3.8.0 Checkpoint de teste visual (PRE-MERGE) - so GitHub-nativo
+**`--local`:** nada a fazer aqui. Tudo ja foi committado na branch atual. Ir para 3.9.
 
-Roda ANTES de qualquer merge. Garante que NADA sobe sem o dono ver na tela. Resolver:
+#### 3.8.0 Teste visual pre-merge
 
 ```bash
-REQUIRE_VISUAL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config get require_visual_test --raw 2>/dev/null)
-[ -z "$REQUIRE_VISUAL" ] && REQUIRE_VISUAL=true
-# HAS_UI: a fase tocou em UI? (tipo do plano frontend/ui/css OU package.json com script dev/start/serve)
+REQUIRE_VISUAL=$(node "$HOME/.claude/up/bin/up-tools.cjs" config get require_visual_test --raw 2>/dev/null); [ -z "$REQUIRE_VISUAL" ] && REQUIRE_VISUAL=true
 HAS_DEV=$(node -e "try{const s=require('./package.json').scripts||{};process.stdout.write((s.dev||s.start||s.serve)?'1':'')}catch(e){}" 2>/dev/null)
 ```
 
-**Aplica o gate quando:** (HAS_UI ou HAS_DEV) E NAO `--solo` E NAO (`--auto` E REQUIRE_VISUAL=false).
-Ou seja: por padrao SEMPRE pede aprovacao visual antes do merge em fase de UI. `--solo` pula SEMPRE
-(autonomo total). Pra pular sem solo (CI/yolo): `--auto` + `require_visual_test=false`. Projeto em
-PRODUCAO: deixe o default (true) e nao use `--solo`.
+Aplica quando (fase toca UI ou HAS_DEV) e nao `--solo` e nao (`--auto` com REQUIRE_VISUAL=false).
 
-Se aplica:
-
-1. **Subir o dev server DENTRO da worktree** (o codigo da fase vive na worktree - voce testa o codigo REAL
-   da fase, nao a main). Ainda DENTRO da worktree, antes de sair dela:
+1. Subir o dev server dentro da worktree:
 
 ```bash
 PORT=${PORT:-3000}
-if ! curl -s "http://localhost:${PORT}" >/dev/null 2>&1; then
-  ( npm run dev > /tmp/up-build-dev-${phase_number}.log 2>&1 & ) \
-    || ( npm start > /tmp/up-build-dev-${phase_number}.log 2>&1 & )
-  for i in $(seq 1 40); do curl -s "http://localhost:${PORT}" >/dev/null 2>&1 && break; sleep 1; done
-fi
-echo "Dev server da Fase {phase_number} no ar: http://localhost:${PORT}"
+curl -s "http://localhost:${PORT}" >/dev/null 2>&1 || { ( npm run dev > /tmp/up-build-dev-{phase_number}.log 2>&1 & ) || ( npm start > /tmp/up-build-dev-{phase_number}.log 2>&1 & ); for i in $(seq 1 40); do curl -s "http://localhost:${PORT}" >/dev/null 2>&1 && break; sleep 1; done; }
 ```
 
-2. **Perguntar (ferramenta de pergunta do runtime):**
+2. Perguntar:
 
 <pergunta id="build.testar-antes-do-merge">
 Pergunta: Subi o servidor em http://localhost:{PORT} com o código desta fase. Testa antes ou já aterrisso?
 Recomendo: Testar primeiro (deixo o servidor no ar)
-Porque: a fase mexeu em interface e este projeto exige aprovação visual antes do merge; a verificação automática não cobre julgamento de tela.
+Porque: a fase mexeu em interface e este projeto exige aprovação visual antes do merge; a prova automática não cobre julgamento de tela.
 Opções: Testar primeiro (deixo o servidor no ar) | Pode mergear | Deixa a branch | Descarta a fase
 </pergunta>
 
-3. **Se "Testar primeiro":** MANTÉM o servidor no ar, repete a URL e ESPERA o dono testar. Quando ele voltar,
-   perguntar:
+3. "Testar primeiro": manter o servidor, repetir a URL, esperar. Quando o dono voltar:
 
 <pergunta id="build.aprovou-ou-ajusta">
 Pergunta: Testou. Posso fechar a fase {phase_number}?
 Recomendo: Aprovado, pode mergear
-Porque: a verificação automática passou e o gate registrou o veredito; o que a automação não cobre é o julgamento da tela, que é seu.
+Porque: a prova automática passou; o que ela não cobre é o julgamento da tela, que é seu.
 Opções: Aprovado, pode mergear | Achei problema, quero ajustar
 </pergunta>
 
-   - **"Achei problema, quero ajustar":** pedir a descricao do problema, re-spawnar `up-executor` pra corrigir
-     NA WORKTREE (mesma branch da fase), re-rodar a prova barata + GATE (3.5/3.7), e VOLTAR pro 3.8.0
-     (re-testa com o dev server). Loop ate o dono aprovar. (E o "quando eu disser nao, ajusta; quando eu
-     disser sim, merge".)
-   - **"Aprovado, pode mergear":** segue como "Pode mergear".
+   "Achei problema": pedir a descricao, re-spawnar `up-executor` na worktree para corrigir, re-rodar 3.4 e
+   voltar a 3.8.0. Loop ate aprovar.
 
-4. **Matar o dev server** antes de sair da worktree e mergear:
+4. Matar o dev server antes de sair da worktree: `pkill -f "npm run dev" 2>/dev/null; pkill -f "npm start" 2>/dev/null`.
 
-```bash
-pkill -f "npm run dev" 2>/dev/null || true; pkill -f "npm start" 2>/dev/null || true
-```
-
-A escolha do checkpoint define a acao de fechamento (3.8.1): "Pode mergear"/"Aprovado" -> MERGE;
-"Deixa a branch" -> nao mergeia; "Descarta" -> remove sem merge.
-
-**Fase SEM UI** (infra/schema/backend puro), `--solo`, ou `--auto` com `require_visual_test=false`: pula 3.8.0.
-Nesse caso, GitHub-nativo interativo ainda apresenta o mesmo AskUserQuestion de 4 opcoes (sem o passo do
-dev server) pra o dono decidir merge/PR/deixa/descarta. **Autonomo (`--solo`/`--auto`)** fecha direto sem
-menu: `ESCOLHA=mergear`.
+**Fase sem UI, `--solo`, ou `--auto` com `require_visual_test=false`:** pular o dev server. Interativo ainda
+apresenta o menu:
 
 <pergunta id="build.fechamento-fase">
 Pergunta: Como aterrisso a fase {phase_number}?
-Recomendo: {Abrir PR e mergear, quando há remote e transporte disponível; Merge local, quando não há remote}
-Porque: {o transporte resolvido: "há remote e a linha de comando do GitHub está autenticada" ou "não há remote, então o merge local é o único desfecho que fecha a fase"}, e a estratégia configurada é {merge_strategy}.
+Recomendo: {Abrir PR e mergear, quando há remote e transporte; Merge local, quando não há remote}
+Porque: {o transporte resolvido}, e a estratégia configurada é {merge_strategy}.
 Opções: {recomendada} | {a outra forma de mergear} | Deixa a branch | Descarta a fase
 </pergunta>
 
-A recomendação é calculada a partir do mapa git e do transporte disponível, nunca fixa. O mapeamento da
-escolha para a operação de fechamento (3.8.1) não muda.
+Autonomo (`--solo`/`--auto`): `ESCOLHA=mergear` sem menu.
 
-#### 3.8.1 Merge e avancar
+#### 3.8.1 Merge
 
-Sair da worktree (**ExitWorktree** ou `cd` de volta ao repo principal) para que `finish-phase` opere e
-atualize `git-map.json` na main. **Autonomo (`--solo`/`--auto`):** sem menu, `ESCOLHA=mergear`.
-Mapear a escolha de 3.8.0 para `finish-phase` (`--mode menu|auto|local`):
+Sair da worktree (**ExitWorktree** ou `cd` de volta) para `finish-phase` atualizar `git-map.json` na main.
 
 ```bash
 [ "$AUTONOMO" = "true" ] && [ -z "$ESCOLHA" ] && ESCOLHA=mergear
 case "$ESCOLHA" in
-  # Pode mergear / Aprovado: finish-phase --mode auto. Transporte gh: pr create (Closes #N) -> merge -> cleanup.
-  # Transporte mcp (sem gh): faz push e retorna action 'needs-mcp-pr' (ver abaixo). none: merge LOCAL + cleanup.
   mergear|aprovado) FIN=$(node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase --phase {phase_number} --mode auto --strategy squash --raw) ;;
-  # Deixa a branch: nao mergeia; worktree+branch vivos. menu so atualiza git-map.json (status=in_review).
   deixa)            FIN=$(node "$HOME/.claude/up/bin/up-tools.cjs" github finish-phase --phase {phase_number} --mode menu --raw) ;;
-  # Descarta: orquestrador remove worktree + branch (sem merge); reflete em git-map.json via status=cancelled.
-  descarta)         echo "Descartando fase {phase_number}: remover worktree + branch (sem merge)." ; FIN="" ;;
+  descarta)         echo "Descartando fase {phase_number}: remover worktree + branch (sem merge)."; FIN="" ;;
 esac
 ```
 
-**PR via MCP (quando `FIN` traz `"action":"needs-mcp-pr"`):** sem `gh`, o `finish-phase` ja deu `git push` da
-branch e devolveu `pr_payload {base, head, title, body, issue, strategy}`. Se voce TEM `mcp__...github__*`:
+**PR via MCP (`FIN` traz `"action":"needs-mcp-pr"`):** `finish-phase` ja deu push e devolveu `pr_payload`.
+Com MCP: `create_pull_request` (base/head/title/body), `merge_pull_request` (squash), depois
+`github record-pr --phase {phase_number} --pr <num> --url <url> --merged`. Sem MCP: `finish-phase --mode local`
+e avisar o dono para mergear no GitHub.
 
-> Chame `mcp__plugin_github_github__create_pull_request` (base/head/title/body do `pr_payload`), depois
-> `mcp__plugin_github_github__merge_pull_request` (merge_method=squash). Pegue o numero do PR e rode:
-> `node "$HOME/.claude/up/bin/up-tools.cjs" github record-pr --phase {phase_number} --pr <num> --url <url> --merged`
-> (`--merged` grava o PR, marca a fase merged e limpa worktree+branch). Se NAO tem MCP: rode
-> `github finish-phase --phase {phase_number} --mode local` como degradacao (a branch ja foi pushada; faca o
-> merge no GitHub manualmente depois) OU avise o dono.
-
-`finish-phase --mode auto` (transporte gh) faz: gh pr create (body com `Closes #<issue>`) -> merge (squash
-default, ou `--strategy merge|rebase`) -> cleanup worktree+branch, atualiza `git-map.json`. Sem remote (none),
-faz merge LOCAL da branch na base e remove a worktree (issue/PR=null). `--mode local` nao faz nada (usado em
-`--local`, ja committado na branch atual); em `--local` o fluxo nem chega aqui (tratado em 3.8).
-
-**Multica: sync BATCHED no FIM da fase/onda (so se `--board`).**
-Uma unica chamada que reflete TODAS as transicoes acumuladas da fase de uma vez (nao por microtransicao):
-status final + metadata `gh_issue`/`branch`/`pr`. Mapeamento de status UP -> Multica:
-`done->done`, `in_review->in_review`, `blocked->blocked` (descarte/opcao 4 -> `cancelled`). Status final:
-opcoes 1/2 (merge/PR) -> `done`; opcao 3 (deixa branch) -> `in_review`; opcao 4 (descarta) -> `cancelled`.
-A KEY do Multica ja vai no body do PR (`Closes MUL-X`) via `finish-phase`, entao o merge auto-avanca a
-issue pra `done` no proprio Multica; este `sync done` e idempotente. FAIL-OPEN: erro -> avisa e segue.
+`finish-phase --mode auto` com `gh`: PR (body com `Closes #<issue>`), merge squash, cleanup da worktree
+e branch, `git-map.json` atualizado. Sem remote: merge local e cleanup.
 
 ```bash
 if [ "$BOARD" = "true" ]; then
-  case "$ESCOLHA" in
-    1|2) MB_STATUS=done ;;
-    3)   MB_STATUS=in_review ;;
-    4)   MB_STATUS=cancelled ;;
-    *)   MB_STATUS=done ;;   # --auto sem menu = fechou = done
-  esac
-  # Ler pr_number do git-map.json da fase (escrito por finish-phase), se houver.
-  MB_PR=$(node "$HOME/.claude/up/bin/up-tools.cjs" github status --phase {phase_number} --raw 2>/dev/null \
-    | grep -oE '"pr"[^,}]*' | sed 's/.*: *//;s/"//g')
-  node "$HOME/.claude/up/bin/up-tools.cjs" multica sync \
-    --phase {phase_number} --status "$MB_STATUS" \
-    --gh-issue "${ISSUE:-}" --branch "${BRANCH:-}" --pr "${MB_PR:-}" --raw 2>/dev/null \
-    || echo "AVISO: Multica indisponivel (sync $MB_STATUS fase {phase_number}). Seguindo."
+  case "$ESCOLHA" in mergear|aprovado) MB=done ;; deixa) MB=in_review ;; descarta) MB=cancelled ;; *) MB=done ;; esac
+  MB_PR=$(node "$HOME/.claude/up/bin/up-tools.cjs" github status --phase {phase_number} --raw 2>/dev/null | grep -oE '"pr"[^,}]*' | sed 's/.*: *//;s/"//g')
+  node "$HOME/.claude/up/bin/up-tools.cjs" multica sync --phase {phase_number} --status "$MB" --gh-issue "${ISSUE:-}" --branch "${BRANCH:-}" --pr "${MB_PR:-}" --raw 2>/dev/null || echo "AVISO: Multica indisponivel. Seguindo."
 fi
 ```
 
-> Em `--local` o fluxo nem chega aqui (sem `--board`): nenhuma chamada Multica.
+### 3.9 Reassessment do roadmap (inline, curto)
 
-### 3.9 Reassessment de roadmap (pos-fase, inline, ~30s)
+Ler ROADMAP.md (fases futuras) e os SUMMARYs da fase recem-fechada. Tres perguntas:
 
-Apos o GATE aprovar e ANTES de planejar/executar a proxima fase, o orquestrador re-avalia o ROADMAP inline (sem agente separado). Migrado do builder.md 3.1.7 (caira por omissao no corte; recolocado).
-
-Ler ROADMAP.md (fases futuras) + os SUMMARY da fase recem-completa e checar 3 coisas:
-- **(a) Fase futura virou redundante?** A fase atual pode ter coberto algo que uma fase futura faria (ex: auth da Fase 3 ja entregou o RBAC que a Fase 6 planejava). Se sim: marcar a fase futura como `Removida (coberta pela Fase {X})` no ROADMAP.
-- **(b) Fase futura precisa de ajuste?** Decisao arquitetural desta fase muda o escopo de fases futuras (ex: escolheu tRPC, fases de API mudam). Se sim: atualizar objetivo/criterios da fase futura.
-- **(c) Surgiu necessidade nova critica?** Ler `.plano/captures/` (se existir). Insight que bloqueia fases futuras vira fase nova; melhoria so vai pro Polish.
-
-Se houve mudanca no roadmap:
+- Fase futura virou redundante? Marcar `Removida (coberta pela Fase {X})`.
+- Decisao desta fase muda o escopo de fase futura? Ajustar objetivo e criterios.
+- Surgiu necessidade nova que bloqueia fase futura (`.plano/captures/`)? Vira fase nova; melhoria vai pro polish.
 
 ```bash
 node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs: reassessment apos fase {X}" --files .plano/ROADMAP.md
 ```
 
-Log de 1 linha: `Reassessment: [sem mudancas | X ajustadas | Y removidas | Z adicionadas]`. Sem mudanca: seguir silenciosamente. Diferente do re-plan LOCAL do Estagio 3.4 (que so corrige a fase corrente): aqui poda/ajusta o roadmap FUTURO a luz do que ja foi construido.
+Uma linha de log: `Reassessment: [sem mudancas | X ajustadas | Y removidas | Z adicionadas]`.
 
-## Estagio 4: QUALITY GATE GLOBAL, somente com `--testar`
+## Estagio 4: Opt-ins globais
 
-Default: PULAR. Sem `--testar`, nao roda DCRV global. O dono dispara `/up:testar` quando quiser.
+**`--testar`:** DCRV em escopo global depois de todas as fases (`SCOPE=global, AUTO_FIX=true, MAX_CYCLES=5`).
 
-Se `--testar`, rodar DCRV em escopo global apos todas as fases:
+**`--review`:** `up-revisor` em escopo global (Confidence Score do projeto inteiro em `.plano/REVIEW-DELIVERY.md`).
 
-```
-SCOPE=global, AUTO_FIX=true, MAX_CYCLES=5
-```
+Sem flag: pular.
 
-Ver `@~/.claude/up/workflows/dcrv.md`. Carryover de issues por fase ja foi acumulado em
-`.plano/issues-carryover/`.
-
-## Estagio 4.5: REVISAO DE DELIVERY, somente com `--review`
-
-Default: PULAR. Sem `--review`, nao spawna `up-revisor` de delivery.
-
-Se `--review`, spawnar `up-revisor` em escopo global (Confidence Score de delivery do projeto inteiro).
-
-```python
-Agent(subagent_type="up-revisor", prompt="""
-  Revisao final de delivery (escopo: projeto). Stage 1 valida comportamento vs REQUIREMENTS globais;
-  Stage 2 confere qualidade/seguranca cross-fase. Emitir Confidence Score (0-100) e veredito.
-  Logar em .plano/governance/approvals.log com escopo 'delivery'.
-""")
-```
-
-## Estagio 5: DELIVERY
-
-Apresentacao = output direto do orquestrador (sem CEO). Le owner-profile pra tom.
-
-### 5.X Marcar Projeto Completo
+## Estagio 5: Entrega
 
 ```bash
 mv .plano/PLAN-READY.md .plano/PROJECT-COMPLETE.md
-```
-
-**Multica: fechar o board (so se `--board`).** Sync batched final marca a issue-pai como `done` (idempotente).
-FAIL-OPEN. Imprimir a URL do board pro dono ver o resultado.
-
-```bash
 if [ "$BOARD" = "true" ]; then
-  node "$HOME/.claude/up/bin/up-tools.cjs" multica sync --status done --raw 2>/dev/null \
-    || echo "AVISO: Multica indisponivel (sync final). Seguindo."
-  node "$HOME/.claude/up/bin/up-tools.cjs" multica board --raw 2>/dev/null   # imprime a URL do board
+  node "$HOME/.claude/up/bin/up-tools.cjs" multica sync --status done --raw 2>/dev/null
+  node "$HOME/.claude/up/bin/up-tools.cjs" multica board --raw 2>/dev/null
 fi
 ```
 
-Adicionar ao frontmatter:
-```yaml
-status: complete
-completed_at: [timestamp]
-completed_by:
-  runtime: [current]
-final_confidence: [do up-revisor de delivery]
-```
+Frontmatter de PROJECT-COMPLETE.md: `status: complete`, `completed_at`, `completed_by.runtime`.
+
+Apresentacao direta do orquestrador (tom do owner-profile): o que foi entregue por fase, onde esta cada
+PR, pendencias de PENDING.md, dividas registradas.
 
 </process>
 
 <success_criteria>
-- [ ] Owner profile LOCAL validado
-- [ ] PLAN-READY.md existe, parseado e validado por `gate plan-ready` (bloqueia se schema>=2 sem seams; avisa se legado)
-- [ ] Validacao light passou (artefatos + planos existem)
-- [ ] Nenhuma fronteira de teste criada em tempo de execucao (escala se faltar)
-- [ ] Dono confirmou execucao (orquestrador, sem CEO)
-- [ ] Governance inicializada (.plano/governance/approvals.log)
-- [ ] Todas as fases executadas com SUMMARY.md (GATE A)
-- [ ] Decisoes arquiteturais escaladas pelos executores (Regra 4) recolhidas em 3.3.5 e perguntadas ao dono no formato do contrato antes do fechamento da fase, nunca decididas ou silenciadas
-- [ ] VERIFICATION.md por fase existe (GATE B): ladder estatica, ou minimo escrito pelo orquestrador a partir da prova do executor. `up-verificador` so com `--review`
-- [ ] DCRV por fase somente com `--testar` (delegado a dcrv.md). Default: pulado
-- [ ] Linha no approvals.log COM evidence=<tipo>:<resultado> escrita pelo orquestrador (default) ou pelo up-revisor (`--review`)
-- [ ] GATE de fase deterministico passou via leitor unico (`gate verdict`): APPROVE + evidence do tipo certo, ou forced approval com debito
-- [ ] Sem `--review`, tautologia nao bloqueia e nao spawna revisor
-- [ ] GitHub-nativo (default): worktree+branch+issue por fase via `github start-phase` (transporte gh OU
-      MCP); menu 4 opcoes / `github finish-phase` no fim. `--solo`/`--auto` mantem GitHub (autonomia, nao
-      desliga). `--local` degrada para commit na branch atual (sem worktree/issue/PR)
-- [ ] Execucao sempre via up-executor (roteia por contexto: frontend/backend/database/misto); SEM agentes
-      specialist separados (Onda 2 do corte)
-- [ ] `--board`: Multica init no inicio (project+pai), sync `in_progress` na entrada da fase, sync BATCHED
-      no fim da fase/onda (status+metadata gh_issue/branch/pr), sync done + board URL no delivery. Tudo
-      fail-open (nunca crasha) e batched (nao por microtransicao). Sem `--board`: zero chamada Multica
-- [ ] Cap de rework de 1 round respeitado
-- [ ] Re-plans locais registrados (se houve, max 2)
-- [ ] Quality Gate global somente com `--testar`
-- [ ] Revisao de delivery somente com `--review`
-- [ ] PLAN-READY.md -> PROJECT-COMPLETE.md
-- [ ] Nenhuma referencia a CEO, chiefs, camadas de revisao intermediaria, auditores gold ou builder-e2e
-- [ ] Nenhuma referencia aos 3 specialists de dominio nem aos 3 detectores DCRV antigos (6 agentes
-      deletados na Onda 2; tudo via up-executor e up-tester)
+- [ ] Owner profile e PLAN-READY.md validados; artefatos e planos existem
+- [ ] Dono confirmou a execucao (ou modo autonomo anunciado)
+- [ ] Cada fase: worktree + branch + issue via `github start-phase` (salvo `--local`)
+- [ ] Planos da mesma onda em paralelo, ondas em sequencia; um `up-executor` por plano
+- [ ] Todo plano com SUMMARY e secao `## Prova`; diff conferido contra o relato
+- [ ] `verify-static` rodado quando o projeto tem suite; falha corrigida em uma rodada ou decidida pelo dono
+- [ ] Decisoes escaladas perguntadas ao dono no formato do contrato, nunca decididas em silencio
+- [ ] Re-plans locais registrados (max 2)
+- [ ] `--review` e `--testar` so com a flag; sem flag, nenhum verificador, revisor ou DCRV
+- [ ] Teste visual pre-merge em fase de UI (salvo `--solo` ou `--auto` com require_visual_test=false)
+- [ ] Fechamento por menu (interativo), auto-merge (`--solo`/`--auto`) ou commit na branch (`--local`)
+- [ ] `--board`: init no inicio, sync na entrada e no fim da fase, board URL na entrega; tudo fail-open
+- [ ] Reassessment do roadmap depois de cada fase
+- [ ] PLAN-READY.md virou PROJECT-COMPLETE.md
+- [ ] Nenhuma referencia a log de aprovacoes, gate deterministico, VERIFICATION.md obrigatorio, campo de evidencia, fronteiras de teste ou heuristica de teste que se prova sozinho
 </success_criteria>
-</output>

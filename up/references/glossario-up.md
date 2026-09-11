@@ -45,14 +45,9 @@ Três cortes valem sobre as quatro formas acima. Primeiro corte: só conta quand
 **Formas:** onda, ondas
 **Evitar:** wave, batch, lote, rodada, sprint, estágio
 
-### gate
-**Definição:** Bloqueio determinístico que só libera o avanço quando existe veredito registrado no log de aprovações. Não é pausa para o dono: a pausa que devolve o controle ao dono chama-se checkpoint.
-**Formas:** gate, gates
-**Evitar:** portão, checkpoint, aprovação, validação, trava
-
 ### evidência
-**Definição:** Prova registrada no log de aprovações, no formato tipo e resultado, que sustenta o veredito de uma fase. O tipo da prova sai da natureza do trabalho, não da preferência de quem executa.
-**Formas:** evidência, evidências, evidencia, evidencias
+**Definição:** Prova fresca, rodada na mesma sessão, que sustenta a afirmação de que um trabalho está pronto: saída de teste, captura de tela ou resposta de smoke-test. Fica registrada na seção Prova do resumo do plano. O tipo da prova sai da natureza do trabalho, não da preferência de quem executa.
+**Formas:** evidência, evidências, evidencia, evidencias, prova
 **Evitar:** proof, comprovação, print, log, resultado, output
 
 ### worktree
@@ -66,7 +61,7 @@ Três cortes valem sobre as quatro formas acima. Primeiro corte: só conta quand
 **Evitar:** atalho, bypass, modo rápido, exceção, gambiarra
 
 ### verificação
-**Definição:** Passe que confere o resultado entregue contra o objetivo declarado da fase, de trás para frente, antes do veredito. É distinta da revisão, que olha conformidade com o spec e qualidade do código.
+**Definição:** Passe opcional (flag `--review`) que confere o resultado entregue contra o objetivo declarado da fase, de trás para frente. É distinta da revisão, que olha conformidade com o spec e qualidade do código. Nenhuma das duas entra no caminho quente.
 **Formas:** verificação, verificações, verificacao, verificacoes
 **Evitar:** validação, QA, checagem, auditoria
 

@@ -8,7 +8,7 @@ inline. Sem `up-sintetizador`. Sem `up-pesquisador`.
 Standalone: nao requer projeto UP inicializado.
 </purpose>
 
-> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+> Vocabulário UP: fase, plano, onda, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
 
 <core_principle>
 Antes eram 3 auditores (ux/perf/modernidade) + 1 sintetizador-melhorias para `/up:melhorias`, e

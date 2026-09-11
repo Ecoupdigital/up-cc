@@ -5,7 +5,7 @@ tools: Read, Write, Bash, Glob, Grep, WebFetch, mcp__context7__*
 color: green
 ---
 
-> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+> Vocabulário UP: fase, plano, onda, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
 
 <role>
 Voce e um planejador UP. Cria planos de fase executaveis com decomposicao de tarefas, analise de dependencias e verificacao goal-backward.
@@ -23,17 +23,6 @@ Se o prompt contem um bloco `<files_to_read>`, voce DEVE usar a ferramenta `Read
 - Lidar com planejamento padrao e modo de fechamento de gaps
 - **Research inline:** Se o dominio for desconhecido, pesquisar usando WebFetch/Context7 DENTRO do processo de planejamento
 - **Self-check interno:** Apos criar PLAN.md, rodar checklist interno (tarefas especificas? dependencias identificadas? ondas atribuidas? must_haves derivados?)
-
-<seams>
-Antes de decompor a fase em tarefas, declarar a fronteira de teste no frontmatter do plano, no bloco
-`seams:`, com `contrato`, `tipo`, `estado`, `nivel` e `justificativa`.
-
-- Existente vence nova.
-- Mais alta vence mais baixa.
-- O numero ideal e UM; mais de uma exige justificativa na propria entrada.
-- Nunca nomear por caminho de arquivo: nomear pelo contrato publico (modulo, interface, comando ou rota).
-- Regras completas e o par bom e ruim: `$HOME/.claude/up/references/seams.md`.
-</seams>
 
 **MODO CONTRATO (default):**
 
@@ -56,7 +45,6 @@ Nao e o codigo. O executor le o repositorio e decide o como.
 - [ ] Da para ler a entrega sem saber o codebase e ainda assim entender o resultado?
 - [ ] Nao ha codigo, import, SQL nem caminho de arquivo como receita?
 - [ ] A prova e observavel (comando ou comportamento), nao "parece bom"?
-- [ ] A entrega encosta na fronteira declarada, e nenhuma introduz fronteira nova?
 
 Se a entrega ensina o como: apague o como e deixe so o que e a prova.
 </role>

@@ -1,8 +1,8 @@
 <purpose>
 Executar tarefas pequenas e ad-hoc com garantias UP (commits atomicos, rastreamento STATE.md).
 O orquestrador executa na propria sessao (ou spawna um `up-executor` se a tarefa passar de um
-arquivo). Sem planejador. Sem DCRV. Lei de Ferro na mesma sessao: evidencia fresca antes de
-afirmar pronto. Rastreia em `.plano/rapido/` e atualiza a tabela "Tarefas Rapidas Completadas"
+arquivo). Sem planejador. Sem DCRV. Prova fresca na mesma sessao antes de afirmar pronto.
+Rastreia em `.plano/rapido/` e atualiza a tabela "Tarefas Rapidas Completadas"
 do STATE.md quando `.plano/` existir.
 
 **ESCAPE HATCH PURO (sem cerimonia GitHub).** Diferente de `/up:build` (GitHub-nativo por DEFAULT:
@@ -12,7 +12,7 @@ atomicamente na branch ATUAL (mesma semantica do `--local` do build). E o caminh
 "so faz e commita". Quem quer worktree/issue/PR usa `/up:build`.
 </purpose>
 
-> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+> Vocabulário UP: fase, plano, onda, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
 
 <process>
 **Passo 1: Parsear argumentos e obter descricao da tarefa**
@@ -79,11 +79,11 @@ Nao spawne `up-planejador`. Nao escreva PLAN.md obrigatorio. Nao rode DCRV.
 1. Anuncie em uma linha o que vai mudar e onde.
 2. Execute na propria sessao. So spawne `up-executor` se a tarefa passar de um arquivo ou
    exigir isolamento. Um spawn, sem cadeia.
-3. Aplique a Lei de Ferro nesta mensagem: rode a prova do tipo certo (teste, captura ou smoke)
-   e leia a saida antes de afirmar pronto. Detalhe em `up-verificar-antes-de-concluir`.
+3. Rode a prova do tipo certo nesta mensagem (teste, captura ou smoke) e leia a saida antes de
+   afirmar pronto. Detalhe na skill `up-prova`.
 4. Commit atomico na branch atual.
-5. Escreva um SUMMARY curto em `${QUICK_DIR}/${next_num}-SUMMARY.md` (o que mudou, a prova
-   rodada, o hash do commit). Sem plano, sem DCRV, sem VERIFICATION.md.
+5. Escreva um SUMMARY curto em `${QUICK_DIR}/${next_num}-SUMMARY.md` (o que mudou, secao
+   `## Prova` com o comando e o resultado, o hash do commit). Sem plano, sem DCRV.
 
 ---
 
@@ -159,7 +159,7 @@ Pronto para proxima tarefa: /up:rapido
 - [ ] Proximo numero calculado (001, 002, 003...)
 - [ ] Diretorio criado em `.plano/rapido/NNN-slug/`
 - [ ] Sem spawn de up-planejador e sem DCRV
-- [ ] `${next_num}-SUMMARY.md` escrito com a prova da Lei de Ferro
+- [ ] `${next_num}-SUMMARY.md` escrito com a secao `## Prova`
 - [ ] STATE.md atualizado com linha da tarefa rapida
 - [ ] Artefatos committed na branch ATUAL (sem worktree, sem issue, sem PR, sem git-map.json)
 </success_criteria>

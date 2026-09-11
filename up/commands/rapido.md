@@ -19,7 +19,7 @@ Executar tarefas pontuais com as garantias minimas do UP, pulando o roadmap inte
 
 O mesmo sistema do UP num caminho enxuto:
 - Executa na sessao (ou um `up-executor` se passar de um arquivo). Sem planejador. Sem DCRV.
-- Lei de Ferro: prova fresca na mesma mensagem antes de afirmar pronto.
+- Prova fresca na mesma mensagem antes de afirmar pronto (skill `up-prova`).
 - Tarefas rapidas vivem em `.plano/rapido/`, separadas das fases planejadas.
 - Atualiza a tabela "Tarefas Rapidas" do STATE.md (NAO o ROADMAP.md). ROADMAP nao e obrigatorio.
 
@@ -41,7 +41,7 @@ A descricao da tarefa em texto livre. As garantias UP minimas (commit atomico + 
 
 <process>
 Execute the rapido workflow from @~/.claude/up/workflows/rapido.md end-to-end.
-Preserve os passos do workflow (descricao, execucao na sessao, Lei de Ferro, atualizacao de estado, commits atomicos). Sem planejador. Sem DCRV.
+Preserve os passos do workflow (descricao, execucao na sessao, prova, atualizacao de estado, commits atomicos). Sem planejador. Sem DCRV.
 
 **Sempre na branch atual.** Nunca cria worktree, nunca abre PR, nunca toca no ROADMAP. Esse e o ponto do comando.
 </process>

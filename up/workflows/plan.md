@@ -10,7 +10,7 @@ Absorveu discutir-fase.md e planejar-fase.md: detecta automaticamente se o pedid
 ou uma FASE especifica (`/up:plan` vs `/up:plan N`).
 </purpose>
 
-> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+> Vocabulário UP: fase, plano, onda, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
 
 <core_principle>
 Pipeline final (caminho quente):
@@ -36,8 +36,8 @@ Default fixo: Opus planeja, Sonnet executa. `default` -> nao passar model=.
 
 **Planos sao contrato.** Objetivo, fora de escopo, entregas e prova. Sem receita de codigo.
 
-**SEPARACAO RIGIDA DE AGENTES:** cada passo e um `Agent()` SEPARADO. O enforcement e o GATE
-deterministico do `approvals.log` (ver `@~/.claude/up/workflows/governance.md`), nao supervisores.
+**Um agente por passo.** Arquiteto projeta, planejador planeja. Quem confere e o orquestrador lendo os
+artefatos. Sem supervisores.
 
 **Contrato de pergunta (obrigatório):** antes da primeira pergunta, carregue
 `Read $HOME/.claude/up/references/questioning.md` e aplique o bloco `<contrato_de_pergunta>`. Nenhuma pergunta
@@ -99,7 +99,7 @@ Estágio 2.
 ### 2.0 Gate: Inicializar .plano/
 
 ```bash
-mkdir -p .plano .plano/captures .plano/fases .plano/issues-carryover .plano/governance
+mkdir -p .plano .plano/captures .plano/fases .plano/issues-carryover
 git init 2>/dev/null
 ```
 
@@ -118,14 +118,7 @@ inline (web search, um passe) e escreve o SUMMARY. Nao spawnar `up-pesquisador` 
 **Brownfield:** se `.plano/codebase/` nao existe, sugerir `/up:mapear-codigo`
 (`@~/.claude/up/workflows/mapear-codigo.md`); senao reutilizar o mapa.
 
-### 2.3 Pipeline de Arquitetura (Agents SEPARADOS + GATE)
-
-**Inicializar governance:**
-```bash
-touch .plano/governance/approvals.log
-[ -s .plano/governance/approvals.log ] || \
-  echo "# Governance initialized at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .plano/governance/approvals.log
-```
+### 2.3 Pipeline de Arquitetura
 
 ```python
 # PASSO 1: Arquiteto (absorve system-designer + a analise de produto)
@@ -155,9 +148,9 @@ Agent(subagent_type="up-arquiteto", prompt="""
 ```
 
 ```bash
-# GATE: artefatos de arquitetura existem?
+# Artefatos de arquitetura existem?
 [ -f .plano/SYSTEM-DESIGN.md ] && [ -f .plano/PROJECT.md ] && [ -f .plano/ROADMAP.md ] && [ -f .plano/REQUIREMENTS.md ] \
-  && echo "OK" || { echo "FALHOU: re-spawnar up-arquiteto"; exit 1; }
+  && echo "OK" || { echo "FALTOU artefato: re-spawnar up-arquiteto"; exit 1; }
 ```
 
 **Multica: criar 1 issue-filha por fase (so se `--board`, BATCHED, MODO PROJETO).**
@@ -187,40 +180,7 @@ na mesma rodada. Sem agente extra.
 PHASES=$(node "$HOME/.claude/up/bin/up-tools.cjs" roadmap list-phases)
 ```
 
-### Esboco de fronteiras de teste (ANTES de qualquer spawn de planejador)
-
-Carregar `@$HOME/.claude/up/references/seams.md`. Esbocar as fronteiras candidatas aplicando as
-tres regras (existente vence nova, mais alta vence mais baixa, numero ideal UM). Apresentar ao dono
-no formato do ciclo (pergunta, resposta recomendada e motivo):
-
-```
-Fronteira de teste desta fase (onde o teste vai encostar):
-
-  Recomendado: {contrato publico}  ({tipo}, {existente|nova})
-  Motivo: {por que esta e a mais alta disponivel e por que uma so basta}
-
-  [1] Confirmar a recomendada
-  [2] Ajustar (descreva a fronteira que voce prefere)
-```
-
-Regras duras:
-- Mais de uma fronteira so entra com justificativa escrita na propria entrada, e essa justificativa
-  vai para o campo `justificativa` do plano pronto.
-- Fato contra decisao: se a fronteira ja existe no codigo, o agente descobre isso sozinho (busca no
-  codigo e mapa do codebase) e nao pergunta se existe. So sobe ao dono a ESCOLHA entre candidatas.
-
-Apos a confirmacao, gravar a entrada no log no formato documentado de seis colunas:
-
-```bash
-mkdir -p .plano/governance
-echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | phase-${PHASE_NUMBER} | up-planejador | CONFIRMED | fronteiras acordadas com o dono: ${SEAM_RESUMO} | evidence=seams:confirmed" \
-  >> .plano/governance/approvals.log
-```
-
-Nota: `CONFIRMED` nao e veredito de fase. Ele soma evidencia e nunca substitui a evidencia do tipo
-da fase, que continua exigida.
-
-Para cada fase — `up-planejador` faz self-check (sem camada de revisao intermediaria):
+Para cada fase, `up-planejador` faz self-check (sem camada de revisao intermediaria):
 
 ```python
 Agent(
@@ -250,9 +210,8 @@ Agent(
 ```
 
 ```bash
-# GATE: planos da fase existem?
 PLAN_COUNT=$(ls .plano/fases/${PHASE_DIR}/*-PLAN.md 2>/dev/null | wc -l)
-[ "$PLAN_COUNT" -eq 0 ] && echo "GATE FALHOU: nenhum PLAN.md para fase ${phase_number}. Re-spawnar planejador." && exit 1
+[ "$PLAN_COUNT" -eq 0 ] && echo "Nenhum PLAN.md para fase ${phase_number}. Re-spawnar planejador." && exit 1
 echo "OK: ${PLAN_COUNT} planos para fase ${phase_number}"
 ```
 
@@ -288,17 +247,8 @@ Este estágio roda no MODO PROJETO e no MODO FASE. No MODO FASE, os blocos vêm 
 ## Estagio P: PLANNING REVIEW, somente com `--review`
 
 Default: PULAR. `--no-audit` continua existindo como alias de pular (agora e o comportamento
-padrao). `--review` spawna `up-revisor` para a revisao consolidada do planejamento.
-
-Sem `--review`, o orquestrador gera um AUDIT-PLAN.md minimo (confidence inferida do self-check
-dos planejadores, sem nota inventada alta) e grava no log:
-
-```bash
-echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | planning | up-planejador | APPROVE | self-check dos planos | confidence=skip" \
-  >> .plano/governance/approvals.log
-```
-
-Depois segue para o Estagio PR.
+padrao). Sem `--review`, o self-check do planejador basta e o orquestrador segue direto para o
+Estagio PR.
 
 Se `--review`, spawnar `up-revisor`:
 
@@ -308,42 +258,27 @@ Agent(
   prompt="""
     Revisar o planejamento completo (escopo: planning). Two-stage adaptado ao planejamento:
 
-    STAGE 1 — spec-compliance cetico: os planos cobrem 100% dos REQUIREMENTS? Ha plano "rapido demais"
+    STAGE 1: spec-compliance cetico: os planos cobrem 100% dos REQUIREMENTS? Ha plano "rapido demais"
     que pula um REQ? Calcular Planning Confidence Score (0-100).
-    STAGE 2 — qualidade: coerencia cross-fase, dependencias/waves corretas, plano como contrato
+    STAGE 2: qualidade: coerencia cross-fase, dependencias/ondas corretas, plano como contrato
     (objetivo e prova, sem receita de codigo), sem contradicao entre SYSTEM-DESIGN e planos.
 
     <files_to_read>
     - .plano/PROJECT.md, .plano/ROADMAP.md, .plano/REQUIREMENTS.md, .plano/SYSTEM-DESIGN.md
-    - .plano/REQUIREMENTS-VALIDATION.md (se existir)
     - .plano/fases/*/*.md
     - $HOME/.claude/up/templates/audit-plan.md
     </files_to_read>
 
-    Gerar .plano/AUDIT-PLAN.md (usando o template) com o Planning Confidence Score.
-    Decisao: APPROVE (READY_FOR_BUILD) | REQUEST_CHANGES (NEEDS_REWORK) | BLOCK.
-
-    **OUTPUT OBRIGATORIO (ANTES de retornar):**
-    ```bash
-    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | planning | up-revisor | {DECISAO} | confidence=NN" >> .plano/governance/approvals.log
-    ```
+    Gerar .plano/AUDIT-PLAN.md (usando o template) com o Planning Confidence Score e o veredito:
+    APPROVE (READY_FOR_BUILD) | REQUEST_CHANGES (NEEDS_REWORK) | BLOCK.
   """
 )
 ```
 
-### GATE de planejamento (deterministico)
-
-```bash
-echo "=== GATE: planning ==="
-[ -f .plano/AUDIT-PLAN.md ] || { echo "FALHA: sem AUDIT-PLAN.md"; exit 1; }
-DECISION=$(node "$HOME/.claude/up/bin/up-tools.cjs" gate verdict --scope planning --field decision)
-[ -z "$DECISION" ] && echo "FALHA: up-revisor NAO logou planning" && exit 1
-```
-
-**Processar:**
+**Processar o veredito do AUDIT-PLAN.md:**
 - `APPROVE`: prosseguir pro Estagio PR.
-- `REQUEST_CHANGES`: cap de rework 1 round (governance.md). Re-spawn planejador/arquiteto com o review;
-  apos 1 round, forced approval com debito tecnico.
+- `REQUEST_CHANGES`: re-spawnar planejador/arquiteto com o review como contexto, uma rodada. Depois seguir
+  (o que sobrar vira ressalva no PLAN-READY).
 - `BLOCK`: perguntar com este conteúdo:
 
 <pergunta id="plan.revisor-bloqueou">
@@ -359,9 +294,8 @@ Opções: Corrigir e re-revisar | Aceitar como dívida e seguir para o plano pro
 
 Usar template `$HOME/.claude/up/templates/plan-ready.md`. Preencher: planned_at, planned_by.runtime
 (detectar), intended_execution.runtime (flag --execution-runtime ou "same"), project_name, mode,
-total_phases/plans/requirements, planning_confidence (do AUDIT-PLAN.md), lista completa de planos,
-`plan_schema: 2`, o bloco `seams:` (com as fronteiras confirmadas no esboco) e o campo
-`fora_de_escopo`.
+total_phases/plans/requirements, planning_confidence (do AUDIT-PLAN.md com `--review`; senao, a
+confianca declarada pelo self-check do planejador), lista completa de planos e o campo `fora_de_escopo`.
 
 ```bash
 if [ -d ~/.claude ]; then RUNTIME="claude-code"
@@ -369,19 +303,19 @@ elif [ -d ~/.config/opencode ]; then RUNTIME="opencode"
 elif [ -d ~/.gemini ]; then RUNTIME="gemini-cli"; fi
 ```
 
-Validar antes de commitar:
+Conferir antes de commitar que todo plano listado existe no disco:
 
 ```bash
-node "$HOME/.claude/up/bin/up-tools.cjs" gate plan-ready --raw
+for plan in $(grep -oE "fases/[0-9]+-[a-z-]+/[0-9]+-[0-9]+-PLAN.md" .plano/PLAN-READY.md); do
+  [ -f ".plano/$plan" ] || echo "FALTANDO: $plan"
+done
 ```
-
-Plano pronto reprovado e corrigido antes do commit, nunca commitado como esta.
 
 ### PR.2 Commit Final
 
 ```bash
 git add .plano/
-node "$HOME/.claude/up/bin/up-tools.cjs" commit "plan: project ready for execution" --files .plano/PLAN-READY.md .plano/AUDIT-PLAN.md
+node "$HOME/.claude/up/bin/up-tools.cjs" commit "plan: project ready for execution" --files .plano/PLAN-READY.md
 ```
 
 ### PR.3 Apresentar (orquestrador, sem CEO)
@@ -439,11 +373,8 @@ Sem stream ao vivo: o board reflete so status. O `/up:build --board` continua a 
 - [ ] Deteccao projeto vs fase (absorve discutir-fase/planejar-fase)
 - [ ] up-arquiteto gerou SYSTEM-DESIGN + PROJECT + ROADMAP + REQUIREMENTS (pesquisa, roteiro e validacao inline; sem pesquisador/roteirista/sintetizador)
 - [ ] TODAS as fases planejadas com PLAN.md (self-check do planejador)
-- [ ] Revisao de planejamento somente com `--review`. Default: orquestrador grava APPROVE de self-check
-- [ ] GATE de planejamento deterministico passou via leitor unico (`gate verdict --scope planning`): APPROVE ou forced approval
-- [ ] AUDIT-PLAN.md gerado (minimo no default; completo com `--review`)
-- [ ] Fronteiras esbocadas e confirmadas com o dono antes do planejamento (entrada evidence=seams:confirmed)
-- [ ] PLAN-READY.md gerado com plan_schema 2 e seams, aprovado por `gate plan-ready`, e committado
+- [ ] Revisao de planejamento somente com `--review` (gera AUDIT-PLAN.md). Default: self-check do planejador
+- [ ] PLAN-READY.md gerado, todo plano listado existe no disco, committado
 - [ ] `--board` (se passado, MODO PROJETO): 1 issue-filha Multica por fase criada batched (via `multica init --from-roadmap`), idempotente e fail-open
 - [ ] Apresentacao = output do orquestrador (sem CEO)
 - [ ] Nenhuma referencia a CEO, chiefs, camadas de revisao intermediaria ou aos agentes de planejamento deletados

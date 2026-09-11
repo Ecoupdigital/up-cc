@@ -34,7 +34,7 @@ const ARQUIVOS_SUPERFICIE = [
 // Piso de contagem: protege contra inventario que perde linhas, ou uma superficie inteira, sem que o
 // texto correspondente pare de existir no produto. Sobe junto com o inventario real quando pontos
 // legitimos forem adicionados; nunca desce sozinho.
-const PONTOS_MINIMOS = 19;
+const PONTOS_MINIMOS = 20;
 const SUPERFICIES_MINIMAS = 7;
 
 // Conjunto fechado dos identificadores esperados. O piso de CONTAGEM sozinho e furavel por delecao
@@ -50,6 +50,7 @@ const IDENTIFICADORES_ESPERADOS = [
   'brainstorm.checkpoint',
   'build.aprovou-ou-ajusta',
   'build.decisoes-escaladas',
+  'build.estatica-falhou',
   'build.fechamento-fase',
   'build.iniciar-execucao',
   'build.onda-falhou',

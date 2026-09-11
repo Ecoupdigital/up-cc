@@ -38,19 +38,12 @@ Spawns (Onda 2 do corte): `up-tester` (detector unico multi-pass: visual + exhau
 `up-executor` (correcao, roteando por contexto). Os 3 detectores DCRV antigos foram fundidos no
 `up-tester` e os specialists de dominio foram fundidos no `up-executor` (nenhum agente separado).
 
-**Evidencia para o GATE de fase (Fase 3 - TDD por tipo).** Quando rodado por fase no build, este loop
-PRODUZ a evidencia que o GATE exige no approvals.log (`evidence=<tipo>:<resultado>`):
-- **ui:visual** - a captura visual antes/depois do `up-tester` (pass visual; screenshots em `{$DCRV_DIR}`)
-  e a evidencia de fases de UI/CSS. O VISUAL-REPORT.md + as imagens sao o artefato que o up-revisor confirma.
-- **glue:smoke** - o smoke-test do modo E2E (navegar rotas / exercitar a integracao, capturar erros de
-  console / status) e a evidencia de fases de integracao (Asaas/uazapi/etc).
-- **logic:test_pass** - fases de logica (parser/calculo/API-propria/bugfix) provam via teste red-green no
-  verificador (fora deste loop); o DCRV nao e a fonte para `logic`.
-O up-revisor (build 3.7) le esses artefatos e carimba o campo `evidence` no approvals.log. Nenhum CLI novo:
-a evidencia sao os relatorios/screenshots ja gerados aqui.
+**Prova.** Os relatorios e screenshots gerados aqui (VISUAL-REPORT.md, capturas, smoke de rotas) sao a
+prova de fases de UI e de integracao. Quando rodado por fase no build (`--testar`), o orquestrador cita
+esse resultado no fechamento da fase. Nenhum CLI novo.
 </purpose>
 
-> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+> Vocabulário UP: fase, plano, onda, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
 
 <process>
 
@@ -439,7 +432,7 @@ os aplicaveis ao projeto. As flags `--ux/--mobile/--e2e` restringem a um subconj
 
 ### Modo E2E (absorve builder-e2e.md)
 
-Ativado por `--e2e`, e SEMPRE no build (scope=phase) e no quality gate (scope=global).
+Ativado por `--e2e`, no build com `--testar` (scope=phase) e no quality gate (scope=global).
 
 1. **Subir/garantir dev server** (Passo 0.1 ja faz). Manter rodando entre fases (nao matar a cada fase).
 2. **Smoke test de rotas:** navegar cada rota descoberta, capturar erros de console
@@ -449,9 +442,8 @@ Ativado por `--e2e`, e SEMPRE no build (scope=phase) e no quality gate (scope=gl
 4. **Por fase (scope=phase):** extrair os testes/criterios da fase do SUMMARY e exercitar so o que a
    fase tocou. Erros de console globais entram no issue board.
 5. As issues E2E entram no ISSUE-BOARD junto das dos detectores e seguem o mesmo loop de correcao.
-6. **Evidencia glue:smoke (Fase 3 - TDD):** o smoke de rotas + a verificacao da integracao (status/console
-   limpos apos exercitar o fluxo) sao a evidencia que o GATE de fase exige para fases de integracao
-   (Asaas/uazapi/etc). Registrar o resultado do smoke no relatorio para o up-revisor confirmar (glue:smoke).
+6. **Prova de integracao:** o smoke de rotas + a verificacao da integracao (status/console limpos apos
+   exercitar o fluxo) sao a prova de fases de integracao (Asaas/uazapi/etc). Registrar o resultado no relatorio.
 
 ### Modo UX (absorve ux-tester.md)
 

@@ -22,9 +22,6 @@
  *   phase-plan-index <phase>
  *   state-snapshot
  *   summary-extract <path> [--fields field1,field2]
- *   gate verdict --phase N | --scope planning [--expect-evidence <tipo>] [--require-seams] [--field <campo>]
- *   gate entries [--phase N]
- *   gate plan-ready [--path <caminho>] [--field <campo>]
  */
 
 const fs = require('fs');
@@ -40,8 +37,6 @@ const {
 
 const github = require('./lib/github.cjs');
 const multica = require('./lib/multica.cjs');
-const gate = require('./lib/gate.cjs');
-const tautologia = require('./lib/tautologia.cjs');
 
 // --- Frontmatter helpers ---
 
@@ -447,18 +442,6 @@ function main() {
       break;
     }
 
-    // ==================== TIMEOUT (Wave 3) ====================
-    case 'timeout': {
-      cmdTimeout(args.slice(1), raw);
-      break;
-    }
-
-    // ==================== STUCK CHECK (Wave 3) ====================
-    case 'stuck-check': {
-      cmdStuckCheck(cwd, args.slice(1), raw);
-      break;
-    }
-
     // ==================== VERIFY-STATIC (Wave 4) ====================
     case 'verify-static': {
       cmdVerifyStatic(cwd, args.slice(1), raw);
@@ -526,10 +509,6 @@ function main() {
     }
 
     // ==================== SUMMARY-EXTRACT ====================
-    case 'gate': {
-      cmdGate(cwd, args.slice(1), raw);
-      break;
-    }
     case 'summary-extract': {
       const fieldsIdx = args.indexOf('--fields');
       const fields = fieldsIdx !== -1 ? args[fieldsIdx + 1].split(',') : [];
@@ -2641,155 +2620,6 @@ function cmdBudget(cwd, raw) {
 }
 
 // =====================================================================
-// TIMEOUT COMMAND (Wave 3 — soft/idle/hard timeouts)
-// =====================================================================
-
-/**
- * Compute timeout status given a start time and limits.
- *
- * Usage:
- *   up-tools.cjs timeout --start <epoch> --soft <secs> --hard <secs>
- *                        [--idle-since <epoch>] [--idle <secs>]
- *
- * Returns JSON:
- *   { elapsed_secs, status, remaining_soft, remaining_hard,
- *     idle_secs, idle_status }
- *
- * Status values:
- *   ok           — under all limits
- *   soft_warning — past soft, warn but continue
- *   idle_warning — idle for too long, may be stuck
- *   hard_abort   — past hard, abort immediately
- *
- * Defaults match gsd-2:
- *   soft=1200 (20m), hard=1800 (30m), idle=600 (10m)
- */
-function cmdTimeout(args, raw) {
-  const flags = { start: null, soft: 1200, hard: 1800, idleSince: null, idle: 600 };
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i];
-    if (a === '--start') flags.start = parseInt(args[++i], 10);
-    else if (a === '--soft') flags.soft = parseInt(args[++i], 10);
-    else if (a === '--hard') flags.hard = parseInt(args[++i], 10);
-    else if (a === '--idle-since') flags.idleSince = parseInt(args[++i], 10);
-    else if (a === '--idle') flags.idle = parseInt(args[++i], 10);
-  }
-
-  if (!flags.start) error('Usage: timeout --start <epoch> [--soft N] [--hard N] [--idle-since E] [--idle N]');
-
-  const now = Math.floor(Date.now() / 1000);
-  const elapsed = now - flags.start;
-  const remainingSoft = Math.max(0, flags.soft - elapsed);
-  const remainingHard = Math.max(0, flags.hard - elapsed);
-
-  let status = 'ok';
-  if (elapsed >= flags.hard) status = 'hard_abort';
-  else if (elapsed >= flags.soft) status = 'soft_warning';
-
-  const result = {
-    elapsed_secs: elapsed,
-    status,
-    remaining_soft: remainingSoft,
-    remaining_hard: remainingHard,
-  };
-
-  if (flags.idleSince) {
-    const idleSecs = now - flags.idleSince;
-    result.idle_secs = idleSecs;
-    if (idleSecs >= flags.idle) {
-      result.idle_status = 'idle_warning';
-      // Idle warning escalates to hard_abort if also past soft
-      if (status === 'soft_warning') {
-        result.status = 'hard_abort';
-      } else if (status === 'ok') {
-        result.status = 'idle_warning';
-      }
-    } else {
-      result.idle_status = 'ok';
-    }
-  }
-
-  output(result, raw, `${result.status} | elapsed=${elapsed}s soft_remaining=${remainingSoft}s hard_remaining=${remainingHard}s`);
-}
-
-// =====================================================================
-// STUCK CHECK COMMAND (Wave 3 — sliding window pattern detector)
-// =====================================================================
-
-/**
- * Detect repeated tool-call patterns by reading an activity log.
- *
- * Agents append events to .plano/runtime/agent-activity-<id>.log via
- * Bash echo. Each line: "<timestamp>|<tool>|<target>". This command
- * scans the last N lines and flags repetition.
- *
- * Usage:
- *   up-tools.cjs stuck-check --log <path> [--window 10] [--threshold 3]
- *
- * Returns:
- *   { stuck: bool, reason, repeated_pattern, count, window_size }
- *
- * Stuck = same (tool|target) appears `threshold` times within
- * `window` last entries.
- */
-function cmdStuckCheck(cwd, args, raw) {
-  const flags = { log: null, window: 10, threshold: 3 };
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i];
-    if (a === '--log') flags.log = args[++i];
-    else if (a === '--window') flags.window = parseInt(args[++i], 10);
-    else if (a === '--threshold') flags.threshold = parseInt(args[++i], 10);
-  }
-
-  if (!flags.log) error('Usage: stuck-check --log <path> [--window N] [--threshold N]');
-
-  const logPath = path.isAbsolute(flags.log) ? flags.log : path.join(cwd, flags.log);
-
-  let lines = [];
-  try {
-    const content = fs.readFileSync(logPath, 'utf-8');
-    lines = content.split('\n').filter(l => l.trim() && l.includes('|'));
-  } catch {
-    output({ stuck: false, reason: 'no_log', repeated_pattern: null, count: 0, window_size: 0 }, raw, 'no_log');
-    return;
-  }
-
-  const window = lines.slice(-flags.window);
-  const counts = new Map();
-
-  for (const line of window) {
-    const parts = line.split('|').map(s => s.trim());
-    // Treat tool|target as the pattern (skip timestamp)
-    const key = parts.slice(1, 3).join('|');
-    counts.set(key, (counts.get(key) || 0) + 1);
-  }
-
-  let topPattern = null;
-  let topCount = 0;
-  for (const [key, count] of counts) {
-    if (count > topCount) {
-      topPattern = key;
-      topCount = count;
-    }
-  }
-
-  const stuck = topCount >= flags.threshold;
-
-  output(
-    {
-      stuck,
-      reason: stuck ? `pattern_repeated_${topCount}x` : 'ok',
-      repeated_pattern: stuck ? topPattern : null,
-      count: topCount,
-      window_size: window.length,
-      threshold: flags.threshold,
-    },
-    raw,
-    stuck ? `STUCK: "${topPattern}" repeated ${topCount}x in last ${window.length} entries` : `ok (top pattern: ${topCount}x in ${window.length})`
-  );
-}
-
-// =====================================================================
 // VALIDATE-PLAN COMMAND (Wave 6 — iron rule)
 // =====================================================================
 
@@ -3451,7 +3281,6 @@ function cmdAnalyzeRouting(cwd, raw) {
  *
  * Usage:
  *   up-tools.cjs verify-static [--lint] [--typecheck] [--test] [--audit]
- *                              [--tautologia] [--paths <lista-csv>]
  *                              [--all] [--skip-missing]
  *
  * If no flags given, defaults to --all (--skip-missing).
@@ -3460,13 +3289,12 @@ function cmdAnalyzeRouting(cwd, raw) {
  *   {
  *     overall: "pass" | "fail" | "skip",
  *     checks: [
- *       { name, status: "pass"|"fail"|"skip"|"warn", exit_code, summary, output_path, findings? }
+ *       { name, status: "pass"|"fail"|"skip", exit_code, summary, output_path }
  *     ],
  *     duration_secs
  *   }
  *
  * Each check's full output is written to .plano/runtime/verify-static-<check>.log
- * A heuristica de tautologia SINALIZA (status warn) e NAO bloqueia o gate (PROVA-08).
  */
 function cmdVerifyStatic(cwd, args, raw) {
   const flags = {
@@ -3474,10 +3302,8 @@ function cmdVerifyStatic(cwd, args, raw) {
     typecheck: false,
     test: false,
     audit: false,
-    tautologia: false,
     all: false,
     skipMissing: false,
-    paths: null,
   };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -3485,18 +3311,11 @@ function cmdVerifyStatic(cwd, args, raw) {
     else if (a === '--typecheck') flags.typecheck = true;
     else if (a === '--test') flags.test = true;
     else if (a === '--audit') flags.audit = true;
-    else if (a === '--tautologia') flags.tautologia = true;
     else if (a === '--all') flags.all = true;
     else if (a === '--skip-missing') flags.skipMissing = true;
-    else if (a === '--paths') {
-      const v = args[++i];
-      if (v && !v.startsWith('--')) flags.paths = v;
-    } else if (a.startsWith('--paths=')) {
-      flags.paths = a.slice('--paths='.length);
-    }
   }
   // Default: run all, skip if script missing
-  if (!flags.lint && !flags.typecheck && !flags.test && !flags.audit && !flags.tautologia && !flags.all) {
+  if (!flags.lint && !flags.typecheck && !flags.test && !flags.audit && !flags.all) {
     flags.all = true;
     flags.skipMissing = true;
   }
@@ -3610,86 +3429,15 @@ function cmdVerifyStatic(cwd, args, raw) {
     }
   }
 
-  // Tautologia (PROVA-07/08): sinaliza, nao bloqueia
-  if (flags.all || flags.tautologia) {
-    const logPath = path.join(runtimeDir, 'verify-static-tautologia.log');
-    let scanPaths;
-    if (flags.paths) {
-      scanPaths = flags.paths.split(',').map((s) => s.trim()).filter(Boolean);
-    } else {
-      scanPaths = [cwd];
-    }
-    const scan = tautologia.scanFiles(scanPaths, { cwd });
-    const allFindings = scan.findings || [];
-    // Gravar log completo sempre
-    const logLines = allFindings.map((f) =>
-      `${f.file}:${f.line} | ${f.signal} | ${f.snippet} | ${f.why}`
-    );
-    try {
-      fs.writeFileSync(logPath, logLines.length ? logLines.join('\n') + '\n' : '');
-    } catch {}
-
-    if (scan.files_scanned === 0 && allFindings.length === 0 && !flags.paths) {
-      // Sem paths explicitos e zero arquivos: skip
-      // Com --paths apontando para arquivo inexistente tambem pode ser 0
-    }
-
-    if (scan.files_scanned === 0) {
-      checks.push({
-        name: 'tautologia',
-        status: 'skip',
-        exit_code: null,
-        summary: 'nenhum arquivo de teste encontrado',
-        output_path: null,
-        findings: [],
-        findings_total: 0,
-      });
-    } else if (allFindings.length > 0) {
-      const shown = allFindings.slice(0, 20);
-      // Conta arquivos DISTINTOS com achado (nao o total varrido). PROVA-08 / RG-003:
-      // a frase ao revisor nao pode sugerir contaminacao em arquivos limpos.
-      const filesWithFindings = new Set(
-        allFindings.map((f) => f.file).filter(Boolean)
-      ).size;
-      const nSinais = allFindings.length;
-      const nArqs = filesWithFindings;
-      const palavraSinal = nSinais === 1 ? 'sinal' : 'sinais';
-      const palavraArquivo = nArqs === 1 ? 'arquivo' : 'arquivos';
-      checks.push({
-        name: 'tautologia',
-        status: 'warn',
-        exit_code: null,
-        summary: `${nSinais} ${palavraSinal} de tautologia em ${nArqs} ${palavraArquivo} (sinaliza, nao bloqueia)`,
-        output_path: path.relative(cwd, logPath),
-        findings: shown,
-        findings_total: allFindings.length,
-        files_with_findings: filesWithFindings,
-        files_scanned: scan.files_scanned,
-      });
-    } else {
-      checks.push({
-        name: 'tautologia',
-        status: 'pass',
-        exit_code: 0,
-        summary: 'nenhum sinal de tautologia',
-        output_path: path.relative(cwd, logPath),
-        findings: [],
-        findings_total: 0,
-      });
-    }
-  }
-
   const duration = Math.round((Date.now() - start) / 1000);
 
   const failed = checks.filter(c => c.status === 'fail');
   const passed = checks.filter(c => c.status === 'pass');
   const skipped = checks.filter(c => c.status === 'skip');
-  // PROVA-08: warn e categoria propria; heuristica sinaliza e nao bloqueia o gate
-  const warned = checks.filter(c => c.status === 'warn');
 
   let overall;
   if (failed.length > 0) overall = 'fail';
-  else if (passed.length > 0 || warned.length > 0) overall = 'pass';
+  else if (passed.length > 0) overall = 'pass';
   else overall = 'skip';
 
   const result = {
@@ -3700,14 +3448,13 @@ function cmdVerifyStatic(cwd, args, raw) {
       passed: passed.length,
       failed: failed.length,
       skipped: skipped.length,
-      warned: warned.length,
     },
   };
 
   output(
     result,
     raw,
-    `verify-static: ${overall} (${passed.length} passed, ${failed.length} failed, ${warned.length} warned, ${skipped.length} skipped, ${duration}s)`
+    `verify-static: ${overall} (${passed.length} passed, ${failed.length} failed, ${skipped.length} skipped, ${duration}s)`
   );
 }
 
@@ -3723,7 +3470,7 @@ function cmdVerifyStatic(cwd, args, raw) {
  *
  * Usage:
  *   up-tools.cjs context --plan <path> [--state] [--config]
- *                        [--requirements] [--governance]
+ *                        [--requirements]
  *                        [--engineering-principles] [--max-bytes N]
  *
  * Outputs a single string of XML blocks to stdout. Designed to be
@@ -3742,7 +3489,6 @@ function cmdContext(cwd, args, raw) {
     state: false,
     config: false,
     requirements: null,
-    governance: false,
     engineeringPrinciples: false,
     manifest: null,
     maxBytes: 50 * 1024, // 50kB hard cap per file by default
@@ -3754,7 +3500,6 @@ function cmdContext(cwd, args, raw) {
     else if (a === '--state') flags.state = true;
     else if (a === '--config') flags.config = true;
     else if (a === '--requirements') flags.requirements = args[++i] || true;
-    else if (a === '--governance') flags.governance = true;
     else if (a === '--engineering-principles' || a === '--principles') flags.engineeringPrinciples = true;
     else if (a === '--manifest') flags.manifest = args[++i];
     else if (a === '--max-bytes') flags.maxBytes = parseInt(args[++i], 10) || flags.maxBytes;
@@ -3826,16 +3571,6 @@ function cmdContext(cwd, args, raw) {
     }
   }
 
-  if (flags.governance) {
-    const govPath = path.join(__dirname, '..', 'references', 'governance-rules-compressed.md');
-    // also try the runtime-installed location
-    const installedGovPath = path.join(require('os').homedir(), '.claude', 'up', 'references', 'governance-rules-compressed.md');
-    let govContent = readCapped(govPath, flags.maxBytes) || readCapped(installedGovPath, flags.maxBytes);
-    if (govContent !== null) {
-      blocks.push(`<governance_compressed>\n${govContent}\n</governance_compressed>`);
-    }
-  }
-
   if (flags.engineeringPrinciples) {
     const epPath = path.join(__dirname, '..', 'references', 'engineering-principles-compressed.md');
     const installedEpPath = path.join(require('os').homedir(), '.claude', 'up', 'references', 'engineering-principles-compressed.md');
@@ -3853,7 +3588,6 @@ function cmdContext(cwd, args, raw) {
     for (const refName of refs) {
       // Skip if the ref was already added via a dedicated flag
       if (refName === 'engineering-principles-compressed' && flags.engineeringPrinciples) continue;
-      if (refName === 'governance-rules-compressed' && flags.governance) continue;
 
       const installed = path.join(homeRefDir, refName + '.md');
       const local = path.join(localRefDir, refName + '.md');
@@ -3880,7 +3614,7 @@ function cmdContext(cwd, args, raw) {
 // =====================================================================
 
 function cmdStatus(cwd, raw) {
-  // Aggregates progress + budget + current phase + governance counts in one shot.
+  // Aggregates progress + budget + current phase in one shot.
   // Designed for /up:progresso, /up:saude, dashboards, or external monitoring.
   const phasesDir = path.join(cwd, '.plano', 'fases');
   const phases = [];
@@ -3915,20 +3649,6 @@ function cmdStatus(cwd, raw) {
   } catch {}
 
   const percent = totalPlans > 0 ? Math.min(100, Math.round((totalSummaries / totalPlans) * 100)) : 0;
-
-  // Governance counts
-  const approvalsLog = path.join(cwd, '.plano', 'governance', 'approvals.log');
-  const technicalDebtLog = path.join(cwd, '.plano', 'governance', 'technical-debt.log');
-  let approvalCount = 0;
-  let technicalDebtCount = 0;
-  try {
-    if (fs.existsSync(approvalsLog)) {
-      approvalCount = fs.readFileSync(approvalsLog, 'utf-8').split('\n').filter(l => l.includes('|')).length;
-    }
-    if (fs.existsSync(technicalDebtLog)) {
-      technicalDebtCount = fs.readFileSync(technicalDebtLog, 'utf-8').split('\n').filter(l => l.includes('|')).length;
-    }
-  } catch {}
 
   // Budget (best-effort; never blocks status)
   let budget = { spend_usd: 0, ceiling_usd: null, status: 'no_data' };
@@ -3973,10 +3693,6 @@ function cmdStatus(cwd, raw) {
       percent,
     },
     current_phase: currentPhase,
-    governance: {
-      approvals_logged: approvalCount,
-      technical_debt_entries: technicalDebtCount,
-    },
     budget,
     config: {
       modo: config.modo,
@@ -4048,187 +3764,6 @@ function cmdProgress(cwd, format, raw) {
   } else {
     output({ phases, total_plans: totalPlans, total_summaries: totalSummaries, percent }, raw);
   }
-}
-
-// ==================== GATE ====================
-
-/**
- * Leitor unico do log de aprovacoes (fase 16 / PROVA-04).
- * Fail-open: log ausente, fase ausente ou zero entradas saem com codigo 0.
- * error() so para uso incorreto da CLI.
- */
-function cmdGate(cwd, args, raw) {
-  const sub = args[0];
-  if (!sub || (sub !== 'verdict' && sub !== 'entries' && sub !== 'plan-ready')) {
-    error('Usage: gate verdict --phase N | gate entries | gate plan-ready');
-  }
-
-  let phase = null;
-  let scope = null;
-  let logPath = null;
-  let expectEvidence = null;
-  let requireSeams = false;
-  let field = null;
-  let planPath = null;
-
-  for (let i = 1; i < args.length; i++) {
-    const a = args[i];
-    if (a === '--phase') {
-      const v = args[++i];
-      if (!v || v.startsWith('--')) error('Missing value for --phase');
-      phase = Number(v);
-      if (Number.isNaN(phase)) error('Invalid --phase: ' + v);
-    } else if (a.startsWith('--phase=')) {
-      phase = Number(a.slice('--phase='.length));
-      if (Number.isNaN(phase)) error('Invalid --phase');
-    } else if (a === '--scope') {
-      const v = args[++i];
-      if (!v || v.startsWith('--')) error('Missing value for --scope');
-      scope = v;
-    } else if (a.startsWith('--scope=')) {
-      scope = a.slice('--scope='.length);
-    } else if (a === '--log') {
-      const v = args[++i];
-      if (!v || v.startsWith('--')) error('Missing value for --log');
-      logPath = v;
-    } else if (a.startsWith('--log=')) {
-      logPath = a.slice('--log='.length);
-    } else if (a === '--expect-evidence') {
-      const v = args[++i];
-      if (!v || v.startsWith('--')) error('Missing value for --expect-evidence');
-      expectEvidence = v;
-    } else if (a.startsWith('--expect-evidence=')) {
-      expectEvidence = a.slice('--expect-evidence='.length);
-    } else if (a === '--require-seams') {
-      requireSeams = true;
-    } else if (a === '--path') {
-      const v = args[++i];
-      if (!v || v.startsWith('--')) error('Missing value for --path');
-      planPath = v;
-    } else if (a.startsWith('--path=')) {
-      planPath = a.slice('--path='.length);
-    } else if (a === '--field') {
-      const v = args[++i];
-      if (!v || v.startsWith('--')) error('Missing value for --field');
-      field = v;
-    } else if (a.startsWith('--field=')) {
-      field = a.slice('--field='.length);
-    }
-  }
-
-  if (sub === 'plan-ready') {
-    const result = gate.checkPlanReadySeams({ cwd, planPath });
-    if (field) {
-      if (!(field in result)) error('Unknown field: ' + field);
-      const val = result[field];
-      const asString = Array.isArray(val)
-        ? val.join(',')
-        : typeof val === 'boolean'
-          ? (val ? 'true' : 'false')
-          : val == null
-            ? ''
-            : String(val);
-      output(result, true, asString);
-      return;
-    }
-    const resumo =
-      `gate plan-ready: pass=${result.pass}` +
-      ` schema=${result.schema == null ? 'null' : result.schema}` +
-      ` seams=${result.seam_count}` +
-      ` avisos=${(result.warnings || []).length}`;
-    output(result, raw, resumo);
-    return;
-  }
-
-  const read = gate.readApprovals({ cwd, logPath });
-
-  if (sub === 'entries') {
-    let entries = read.entries;
-    if (phase != null) {
-      entries = entries.filter((e) => e.phase === phase);
-    }
-    const result = {
-      log_path: read.log_path,
-      exists: read.exists,
-      lines_total: read.lines_total,
-      entries,
-      ignored: read.ignored,
-    };
-    if (field) {
-      if (!(field in result)) error('Unknown field: ' + field);
-      const val = result[field];
-      const asString = Array.isArray(val)
-        ? val.join(',')
-        : typeof val === 'boolean'
-          ? (val ? 'true' : 'false')
-          : val == null
-            ? ''
-            : String(val);
-      output(result, true, asString);
-      return;
-    }
-    output(result, raw, `gate entries: ${entries.length} entradas, ${read.ignored.length} ignoradas`);
-    return;
-  }
-
-  // verdict
-  if (phase == null && !scope) {
-    error('Usage: gate verdict --phase N | --scope planning');
-  }
-
-  const selector = phase != null ? { phase } : { scope };
-  const verdict = gate.verdictForPhase(read, selector);
-  const evaluation = gate.evaluateGate(verdict, {
-    expectEvidence,
-    requireSeams,
-  });
-
-  const result = {
-    found: verdict.found,
-    phase: verdict.phase,
-    scope: verdict.scope,
-    decision: verdict.decision,
-    forced: verdict.forced,
-    agent: verdict.agent,
-    notation: verdict.notation,
-    evidence: verdict.evidence,
-    evidence_types: verdict.evidence_types,
-    seams_confirmed: verdict.seams_confirmed,
-    entries_matched: verdict.entries_matched,
-    line: verdict.decision_line,
-    line_number: verdict.decision_line_number,
-    ignored_lines: read.ignored.length,
-    log_path: read.log_path,
-    pass: evaluation.pass,
-    reasons: evaluation.reasons,
-    checks: {
-      expect_evidence: expectEvidence || null,
-      require_seams: requireSeams,
-    },
-  };
-
-  if (field) {
-    if (!(field in result)) error('Unknown field: ' + field);
-    const val = result[field];
-    const asString = Array.isArray(val)
-      ? val.join(',')
-      : typeof val === 'boolean'
-        ? (val ? 'true' : 'false')
-        : val == null
-          ? ''
-          : String(val);
-    output(result, true, asString);
-    return;
-  }
-
-  const evTypes = (result.evidence_types || []).join(',') || '-';
-  const resumo =
-    `gate: fase=${result.phase != null ? result.phase : result.scope}` +
-    ` decision=${result.decision || 'null'}` +
-    ` evidence=${evTypes}` +
-    ` seams=${result.seams_confirmed}` +
-    ` pass=${result.pass}`;
-  output(result, raw, resumo);
 }
 
 // =====================================================================
