@@ -110,8 +110,7 @@ const packageRoot = path.resolve(scriptDir, '..');
 const UP_SKILLS = [
   'usando-up',
   'up-brainstorm',
-  'up-tdd',
-  'up-verificar-antes-de-concluir',
+  'up-prova',
 ];
 
 // Command-skills: cada comando UP tambem vira skill (Grok Build le ~/.claude
@@ -844,13 +843,12 @@ function buildUpBootstrapBlock(runtime, pathPrefix) {
     '   ilimitadas, uma por vez, cada com resposta recomendada. Saida: palavra de parada por INTENCAO, nunca substring (chega, para,',
     '   fecha, basta, suficiente) encerra na hora sem confirmacao; checkpoint a cada 3; auto-convergencia',
     '   declarada. Gate de aprovacao do design continua. Ref: ' + skills + '/up-brainstorm/SKILL.md e ' + skills + '/up-brainstorm/grill.md',
-    '2. LEI DE FERRO (evidencia antes de afirmar): nunca diga "pronto", "funciona" ou "corrigido" sem rodar a',
-    '   prova NESTA resposta e confirmar a saida. Ref: ' + skills + '/up-verificar-antes-de-concluir/SKILL.md',
-    '3. TDD POR TIPO: logica/parser/bugfix = teste red-green; UI/CSS = prova visual (antes/depois);',
-    '   glue/integracao = smoke-test. Ref: ' + skills + '/up-tdd/SKILL.md',
-    '4. GitHub-nativo e o padrao no ' + cmd + 'build (worktree -> issue -> PR -> merge); ' + cmd + 'rapido pula a cerimonia.',
-    '5. O estado vive em .plano/ e sobrevive a reset de contexto. Persistencia e o coracao do UP.',
-    '6. VOCABULÁRIO ÚNICO: os termos do UP (fase, plano, onda, gate, evidência, worktree, escape hatch,',
+    '2. PROVA ANTES DE PRONTO: nunca diga "pronto", "funciona" ou "corrigido" sem rodar a prova NESTA',
+    '   resposta e ler a saida. Uma prova por tipo: logica/bugfix = teste; UI/CSS = captura de tela;',
+    '   integracao = smoke-test. Ref: ' + skills + '/up-prova/SKILL.md',
+    '3. GitHub-nativo e o padrao no ' + cmd + 'build (worktree -> issue -> PR -> merge); ' + cmd + 'rapido pula a cerimonia.',
+    '4. O estado vive em .plano/ e sobrevive a reset de contexto. Persistencia e o coracao do UP.',
+    '5. VOCABULÁRIO ÚNICO: os termos do UP (fase, plano, onda, evidência, worktree, escape hatch,',
     '   verificação, laço DCRV) têm definição única. Ref: ' + refs + '/glossario-up.md. Use o termo, não redefina.',
     '',
     'Porta unica: ' + entry + ' "sua ideia". Comandos: ' + cmd + 'up, ' + cmd + 'plan, ' + cmd + 'build, ' + cmd + 'testar, ' + cmd + 'auditar, ' + cmd + 'depurar, ' + cmd + 'rapido.',
