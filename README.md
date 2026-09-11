@@ -20,7 +20,7 @@
 
 **UP** e um sistema de meta-prompting que transforma seu assistente de IA num desenvolvedor estruturado. Voce descreve a ideia, o UP explora o problema com voce (brainstorm), planeja em fases, executa cada fase numa branch isolada com issue e PR, testa na tela antes de mergear, e mantem todo o estado em disco. Funciona em **Claude Code**, **Codex CLI**, **OpenCode** e **Gemini CLI**.
 
-> **UP v2.0.0** e uma reescrita completa (breaking change). Se voce usava a v1, leia a secao [O que mudou no v2](#o-que-mudou-no-v2) antes de atualizar. Nenhum comando da v1 existe mais.
+> **UP v3.0.0 e o UP leve** (breaking change). O modelo e capaz, o UP guia em vez de policiar: saiu o gate deterministico do `approvals.log`, sairam as fronteiras de teste e a anti-tautologia, verificador e revisor viraram opt-in (`--review`), e o executor prova cada entrega na secao `## Prova` do SUMMARY. Tres skills no lugar de quatro (`up-tdd` + `up-verificar-antes-de-concluir` viraram `up-prova`). Detalhes no [CHANGELOG](up/CHANGELOG.md).
 
 ## O que mudou no v2
 
@@ -37,7 +37,7 @@ Mudancas centrais:
 
 - **Brainstorm-first.** Antes de qualquer codigo, o UP explora intencao, requisitos e design. Implementacao so depois do entendimento. Aplica a todo projeto, por mais simples que pareca.
 - **GitHub-nativo por padrao.** Cada fase abre worktree + branch + issue, executa isolada e fecha com um menu (merge local, abrir PR, deixar branch ou descartar). O `--solo` e o escape hatch, nao o default.
-- **TDD por tipo.** A prova exigida depende do tipo de codigo: teste red-green para logica, prova visual (antes/depois) para UI, smoke-test para glue/integracao. Gate deterministico via `approvals.log`.
+- **Prova por tipo.** A prova exigida depende do tipo de mudanca: teste para logica, captura para UI, smoke-test para integracao. Fica na secao `## Prova` do SUMMARY de cada plano.
 - **Teste visual antes do merge.** Se a fase tem UI, o build sobe o dev server dentro da worktree e pergunta se voce quer ver na tela antes de mergear. Projeto em producao nao mergeia sem o dono aprovar visualmente.
 - **Waves paralelas.** Fase grande quebra em varios planos por dominio. Planos da mesma wave rodam em paralelo (varios executores de uma vez); waves em sequencia respeitam dependencias.
 - **Multica (opt-in).** Flag `--board` espelha as issues das fases no board do Multica.
@@ -77,9 +77,7 @@ Apos instalar no Claude Code, reinicie o CLI e digite `/up` para comecar. Os 4 r
 ├── REQUIREMENTS.md         # Requisitos rastreaveis
 ├── config.json             # Config do workflow (github_native, require_visual_test, ...)
 ├── PLAN-READY.md           # Plano portavel pronto pro /up:build
-├── fases/                  # CONTEXT, PLAN-NNN, SUMMARY por fase
-├── governance/
-│   └── approvals.log       # Gate deterministico (evidence=<tipo>:<resultado>)
+├── fases/                  # CONTEXT, PLAN-NNN, SUMMARY (com secao Prova) por fase
 └── git-map.json            # Mapa de branches/issues/PRs por fase
 ```
 
@@ -89,7 +87,7 @@ O hook **up-context-monitor** avisa quando o contexto enche e sugere `/clear` (o
 
 **Waves paralelas.** O `/up:plan` quebra fase grande em varios planos por dominio agrupados em waves. O `/up:build` roda os planos da mesma wave em paralelo (varios `up-executor`) e as waves em sequencia (dependencia). Fase pequena = 1 plano = 1 agente.
 
-**Governanca enxuta.** Um unico `up-revisor` two-stage (spec-compliance cetico, depois code-quality/OWASP) mais o gate deterministico do `approvals.log`. Acabou a piramide de CEO, chiefs e supervisores da v1.
+**Governanca enxuta.** Sem gate, sem log de aprovacoes, sem piramide. O build le a secao `## Prova` de cada SUMMARY, roda `verify-static` quando o projeto tem suite e confere o diff. Revisao formal (`up-verificador` + `up-revisor` two-stage) so com `--review`.
 
 **Separacao plan/build.** Planeje no modelo forte (Claude), execute em runtime barato. O `PLAN-READY.md` e portavel: gera num lugar, roda em outro.
 
@@ -128,9 +126,9 @@ Exemplo: construir uma feature do zero ao merge.
 3. Executa fase a fase, GitHub-nativo:
    - Abre **worktree + branch** `up/fase-01-slug` + **issue**.
    - Roda os planos da fase: planos da mesma wave em **paralelo**, waves em sequencia.
-   - Aplica **TDD por tipo** (logica: red-green; UI: prova visual; glue: smoke) com gate no `approvals.log`.
-   - Passa pelo **up-revisor** two-stage (spec-compliance, depois code-quality/OWASP).
-   - Se a fase tem UI: sobe o **dev server dentro da worktree** e pergunta "testar primeiro ou pode mergear?". Se testar, mantem o server no ar e depois "aprovado ou ajustar?" (ajustar = `up-executor` corrige e re-gate, em loop).
+   - Cada executor prova a entrega (logica: teste; UI: captura; integracao: smoke) e registra na secao `## Prova` do SUMMARY.
+   - Com `--review`, passa pelo **up-revisor** two-stage (spec-compliance, depois code-quality/OWASP).
+   - Se a fase tem UI: sobe o **dev server dentro da worktree** e pergunta "testar primeiro ou pode mergear?". Se testar, mantem o server no ar e depois "aprovado ou ajustar?" (ajustar = `up-executor` corrige e re-testa, em loop).
    - No fim da fase, **menu**: merge local, abrir PR, deixar branch ou descartar.
 
 ```
@@ -146,12 +144,12 @@ Mesma doutrina em todos. O que muda: o Claude Code tem suporte nativo (hook + sk
 
 | Runtime | Invocacao | Como carrega o UP |
 |---------|-----------|-------------------|
-| **Claude Code** | `/up:X` | Completo. Hook SessionStart injeta o bootstrap `usando-up`; 4 skills ativam por contexto; statusLine + context-monitor. |
+| **Claude Code** | `/up:X` | Completo. Hook SessionStart injeta o bootstrap `usando-up`; 3 skills ativam por contexto; statusLine + context-monitor. |
 | **Gemini CLI** | `/up:X` | Comandos convertidos pra TOML + 12 agentes convertidos. Brainstorm-first via bootstrap no `GEMINI.md`. |
 | **OpenCode** | `/up-X` | Comandos achatados (`command/up-X.md`) + agentes convertidos. Bootstrap no `AGENTS.md`. |
 | **Codex CLI** | `$up-X` | Comandos viram skills + `config.toml [agents] max_depth`. Bootstrap no `AGENTS.md`. |
 
-As **4 skills** (camada de ativacao por contexto, nativas no Claude Code): `usando-up` (bootstrap), `up-brainstorm`, `up-tdd`, `up-verificar-antes-de-concluir`.
+As **3 skills** (camada de ativacao por contexto, nativas no Claude Code): `usando-up` (bootstrap), `up-brainstorm`, `up-prova`.
 
 Os **12 agentes**: `up-arquiteto`, `up-planejador`, `up-executor`, `up-verificador`, `up-mapeador-codigo`, `up-depurador`, `up-pesquisador`, `up-revisor`, `up-auditor`, `up-sintetizador`, `up-roteirista`, `up-tester`.
 

@@ -22,7 +22,7 @@
 
 Funciona com **Claude Code**, **Gemini CLI**, **OpenCode** e **Codex**. A invocacao varia por runtime: `/up:X` (Claude, Gemini), `/up-X` (OpenCode), `$up-X` (Codex).
 
-> **v2.0 e um redesign completo (breaking change).** Sao 7 comandos no lugar de 31, 12 agentes no lugar de 52, e o `/up:build` agora e GitHub-nativo por padrao (worktree, issue, PR e merge por fase, com teste visual antes do merge). Veja a [tabela de migracao no CHANGELOG](CHANGELOG.md). Detalhes completos no [Guia de Uso](../docs/GUIA-DE-USO.md).
+> **v3.0 e o UP leve (breaking change).** O modelo e capaz, o UP guia em vez de policiar: saiu o gate deterministico (`approvals.log`, `evidence=`), sairam as fronteiras de teste e a heuristica anti-tautologia, e o verificador e o revisor viraram opt-in. O que sobra no caminho quente: brainstorm com grill, plano como contrato, executor com prova no SUMMARY, teste visual antes do merge e GitHub-nativo. Veja o [CHANGELOG](CHANGELOG.md) e o [Guia de Uso](../docs/GUIA-DE-USO.md).
 
 ## Por que UP?
 
@@ -101,8 +101,8 @@ Zero worktree, zero issue, zero PR, zero rede. `/up:rapido` (ou `--local` no bui
 /up "adiciona filtro por data no dashboard"
   -> heuristica de prosa: PEQUENA -> modo grill: perguntas ilimitadas, uma por vez, com resposta
      recomendada, ate palavra de parada, checkpoint a cada tres ou auto-convergencia declarada
-  -> se for ajuste: implementa (Lei de Ferro). se for fase nova: /up:plan -> /up:build
-  -> /up:build (GitHub-nativo): worktree + issue, prova barata, teste visual se tem UI
+  -> se for ajuste: implementa (prova fresca). se for fase nova: /up:plan -> /up:build
+  -> /up:build (GitHub-nativo): worktree + issue, prova no SUMMARY, teste visual se tem UI
   -> menu de fim de fase (merge local / abrir PR / deixa a branch / descarta)
 ```
 
@@ -121,17 +121,17 @@ O UP passou a perguntar por padrao porque perguntar de menos custa mais caro que
 
 ---
 
-## TDD por tipo de codigo
+## Prova por tipo de mudanca
 
-A Iron Law do UP nao e "TDD unit universal", e **evidencia fresca antes de afirmar pronto**. O gate cobra a prova certa para cada tipo, decidida pelo `classify-task`:
+A regra do UP nao e "TDD unit universal", e **prova fresca antes de afirmar pronto**. Uma prova por tipo, rodada na sessao e registrada na secao `## Prova` do SUMMARY do plano:
 
-| Tipo de codigo | Prova exigida |
+| Tipo de mudanca | Prova |
 |---|---|
-| Logica, parser, calculo, API propria, bugfix | Teste red-green (TDD unit) |
-| UI, CSS, layout | Prova visual antes/depois (via `up-tester`) |
-| Glue, integracao, config | Smoke-test |
+| Logica, parser, calculo, API propria, bugfix | Teste automatizado (bugfix: teste que reproduz o bug) |
+| UI, CSS, layout | Captura de tela (antes/depois quando a mudanca e visual) |
+| Integracao externa | Smoke-test com resposta real |
 
-O sistema sabe que CSS pede prova visual. Voce nao precisa pedir licenca, e o agente nao diz "Pronto!" sem mostrar a evidencia.
+Sem gate, sem log de aprovacoes: o build le a secao `## Prova`, roda `verify-static` quando o projeto tem suite e confere que o diff bate com o relato. Quem quer revisao formal usa `--review` (verificador + revisor two-stage); quem quer o laco de testes completo usa `--testar` ou `/up:testar`.
 
 ---
 
@@ -187,11 +187,11 @@ O UP usa 12 agentes especializados que rodam como subprocessos. Os antigos speci
 | **up-arquiteto** | Design, pesquisa inline, roadmap e auto-checagem de requisitos | `/up:plan` |
 | **up-planejador** | Contrato da fase: objetivo, entregas, prova. Sem receita de codigo | `/up:plan` e replan no build |
 | **up-executor** | Executa planos com commits atomicos; roteia dominio por contexto | `/up:build`, `/up:rapido` |
-| **up-verificador** | Verificacao goal-backward e clone-fidelity | so `--review` ou clone |
+| **up-verificador** | Verificacao goal-backward e clone-fidelity | opt-in (`--review`) ou clone |
 | **up-mapeador-codigo** | Analisa codebases existentes (e extrai design no modo clone) | brownfield / clone |
 | **up-depurador** | Investigacao de bugs com metodo cientifico | `/up:depurar` |
 | **up-pesquisador** | Pesquisa isolada de dominio e mercado | fora do pipeline |
-| **up-revisor** | Review two-stage (spec + qualidade) | so `--review` |
+| **up-revisor** | Review two-stage (spec + qualidade) | opt-in (`--review`) |
 | **up-tester** | Playwright em 3 passes (visual, exhaustive, API) | `/up:testar` ou `--testar` |
 | **up-auditor** | Auditoria UX + performance + modernidade + RELATORIO.md | `/up:auditar` |
 | **up-sintetizador** | Consolidacao isolada | fora do pipeline |
@@ -203,7 +203,7 @@ Instalados automaticamente:
 
 - **up-statusline**: barra de status mostrando modelo, diretorio e uso de contexto
 - **up-context-monitor**: avisa quando o contexto enche, sugerindo `/clear` + `/up`
-- **up-session-start**: injeta a skill `usando-up` no inicio da sessao (e apos `/clear`/`/compact`), ligando a auto-ativacao das skills por contexto. Aditivo: se falhar, a sessao segue normal.
+- **up-session-start**: injeta a skill `usando-up` (e a posicao atual do `STATE.md`) no inicio da sessao e apos `/clear`/`/compact`, ligando a auto-ativacao das 3 skills por contexto. Aditivo: se falhar, a sessao segue normal.
 
 ---
 
@@ -216,15 +216,14 @@ Instalados automaticamente:
 ├── STATE.md           # Posicao atual, progresso, continuidade
 ├── config.json        # Configuracoes do workflow
 ├── git-map.json       # Identidade GitHub/Multica por fase (issue/pr/multica_issue)
-├── approvals.log      # Gate deterministico de aprovacao de fase/plano
 ├── codebase/          # Mapeamento do codebase (brownfield)
 ├── fases/
 │   └── 01-slug/
 │       ├── BRIEFING.md       # Resultado do brainstorm
 │       ├── CONTEXT.md        # Contexto coletado
 │       ├── PLAN-READY.md     # Plano executavel
-│       ├── SUMMARY-001.md    # Resultado da execucao
-│       └── VERIFICATION.md   # Resultado da verificacao
+│       ├── SUMMARY-001.md    # Resultado da execucao, com a secao Prova
+│       └── VERIFICATION.md   # So com --review
 ├── rapido/            # Tarefas rapidas
 └── debug/             # Sessoes de debug (sobrevivem a /clear)
 ```
@@ -239,7 +238,7 @@ O UP sobrevive a `/clear` e reinicializacoes do CLI. Todo estado fica em disco n
 
 | Runtime | Invocacao | Formato |
 |---------|-----------|---------|
-| Claude Code | `/up:X` | Nativo (Markdown + YAML). Hook SessionStart, 4 skills por contexto, statusLine e context-monitor |
+| Claude Code | `/up:X` | Nativo (Markdown + YAML). Hook SessionStart, 3 skills por contexto, statusLine e context-monitor |
 | Gemini CLI | `/up:X` | Convertido (TOML commands). Brainstorm-first via bootstrap injetado no `GEMINI.md` |
 | OpenCode | `/up-X` | Convertido (`command/up-*.md`, object tools). Bootstrap injetado no `AGENTS.md` |
 | Codex | `$up-X` | Convertido (skills + `config.toml [agents]`). Bootstrap injetado no `AGENTS.md` |
