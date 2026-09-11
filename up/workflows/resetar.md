@@ -9,7 +9,7 @@ Use este workflow quando:
 Limpar o diretorio .plano/ de forma segura, com confirmacao explicita, para permitir reinicializacao do projeto.
 </purpose>
 
-> Vocabulário UP: fase, plano, onda, gate, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
+> Vocabulário UP: fase, plano, onda, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
 
 <process>
 
