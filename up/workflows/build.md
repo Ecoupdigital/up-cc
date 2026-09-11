@@ -540,5 +540,5 @@ PR, pendencias de PENDING.md, dividas registradas.
 - [ ] `--board`: init no inicio, sync na entrada e no fim da fase, board URL na entrega; tudo fail-open
 - [ ] Reassessment do roadmap depois de cada fase
 - [ ] PLAN-READY.md virou PROJECT-COMPLETE.md
-- [ ] Nenhuma referencia a approvals.log, gate deterministico, VERIFICATION.md obrigatorio, evidence=, seams ou tautologia
+- [ ] Nenhuma referencia a log de aprovacoes, gate deterministico, VERIFICATION.md obrigatorio, campo de evidencia, fronteiras de teste ou heuristica de teste que se prova sozinho
 </success_criteria>

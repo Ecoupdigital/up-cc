@@ -115,9 +115,9 @@ t('lerTermos: verbete sem a linha de formas lanca excecao citando o termo', () =
   assert.throws(() => glossario.lerTermos(arqGlossario), /termo-quebrado/);
 });
 
-t('lerTermos: glossario interno real devolve nove verbetes com formas e evitar nao vazios', () => {
+t('lerTermos: glossario interno real devolve oito verbetes com formas e evitar nao vazios', () => {
   const termos = glossario.lerTermos(glossario.caminhoGlossario());
-  assert.strictEqual(termos.length, 9);
+  assert.strictEqual(termos.length, 8);
   for (const termo of termos) {
     assert.ok(termo.formas.length > 0);
     assert.ok(termo.evitar.length > 0);

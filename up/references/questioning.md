@@ -146,6 +146,7 @@ Esta é a lista fechada:
 | build.plano-incompleto | Confirmação de início | up/workflows/build.md | O que fazer quando falta artefato do plano |
 | build.iniciar-execucao | Confirmação de início | up/workflows/build.md | Iniciar a execução |
 | build.onda-falhou | Confirmação de início | up/workflows/build.md | Como seguir quando uma onda inteira falha |
+| build.estatica-falhou | Conferência da fase | up/workflows/build.md | Como seguir quando a prova estática ainda falha depois da correção |
 | build.replan-esgotado | Confirmação de início | up/workflows/build.md | Como seguir quando o limite de re-planejamento acaba |
 | build.decisoes-escaladas | Confirmação de início | up/workflows/build.md | As decisões de arquitetura que os executores escalaram durante a execução da fase |
 | build.testar-antes-do-merge | Gate visual pré-merge | up/workflows/build.md | Testar na tela antes de aterrissar a fase |

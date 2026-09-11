@@ -113,6 +113,10 @@ const UP_SKILLS = [
   'up-prova',
 ];
 
+// Skills de versoes anteriores do UP (fundidas em up-prova na v3). Removidas no
+// install e no uninstall para nao deixar orfao ativando por contexto.
+const UP_LEGACY_SKILLS = ['up-tdd', 'up-verificar-antes-de-concluir'];
+
 // Command-skills: cada comando UP tambem vira skill (Grok Build le ~/.claude
 // nativo mas NAO importa ~/.claude/commands/; a skill fecha esse furo, tornando
 // os comandos invocaveis no Grok). Nome = up-<comando>. Espelha up/commands/*.md.
@@ -747,7 +751,7 @@ function uninstall(targetDir, runtime) {
     const skillsDir = path.join(targetDir, 'skills');
     if (fs.existsSync(skillsDir)) {
       let skillCount = 0;
-      for (const skillName of [...UP_SKILLS, ...UP_COMMAND_SKILLS]) {
+      for (const skillName of [...UP_SKILLS, ...UP_LEGACY_SKILLS, ...UP_COMMAND_SKILLS]) {
         const skillPath = path.join(skillsDir, skillName);
         if (fs.existsSync(skillPath)) {
           const count = countFiles(skillPath);
@@ -1117,6 +1121,13 @@ function install(isGlobal, runtime) {
           // skills (other names) are untouched — only this dir is replaced.
           copyDirWithReplace(src, path.join(skillsDest, skillName), pathPrefix, runtime);
           skillCount++;
+        }
+      }
+      for (const legacy of UP_LEGACY_SKILLS) {
+        const legacyPath = path.join(skillsDest, legacy);
+        if (fs.existsSync(legacyPath)) {
+          rmDir(legacyPath);
+          console.log(`  ${green}✓${reset} Removed legacy skill ${legacy} (fundida em up-prova)`);
         }
       }
 

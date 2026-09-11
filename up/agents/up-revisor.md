@@ -120,7 +120,7 @@ Leia CADA arquivo modificado.
 ### Prova dos planos
 
 Leia a secao `## Prova` de cada SUMMARY da fase. Teste cujo valor esperado e recomputado do mesmo jeito que
-o codigo (tautologia) nao prova nada: entra no relatorio como problema com correcao sugerida (trocar o
+o codigo (passa por construcao) nao prova nada: entra no relatorio como problema com correcao sugerida (trocar o
 esperado por literal, exemplo a mao ou requisito). Prova ausente ou que nao bate com o codigo pesa no veredito.
 
 ### Eixo A: Code Quality (criterios RARV)
