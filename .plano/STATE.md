@@ -3,12 +3,12 @@
 ## Referencia do Projeto
 
 **Projeto**: UP (up-cc)
-**Valor Central**: Pipeline autônomo confiável exige perguntar o suficiente antes de agir, lembrar do que já foi decidido e recusado, e provar o que afirma
-**Foco Atual**: Ciclo 2 estruturado (fases 13 a 20). Fase 15 (modo grill) completa: os 4 planos das 3 ondas fecharam, com invariante determinístico, sonda de comportamento e regressão zero. Próxima fase: 16 (honestidade da prova)
+**Valor Central**: Pipeline autônomo confiável exige perguntar o suficiente antes de agir, lembrar do que já foi decidido e recusado, e provar o que afirma. Na v3, provar é uma regra (prova fresca por tipo no SUMMARY), não uma máquina de gates.
+**Foco Atual**: Fase 21 (UP leve, v3.0.0) completa na branch `up/fase-21-up-leve`, aguardando merge do PR. Próximo passo é do dono: mergear, publicar no npm e decidir se as fases 17 a 20 ainda valem o peso (ver nota no ROADMAP)
 
 ## Posicao Atual
 
-**Fase**: 16 de 20 (próxima; fase 15 completa)
+**Fase**: 21 de 21 (completa, em PR). Fases 17 a 20 pendentes de reavaliação
 **Plano**: fase 15 fechada com os 4 planos das 3 ondas (mais 1 correção de regressão fora de onda): 001 (motor único do grill), 002 (porta na skill de brainstorm), 003 (propagação do piso novo nas outras superfícies, em paralelo com o 002), 005-regressao (correção do guarda de perguntas da fase 13, que ficou vermelho porque os planos 002 e 003 removeram duas tags em paralelo sem atualizar o inventário), 004 (prova: invariante de piso, sonda de comportamento e regressão)
 **Status**: Fase 15 completa e commitada. Plano 004 escreveu `up/tests/piso-grill.test.cjs` (invariante de piso e propagação, 8 casos, verde na árvore atual e vermelho na árvore do ponto de partida) e `up/tests/grill-probe.cjs` (sonda de comportamento com julgamento 100% determinístico, sem juiz-modelo), rodou os três casos exigidos (parada 6/6, entrada 4/4, precedência 2/2) contra a doutrina entregue, e a contraprova contra a doutrina anterior à fase: **inconsistente entre duas execuções** (uma reprovou por diferença de vocabulário, a outra passou 6/6, inclusive na asserção do checkpoint que era o eixo esperado de diferença), registrado como "sonda não discriminou" em vez de forçar uma leitura mais forte do que os dados sustentam. Provou regressão real dos sete comandos e quatro runtimes (instalação em diretório temporário) e das duas leituras de projeto com planejamento anterior ao ciclo (`phase-plan-index`, `roadmap get-phase`); achou de novo o bug conhecido `init up` (já registrado desde a fase 13, item 1 de `.plano/fases/13-formato-de-pergunta/deferred-items.md`), confirmado idêntico no SHA_BASE desta fase, portanto não é regressão do grill. GRILL-01 a GRILL-10 marcados completos em REQUIREMENTS.md. REG-01 a REG-03 seguem pendentes (transversais, reverificados a cada fase 13-20)
 **Progresso**:
@@ -19,18 +19,19 @@ Fase 12: Encerramento solo          [██████████████�
 Fase 13: Formato de pergunta        [████████████████████] Completa (5/5 planos)
 Fase 14: Memoria do projeto         [████████████████████] Completa (6/6 planos)
 Fase 15: Modo grill                 [████████████████████] Completa (4/4 planos)
-Fase 16: Honestidade da prova       [░░░░░░░░░░░░░░░░░░░░] Pendente
+Fase 16: Honestidade da prova       [████████████████████] Completa (revertida em parte pela 21)
 Fase 17: Planejamento por grafo     [░░░░░░░░░░░░░░░░░░░░] Pendente
 Fase 18: Contexto e revisao         [░░░░░░░░░░░░░░░░░░░░] Pendente
 Fase 19: Auditoria escopada         [░░░░░░░░░░░░░░░░░░░░] Pendente
-Fase 20: Nevoa e fronteira          [░░░░░░░░░░░░░░░░░░░░] Pendente
+Fase 20: Nevoa e fronteira          [░░░░░░░░░░░░░░░░░░░░] Pendente (reavaliar)
+Fase 21: UP leve (v3)               [████████████████████] Completa (PR aberto)
 ```
 
 ## Metricas de Performance
 
 | Metrica | Valor |
 |---------|-------|
-| Fases completas | 15 de 20 |
+| Fases completas | 17 de 21 |
 | Requisitos do ciclo 1 cobertos | 19/19 |
 | Requisitos do ciclo 2 | 33 completos (fases 11, 12, 13, 14 e 15: DIST/CICLO/PERG-01 a PERG-06/MEM-01 a MEM-12/GRILL-01 a GRILL-10), 62 pendentes (REG-01 a REG-03 seguem transversais e pendentes; fases 16 a 20) |
 | Planos executados | 36 |
@@ -57,6 +58,7 @@ Fase 20: Nevoa e fronteira          [░░░░░░░░░░░░░░�
 - [Phase 12]: solo e alias de auto no finish (PR+merge sem menu); local segue no-op (escape hatch sem GitHub). github.cjs:419.
 - [Phase ?]: Nao implementar nada nesta sessao: usuario pediu diagnostico. Correcao prioritaria seria indice auto-servido em blueprints/README.md + preview de escopo no /up:rapido + passo de completude no planejador de fase.
 - [Phase ?]: Grill vira piso automatico em Pequena/Media/Grande (Trivial fica 0); saida por palavra de parada a qualquer momento, checkpoint a cada 3 perguntas e auto-convergencia declarada. Glossario e registro de decisao moram em .plano/ (rejeitada a convencao CONTEXT.md raiz + docs/adr do Matt). Nao copiar disable-model-invocation como doutrina nem issue-tracker-como-storage.
+- [Fase 21, 2026-09-11]: UP leve. O dono decidiu que o UP estava defasado frente aos modelos atuais (Fable 5.1 e equivalentes) e pediu para tirar boa parte das verificações e testes. Cortado: gate determinístico + approvals.log + evidence=, seams, anti-tautologia, timeout/stuck do executor, VERIFICATION.md obrigatório, governance.md e references de governança/rework, skills up-tdd + up-verificar-antes-de-concluir (fundidas em up-prova). Mantido: grill, plano como contrato, GitHub-nativo, teste visual pré-merge, ondas, decisões escaladas, memória do projeto, --review e --testar como opt-in. Versão 3.0.0 (breaking).
 - [Ciclo 2, estruturacao]: fatiamento por bloco mantido (fases 13 a 20); regressao zero vira criterio de saida de cada fase e nao fase propria; heuristica anti-tautologia sinaliza e nao bloqueia; grafo de bloqueio entra como campo opcional com degradacao para onda numerada; gate passa a representar veredito por eixo. Detalhe e motivo de cada uma na tabela do arquiteto em PROJECT.md.
 - [Ciclo 2, decisao do dono D7]: o gate e CONJUNTIVO. A fase so aprova com os dois eixos aprovados; o eixo ja aprovado fica registrado e nao e reexecutado na rodada de correcao, que roda so o eixo reprovado.
 - [Ciclo 2, pos-auditoria de planejamento]: grafo do ciclo passa a ter DUAS camadas. Aresta nova 16 antes de 18 (a 18 consome o leitor unico do log entregue pela 16). Serializacao declarada por posse de arquivo entre 14, 16, 17 e 18 (19 arquivos disputados; up-tools.cjs escrito por 7 das 8 fases, build.md por 11 planos de 6 fases). Rejeitada a alternativa de virar cadeia unica: aresta e dependencia logica, disputa de arquivo e exclusao mutua, campos separados. Regra de execucao escrita antes do build: fronteira liberada NAO autoriza paralelismo quando dois trabalhos escrevem no mesmo arquivo.

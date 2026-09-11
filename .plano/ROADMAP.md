@@ -28,6 +28,7 @@
 - [ ] **Fase 18: Contexto e revisão** - Higiene de contexto prescrita, handoff e revisão em dois eixos paralelos
 - [ ] **Fase 19: Auditoria visual e escopada** - Escopo por concentração de mudança e relatório HTML com gate de handoff
 - [ ] **Fase 20: Névoa e fronteira do roadmap** - Auto-aborto do planejamento, seção de não especificado e fora de escopo
+- [x] **Fase 21: UP leve (v3)** - Corte da máquina de verificação: sem gate, sem log de aprovações, sem fronteiras, prova por tipo no SUMMARY (completed 2026-09-11)
 
 ## Detalhes das Fases
 
@@ -316,6 +317,21 @@
 **Prova exigida**: smoke
 **Planos**: 0/5 (ondas 1 a 4: 001 seção de névoa; 002 fora de escopo e 003 gate de auto-aborto em paralelo; 004 graduação no fechamento; 005 regressão e prova de ponta a ponta)
 
+### Fase 21: UP leve (v3)
+**Objetivo**: O UP guia em vez de policiar. Os modelos atuais não precisam de gate determinístico, log de aprovações e três camadas de verificação para não mentir sobre "pronto". O caminho quente fica com uma regra: prova fresca por tipo, registrada pelo executor na seção `## Prova` do SUMMARY.
+**Depende de**: Nada. Reverte parte da fase 16 por decisão do dono (2026-09-11: "deixar mais leve, mais rápido; as LLMs atuais já são mais inteligentes")
+**Bloqueia**: Reavaliação das fases 17 a 20 (ver nota abaixo)
+**Critérios de Sucesso** (o que deve ser VERDADE):
+  1. Nenhuma superfície viva cita approvals.log, gate, evidence=, seams ou tautologia (invariante `up/tests/up-leve.test.cjs`)
+  2. Três skills (`usando-up`, `up-brainstorm`, `up-prova`); instalador remove as duas legadas
+  3. `build.md` e `up-executor.md` com menos da metade das linhas anteriores, sem verificador nem revisor fora de `--review`
+  4. Suíte do UP verde, instalação local nos quatro runtimes funciona
+**Prova exigida**: teste (suíte `npm run test:up`) e smoke (instalação local)
+**Planos**: executada fora do roadmap, em uma sessão, na branch `up/fase-21-up-leve`, com 8 commits atômicos
+**Entregue**: CLI sem `gate`, `timeout`, `stuck-check` e `--tautologia`; `gate.cjs` e `tautologia.cjs` removidos com testes; references de governança, rework-limits, seams e tdd-evidence-types removidas; `governance.md` removido; `build.md` 1079 -> 544 linhas; `up-executor.md` 652 -> 290; `up-prova` no lugar de `up-tdd` + `up-verificar-antes-de-concluir`; PLAN-READY sem `plan_schema`/`seams`; SUMMARY com seção `## Prova`; README, guia, CLAUDE.md e CHANGELOG 3.0.0
+
+**Nota sobre as fases 17 a 20 depois da fase 21.** A fase 16 (honestidade da prova) foi entregue no PR #16 e em grande parte revertida aqui: o leitor único do log de aprovações, as fronteiras confirmadas e a heurística anti-tautologia saíram. A fase 18 (contexto e revisão) dependia desse leitor e precisa ser replanejada sobre a base leve. As fases 17 (grafo), 19 (auditoria escopada) e 20 (névoa) continuam válidas em tese, mas o dono deve reavaliar se ainda valem o peso antes de planejá-las: a direção agora é menos cerimônia, não mais.
+
 ## Grafo de bloqueio do ciclo 2
 
 Declarado como aresta, e não como ordem arbitrária. É o item 7 do briefing aplicado ao próprio roadmap antes de o mecanismo existir. O grafo tem duas camadas, e elas não se misturam: **dependência lógica**, que vira aresta, e **posse de arquivo**, que é exclusão mútua e não vira aresta.
@@ -369,8 +385,9 @@ De onde a posse de arquivo passa a vir em tempo de execução, agora que a regra
 | 13. Formato de pergunta | 5/5 | Complete   | 2026-07-25 |
 | 14. Memória do projeto | 6/6 | Complete   | 2026-07-26 |
 | 15. Modo grill | 5/4 | Complete   | 2026-07-26 |
-| 16. Honestidade da prova | 0/5 | Planejada | - |
+| 16. Honestidade da prova | 5/5 | Completa (revertida em parte pela 21) | 2026-08 (PR #16) |
 | 17. Planejamento por grafo | 0/5 | Pendente | - |
 | 18. Contexto e revisão | 0/7 | Pendente | - |
 | 19. Auditoria visual e escopada | 0/6 | Planejada | - |
-| 20. Névoa e fronteira do roadmap | 0/5 | Pendente | - |
+| 20. Névoa e fronteira do roadmap | 0/5 | Pendente (reavaliar) | - |
+| 21. UP leve (v3) | 1/1 | Completa | 2026-09-11 |
