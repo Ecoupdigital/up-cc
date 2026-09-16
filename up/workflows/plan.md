@@ -195,7 +195,7 @@ spawnar `up-planejador`. MODO PROJETO: a proxima fase e a primeira do ROADMAP. M
 pedida no argumento.
 
 Proxima fase sem argumento: a primeira fase `- [ ]` do ROADMAP.md que ainda nao tem `*-PLAN.md` em
-`.plano/fases/` (`roadmap list-phases` e `phase-plan-index N` confirmam).
+`.plano/fases/` (`roadmap analyze`: primeira com `roadmap_complete: false` e `plan_count: 0`).
 
 ### 2.5.a Escrever o PLAN.md na sessao (default)
 
@@ -224,7 +224,7 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "plan(${PHASE}): ${PLAN_NAME}" -
 ### 2.5.b `--profundo`: pipeline anterior, todas as fases
 
 ```bash
-PHASES=$(node "$HOME/.claude/up/bin/up-tools.cjs" roadmap list-phases)
+PHASES=$(node "$HOME/.claude/up/bin/up-tools.cjs" roadmap analyze --raw)
 ```
 
 Para cada fase, `up-planejador` faz self-check (sem camada de revisao intermediaria):
