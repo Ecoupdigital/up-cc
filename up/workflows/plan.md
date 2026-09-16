@@ -1,10 +1,11 @@
 <purpose>
 Workflow `/up:plan` — Planejamento completo de projeto OU de fase.
 
-Conduz Arquitetura + Planejamento exaustivo de TODAS as fases + Planning Review + PLAN-READY.
+Conduz Arquitetura + plano de uma pagina da PROXIMA fase (escrito na sessao) + PLAN-READY. Com
+`--profundo`: planejamento de TODAS as fases via `up-planejador`, como na v3.0.
 
-NAO executa nada. Para apos gerar PLAN-READY.md. Resultado: projeto completamente planejado, pronto
-para `/up:build` no mesmo runtime ou outro.
+NAO executa nada. Para apos gerar PLAN-READY.md. Resultado: proxima fase pronta para `/up:build`
+(todas as fases com `--profundo`, no mesmo runtime ou outro).
 
 Absorveu discutir-fase.md e planejar-fase.md: detecta automaticamente se o pedido e o PROJETO inteiro
 ou uma FASE especifica (`/up:plan` vs `/up:plan N`).
@@ -41,7 +42,7 @@ Default fixo: Opus planeja, Sonnet executa. `default` -> nao passar model=.
 
 **Planos sao contrato.** Objetivo, fora de escopo, entregas e prova. Sem receita de codigo.
 
-**Um agente por passo.** Arquiteto projeta, planejador planeja. Quem confere e o orquestrador lendo os
+**Um agente por passo.** Arquiteto projeta, a sessao planeja (o `up-planejador` so com `--profundo`). Quem confere e o orquestrador lendo os
 artefatos. Sem supervisores.
 
 **Contrato de pergunta (obrigatório):** antes da primeira pergunta, carregue
