@@ -82,6 +82,14 @@ _Note: TDD tasks may have multiple commits (test -> feat -> refactor)_
 
 Secao obrigatoria: e o unico registro de prova que o build le. Prova nao rodada: escreva "nao rodada" e o motivo.
 
+## Checklist de completude
+
+[Definition of Done de `up/references/product-engineering.md` (secao 13), so os itens aplicaveis as
+entregas deste plano. Item nao aplicavel: omita, nao marque como N/A.]
+
+- [x] [item aplicavel 1]
+- [x] [item aplicavel 2]
+
 ## Files Created/Modified
 - `path/to/file.ts` - What it does
 - `path/to/another.ts` - What it does
