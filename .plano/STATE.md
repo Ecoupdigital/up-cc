@@ -4,13 +4,13 @@
 
 **Projeto**: UP (up-cc)
 **Valor Central**: Pipeline autônomo confiável exige perguntar o suficiente antes de agir, lembrar do que já foi decidido e recusado, e provar o que afirma. Na v3, provar é uma regra (prova fresca por tipo no SUMMARY), não uma máquina de gates.
-**Foco Atual**: Fase 22 (plan e build leves, v3.1.0) planejada em 1 plano de uma página. Próximo passo: `/up:build`
+**Foco Atual**: Fase 22 (plan e build leves, v3.1.0) completa. Fase 19 (auditoria escopada) segue pendente; proximo passo e `/up "proxima ideia"` ou `/up:plan 19`
 
 ## Posicao Atual
 
-**Fase**: 22 de 22 (planejada). 17, 18 e 20 canceladas em 2026-09-16; 19 pendente
-**Plano**: 22-01 (onda 1), contrato em `.plano/BRIEFING-plan-build-leve.md`
-**Status**: Brainstorm e design aprovados em 2026-09-16 (grill: pacote completo, quebra automática de fase, 17/18/20 canceladas, padrão de Product Engineer no executor, implícitos fora do limite). Plano escrito na sessão no formato novo (3,2 KB). Fase 21 mergeada (PR #19) e publicada no npm 3.0.0
+**Fase**: 22 de 22 (completa). 17, 18 e 20 canceladas em 2026-09-16; 19 pendente
+**Plano**: 22-01 (onda 1) completo, contrato em `.plano/BRIEFING-plan-build-leve.md`
+**Status**: Fase 22 completa em 2026-09-16 (plano 22-01, único plano da fase). `/up:plan` e `/up:build` leves por padrão (sem `up-planejador`/spawn de `up-executor` em onda de 1 plano), `--profundo` restaura o pipeline pesado. Padrão de Product Engineer em `up/references/product-engineering.md`, carregado pelo executor. Versão 3.1.0. Fase 21 mergeada (PR #19) e publicada no npm 3.0.0
 **Progresso**:
 ```
 Ciclo 1: fases 1 a 10               [████████████████████] Concluido (detalhe no ROADMAP.md)
@@ -25,17 +25,17 @@ Fase 18: Contexto e revisao         [░░░░░░░░░░░░░░�
 Fase 19: Auditoria escopada         [░░░░░░░░░░░░░░░░░░░░] Pendente
 Fase 20: Nevoa e fronteira          [░░░░░░░░░░░░░░░░░░░░] Cancelada
 Fase 21: UP leve (v3)               [████████████████████] Completa (PR #19 mergeado)
-Fase 22: Plan e build leves         [░░░░░░░░░░░░░░░░░░░░] Planejada (1 plano)
+Fase 22: Plan e build leves         [████████████████████] Completa (1/1 plano)
 ```
 
 ## Metricas de Performance
 
 | Metrica | Valor |
 |---------|-------|
-| Fases completas | 17 de 21 |
+| Fases completas | 18 de 22 |
 | Requisitos do ciclo 1 cobertos | 19/19 |
 | Requisitos do ciclo 2 | 33 completos (fases 11, 12, 13, 14 e 15: DIST/CICLO/PERG-01 a PERG-06/MEM-01 a MEM-12/GRILL-01 a GRILL-10), 62 pendentes (REG-01 a REG-03 seguem transversais e pendentes; fases 16 a 20) |
-| Planos executados | 36 |
+| Planos executados | 37 |
 
 ## Contexto Acumulado
 
@@ -74,6 +74,7 @@ Fase 22: Plan e build leves         [░░░░░░░░░░░░░░�
 - [Phase 15, plano 004, DECISAO ESCALADA]: a contraprova da palavra de parada (sonda `grill-probe.cjs --caso parada` contra a doutrina anterior à fase) foi rodada duas vezes contra o mesmo modelo econômico e deu resultados diferentes: uma reprovou (por troca de palavra, "baixa direto" no lugar de "download"), a outra passou 6/6, inclusive na asserção do checkpoint que era o eixo estrutural esperado de diferença entre a doutrina antiga e a nova. Registrado como "a sonda não discriminou nesta rodada" em vez de forçar uma conclusão mais forte do que os dados sustentam (regra de honestidade da prova). Isso não invalida a doutrina nova (as sondas contra ela passaram de forma consistente, 6/6, 4/4 e 2/2), mas significa que a garantia de "a palavra de parada encerra sem confirmação" depende também do alinhamento geral do modelo usado, não só do texto da doutrina. Fica para o dono decidir se vale a pena um teste de comportamento com mais amostras (ex.: N execuções e maioria) antes de tratar essa garantia como couraçada, ou se a garantia estrutural (ausência do texto do checkpoint na doutrina nova, presença dele na antiga) já é suficiente. Detalhe completo em `.plano/fases/15-modo-grill/EVIDENCIA.md`, Prova 5.
 - [Phase 15, plano 004]: achado o mesmo bug pré-existente já registrado na fase 13 (`init up` não reconhecido pelo dispatcher de `init` em `up-tools.cjs`, idêntico desde o `SHA_BASE`); confirmado de novo que também afeta `init auditar`. Não corrigido (fora do escopo do modo grill); detalhe em `.plano/fases/15-modo-grill/deferred-items.md`.
 - [Phase 16]: Grill continua como piso. GitHub-nativo continua default. Itens 2-6 da analise de velocidade executados; itens 1 e 7 recusados pelo dono.
+- [Fase 22, 2026-09-16]: Plan e build leves (v3.1.0). `/up:plan` sem flag escreve o PLAN.md de uma pagina na sessao, sem spawnar `up-planejador`, so da proxima fase; `--profundo` restaura o pipeline pesado (planejador subagente, todas as fases). Limite de fase: ate ~5 entregas pedidas (implicitos nao contam), regua de "~70% do contexto" removida. `/up:build`: onda de 1 plano executa na sessao, sem spawnar `up-executor`; onda de 2+ planos continua paralela. Novo `up/references/product-engineering.md` funde o anexo do dono, os 71 requisitos de producao e as regras de dominio antes duplicadas em `up-executor.md`; `production-requirements.md`/`-compressed.md` removidos (instalador limpa sozinho instalacoes antigas, confirmado por smoke).
 
 ### TODOs
 
@@ -93,6 +94,6 @@ Nenhum bloqueio ativo.
 
 ## Continuidade de Sessao
 
-**Ultima sessao**: 2026-07-26 -- Executou o plano 004 da fase 15 (onda 3, último plano, fecha a fase): escreveu `up/tests/piso-grill.test.cjs` (invariante determinístico de piso e propagação, 8 casos, verde na árvore atual e vermelho na árvore do `SHA_BASE`) e `up/tests/grill-probe.cjs` (sonda de comportamento contra o runtime real do Claude, julgamento por regra escrita, sem juiz-modelo). Rodou os três casos de comportamento contra a doutrina entregue (parada 6/6, entrada 4/4, precedência 2/2, todos PASSOU) e a contraprova contra a doutrina anterior à fase, que saiu inconsistente entre duas execuções e foi registrada como "não discriminou" em vez de forçada a uma leitura mais forte (ver DECISAO ESCALADA acima). Provou regressão real dos sete comandos, das quatro skills de doutrina, das sete skills de comando e do motor do grill nos quatro runtimes (instalação em `HOME` temporário, nunca na config real), idempotência da instalação, e as leituras de projeto com planejamento anterior ao ciclo (`phase-plan-index`, `roadmap get-phase`, ambas OK; `init up` falhou, mas idêntico ao `SHA_BASE`, bug pré-existente já registrado desde a fase 13, não regressão desta). Escreveu `.plano/fases/15-modo-grill/EVIDENCIA.md` com todas as saídas brutas e o veredito consolidado das dez linhas GRILL, e a seção "Nao lancado" do changelog. Marcou GRILL-01 a GRILL-10 completos em REQUIREMENTS.md. Commits `8eb7bd2`, `20043fa`, `1261ead`, `d8ec240`, `d733232`, `dbefe3d`, `483d0e1`.
-**Proxima acao**: iniciar a fase 16 (honestidade da prova: fronteiras de teste pré-acordadas e regra anti-tautologia). Bug `init up`/`init auditar` (fase 13, reconfirmado na fase 15) e os quatro comandos `state *` restantes continuam registrados como dívida pré-existente, fora do ciclo de fases.
-**Comando sugerido**: `/up:build fase 16`
+**Ultima sessao**: 2026-09-16 -- Executou o plano unico da fase 22 (22-01, onda 1, fecha a fase): `/up:plan`/`/up:build` leves por padrao (plano de uma pagina escrito na sessao sem `up-planejador`, `--profundo` como escape hatch para o pipeline pesado, limite de ~5 entregas por fase, build executando onda de 1 plano na sessao sem spawnar `up-executor`), e `up/references/product-engineering.md` como referencia unica do padrao de Product Engineer (funde o anexo do dono, os 71 requisitos de producao e as regras de dominio antes duplicadas em `up-executor.md`; `production-requirements*.md` removidos). Teste de invariante novo `up/tests/plan-build-leve.test.cjs` (10 casos); `npm run test:up` 14 arquivos, 0 falhas (baseline 13, 0 falhas). Smoke de instalacao em HOME isolado (com as 5 variaveis `*_CONFIG_DIR`/`XDG_CONFIG_HOME` tambem isoladas) confirmando `product-engineering.md` presente e `production-requirements*.md` ausente nos 4 runtimes. Versao 3.1.0. Durante a execucao, um `install.js --all --global` rodado sem isolar `HOME` corretamente sobrescreveu os 4 runtimes reais com o estado do worktree; detectado e corrigido na hora reinstalando a partir da `main` limpa (detalhe em Desvios do `22-01-SUMMARY.md`). Commits `2daa4ab`, `906deda`, `83a7d9c`, `b7ea94d`, `dbd8779`, `b9c5425`, `7cc60a5`.
+**Proxima acao**: fase 22 e a ultima planejada (17, 18, 20 canceladas; 19 pendente). Bug `init up`/`init auditar` (fase 13) e os quatro comandos `state *` restantes (`advance-plan`, `update-progress`, `add-decision`, `record-session`; `mark-complete` de requirements foi corrigido na fase 14) continuam registrados como divida pre-existente, confirmados ainda fail-open (nao corrompem STATE.md) nesta sessao.
+**Comando sugerido**: `/up "proxima ideia"` (fase 19 pendente pode ser retomada com `/up:plan 19`, ou nova fase via brainstorm)

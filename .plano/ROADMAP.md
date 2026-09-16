@@ -29,7 +29,7 @@
 - [ ] **Fase 19: Auditoria visual e escopada** - Escopo por concentração de mudança e relatório HTML com gate de handoff
 - [x] **Fase 20: Névoa e fronteira do roadmap** - CANCELADA em 2026-09-16 (direção leve; motivo em `.plano/fora-de-escopo/`)
 - [x] **Fase 21: UP leve (v3)** - Corte da máquina de verificação: sem gate, sem log de aprovações, sem fronteiras, prova por tipo no SUMMARY (completed 2026-09-11)
-- [ ] **Fase 22: Plan e build leves** - Plano de uma página escrito na sessão, limite de fase, build na sessão com 1 plano, padrão de Product Engineer no executor (v3.1.0)
+- [x] **Fase 22: Plan e build leves** - Plano de uma página escrito na sessão, limite de fase, build na sessão com 1 plano, padrão de Product Engineer no executor (v3.1.0) (completed 2026-09-16)
 
 ## Detalhes das Fases
 
@@ -408,4 +408,4 @@ De onde a posse de arquivo passa a vir em tempo de execução, agora que a regra
 | 19. Auditoria visual e escopada | 0/6 | Planejada | - |
 | 20. Névoa e fronteira do roadmap | 0/5 | Cancelada | 2026-09-16 |
 | 21. UP leve (v3) | 1/1 | Completa | 2026-09-11 |
-| 22. Plan e build leves | 0/1 | Planejada | - |
+| 22. Plan e build leves | 1/1 | Completa | 2026-09-16 |
