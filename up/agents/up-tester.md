@@ -68,7 +68,7 @@ mkdir -p .plano/ui/visual .plano/ui/exhaustive
 
 # Referencia visual (se existe)
 cat .plano/DESIGN-TOKENS.md 2>/dev/null
-cat $HOME/.claude/up/references/production-requirements-compressed.md 2>/dev/null
+cat $HOME/.claude/up/references/product-engineering.md 2>/dev/null
 ```
 
 Se DESIGN-TOKENS.md existe: usar como referencia de cores/fontes/spacing/radius no Passe 1.
