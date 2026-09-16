@@ -4,6 +4,68 @@ Todas as mudancas relevantes do `up-cc` ficam documentadas aqui. O formato segue
 o espirito de [Keep a Changelog](https://keepachangelog.com/) e o versionamento
 e [SemVer](https://semver.org/). v2.0.0 e um **major** (breaking change).
 
+## 3.1.0
+
+> O planejador demora demais e sempre monta uma fase gigantesca: `up-beauty` fase 14 saiu com 16
+> planos e 494 KB de plano numa fase so. `/up:plan` e `/up:build` ganham o estilo do `/up:rapido`
+> (leve, na sessao), mantendo o PLAN.md como contrato. Somado ao padrao de Product Engineer do dono:
+> requisitos implicitos deixam de depender de lembrar na conversa e passam a viver numa referencia
+> unica que o executor sempre carrega.
+
+### Adicionado
+
+- **Plano de uma pagina.** `up/templates/plan.md` (frontmatter minimo, objetivo, fora de escopo,
+  entregas com `Implicitos:` e `Prova:`, criterio de pronto; alvo ate ~3 KB). `/up:plan` sem flag
+  escreve esse plano na propria sessao, sem spawnar `up-planejador`.
+- **Flag `--profundo`.** Restaura o pipeline pesado da v3.0 inteiro: `up-planejador` planeja todas as
+  fases de uma vez, com pesquisa, self-check e o loop de `validate-plan`. Para projeto grande ou para
+  planejar num runtime e executar em outro.
+- **Limite de fase.** Ate ~5 entregas pedidas por fase (implicitos nao contam), 1 plano por padrao.
+  Pedido maior vira mais de uma fase no ROADMAP, com aviso em uma linha; so a proxima fase ganha
+  PLAN.md (inclusive em projeto novo). A regua "~70% do contexto de um agente" sai de
+  `up-arquiteto.md` e `up-planejador.md`.
+- **Build na sessao com 1 plano.** Onda com exatamente 1 plano executa direto na sessao (bloco
+  `<execucao_inline>` de `build.md`), seguindo as mesmas regras do `up-executor`, sem overhead de
+  subagente. Onda com 2 ou mais planos continua com `up-executor` em paralelo, como antes.
+- **`up/references/product-engineering.md`.** Funde o padrao de Product Engineer do dono, os 71
+  requisitos de producao por categoria (UIST, ERR, PERF, FORM, RESP, META, A11Y, SEC, POLISH) e as
+  regras de dominio (frontend, backend, banco) que antes moravam soltas em `up-executor.md`. Carregado
+  inteiro por quem executa; a analise "antes de codificar" roda sem perguntar, e o Definition of Done
+  vira o checklist de completude do SUMMARY.
+- **Teste `up/tests/plan-build-leve.test.cjs`.** Invariante da fase: plan sem flag nao spawna
+  planejador, `--profundo` existe, template de plano pequeno, `product-engineering.md` no manifesto do
+  executor, nenhuma superficie viva citando `production-requirements`, build sem spawn na onda de 1
+  plano, `validate-plan`/`phase-plan-index` lendo o plano de uma pagina de verdade.
+
+### Removido
+
+- **`production-requirements.md` e `production-requirements-compressed.md`.** Fundidos em
+  `product-engineering.md`. O instalador limpa os arquivos antigos de instalacoes existentes (o
+  diretorio `up/` e reescrito por inteiro a cada instalacao).
+- **Regras de dominio duplicadas em `up-executor.md`.** As tabelas de frontend/backend/banco saem do
+  agente e passam a viver so em `product-engineering.md`; o executor aponta pra la.
+- **A frase "supervisores validam" sedimentada** em `production-requirements-compressed.md` (o
+  arquivo inteiro saiu) e a mencao a supervisores na nota de contexto tiered de `up-arquiteto.md`.
+
+### Mudado
+
+- **`up/templates/plan-ready.md`** vira indice curto: menos campos de frontmatter, sem a arvore de
+  artefatos e a secao de credenciais. Continua legivel pelo build (mesma regex de path de plano).
+- **`up-tools.cjs` `validate-plan`** reconhece "Criterio de pronto" e "Prova", com ou sem acento, como
+  criterio de verificacao (antes so reconhecia `<verification>`/`must_haves`). Continua so avisando,
+  nunca bloqueando quem chama.
+- **`up-tools.cjs` `phase-plan-index`** le `**Objetivo:**` (alem da tag `<objective>`) e conta
+  entregas em `### N. titulo` (alem de `<task>` e `## Task N`).
+- **Manifesto de referencias** (`SKILL_MANIFEST` em `up-tools.cjs`): `up-executor`, `up-arquiteto`,
+  `up-sintetizador`, `up-verificador`, `up-revisor` e `up-tester` apontam para `product-engineering`
+  em vez de `production-requirements-compressed`.
+
+### Mantido
+
+- `up-planejador` e o pipeline pesado inteiro: so ficam atras de `--profundo`.
+- GitHub-nativo, teste visual pre-merge, menu de fechamento, grill, `--review`/`--testar` opt-in,
+  `/up:rapido` sem mudanca.
+
 ## 3.0.0
 
 > O UP foi desenhado para policiar um modelo que precisava de gate, log de aprovacoes e tres
