@@ -24,11 +24,12 @@
 - [x] **Fase 14: Memória do projeto** - Glossário, registro de decisão com alternativas rejeitadas e base de rejeições (completed 2026-07-26)
 - [x] **Fase 15: Modo grill** - Questionamento profundo como piso automático, com três portas de saída (completed 2026-07-26)
 - [ ] **Fase 16: Honestidade da prova** - Fronteiras de teste pré-acordadas e regra anti-tautologia
-- [ ] **Fase 17: Planejamento por grafo** - Arestas de bloqueio, fronteira derivada, tamanho por janela e durabilidade do plano
-- [ ] **Fase 18: Contexto e revisão** - Higiene de contexto prescrita, handoff e revisão em dois eixos paralelos
+- [x] **Fase 17: Planejamento por grafo** - CANCELADA em 2026-09-16 (direção leve; motivo em `.plano/fora-de-escopo/`)
+- [x] **Fase 18: Contexto e revisão** - CANCELADA em 2026-09-16 (dependia do leitor removido na v3; motivo em `.plano/fora-de-escopo/`)
 - [ ] **Fase 19: Auditoria visual e escopada** - Escopo por concentração de mudança e relatório HTML com gate de handoff
-- [ ] **Fase 20: Névoa e fronteira do roadmap** - Auto-aborto do planejamento, seção de não especificado e fora de escopo
+- [x] **Fase 20: Névoa e fronteira do roadmap** - CANCELADA em 2026-09-16 (direção leve; motivo em `.plano/fora-de-escopo/`)
 - [x] **Fase 21: UP leve (v3)** - Corte da máquina de verificação: sem gate, sem log de aprovações, sem fronteiras, prova por tipo no SUMMARY (completed 2026-09-11)
+- [ ] **Fase 22: Plan e build leves** - Plano de uma página escrito na sessão, limite de fase, build na sessão com 1 plano, padrão de Product Engineer no executor (v3.1.0)
 
 ## Detalhes das Fases
 
@@ -332,6 +333,22 @@
 
 **Nota sobre as fases 17 a 20 depois da fase 21.** A fase 16 (honestidade da prova) foi entregue no PR #16 e em grande parte revertida aqui: o leitor único do log de aprovações, as fronteiras confirmadas e a heurística anti-tautologia saíram. A fase 18 (contexto e revisão) dependia desse leitor e precisa ser replanejada sobre a base leve. As fases 17 (grafo), 19 (auditoria escopada) e 20 (névoa) continuam válidas em tese, mas o dono deve reavaliar se ainda valem o peso antes de planejá-las: a direção agora é menos cerimônia, não mais.
 
+**Decisão de 2026-09-16:** 17, 18 e 20 canceladas (registradas em `.plano/fora-de-escopo/`), 19 segue pendente. Entra a fase 22.
+
+### Fase 22: Plan e build leves
+**Objetivo**: Fase de UP deixa de ser gigante e lenta. `/up:plan` escreve plano de uma página na própria sessão e limita o tamanho da fase; `/up:build` executa na sessão quando a onda tem 1 plano; o executor aplica o padrão de Product Engineer a partir de uma referência única.
+**Depende de**: Fase 21
+**Bloqueia**: Nada
+**Contrato**: `.plano/BRIEFING-plan-build-leve.md` (design aprovado em 2026-09-16) e `.plano/ANEXO-padrao-product-engineering.md`
+**Critérios de Sucesso** (o que deve ser VERDADE):
+  1. `/up:plan` sem flag não spawna `up-planejador` e gera PLAN.md de até ~3 KB
+  2. Pedido acima de ~5 entregas vira mais de uma fase, e só a primeira ganha PLAN.md
+  3. `/up:build` executa na sessão uma onda de 1 plano
+  4. `up/references/product-engineering.md` é a fonte única carregada pelo executor; `production-requirements*.md` não existem mais
+  5. `--profundo` reproduz o fluxo atual; suíte do UP verde e instalação nos quatro runtimes sem erro
+**Prova exigida**: teste (`npm run test:up`) e smoke (instalação em HOME temporário)
+**Planos**: 1 plano (22-01), onda 1
+
 ## Grafo de bloqueio do ciclo 2
 
 Declarado como aresta, e não como ordem arbitrária. É o item 7 do briefing aplicado ao próprio roadmap antes de o mecanismo existir. O grafo tem duas camadas, e elas não se misturam: **dependência lógica**, que vira aresta, e **posse de arquivo**, que é exclusão mútua e não vira aresta.
@@ -386,8 +403,9 @@ De onde a posse de arquivo passa a vir em tempo de execução, agora que a regra
 | 14. Memória do projeto | 6/6 | Complete   | 2026-07-26 |
 | 15. Modo grill | 5/4 | Complete   | 2026-07-26 |
 | 16. Honestidade da prova | 5/5 | Completa (revertida em parte pela 21) | 2026-08 (PR #16) |
-| 17. Planejamento por grafo | 0/5 | Pendente | - |
-| 18. Contexto e revisão | 0/7 | Pendente | - |
+| 17. Planejamento por grafo | 0/5 | Cancelada | 2026-09-16 |
+| 18. Contexto e revisão | 0/7 | Cancelada | 2026-09-16 |
 | 19. Auditoria visual e escopada | 0/6 | Planejada | - |
-| 20. Névoa e fronteira do roadmap | 0/5 | Pendente (reavaliar) | - |
+| 20. Névoa e fronteira do roadmap | 0/5 | Cancelada | 2026-09-16 |
 | 21. UP leve (v3) | 1/1 | Completa | 2026-09-11 |
+| 22. Plan e build leves | 0/1 | Planejada | - |

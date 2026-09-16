@@ -4,13 +4,13 @@
 
 **Projeto**: UP (up-cc)
 **Valor Central**: Pipeline autônomo confiável exige perguntar o suficiente antes de agir, lembrar do que já foi decidido e recusado, e provar o que afirma. Na v3, provar é uma regra (prova fresca por tipo no SUMMARY), não uma máquina de gates.
-**Foco Atual**: Fase 21 (UP leve, v3.0.0) completa na branch `up/fase-21-up-leve`, aguardando merge do PR. Próximo passo é do dono: mergear, publicar no npm e decidir se as fases 17 a 20 ainda valem o peso (ver nota no ROADMAP)
+**Foco Atual**: Fase 22 (plan e build leves, v3.1.0) planejada em 1 plano de uma página. Próximo passo: `/up:build`
 
 ## Posicao Atual
 
-**Fase**: 21 de 21 (completa, em PR). Fases 17 a 20 pendentes de reavaliação
-**Plano**: fase 15 fechada com os 4 planos das 3 ondas (mais 1 correção de regressão fora de onda): 001 (motor único do grill), 002 (porta na skill de brainstorm), 003 (propagação do piso novo nas outras superfícies, em paralelo com o 002), 005-regressao (correção do guarda de perguntas da fase 13, que ficou vermelho porque os planos 002 e 003 removeram duas tags em paralelo sem atualizar o inventário), 004 (prova: invariante de piso, sonda de comportamento e regressão)
-**Status**: Fase 15 completa e commitada. Plano 004 escreveu `up/tests/piso-grill.test.cjs` (invariante de piso e propagação, 8 casos, verde na árvore atual e vermelho na árvore do ponto de partida) e `up/tests/grill-probe.cjs` (sonda de comportamento com julgamento 100% determinístico, sem juiz-modelo), rodou os três casos exigidos (parada 6/6, entrada 4/4, precedência 2/2) contra a doutrina entregue, e a contraprova contra a doutrina anterior à fase: **inconsistente entre duas execuções** (uma reprovou por diferença de vocabulário, a outra passou 6/6, inclusive na asserção do checkpoint que era o eixo esperado de diferença), registrado como "sonda não discriminou" em vez de forçar uma leitura mais forte do que os dados sustentam. Provou regressão real dos sete comandos e quatro runtimes (instalação em diretório temporário) e das duas leituras de projeto com planejamento anterior ao ciclo (`phase-plan-index`, `roadmap get-phase`); achou de novo o bug conhecido `init up` (já registrado desde a fase 13, item 1 de `.plano/fases/13-formato-de-pergunta/deferred-items.md`), confirmado idêntico no SHA_BASE desta fase, portanto não é regressão do grill. GRILL-01 a GRILL-10 marcados completos em REQUIREMENTS.md. REG-01 a REG-03 seguem pendentes (transversais, reverificados a cada fase 13-20)
+**Fase**: 22 de 22 (planejada). 17, 18 e 20 canceladas em 2026-09-16; 19 pendente
+**Plano**: 22-01 (onda 1), contrato em `.plano/BRIEFING-plan-build-leve.md`
+**Status**: Brainstorm e design aprovados em 2026-09-16 (grill: pacote completo, quebra automática de fase, 17/18/20 canceladas, padrão de Product Engineer no executor, implícitos fora do limite). Plano escrito na sessão no formato novo (3,2 KB). Fase 21 mergeada (PR #19) e publicada no npm 3.0.0
 **Progresso**:
 ```
 Ciclo 1: fases 1 a 10               [████████████████████] Concluido (detalhe no ROADMAP.md)
@@ -20,11 +20,12 @@ Fase 13: Formato de pergunta        [██████████████�
 Fase 14: Memoria do projeto         [████████████████████] Completa (6/6 planos)
 Fase 15: Modo grill                 [████████████████████] Completa (4/4 planos)
 Fase 16: Honestidade da prova       [████████████████████] Completa (revertida em parte pela 21)
-Fase 17: Planejamento por grafo     [░░░░░░░░░░░░░░░░░░░░] Pendente
-Fase 18: Contexto e revisao         [░░░░░░░░░░░░░░░░░░░░] Pendente
+Fase 17: Planejamento por grafo     [░░░░░░░░░░░░░░░░░░░░] Cancelada
+Fase 18: Contexto e revisao         [░░░░░░░░░░░░░░░░░░░░] Cancelada
 Fase 19: Auditoria escopada         [░░░░░░░░░░░░░░░░░░░░] Pendente
-Fase 20: Nevoa e fronteira          [░░░░░░░░░░░░░░░░░░░░] Pendente (reavaliar)
-Fase 21: UP leve (v3)               [████████████████████] Completa (PR aberto)
+Fase 20: Nevoa e fronteira          [░░░░░░░░░░░░░░░░░░░░] Cancelada
+Fase 21: UP leve (v3)               [████████████████████] Completa (PR #19 mergeado)
+Fase 22: Plan e build leves         [░░░░░░░░░░░░░░░░░░░░] Planejada (1 plano)
 ```
 
 ## Metricas de Performance
