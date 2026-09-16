@@ -16,7 +16,7 @@ Pipeline por fase (caminho quente):
 
 ```
 abrir fase (worktree + branch + issue)
-  -> ondas de up-executor (paralelo dentro da onda, ondas em sequencia)
+  -> ondas: 1 plano na sessao (sem spawn) | 2+ planos via up-executor (paralelo na onda, ondas em sequencia)
   -> conferir SUMMARY de cada plano (com secao Prova)
   -> verify-static (so se o projeto tiver lint/typecheck/teste)
   -> decisoes escaladas (se houver)
@@ -246,8 +246,9 @@ CTX=$(node "$HOME/.claude/up/bin/up-tools.cjs" context --plan "$PLAN" --state --
 MODEL=$(node "$HOME/.claude/up/bin/up-tools.cjs" resolve-model-for-plan "$PLAN" up-executor --cwd "$WORKTREE" --raw)
 ```
 
-3. Spawnar os executores da onda. `PARALLELIZATION=true`: todos numa unica mensagem (um `Agent()` por
-   plano). `false`: um por vez.
+3. **Onda com exatamente 1 plano: a sessao executa direto, sem spawnar `up-executor`** (ver
+   `<execucao_inline>` abaixo). **Onda com 2 ou mais planos:** spawnar um `up-executor` por plano.
+   `PARALLELIZATION=true`: todos numa unica mensagem (um `Agent()` por plano). `false`: um por vez.
 
 ```python
 Agent(
@@ -268,14 +269,25 @@ Agent(
 
     O plano e contrato (o que fica verdadeiro e a prova). O como e seu.
     Implemente todas as entregas, commite atomicamente, rode a prova de cada entrega e escreva o
-    SUMMARY.md deste plano com a secao ## Prova (comando, resultado, tipo).
+    SUMMARY.md deste plano com a secao ## Prova (comando, resultado, tipo) e o Checklist de completude.
     Decisao de arquitetura que aparecer no caminho: aplique sua recomendacao, siga, e devolva no bloco
     ## DECISOES ESCALADAS do SUMMARY.
   """
 )
 ```
 
-4. Esperar todos os executores da onda terminarem.
+<execucao_inline>
+**Onda de 1 plano: voce (a sessao) e o executor**, sem overhead de subagente novo. Carregue
+`$HOME/.claude/up/agents/up-executor.md` inteiro e siga-o a risca: mesma leitura do plano
+(`<execution_flow>`), mesmas `<deviation_rules>`, mesma tabela de `<prova>`, mesmo protocolo de
+`<commit>` e o mesmo formato de `<summary>` (com `## Prova` e `## Checklist de completude`). Carregue
+tambem `$HOME/.claude/up/references/product-engineering.md` inteiro (a analise "antes de codificar" e
+o checklist de completude sao seus, sem perguntar ao dono). Diferenca unica: contexto ja carregado
+nesta sessao (STATE.md, config, o proprio PLAN.md), sem reabrir agente frio. O SUMMARY resultante e
+indistinguivel do que um `up-executor` teria escrito: mesma secao `## Prova`, mesmo formato.
+</execucao_inline>
+
+4. Esperar todos os executores da onda terminarem (ou, na onda de 1 plano, terminar a execucao inline).
 5. Conferir os resumos da onda:
 
 ```bash
@@ -529,7 +541,7 @@ PR, pendencias de PENDING.md, dividas registradas.
 - [ ] Owner profile e PLAN-READY.md validados; artefatos e planos existem
 - [ ] Dono confirmou a execucao (ou modo autonomo anunciado)
 - [ ] Cada fase: worktree + branch + issue via `github start-phase` (salvo `--local`)
-- [ ] Planos da mesma onda em paralelo, ondas em sequencia; um `up-executor` por plano
+- [ ] Onda de 1 plano executada na sessao (sem spawn); onda de 2+ planos em paralelo, um `up-executor` por plano; ondas em sequencia
 - [ ] Todo plano com SUMMARY e secao `## Prova`; diff conferido contra o relato
 - [ ] `verify-static` rodado quando o projeto tem suite; falha corrigida em uma rodada ou decidida pelo dono
 - [ ] Decisoes escaladas perguntadas ao dono no formato do contrato, nunca decididas em silencio
