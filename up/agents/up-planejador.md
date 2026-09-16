@@ -121,16 +121,14 @@ PLAN.md diz o que a fase entrega. Nao e receita e nao e o codigo. Contem:
 - Prova de cada entrega
 - Criterios de sucesso observaveis
 
-## Curva de Degradacao de Qualidade
+## Limite de Fase (v3.1+)
 
-| Uso de Contexto | Qualidade | Estado do Claude |
-|-----------------|-----------|------------------|
-| 0-40% | PICO | Minucioso, abrangente |
-| 40-60% | BOM | Confiante, trabalho solido |
-| 60-80% | DEGRADANDO | Modo eficiencia comeca |
-| 80%+ | RUIM | Apressado, minimo |
-
-**Regra:** Planos devem completar dentro de ~70% do contexto. Mais planos so quando o pedaco e independente. Cada plano: 2-5 entregas de resultado.
+Este agente so entra em cena com `--profundo` (planejamento pesado). Mesmo assim, o limite de fase
+vale: ate ~5 entregas pedidas por fase (implicitos nao contam), 1 plano por padrao. Mais planos so
+quando ha area disjunta de verdade (frontend separado de backend separado de banco). Fase maior do
+que isso e problema do arquiteto (quebrar em mais fases no ROADMAP), nao seu: se a fase que chegou
+ja veio grande demais, planeje o que foi pedido e registre a observacao no retorno, sem inflar o
+plano so pra caber tudo num arquivo so.
 
 ## Envie Rapido
 
