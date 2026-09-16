@@ -1,39 +1,34 @@
 # PLAN-READY.md Template
 
-Template para `.plano/PLAN-READY.md` — arquivo-flag que indica que o projeto foi
-completamente planejado e esta pronto para execucao.
+Template para `.plano/PLAN-READY.md`: índice curto que sinaliza que a próxima fase (ou o projeto,
+com `--profundo`) foi planejada e está pronta para execução.
 
 Gerado por `/up:plan` ao final do planejamento.
-Lido por `/up:build` como pre-requisito de entrada.
+Lido por `/up:build` como pré-requisito de entrada.
 
 <template>
 
 ```yaml
 ---
-version: "3.0.0"
+version: "3.1.0"
 fora_de_escopo: []     # o que este plano deliberadamente NAO faz, uma linha por item
 planned_at: ""
 planned_by:
   runtime: ""           # claude-code | opencode | gemini-cli
-  ceo_name: ""
-  user_preferred_name: ""
 intended_execution:
   runtime: ""           # same | claude-code | opencode | gemini-cli | any
 project_name: ""
 mode: ""                # greenfield | brownfield
+profundo: false          # true so quando planejado com --profundo
 total_phases: 0
 total_plans: 0
-total_requirements: 0
-estimated_tasks: 0
 status: ready_for_execution
-planning_confidence: 0  # 0-100, do AUDIT-PLAN.md (--review) ou do self-check do planejador
 ---
 
-# Projeto Pronto Para Execucao
+# Pronto Para Execucao
 
-Este projeto foi completamente planejado. Todos os artefatos arquiteturais
-foram gerados, todas as fases foram planejadas como contrato (objetivo, entregas, prova),
-e o projeto esta pronto para o `/up:build`.
+`/up:build` executa o que está listado abaixo. Sem `--profundo`, normalmente é só a próxima fase
+(1 a 3 planos). Com `--profundo`, o projeto inteiro foi planejado de uma vez.
 
 ## Como executar
 
@@ -41,69 +36,25 @@ e o projeto esta pronto para o `/up:build`.
 /up:build
 ```
 
-Pode ser executado neste mesmo runtime ou em outro. O estado esta completamente
-salvo em `.plano/`.
+Pode ser executado neste mesmo runtime ou em outro. O estado está completamente salvo em `.plano/`.
 
-## Resumo do Projeto
+## Fases planejadas
 
-**Briefing:** [resumo em 1-2 frases do BRIEFING.md]
+| # | Fase | Planos | Wave | Status |
+|---|------|--------|------|--------|
+| 1 | [nome] | [N] | 1 | planejada |
 
-**Stack:** [stack escolhida]
-
-**Mode:** [greenfield | brownfield]
-
-## Fases Planejadas
-
-| # | Fase | Planos | Tarefas | Wave | Status |
-|---|------|--------|---------|------|--------|
-| 1 | [nome] | [N] | [M] | 0 | planejada |
-| 2 | [nome] | [N] | [M] | 1 | planejada |
-| 3 | [nome] | [N] | [M] | 1 | planejada |
-
-## Fora de Escopo
+## Fora de escopo
 
 - [item]: [motivo em uma linha]
 
-## Artefatos Disponiveis
+## Listagem completa de planos
 
-```
-.plano/
-├── BRIEFING.md
-├── OWNER.md
-├── PENDING.md
-├── DESIGN-TOKENS.md
-├── PRODUCT-ANALYSIS.md
-├── SYSTEM-DESIGN.md
-├── PROJECT.md
-├── ROADMAP.md
-├── REQUIREMENTS.md
-├── AUDIT-PLAN.md           ← so com --review
-├── PLAN-READY.md           ← este arquivo
-└── fases/
-    ├── 01-[nome]/
-    │   ├── 01-01-PLAN.md
-    │   └── 01-02-PLAN.md
-    ├── 02-[nome]/
-    └── ...
-```
+[para o /up:build validar que cada arquivo existe]
 
-## Credenciais
-
-- [x] [credencial 1]
-- [ ] [credencial pendente] (mock ativo)
-- [ ] [credencial pendente] (mock ativo)
-
-Ver `.plano/PENDING.md` para detalhes.
-
-## Listagem Completa de Planos
-
-[lista de todos os PLANs com seus paths, para o /up:build validar que existem]
-
-| ID | Path | Wave | Tasks |
-|----|------|------|-------|
-| 01-01 | fases/01-auth/01-01-PLAN.md | 0 | 8 |
-| 01-02 | fases/01-auth/01-02-PLAN.md | 1 | 7 |
-...
+| ID | Path |
+|----|------|
+| 01-01 | fases/01-auth/01-01-PLAN.md |
 ```
 
 </template>
@@ -112,17 +63,18 @@ Ver `.plano/PENDING.md` para detalhes.
 
 ## Como o /up:build usa este arquivo
 
-1. Arquivo deve existir
-2. Parse YAML frontmatter
-3. Para cada plano listado, verificar se arquivo existe no disco
-4. Se algum plano falta: alertar e oferecer planejamento local
-5. Se tudo OK: prosseguir com execucao
+1. Arquivo deve existir.
+2. Parse do frontmatter YAML.
+3. Para cada plano listado (regex `fases/[0-9]+-[a-z-]+/[0-9]+-[0-9]+-PLAN.md`), verificar se existe no disco.
+4. Falta algum: alertar e oferecer planejamento local.
+5. Tudo OK: prosseguir com a execução.
 
-## Quando este arquivo e atualizado
+## Quando este arquivo é atualizado
 
-- Criado: ao final de `/up:plan`
-- Lido: no inicio de `/up:build`
-- Atualizado: nunca (e snapshot do planejamento)
-- Deletado: ao final do `/up:build` (vira PROJECT-COMPLETE.md)
+- Criado: ao final de `/up:plan` (fase ou projeto).
+- Lido: no início de `/up:build`.
+- Atualizado: em cada `/up:plan` seguinte, quando a fase anterior já foi construída (novo índice para a
+  próxima fase).
+- Deletado: ao final do `/up:build` do projeto inteiro (vira PROJECT-COMPLETE.md).
 
 </guidelines>

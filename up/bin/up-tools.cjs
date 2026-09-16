@@ -95,7 +95,10 @@ function extractFrontmatter(content) {
 
 function extractObjective(content) {
   const m = content.match(/<objective>\s*\n?\s*(.+)/);
-  return m ? m[1].trim() : null;
+  if (m) return m[1].trim();
+  // Plano de uma pagina (v3.1+): "**Objetivo:** ..." em vez da tag <objective>.
+  const m2 = content.match(/\*\*Objetivo:\*\*\s*(.+)/i);
+  return m2 ? m2[1].trim() : null;
 }
 
 function getMilestoneInfo(cwd) {
@@ -2314,7 +2317,9 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
 
     const xmlTasks = content.match(/<task[\s>]/gi) || [];
     const mdTasks = content.match(/##\s*Task\s*\d+/gi) || [];
-    const taskCount = xmlTasks.length || mdTasks.length;
+    // Plano de uma pagina (v3.1+): entregas em "### N. titulo" dentro de "## Entregas".
+    const entregaTasks = content.match(/^###\s+\d+\.\s+/gm) || [];
+    const taskCount = xmlTasks.length || mdTasks.length || entregaTasks.length;
 
     const wave = parseInt(fm.wave, 10) || 1;
 
@@ -2626,11 +2631,15 @@ function cmdBudget(cwd, raw) {
 /**
  * Iron rule: a plan must fit in one context window. Validate that a
  * PLAN.md is decomposable enough to be executed by a single agent
- * call without losing context. Fails when:
+ * call without losing context. So avisa (`pass=false` + `suggestions`):
+ * o comando nunca sai com erro nem bloqueia quem chama, so devolve o
+ * diagnostico para o chamador decidir se ajusta o plano. Sinaliza quando:
  *   - File > 25kB (default; configurable via --max-bytes)
  *   - Task count > 12 (default; configurable via --max-tasks)
  *   - No frontmatter (must declare type at minimum)
- *   - No verification criteria (no <verification>, no must_haves)
+ *   - No verification criteria: aceita o formato antigo (<verification>,
+ *     must_haves) e o plano de uma pagina v3.1+ ("Critério/Criterio de
+ *     pronto", "Prova:"), com ou sem acento.
  *
  * Usage:
  *   up-tools.cjs validate-plan <plan-path> [--max-bytes N] [--max-tasks N]
@@ -2683,8 +2692,9 @@ function cmdValidatePlan(cwd, args, raw) {
   const numberedBullets = (content.match(/^[-*]\s+\d+[.:)]\s/gm) || []).length;
   const tasks = Math.max(taskMatches, numberedHeadings, numberedBullets);
 
-  // Verification criteria
-  const hasVerification = /<verification|must_haves|criterios|criteria/i.test(content);
+  // Verification criteria. Aceita o formato antigo (<verification>, must_haves) e o plano de uma
+  // pagina (v3.1+): "Critério/Criterio de pronto" e "Prova:", com ou sem acento.
+  const hasVerification = /<verification|must_haves|crit[ée]rios?\s+de\s+pronto|\bprova\b/i.test(content);
 
   if (bytes > flags.maxBytes) {
     issues.push(`size_exceeds_${flags.maxBytes}_bytes`);
@@ -2732,26 +2742,26 @@ function cmdValidatePlan(cwd, args, raw) {
 // =====================================================================
 
 const SKILL_MANIFEST = {
-  // Execution agents — fokus em principles + production reqs.
-  // up-executor roteia frontend/backend/database por contexto (carrega
-  // ui-brand + production-requirements sob demanda quando o dominio exige).
-  'up-executor': ['engineering-principles-compressed', 'ui-brand', 'production-requirements-compressed'],
+  // Execution agents: fokus em principles + padrao de Product Engineer.
+  // up-executor roteia frontend/backend/database por contexto (product-engineering.md
+  // traz a analise "antes de codificar", os requisitos implicitos e as regras por dominio).
+  'up-executor': ['engineering-principles-compressed', 'ui-brand', 'product-engineering'],
   'up-depurador': ['engineering-principles-compressed'],
 
   // Planning agents — fokus em arquitetura + reqs
   'up-planejador': ['engineering-principles-compressed'],
-  'up-arquiteto': ['engineering-principles-compressed', 'production-requirements-compressed'],
+  'up-arquiteto': ['engineering-principles-compressed', 'product-engineering'],
   'up-roteirista': [],
   'up-pesquisador': [],
-  'up-sintetizador': ['production-requirements-compressed'],
+  'up-sintetizador': ['product-engineering'],
   'up-mapeador-codigo': [],
 
   // Review & Testing — fokus em quality.
   // up-tester funde visual + exhaustive + api (multi-pass via Playwright).
-  'up-verificador': ['production-requirements-compressed'],
-  'up-revisor': ['engineering-principles-compressed', 'production-requirements-compressed'],
+  'up-verificador': ['product-engineering'],
+  'up-revisor': ['engineering-principles-compressed', 'product-engineering'],
   'up-auditor': ['audit-ux', 'audit-performance', 'audit-modernidade'],
-  'up-tester': ['ui-brand', 'production-requirements-compressed'],
+  'up-tester': ['ui-brand', 'product-engineering'],
 };
 
 /**
