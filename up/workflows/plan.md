@@ -194,11 +194,8 @@ na mesma rodada. Sem agente extra.
 spawnar `up-planejador`. MODO PROJETO: a proxima fase e a primeira do ROADMAP. MODO FASE: e a fase
 pedida no argumento.
 
-```bash
-PHASE_TARGET=$(node "$HOME/.claude/up/bin/up-tools.cjs" roadmap next-unplanned-phase --raw 2>/dev/null)
-```
-
-(Sem esse subcomando disponivel, o proprio ROADMAP.md diz qual e a proxima fase sem PLAN.md.)
+Proxima fase sem argumento: a primeira fase `- [ ]` do ROADMAP.md que ainda nao tem `*-PLAN.md` em
+`.plano/fases/` (`roadmap list-phases` e `phase-plan-index N` confirmam).
 
 ### 2.5.a Escrever o PLAN.md na sessao (default)
 
