@@ -21,6 +21,8 @@
 **UP** e um sistema de meta-prompting que transforma seu assistente de IA num desenvolvedor estruturado. Voce descreve a ideia, o UP explora o problema com voce (brainstorm), planeja em fases, executa cada fase numa branch isolada com issue e PR, testa na tela antes de mergear, e mantem todo o estado em disco. Funciona em **Claude Code**, **Codex CLI**, **OpenCode** e **Gemini CLI**.
 
 > **UP v3.0.0 e o UP leve** (breaking change). O modelo e capaz, o UP guia em vez de policiar: saiu o gate deterministico do `approvals.log`, sairam as fronteiras de teste e a anti-tautologia, verificador e revisor viraram opt-in (`--review`), e o executor prova cada entrega na secao `## Prova` do SUMMARY. Tres skills no lugar de quatro (`up-tdd` + `up-verificar-antes-de-concluir` viraram `up-prova`). Detalhes no [CHANGELOG](up/CHANGELOG.md).
+>
+> **v3.1.0:** `/up:plan` sem flag escreve o plano de uma pagina na propria sessao (sem `up-planejador`), respeitando um limite de ~5 entregas por fase e planejando so a proxima fase. `/up:build` executa onda de 1 plano tambem na sessao, sem spawn. `--profundo` restaura o pipeline pesado inteiro quando precisar. O executor carrega `up/references/product-engineering.md`, referencia unica do padrao de Product Engineer do dono (requisitos implicitos + Definition of Done no SUMMARY).
 
 ## O que mudou no v2
 
@@ -85,7 +87,9 @@ O hook **up-context-monitor** avisa quando o contexto enche e sugere `/clear` (o
 
 **GitHub-nativo.** O `/up:build` roda cada fase isolada: worktree + branch `up/fase-NN-slug` + issue. No fim da fase, um menu decide o destino (merge local, PR, deixa branch, descarta). A engine `github.cjs` opera fail-open: se algo do GitHub falhar, o build continua sem travar.
 
-**Waves paralelas.** O `/up:plan` quebra fase grande em varios planos por dominio agrupados em waves. O `/up:build` roda os planos da mesma wave em paralelo (varios `up-executor`) e as waves em sequencia (dependencia). Fase pequena = 1 plano = 1 agente.
+**Plan e build leves (default).** `/up:plan` escreve o plano de uma pagina direto na sessao, sem spawnar `up-planejador`, respeitando um limite de ~5 entregas por fase (acima disso, quebra em mais fases no ROADMAP e planeja so a proxima). `/up:build` executa onda de 1 plano tambem na sessao. `--profundo` restaura o pipeline pesado (planejador subagente, todas as fases de uma vez) pra projeto grande ou pra planejar num runtime e executar em outro.
+
+**Waves paralelas.** Fase com mais de um plano (2 ou 3, so com areas disjuntas) roda em waves: planos da mesma wave em paralelo (varios `up-executor`), waves em sequencia (dependencia). Fase pequena = 1 plano = 1 agente = execucao na sessao.
 
 **Governanca enxuta.** Sem gate, sem log de aprovacoes, sem piramide. O build le a secao `## Prova` de cada SUMMARY, roda `verify-static` quando o projeto tem suite e confere o diff. Revisao formal (`up-verificador` + `up-revisor` two-stage) so com `--review`.
 
@@ -96,8 +100,8 @@ O hook **up-context-monitor** avisa quando o contexto enche e sugere `/clear` (o
 | Comando | O que faz |
 |---------|-----------|
 | **`/up`** | Porta unica. Sem argumento: continua de onde parou (le STATE.md e roteia). Com descricao: dispara brainstorm e roteia greenfield, brownfield ou clone. Subverbos: `estado`, `config`. |
-| **`/up:plan`** | Planeja projeto OU fase (detecta automaticamente). Gera `.plano/PLAN-READY.md`. Nao executa nada. |
-| **`/up:build`** | Executa o que foi planejado. GitHub-nativo por fase (worktree, issue, teste visual, PR, merge). Flags `--solo`, `--board`, `--auto`. |
+| **`/up:plan`** | Planeja projeto OU fase (detecta automaticamente). Sem flag, escreve o plano de uma pagina na sessao, so da proxima fase. Gera `.plano/PLAN-READY.md`. Nao executa nada. Flag `--profundo` restaura o pipeline pesado (planejador, todas as fases). |
+| **`/up:build`** | Executa o que foi planejado. Onda de 1 plano roda na sessao; 2+ planos em paralelo. GitHub-nativo por fase (worktree, issue, teste visual, PR, merge). Flags `--solo`, `--board`, `--auto`. |
 | **`/up:testar`** | Loop DCRV unico (Detectar, Corrigir, Re-verificar): visual, interacao, API, UX, mobile e E2E num passe. Flags `--ux`, `--mobile`, `--e2e`, `--no-fix`. |
 | **`/up:auditar`** | Auditoria UX, performance e modernidade num passe, priorizada por ICE. Flag `--features` ativa pesquisa de mercado pra sugerir features novas. |
 | **`/up:depurar`** | Debug sistematico com metodo cientifico. Estado persistente entre `/clear`. |
@@ -117,7 +121,7 @@ Exemplo: construir uma feature do zero ao merge.
 /up:plan
 ```
 
-2. Planeja o projeto inteiro. Quebra fases grandes em varios planos por dominio organizados em waves. Gera `.plano/PLAN-READY.md`. Nao toca em codigo.
+2. Projeta a arquitetura inteira (PROJECT, ROADMAP, REQUIREMENTS, SYSTEM-DESIGN), respeitando o limite de ~5 entregas por fase, e escreve o plano de uma pagina so da proxima fase, na propria sessao. Gera `.plano/PLAN-READY.md`. Nao toca em codigo. Projeto grande ou planejar-num-runtime-executar-noutro: `/up:plan --profundo` planeja todas as fases de uma vez com `up-planejador`.
 
 ```
 /up:build
@@ -125,8 +129,8 @@ Exemplo: construir uma feature do zero ao merge.
 
 3. Executa fase a fase, GitHub-nativo:
    - Abre **worktree + branch** `up/fase-01-slug` + **issue**.
-   - Roda os planos da fase: planos da mesma wave em **paralelo**, waves em sequencia.
-   - Cada executor prova a entrega (logica: teste; UI: captura; integracao: smoke) e registra na secao `## Prova` do SUMMARY.
+   - Roda os planos da fase: fase com 1 plano executa **na sessao** (sem spawn); 2 ou mais planos rodam em **paralelo** por wave.
+   - Cada entrega segue o padrao de Product Engineer (`up/references/product-engineering.md`: requisitos implicitos, analise antes de codificar, Definition of Done). Prova a entrega (logica: teste; UI: captura; integracao: smoke) e registra na secao `## Prova` do SUMMARY, com o checklist de completude ao lado.
    - Com `--review`, passa pelo **up-revisor** two-stage (spec-compliance, depois code-quality/OWASP).
    - Se a fase tem UI: sobe o **dev server dentro da worktree** e pergunta "testar primeiro ou pode mergear?". Se testar, mantem o server no ar e depois "aprovado ou ajustar?" (ajustar = `up-executor` corrige e re-testa, em loop).
    - No fim da fase, **menu**: merge local, abrir PR, deixar branch ou descartar.
@@ -136,7 +140,7 @@ Exemplo: construir uma feature do zero ao merge.
 /up:auditar         # auditoria priorizada UX/perf/modernidade quando ja esta pronto
 ```
 
-Variacoes uteis: `/up:build --solo` pula toda a cerimonia GitHub (commit atomico na branch atual). `/up:build --auto` pula o menu de fim de fase. `/up:build --board` espelha as issues no Multica. Para um fix de 2 minutos sem roadmap, `/up:rapido "corrigir validacao do formulario"`.
+Variacoes uteis: `/up:build --solo` pula toda a cerimonia GitHub (commit atomico na branch atual). `/up:build --auto` pula o menu de fim de fase. `/up:build --board` espelha as issues no Multica. `/up:plan --profundo` planeja todas as fases de uma vez, com pesquisa e self-check completo. Para um fix de 2 minutos sem roadmap, `/up:rapido "corrigir validacao do formulario"`.
 
 ## Os 4 runtimes
 

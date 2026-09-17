@@ -219,7 +219,7 @@ Liste `ls $HOME/.claude/up/references/blueprints/` e carregue os relevantes ao p
 | Listas de dados/CRUD | data-management.md |
 | Notificacoes | notifications.md (SEMPRE se tem usuarios) |
 
-E sempre `cat $HOME/.claude/up/references/production-requirements-compressed.md`.
+E sempre `cat $HOME/.claude/up/references/product-engineering.md`.
 
 ### Roles e Permissoes
 Para cada persona/papel do dominio, definir um role (admin, role(s) operacional(is), role cliente se aplicavel) com o que pode/nao pode. Montar matriz de permissoes (modulo x role x acao: FULL/CRUD/READ/--).
@@ -261,7 +261,11 @@ Agrupe requisitos por dependencia e dominio funcional:
 - Requisitos mapeados (REQ-IDs)
 - 2-5 criterios de sucesso (comportamentos observaveis)
 
-**Granularidade:** Sem limite de fases - use quantas forem necessarias para cobrir 100% dos requisitos. Fases devem ser granulares o suficiente para completar dentro de ~70% do contexto de um agente.
+**Granularidade (limite de fase, v3.1+):** cada fase cabe em ate ~5 entregas pedidas (requisitos implicitos de
+uma entrega nao contam nesse limite). 1 plano por fase e o padrao; 2 ou 3 planos so quando ha areas
+disjuntas de verdade (frontend separado de backend separado de banco, por exemplo). Requisitos demais
+para uma fase so: quebre em mais fases, sem perguntar (uma linha de aviso no retorno basta). Use
+quantas fases forem necessarias para cobrir 100% dos requisitos.
 
 **Formato:**
 ```markdown
@@ -444,7 +448,12 @@ Ver `<system_design>`. Selecionar blueprints, definir roles/permissoes, schema d
 
 **OBRIGATORIO** apos gerar ROADMAP.md e REQUIREMENTS.md.
 
-Para CADA fase do ROADMAP, criar dois arquivos slice em `.plano/fases/{NN}/`:
+**Escopo das slices (v3.1+):** sem `--profundo` no prompt, gere slice SO da proxima fase ainda nao
+planejada (a primeira do ROADMAP, em projeto novo). Com `--profundo`, gere slice de TODAS as fases,
+como antes. Fases sem slice ficam listadas so no ROADMAP.md ate a vez delas: o `/up:plan` seguinte
+gera a slice quando for planeja-las.
+
+Para cada fase no escopo, criar dois arquivos slice em `.plano/fases/{NN}/`:
 
 **1. `PHASE.md`** - slice do ROADMAP contendo APENAS esta fase
 ```markdown
@@ -473,7 +482,7 @@ Para CADA fase do ROADMAP, criar dois arquivos slice em `.plano/fases/{NN}/`:
 {descricao + criterios}
 ```
 
-**Por que:** Agentes (planejador, executor, supervisores) carregam apenas a slice da fase atual em vez do REQUIREMENTS/ROADMAP inteiros. Reducao de ~70% no contexto carregado por invocacao.
+**Por que:** Agentes (planejador, executor) carregam apenas a slice da fase atual em vez do REQUIREMENTS/ROADMAP inteiros. Reducao de ~70% no contexto carregado por invocacao.
 
 **Comando para criar:**
 ```bash

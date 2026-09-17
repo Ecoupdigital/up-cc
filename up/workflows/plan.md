@@ -1,10 +1,11 @@
 <purpose>
 Workflow `/up:plan` — Planejamento completo de projeto OU de fase.
 
-Conduz Arquitetura + Planejamento exaustivo de TODAS as fases + Planning Review + PLAN-READY.
+Conduz Arquitetura + plano de uma pagina da PROXIMA fase (escrito na sessao) + PLAN-READY. Com
+`--profundo`: planejamento de TODAS as fases via `up-planejador`, como na v3.0.
 
-NAO executa nada. Para apos gerar PLAN-READY.md. Resultado: projeto completamente planejado, pronto
-para `/up:build` no mesmo runtime ou outro.
+NAO executa nada. Para apos gerar PLAN-READY.md. Resultado: proxima fase pronta para `/up:build`
+(todas as fases com `--profundo`, no mesmo runtime ou outro).
 
 Absorveu discutir-fase.md e planejar-fase.md: detecta automaticamente se o pedido e o PROJETO inteiro
 ou uma FASE especifica (`/up:plan` vs `/up:plan N`).
@@ -13,16 +14,21 @@ ou uma FASE especifica (`/up:plan` vs `/up:plan N`).
 > Vocabulário UP: fase, plano, onda, evidência, worktree, escape hatch, verificação e laço DCRV têm definição única em `$HOME/.claude/up/references/glossario-up.md`. Use o termo, não redefina.
 
 <core_principle>
-Pipeline final (caminho quente):
+Pipeline final (caminho quente, sem `--profundo`):
 
 ```
-up-arquiteto (pesquisa inline + roadmap + auto-checagem de REQUIREMENTS)
-  -> up-planejador por fase -> PLAN-READY.md
+up-arquiteto (pesquisa inline + roadmap com limite de fase + slices SO da proxima fase)
+  -> a propria sessao escreve o PLAN.md da proxima fase (template de uma pagina) -> PLAN-READY.md
 ```
 
-`--review` devolve o `up-revisor` de planejamento. Sem a flag, o orquestrador gera PLAN-READY
-depois do self-check do planejador. `up-pesquisador`, `up-roteirista` e `up-sintetizador` nao
-entram como processo. O arquiteto absorve pesquisa, roteiro e validacao.
+`up-planejador` nao entra nesse caminho: quem escreve o plano e a sessao que acabou de rodar o
+arquiteto (ou o brainstorm, em MODO FASE de projeto ja iniciado), sem overhead de agente frio.
+`--profundo` restaura o pipeline anterior inteiro (ver `<flags>`): `up-planejador` por fase, todas
+as fases de uma vez, self-check e loop de `validate-plan`.
+
+`--review` devolve o `up-revisor` de planejamento (funciona nos dois caminhos). `up-pesquisador`,
+`up-roteirista` e `up-sintetizador` nao entram como processo em nenhum dos dois. O arquiteto absorve
+pesquisa, roteiro e validacao.
 
 O intake/brainstorm NAO acontece aqui — ja rodou no `/up` (workflows/up.md, inline, sem CEO) e produziu
 `.plano/BRIEFING.md`. `/up:plan` consome o BRIEFING. Se for chamado direto sem BRIEFING, faz um intake
@@ -36,7 +42,7 @@ Default fixo: Opus planeja, Sonnet executa. `default` -> nao passar model=.
 
 **Planos sao contrato.** Objetivo, fora de escopo, entregas e prova. Sem receita de codigo.
 
-**Um agente por passo.** Arquiteto projeta, planejador planeja. Quem confere e o orquestrador lendo os
+**Um agente por passo.** Arquiteto projeta, a sessao planeja (o `up-planejador` so com `--profundo`). Quem confere e o orquestrador lendo os
 artefatos. Sem supervisores.
 
 **Contrato de pergunta (obrigatório):** antes da primeira pergunta, carregue
@@ -70,7 +76,12 @@ Se LOCK.md existe e `stage: planning`: retomar de onde parou.
 ### 0.3 Deteccao projeto vs fase (absorve discutir-fase + planejar-fase)
 
 Se `$ARGUMENTS` contem um numero de fase (ex: `/up:plan 3`), entrar em **MODO FASE** (planejar SO aquela
-fase, com research/context inline e self-check). Senao, **MODO PROJETO** (planejar todas as fases).
+fase). Senao, **MODO PROJETO** (arquitetura completa; plano em si e so da proxima fase, salvo `--profundo`).
+
+**`--profundo` presente:** planejar TODAS as fases (MODO PROJETO) ou a fase pedida com o pipeline
+pesado (MODO FASE), como na v3.0. **Sem a flag (default):** MODO PROJETO gera arquitetura completa mas
+so escreve PLAN.md da PROXIMA fase; MODO FASE escreve so o PLAN.md da fase pedida. Nos dois casos sem
+flag, quem escreve o PLAN.md e a propria sessao (ver Estagio 2.5), nao um `up-planejador` novo.
 
 ## Estagio 1: INTAKE (inline, sem CEO)
 
@@ -132,17 +143,23 @@ Agent(subagent_type="up-arquiteto", prompt="""
   - .plano/pesquisa/SUMMARY.md (se existir)
   - .plano/codebase/ARCHITECTURE.md, STACK.md, CONVENTIONS.md (se brownfield)
   - ~/.claude/up/owner-profile.md (stack preferida)
-  Sob demanda: $HOME/.claude/up/references/production-requirements.md
+  Sob demanda: $HOME/.claude/up/references/product-engineering.md
   </files_to_read>
 
   Pesquisa, roteiro e auto-checagem sao SEUS. Nao espere pesquisador, roteirista ou sintetizador.
   Se .plano/pesquisa/SUMMARY.md nao existe (greenfield), faca um passe de WebSearch e escreva-o.
 
+  Limite de fase (default, sem --profundo): cada fase cabe em ate ~5 entregas pedidas
+  (implicitos nao contam), 1 plano por padrao. Requisito demais para uma fase so: quebre em mais
+  fases no ROADMAP. Gere PHASE.md e REQUIREMENTS-SLICE.md SO da proxima fase ainda nao planejada
+  (as demais ficam so no ROADMAP, sem slice, ate a vez delas). Com --profundo: gere slice de todas.
+
   Produzir:
   - .plano/SYSTEM-DESIGN.md (modulos, roles, data model/schema, rotas, permissoes, blueprints de prod)
   - .plano/PROJECT.md (visao do produto, requisitos, decisoes-chave)
-  - .plano/ROADMAP.md (fases derivadas dos requisitos, com criterios de sucesso)
+  - .plano/ROADMAP.md (TODAS as fases derivadas dos requisitos, com criterios de sucesso, respeitando o limite)
   - .plano/REQUIREMENTS.md (REQ-IDs por categoria, rastreabilidade fase<->requisito)
+  - .plano/fases/{NN}/PHASE.md + REQUIREMENTS-SLICE.md (so da proxima fase, salvo --profundo: todas)
   - Auto-checagem: cada REQ especifico, testavel, mapeado a uma fase
 """)
 ```
@@ -172,12 +189,43 @@ O arquiteto ja escreveu e auto-checou os REQUIREMENTS no passo 1. Nao spawnar `u
 Se o orquestrador achar buraco obvio (REQ sem fase, fase sem criterio), devolve ao arquiteto
 na mesma rodada. Sem agente extra.
 
-## Estagio 2.5: PLANEJAMENTO EXAUSTIVO
+## Estagio 2.5: PLANEJAMENTO
 
-**Para CADA fase do ROADMAP (MODO PROJETO) ou para a fase pedida (MODO FASE), planejar AGORA.**
+**Sem `--profundo` (default): so a proxima fase ganha PLAN.md**, escrito pela PROPRIA SESSAO, sem
+spawnar `up-planejador`. MODO PROJETO: a proxima fase e a primeira do ROADMAP. MODO FASE: e a fase
+pedida no argumento.
+
+Proxima fase sem argumento: a primeira fase `- [ ]` do ROADMAP.md que ainda nao tem `*-PLAN.md` em
+`.plano/fases/` (`roadmap analyze`: primeira com `roadmap_complete: false` e `plan_count: 0`).
+
+### 2.5.a Escrever o PLAN.md na sessao (default)
+
+A sessao ja leu (ou acabou de gerar) `.plano/fases/{NN}/PHASE.md` e `REQUIREMENTS-SLICE.md`. Sem
+reabrir agente novo, escreva agora `.plano/fases/{NN}/{NN}-01-PLAN.md` (ou `-02`, `-03` so se a fase
+tiver areas disjuntas de verdade) usando `$HOME/.claude/up/templates/plan.md`:
+
+1. Objetivo em 1-3 frases (do PHASE.md).
+2. Fora de escopo: o que essa fase deliberadamente nao cobre.
+3. Ate ~5 entregas pedidas (`### N. titulo`), cada uma com `Implicitos:` (uma linha, so o que do
+   padrao de Product Engineer se aplica) e `Prova:` (uma linha, o tipo).
+4. Critério de pronto: 2-4 frases observaveis.
+5. Sem import, SQL, tipo, assinatura de funcao ou caminho de arquivo como receita.
 
 ```bash
-PHASES=$(node "$HOME/.claude/up/bin/up-tools.cjs" roadmap list-phases)
+node "$HOME/.claude/up/bin/up-tools.cjs" validate-plan .plano/fases/{NN}/{NN}-01-PLAN.md --raw
+```
+
+`validate-plan` so avisa (nunca bloqueia nem forca reescrever): leia `suggestions` e ajuste o plano so
+se a sugestao for obviamente correta (ex.: plano virou receita, tarefas demais). Commitar:
+
+```bash
+node "$HOME/.claude/up/bin/up-tools.cjs" commit "plan(${PHASE}): ${PLAN_NAME}" --files .plano/fases/${PHASE_DIR}/${PHASE}-01-PLAN.md
+```
+
+### 2.5.b `--profundo`: pipeline anterior, todas as fases
+
+```bash
+PHASES=$(node "$HOME/.claude/up/bin/up-tools.cjs" roadmap analyze --raw)
 ```
 
 Para cada fase, `up-planejador` faz self-check (sem camada de revisao intermediaria):
@@ -215,7 +263,7 @@ PLAN_COUNT=$(ls .plano/fases/${PHASE_DIR}/*-PLAN.md 2>/dev/null | wc -l)
 echo "OK: ${PLAN_COUNT} planos para fase ${phase_number}"
 ```
 
-**Repetir para cada fase (MODO PROJETO).**
+**Repetir para cada fase (MODO PROJETO com `--profundo`).**
 
 ## Estagio E: DECISOES ESCALADAS
 
@@ -294,8 +342,10 @@ Opções: Corrigir e re-revisar | Aceitar como dívida e seguir para o plano pro
 
 Usar template `$HOME/.claude/up/templates/plan-ready.md`. Preencher: planned_at, planned_by.runtime
 (detectar), intended_execution.runtime (flag --execution-runtime ou "same"), project_name, mode,
-total_phases/plans/requirements, planning_confidence (do AUDIT-PLAN.md com `--review`; senao, a
-confianca declarada pelo self-check do planejador), lista completa de planos e o campo `fora_de_escopo`.
+`profundo` (true so com a flag), total_phases (do ROADMAP, sempre completo)/total_plans (so os que
+tem PLAN.md agora: 1 fase sem `--profundo`, todas com `--profundo`), lista completa de planos com
+PLAN.md e o campo `fora_de_escopo`. Sem `planning_confidence` fora de `--review` (o AUDIT-PLAN.md
+so existe com a flag; sem revisao, o self-check basta e nao produz score).
 
 ```bash
 if [ -d ~/.claude ]; then RUNTIME="claude-code"
@@ -343,6 +393,18 @@ Estado completo em .plano/
 
 <flags>
 
+### --profundo
+Restaura o pipeline pesado da v3.0: `up-planejador` (subagente) planeja TODAS as fases de uma vez
+(MODO PROJETO) ou a fase pedida com pesquisa/self-check completo (MODO FASE), com o loop de
+`validate-plan` (refaz se `pass=false`) e o formato antigo de plano (must_haves goal-backward).
+Use para projeto grande, ou para planejar num runtime e executar em outro. Sem a flag (default), a
+propria sessao escreve o plano de uma pagina, sem spawnar planejador, e so a proxima fase e planejada.
+
+```bash
+/up:plan "CRM" --profundo
+/up:plan 7 --profundo
+```
+
 ### --execution-runtime=<runtime>
 Informa ao planejador qual runtime sera usado pra executar.
 Valores: `same` | `claude-code` | `opencode` | `gemini-cli` | `any`. Default: `same`.
@@ -371,9 +433,9 @@ Sem stream ao vivo: o board reflete so status. O `/up:build --board` continua a 
 - [ ] Owner profile validado
 - [ ] Intake consumido de BRIEFING.md (ou intake minimo inline, sem CEO)
 - [ ] Deteccao projeto vs fase (absorve discutir-fase/planejar-fase)
-- [ ] up-arquiteto gerou SYSTEM-DESIGN + PROJECT + ROADMAP + REQUIREMENTS (pesquisa, roteiro e validacao inline; sem pesquisador/roteirista/sintetizador)
-- [ ] TODAS as fases planejadas com PLAN.md (self-check do planejador)
-- [ ] Revisao de planejamento somente com `--review` (gera AUDIT-PLAN.md). Default: self-check do planejador
+- [ ] up-arquiteto gerou SYSTEM-DESIGN + PROJECT + ROADMAP + REQUIREMENTS (pesquisa, roteiro e validacao inline; sem pesquisador/roteirista/sintetizador), respeitando o limite de ~5 entregas por fase
+- [ ] Sem `--profundo`: so a proxima fase ganha PLAN.md, escrito pela sessao (sem `up-planejador`). Com `--profundo`: TODAS as fases planejadas com PLAN.md via `up-planejador` (self-check)
+- [ ] Revisao de planejamento somente com `--review` (gera AUDIT-PLAN.md). Default: self-check (do planejador com `--profundo`; da propria sessao sem a flag)
 - [ ] PLAN-READY.md gerado, todo plano listado existe no disco, committado
 - [ ] `--board` (se passado, MODO PROJETO): 1 issue-filha Multica por fase criada batched (via `multica init --from-roadmap`), idempotente e fail-open
 - [ ] Apresentacao = output do orquestrador (sem CEO)

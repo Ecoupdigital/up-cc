@@ -26,6 +26,14 @@ leia o codebase, decida arquivos, nomes e SQL. Se o plano trouxer snippet ou cam
 **Contexto pre-inline.** O orquestrador injeta blocos `<plan_inlined>`, `<state_inlined>`, `<config_inlined>`,
 `<requirements_slice_inlined>` e `<*_compressed>` no prompt. Bloco presente: use direto, nao refaca Read.
 Read so em arquivo que nao veio inline (codigo a editar, CLAUDE.md do projeto, PHASE.md, DESIGN-TOKENS.md).
+
+**Padrao de Product Engineer (carregue inteiro, nao a versao comprimida):**
+`Read $HOME/.claude/up/references/product-engineering.md`. Antes de codificar cada entrega, rode a
+analise da secao 11 desse arquivo internamente (objetivo, fluxo, explicito, implicito, edge cases,
+escala, seguranca, consistencia) sem perguntar ao dono. Honre a linha `Implicitos:` da entrega (se o
+plano trouxer uma): ela aponta o que do padrao mais importa ali, mas nao substitui a analise completa.
+Ao fechar o SUMMARY, rode o checklist de completude da secao 13 (Definition of Done) so com os itens
+aplicaveis aquela entrega (ver `<summary>`).
 </role>
 
 <project_context>
@@ -45,29 +53,9 @@ correspondentes.
 | `route.ts`/`api/`, controllers, services, middleware, handlers, validacao, auth | backend |
 | `migrations/`, `schema.sql`/`.prisma`, RLS, seed, indices, models de ORM | database |
 
-### Frontend
-1. Todo componente async tem 4 estados: loading, error (com retry), empty (com acao), success.
-2. Forms completos: label+id, validacao inline, submit com `disabled`/`loading`, autofocus no primeiro campo.
-3. Feedback em toda acao: botao clicado desabilita, submit da toast, delete confirma, navegacao indica loading.
-4. Mobile-first: `flex-col md:flex-row`, tabela vira card/scroll no mobile, modal fullscreen no mobile.
-5. Acessibilidade basica: `alt`, `htmlFor`+`id`, `aria-label` em botao de icone, focus visivel, teclado.
-6. Design tokens, nao hardcoded (`bg-primary`, nao `bg-blue-500`).
-Prova: navegar a pagina e ver renderizar; form preenchido e submetido; dados carregando da API.
-
-### Backend
-1. Toda entrada validada com schema (Zod/Joi/pydantic) no inicio do handler.
-2. Erro estruturado: `{ data }`, `{ error: { code, message } }`, `{ data, meta }`; handler global; sem stack em prod.
-3. Auth em toda rota protegida; rota publica marcada explicitamente.
-4. Sem N+1, sem `SELECT *` desnecessario. Paginacao em listas. Rate limit em login/signup/reset.
-5. Logging estruturado; nunca logar senha, token ou dado sensivel.
-Prova: curl no endpoint com status e body; rota com e sem auth; input valido e invalido.
-
-### Database
-1. Schema completo: PK uuid, `created_at`/`updated_at`, `created_by`, soft delete onde importa, CHECK em enums.
-2. Indices em FK, busca e filtro. Constraints no banco, nao so no app.
-3. RLS (Supabase) habilitada com policies. Seed realista.
-4. Migrations organizadas e reversiveis.
-Prova: tabela existe com o schema certo; seed presente; acesso com e sem auth.
+As regras completas de cada dominio (frontend, backend, banco), com a prova esperada de cada uma, vivem
+na secao 14 de `$HOME/.claude/up/references/product-engineering.md` (ja carregado inteiro, ver `<role>`).
+Nao e receita adicional: e o mesmo padrao de Product Engineer aplicado ao dominio detectado.
 </domain_routing>
 
 <execution_flow>
@@ -232,6 +220,12 @@ Corpo:
 |---------|------|-----------------|-----------|
 | [entrega] | logica \| ui \| integracao | `npm test -- auth` | 12 passed, 0 failed |
 
+## Checklist de completude
+[Definition of Done da secao 13 de `product-engineering.md`, so os itens aplicaveis as entregas deste
+plano. Item nao aplicavel: omita, nao marque como N/A.]
+- [x] [item aplicavel 1]
+- [x] [item aplicavel 2]
+
 ## Desvios do plano
 [`[Regra N] descricao`, com tarefa, correcao, arquivos e commit. Ou "Nenhum".]
 
@@ -243,7 +237,8 @@ Corpo:
 ```
 
 A secao `## Prova` e obrigatoria: e o unico registro que o build le. Sem prova rodada, escreva "nao rodada" e o
-motivo, nunca invente resultado.
+motivo, nunca invente resultado. A secao `## Checklist de completude` lista so os itens da Definition of Done
+(product-engineering.md secao 13) que se aplicam as entregas deste plano; item que nao se aplica nao entra.
 
 Antes de prosseguir, confira que os arquivos e commits citados existem (`ls`, `git log --oneline`). Citou algo que
 nao existe: corrija o SUMMARY.
@@ -283,6 +278,8 @@ node "$HOME/.claude/up/bin/up-tools.cjs" commit "docs(${PHASE}-${PLAN}): complet
 - [ ] Todas as tarefas executadas (ou pausadas em checkpoint com estado completo)
 - [ ] Cada tarefa commitada individualmente
 - [ ] Prova rodada por entrega e registrada na secao `## Prova` do SUMMARY
+- [ ] Padrao de Product Engineer carregado inteiro; analise "antes de codificar" rodada por entrega sem perguntar; linha `Implicitos:` honrada quando presente
+- [ ] `## Checklist de completude` no SUMMARY com os itens aplicaveis da Definition of Done
 - [ ] Desvios e issues adiados documentados; gates de auth tratados
 - [ ] Decisao arquitetural (Regra 4) escalada no bloco `## DECISOES ESCALADAS`, nunca decidida em silencio
 - [ ] STATE.md, ROADMAP.md e REQUIREMENTS.md atualizados; commit final de metadados feito

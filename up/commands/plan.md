@@ -1,7 +1,7 @@
 ---
 name: up:plan
 description: Use quando o usuario quer PLANEJAR antes de executar: gera .plano/PLAN-READY.md sem tocar em codigo, pronto pra /up:build rodar (mesmo runtime ou outro). Detecta automaticamente projeto vs fase.
-argument-hint: "[descricao | numero da fase] [--execution-runtime=runtime] [--no-audit] [--gaps]"
+argument-hint: "[descricao | numero da fase] [--profundo] [--execution-runtime=runtime] [--no-audit] [--gaps]"
 allowed-tools:
   - Read
   - Write
@@ -23,12 +23,18 @@ Absorve `/up:discutir-fase`, `/up:planejar-fase` e `/up:adicionar-fase`. **Detec
 - Argumento e descricao de projeto novo (sem `.plano/`) -> planeja o PROJETO INTEIRO (arquitetura + todas as fases).
 - Descricao de fase que nao existe no roadmap -> oferece criar a fase e ja planeja (absorve adicionar-fase).
 
-Conduz (projeto):
+Conduz (projeto, default sem `--profundo`):
 1. Intake (inline no orquestrador, sem CEO) — entrada = BRIEFING.md do brainstorm de `/up`
-2. Arquitetura completa (`up-arquiteto` faz pesquisa, roadmap e auto-checagem de requisitos num passe)
-3. Planejamento de TODAS as fases como contrato (objetivo, entregas, prova)
-4. `--review` spawna `up-revisor`; sem a flag, self-check do planejador basta
-5. Gera PLAN-READY.md (arquivo-flag pra `/up:build`)
+2. Arquitetura completa (`up-arquiteto` faz pesquisa, roadmap com limite de ~5 entregas por fase e
+   auto-checagem de requisitos num passe; slices PHASE.md/REQUIREMENTS-SLICE.md so da proxima fase)
+3. A propria sessao escreve o PLAN.md de uma pagina da proxima fase (template de uma pagina, sem
+   `up-planejador`)
+4. `--review` spawna `up-revisor`; sem a flag, o self-check da sessao basta
+5. Gera PLAN-READY.md (indice curto, arquivo-flag pra `/up:build`)
+
+**`--profundo`:** reproduz o pipeline anterior inteiro: `up-planejador` (subagente) planeja TODAS as
+fases de uma vez, com pesquisa, self-check e o loop de `validate-plan`. Use para projeto grande ou
+para planejar num runtime e executar em outro.
 
 **Caso de uso principal:** planejar em Claude Code (modelo capaz pra arquitetura) e executar em OpenCode/Gemini (mais barato pra rodar volume).
 </objective>
@@ -44,6 +50,9 @@ Conduz (projeto):
 $ARGUMENTS
 
 **Flags:**
+- `--profundo`: Restaura o pipeline pesado: `up-planejador` planeja TODAS as fases (ou a fase pedida
+  com pesquisa/self-check completo em MODO FASE), com o loop de `validate-plan`. Default: a sessao
+  escreve o plano de uma pagina direto, so da proxima fase, sem spawnar planejador.
 - `--execution-runtime=<runtime>` — Informa qual runtime sera usado pra executar.
   Valores: same | claude-code | opencode | gemini-cli | any. Default: same.
 - `--no-audit` — Pula o review de planejamento (agora e o default; flag mantida por compatibilidade).
@@ -78,18 +87,21 @@ Se NAO existir: rodar onboarding primeiro (workflow onboarding.md). Sem profile,
 
 **Execute the plan workflow from @~/.claude/up/workflows/plan.md end-to-end.**
 
-Estagios (PROJETO):
+Estagios (PROJETO, default sem `--profundo`):
 1. Intake inline (orquestrador le BRIEFING.md OU pergunta) — interativo
-2. Arquitetura: `up-arquiteto` (pesquisa inline + roadmap + auto-checagem). Sem pesquisador, roteirista ou sintetizador
-3. Planejamento exaustivo (TODAS as fases, self-check do planejador)
-4. `--review` spawna up-revisor; default e self-check
-5. PLAN-READY.md gerado
+2. Arquitetura: `up-arquiteto` (pesquisa inline + roadmap com limite de fase + auto-checagem). Sem pesquisador, roteirista ou sintetizador. Slices so da proxima fase
+3. A sessao escreve o PLAN.md de uma pagina da proxima fase, sem spawnar planejador
+4. `--review` spawna up-revisor; default e self-check da sessao
+5. PLAN-READY.md gerado (indice curto)
 6. Orquestrador apresenta o resumo direto (sem CEO)
 
-Estagios (FASE):
+Estagios (FASE, default sem `--profundo`):
 1. Coleta de contexto inline (ex-discutir-fase) -> CONTEXT.md
 2. Research inline (a menos que `--gaps` ou `--sem-pesquisa`)
-3. Planos PLAN-NNN.md + self-check (ex-planejar-fase)
+3. A sessao escreve o PLAN.md de uma pagina da fase pedida, sem spawnar planejador
+
+**`--profundo` (PROJETO ou FASE):** substitui os passos 3 acima por `up-planejador` (subagente),
+planejando TODAS as fases (PROJETO) com pesquisa e self-check completo, loop de `validate-plan`.
 
 **A partir do estagio 2 do projeto, ZERO interacao com usuario.** Toda decisao e tomada autonomamente pelo orquestrador.
 
@@ -100,7 +112,7 @@ Estagios (FASE):
 - [ ] Owner profile garantido
 - [ ] Projeto vs fase detectado automaticamente
 - [ ] Sem ceo-intake: intake inline no orquestrador
-- [ ] PROJETO: arquiteto (pesquisa + roadmap + auto-checagem) + planejador; revisor so com `--review`
-- [ ] FASE: contexto (ex-discutir) + research inline + planos + self-check
+- [ ] PROJETO: arquiteto (pesquisa + roadmap com limite de fase + auto-checagem) + sessao escreve o plano da proxima fase (planejador so com `--profundo`); revisor so com `--review`
+- [ ] FASE: contexto (ex-discutir) + research inline + sessao escreve o plano da fase (planejador so com `--profundo`)
 - [ ] PLAN-READY.md (projeto) ou PLAN-NNN.md (fase) gerados, nada executado
 </success_criteria>

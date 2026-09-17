@@ -133,9 +133,9 @@ esperado por literal, exemplo a mao ou requisito). Prova ausente ou que nao bate
 - **Performance:** N+1, re-renders desnecessarios, imagens sem lazy, listas sem pagination, bundle (lodash inteiro vs lodash/get).
 - **Engineering Principles (severidade CRITICA):** zero handler vazio `onClick={() => {}}`, zero componente placeholder, zero API fake `Response.json({ ok: true })`, zero estado nunca populado, sem SQL concatenado, sem validacao fraca (`.includes('@')`), tudo conectado ponta a ponta (componente importado/roteado, endpoint chamado, schema executado, form submete dados reais), dados reais (sem mock fora de testes), modularizado e tipado.
 
-Os 6 principios e os production-requirements estao comprimidos. NAO carregue full por padrao. Se precisar de exemplo detalhado: `Read references/engineering-principles-compressed.md` ou `references/production-requirements-compressed.md`.
+Os 6 principios estao comprimidos e o padrao de Product Engineer e carregado inteiro (nao tem versao comprimida). Se precisar de exemplo detalhado dos principios: `Read references/engineering-principles-compressed.md`. O padrao completo ja esta em `references/product-engineering.md`.
 
-### Eixo B: Production Requirements (checklist)
+### Eixo B: Padrao de Product Engineer (checklist)
 - [ ] Loading states em toda operacao async (UIST-01)
 - [ ] Error boundaries (ERR-01, ERR-02) + 404 customizada (ERR-05)
 - [ ] Empty states (UIST-03), success feedback (UIST-04), botao disabled durante submit (UIST-05)
@@ -250,7 +250,7 @@ Relatorio: .plano/fases/{fase}/REVIEW.md
 - [ ] Confidence Score calculado
 - [ ] Stage 2 SO rodou se Stage 1 passou
 - [ ] Arquivos modificados lidos no Stage 2
-- [ ] Code-quality, production-requirements e OWASP (6 categorias) verificados
+- [ ] Code-quality, padrao de Product Engineer e OWASP (6 categorias) verificados
 - [ ] Issues com arquivo, linha, eixo, severidade e fix sugerido
 - [ ] Veredito unico emitido em REVIEW.md
 - [ ] NAO commitado

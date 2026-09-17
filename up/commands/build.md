@@ -20,7 +20,7 @@ Absorve `/up:executar-fase`, `/up:executar-plano` e a parte de EXECUCAO do antig
 
 Conduz, por fase:
 1. Validacao light do plano (artefatos existem, planos OK)
-2. Execucao em ONDAS PARALELAS (varios `up-executor` por onda; planejador local se precisar replan)
+2. Execucao por onda: 1 plano roda na sessao (sem spawn); 2+ planos em ONDAS PARALELAS (varios `up-executor`); planejador local se precisar replan
 3. Conferencia dos SUMMARYs (secao `## Prova` de cada plano) e `verify-static` se o projeto tiver suite
 4. `--review` (opt-in): `up-verificador` + `up-revisor` two-stage. `--testar` (opt-in): laco DCRV
 5. Teste visual antes do merge (fase de UI) + menu de fim de fase
@@ -89,7 +89,7 @@ Se algo falta: alertar e oferecer planejamento local OU abortar.
 Pipeline por fase:
 1. Validacao light
 2. `github start-phase` (worktree + issue via gh OU MCP; pulado so em `--local`)
-3. Execucao em ONDAS PARALELAS: os planos da mesma onda rodam ao mesmo tempo (varios `up-executor`); ondas em sequencia. Re-plan local se algum plano ficar inviavel.
+3. Execucao por onda: onda de 1 plano roda na propria sessao, sem spawnar `up-executor`; onda de 2+ planos roda em ONDAS PARALELAS (varios `up-executor` ao mesmo tempo). Ondas em sequencia. Re-plan local se algum plano ficar inviavel.
 4. Conferir cada SUMMARY (secao `## Prova` presente, diff bate com o relato) e rodar `verify-static` se o projeto tiver suite
 5. Decisoes escaladas pelos executores viram pergunta ao dono
 6. `--review`: up-verificador + up-revisor two-stage. Sem a flag, pular
@@ -107,7 +107,7 @@ Se ficar inviavel, o up-planejador LOCAL refaz a fase. Registrar em `.plano/gove
 <success_criteria>
 - [ ] PLAN-READY.md validado
 - [ ] Flags parseadas (default = GitHub-nativo; --solo/--auto = autonomia mantendo GitHub; --local = escape sem GitHub)
-- [ ] Build rodou todas as fases; planos da mesma onda em paralelo
+- [ ] Build rodou todas as fases; onda de 1 plano na sessao, onda de 2+ planos em paralelo
 - [ ] Todo plano com SUMMARY e secao `## Prova`
 - [ ] Teste visual pre-merge em fase de UI (require_visual_test; pulado em --solo)
 - [ ] Fechamento por fase: menu (GitHub-nativo), auto-merge (--solo/--auto) ou commit na branch (--local)

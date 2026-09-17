@@ -1,6 +1,6 @@
 {
   "name": "up-cc",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Spec-driven development for Claude Code, Gemini, OpenCode and OpenAI Codex. Brainstorm-first, GitHub-native, prova por tipo.",
   "bin": {
     "up-cc": "up/bin/install.js"
