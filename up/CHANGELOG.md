@@ -4,6 +4,43 @@ Todas as mudancas relevantes do `up-cc` ficam documentadas aqui. O formato segue
 o espirito de [Keep a Changelog](https://keepachangelog.com/) e o versionamento
 e [SemVer](https://semver.org/). v2.0.0 e um **major** (breaking change).
 
+## 4.0.0
+
+> Segunda metade da v4 (fase 24). O modelo forte planeja e diz onde mexer e como provar; o build
+> segue, ate num modelo menor. Plan e build ganham uma porta automatica, e o que nao estava no
+> caminho quente sai. Major porque remove agentes e verbos do `up-tools`.
+
+### Adicionado
+
+- **Plano concreto.** Cada entrega do PLAN.md diz `Onde:` (arquivos ou areas, descobertos lendo o
+  codigo) e `Prova:` com o comando exato (ou "captura de /rota"). Receita de codigo continua
+  proibida. `validate-plan` avisa entrega sem `Onde:` ou sem comando (aviso: plano antigo segue
+  executavel e passando).
+- **`up-tools plan close`.** Gera `.plano/PLAN-READY.md` a partir dos PLAN.md pendentes (fase,
+  plano, onda), confere que existem e commita com ROADMAP e STATE. O modelo nao escreve mais o
+  PLAN-READY a mao.
+- **`/up:auto "ideia"`** (8o comando). Brainstorm minimo, plan da proxima fase e `build --solo`,
+  fase a fase (`--uma` para depois de uma). Para em `verify-static` falhando duas vezes, decisao
+  escalada que muda escopo ou credencial. Instalado nos quatro runtimes.
+
+### Mudado
+
+- **`/up:plan` enxuto.** Caminho padrao de ~33 KB para ~11 KB (comando + workflow + template).
+  `--profundo`, `--review`, `--board` e `--gaps` foram para `up/workflows/plan-profundo.md`, lido so
+  com a flag. Onboarding e `audit-plan` sao lidos so quando precisam.
+- **`up-executor`** comeca pelos arquivos de `Onde:` e roda o comando de `Prova:` do plano.
+- **Merge do PR sem `--delete-branch`.** O `gh` falhava ao apagar a branch local presa na worktree e
+  reportava `pr_merge_failed` com o PR mergeado. Agora o merge confere o estado do PR, apaga a branch
+  remota depois do cleanup e alinha a base local ao remoto.
+
+### Removido
+
+- Agentes `up-pesquisador`, `up-sintetizador` e `up-roteirista` (o arquiteto e o auditor ja faziam o
+  papel). Sao 9 agentes.
+- Verbos do `up-tools` sem uso: `init` executar-fase, novo-projeto, retomar, progresso,
+  verificar-trabalho, melhorias, ideias e iniciar; `budget`, `resolve-model-for-plan`,
+  `routing-log` e `analyze-routing`.
+
 ## 3.2.0
 
 > Funciona bem, mas o build era lento e caro: antes da primeira linha de codigo o modelo lia ~82 KB de
