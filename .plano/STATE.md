@@ -10,7 +10,7 @@
 
 **Fase**: 24 de 24 (planejada). 17, 18 e 20 canceladas; 19 pendente
 **Plano**: 24-01 (onda 1) planejado, contrato em `.plano/BRIEFING-v4-build-rapido.md`
-**Status**: Fase 24 planejada em 2026-11-13
+**Status**: Fase 24 completa em 2026-11-13 (build close)
 **Progresso**:
 ```
 Ciclo 1: fases 1 a 10               [████████████████████] Concluido (detalhe no ROADMAP.md)
