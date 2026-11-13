@@ -122,6 +122,9 @@ function loadConfig(cwd) {
     // Fim de fase: se a fase tem UI, sobe dev server e exige aprovacao visual ANTES do merge.
     // true por padrao (projeto em producao nao mergeia sem o dono ver na tela). --auto so pula se false.
     require_visual_test: true,
+    // Modelo do executor no /up:build. inherit = o da sessao (onda de 1 plano roda inline).
+    // sonnet|haiku|opus = spawna up-executor nesse modelo, a sessao so abre, confere e fecha.
+    build_model: 'inherit',
   };
 
   try {
@@ -139,6 +142,7 @@ function loadConfig(cwd) {
       github_native: parsed.github_native ?? defaults.github_native,
       merge_strategy: parsed.merge_strategy ?? defaults.merge_strategy,
       require_visual_test: parsed.require_visual_test ?? defaults.require_visual_test,
+      build_model: parsed.build_model ?? defaults.build_model,
     };
   } catch {
     return defaults;

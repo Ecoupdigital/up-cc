@@ -142,17 +142,14 @@ Esta é a lista fechada:
 | plan.intake-minimo | Planejamento | up/workflows/plan.md | O que falta para planejar quando não há briefing |
 | plan.decisoes-escaladas | Planejamento | up/workflows/plan.md | As decisões que os agentes escalaram |
 | plan.revisor-bloqueou | Planejamento | up/workflows/plan.md | O que fazer quando a revisão do planejamento bloqueia |
-| build.runtime-divergente | Confirmação de início | up/workflows/build.md | Seguir com runtime diferente do planejado |
-| build.plano-incompleto | Confirmação de início | up/workflows/build.md | O que fazer quando falta artefato do plano |
 | build.iniciar-execucao | Confirmação de início | up/workflows/build.md | Iniciar a execução |
 | build.onda-falhou | Confirmação de início | up/workflows/build.md | Como seguir quando uma onda inteira falha |
 | build.estatica-falhou | Fechamento de fase | up/workflows/build.md | Como seguir quando a prova estática ainda falha depois da correção |
-| build.replan-esgotado | Confirmação de início | up/workflows/build.md | Como seguir quando o limite de re-planejamento acaba |
 | build.decisoes-escaladas | Confirmação de início | up/workflows/build.md | As decisões de arquitetura que os executores escalaram durante a execução da fase |
 | build.testar-antes-do-merge | Gate visual pré-merge | up/workflows/build.md | Testar na tela antes de aterrissar a fase |
 | build.aprovou-ou-ajusta | Gate visual pré-merge | up/workflows/build.md | Aprovar ou pedir ajuste depois de testar |
 | build.fechamento-fase | Fechamento de fase | up/workflows/build.md | Como aterrissar a fase |
-| build.revisor-bloqueou | Fechamento de fase | up/workflows/build.md | O que fazer quando a revisão da fase bloqueia |
+| build.revisor-bloqueou | Fechamento de fase | up/workflows/build-optins.md | O que fazer quando a revisão da fase bloqueia |
 | auditar.relatorio-existente | Auditoria | up/workflows/auditar.md | Sobrescrever ou manter o relatório anterior |
 | auditar.converter-em-fases | Auditoria | up/workflows/auditar.md | Converter achados aprovados em fases |
 

@@ -30,6 +30,8 @@
 - [x] **Fase 20: Névoa e fronteira do roadmap** - CANCELADA em 2026-09-16 (direção leve; motivo em `.plano/fora-de-escopo/`)
 - [x] **Fase 21: UP leve (v3)** - Corte da máquina de verificação: sem gate, sem log de aprovações, sem fronteiras, prova por tipo no SUMMARY (completed 2026-09-11)
 - [x] **Fase 22: Plan e build leves** - Plano de uma página escrito na sessão, limite de fase, build na sessão com 1 plano, padrão de Product Engineer no executor (v3.1.0) (completed 2026-09-16)
+- [x] **Fase 23: Build rápido** - `build open/close` no up-tools, executor de uma página, SUMMARY curto, `build_model` configurável, verify-static trava o merge (completed 2026-11-13)
+- [ ] **Fase 24: Plano concreto e /up:auto** - `Onde:` e comando de prova por entrega, `/up:auto`, `--profundo` em arquivo separado, corte de agentes e verbos legados
 
 ## Detalhes das Fases
 
@@ -349,6 +351,33 @@
 **Prova exigida**: teste (`npm run test:up`) e smoke (instalação em HOME temporário)
 **Planos**: 1 plano (22-01), onda 1
 
+### Fase 23: Build rápido
+**Objetivo**: `/up:build` roda com pouca instrução e sem idas e voltas de cerimônia, a ponto de um modelo menor executar bem. Dois verbos do `up-tools` abrem e fecham a fase; executor de uma página; `build_model` no config.
+**Depende de**: Fase 22
+**Bloqueia**: Fase 24
+**Contrato**: `.plano/BRIEFING-v4-build-rapido.md` (seções A, C e D; direção aprovada em 2026-11-13)
+**Critérios de Sucesso** (o que deve ser VERDADE):
+  1. `up-tools build open` e `build close` existem e cobrem toda a cerimônia da fase
+  2. Caminho padrão do `/up:build` faz no máximo 2 chamadas de cerimônia e carrega <= ~10 KB de instrução
+  3. `verify-static` falhando impede o merge
+  4. `build_model` diferente do modelo da sessão faz o executor rodar nesse modelo
+  5. Suíte do UP verde e instalação nos quatro runtimes sem erro
+**Prova exigida**: teste (`npm run test:up`) e smoke (fase de brinquedo em `--local`; instalação em HOME temporário)
+**Planos**: 1 plano (23-01), onda 1
+
+### Fase 24: Plano concreto e /up:auto
+**Objetivo**: Plano diz onde mexer e como provar cada entrega; `/up:auto` faz plan e build de ponta a ponta; o que não está no caminho quente sai.
+**Depende de**: Fase 23
+**Bloqueia**: Nada
+**Contrato**: `.plano/BRIEFING-v4-build-rapido.md` (seções B, E e F)
+**Critérios de Sucesso** (o que deve ser VERDADE):
+  1. Template de plano exige `Onde:` e comando de prova; `validate-plan` avisa a falta
+  2. `/up:auto "ideia"` instalado nos quatro runtimes
+  3. `/up:plan` padrão carrega <= ~12 KB; `--profundo` vive em arquivo próprio
+  4. `up-pesquisador`, `up-sintetizador`, `up-roteirista` e os verbos legados do `up-tools` removidos sem referência sobrando
+**Prova exigida**: teste e smoke de instalação
+**Planos**: a planejar
+
 ## Grafo de bloqueio do ciclo 2
 
 Declarado como aresta, e não como ordem arbitrária. É o item 7 do briefing aplicado ao próprio roadmap antes de o mecanismo existir. O grafo tem duas camadas, e elas não se misturam: **dependência lógica**, que vira aresta, e **posse de arquivo**, que é exclusão mútua e não vira aresta.
@@ -409,3 +438,5 @@ De onde a posse de arquivo passa a vir em tempo de execução, agora que a regra
 | 20. Névoa e fronteira do roadmap | 0/5 | Cancelada | 2026-09-16 |
 | 21. UP leve (v3) | 1/1 | Completa | 2026-09-11 |
 | 22. Plan e build leves | 1/1 | Completa | 2026-09-16 |
+| 23. Build rápido | 1/1 | Completa | 2026-11-13 |
+| 24. Plano concreto e /up:auto | 0/? | Pendente | - |

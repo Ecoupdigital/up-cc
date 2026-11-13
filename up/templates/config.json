@@ -4,5 +4,6 @@
   "commit_docs": true,
   "auto_advance": false,
   "instrumentation": { "enabled": true },
-  "budget_ceiling": null
+  "budget_ceiling": null,
+  "build_model": "inherit"
 }

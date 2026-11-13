@@ -1,190 +1,35 @@
 # Summary Template
 
-Template for `.plano/fases/XX-name/{phase}-{plan}-SUMMARY.md` - phase completion documentation.
-
----
-
-## File Template
+Arquivo: `.plano/fases/NN-nome/{fase}-{plano}-SUMMARY.md`. Curto: quem le e o `build close` e o dono.
 
 ```markdown
 ---
-phase: XX-name
-plan: YY
-subsystem: [primary category: auth, payments, ui, api, database, infra, testing, etc.]
-tags: [searchable tech: jwt, stripe, react, postgres, prisma]
-
-# Dependency graph
-requires:
-  - phase: [prior phase this depends on]
-    provides: [what that phase built that this uses]
-provides:
-  - [bullet list of what this phase built/delivered]
-affects: [list of phase names or keywords that will need this context]
-
-# Tech tracking
-tech-stack:
-  added: [libraries/tools added in this phase]
-  patterns: [architectural/code patterns established]
-
-key-files:
-  created: [important files created]
-  modified: [important files modified]
-
-key-decisions:
-  - "Decision 1"
-  - "Decision 2"
-
-patterns-established:
-  - "Pattern 1: description"
-  - "Pattern 2: description"
-
-requirements-completed: []  # Copy ALL requirement IDs from this plan's requirements field.
-
-# Metrics
-duration: Xmin
+phase: NN-nome
+plan: NN-MM
 completed: YYYY-MM-DD
 ---
 
-# Phase [X]: [Name] Summary
+# Fase N Plano M: [Nome]
 
-**[Substantive one-liner describing outcome - NOT "phase complete" or "implementation finished"]**
-
-## Performance
-
-- **Duration:** [time] (e.g., 23 min, 1h 15m)
-- **Started:** [ISO timestamp]
-- **Completed:** [ISO timestamp]
-- **Tasks:** [count completed]
-- **Files modified:** [count]
-
-## Accomplishments
-- [Most important outcome]
-- [Second key accomplishment]
-- [Third if applicable]
-
-## Task Commits
-
-Each task was committed atomically:
-
-1. **Task 1: [task name]** - `abc123f` (feat/fix/test/refactor)
-2. **Task 2: [task name]** - `def456g` (feat/fix/test/refactor)
-3. **Task 3: [task name]** - `hij789k` (feat/fix/test/refactor)
-
-**Plan metadata:** `lmn012o` (docs: complete plan)
-
-_Note: TDD tasks may have multiple commits (test -> feat -> refactor)_
+**[Uma linha com o que ficou verdadeiro. Ex.: "Login com e-mail e refresh rotativo via jose", nunca "plano completo".]**
 
 ## Prova
 
 | Entrega | Tipo | Comando ou acao | Resultado |
 |---------|------|-----------------|-----------|
-| [entrega] | logica \| ui \| integracao | `npm test -- auth` | 12 passed, 0 failed |
+| 1. [titulo] | logica \| ui \| integracao | `npm test -- auth` | 12 passed, 0 failed |
 
-Secao obrigatoria: e o unico registro de prova que o build le. Prova nao rodada: escreva "nao rodada" e o motivo.
+## Commits
 
-## Checklist de completude
+- `abc123f` feat(NN-MM): [descricao]
 
-[Definition of Done de `up/references/product-engineering.md` (secao 13), so os itens aplicaveis as
-entregas deste plano. Item nao aplicavel: omita, nao marque como N/A.]
+## Desvios
 
-- [x] [item aplicavel 1]
-- [x] [item aplicavel 2]
+[Correcoes fora do plano e o que ficou de fora, uma linha cada. Ou "Nenhum".]
 
-## Files Created/Modified
-- `path/to/file.ts` - What it does
-- `path/to/another.ts` - What it does
+## DECISOES ESCALADAS
 
-## Decisions Made
-[Key decisions with brief rationale, or "None - followed plan as specified"]
-
-## Deviations from Plan
-
-[If no deviations: "None - plan executed exactly as written"]
-
-[If deviations occurred:]
-
-### Auto-fixed Issues
-
-**1. [Rule X - Category] Brief description**
-- **Found during:** Task [N] ([task name])
-- **Issue:** [What was wrong]
-- **Fix:** [What was done]
-- **Files modified:** [file paths]
-- **Verification:** [How it was verified]
-- **Committed in:** [hash] (part of task commit)
-
-[... repeat for each auto-fix ...]
-
----
-
-**Total deviations:** [N] auto-fixed ([breakdown by rule])
-**Impact on plan:** [Brief assessment]
-
-## Issues Encountered
-[Problems and how they were resolved, or "None"]
-
-## User Setup Required
-
-[If USER-SETUP.md was generated:]
-**External services require manual configuration.** See [{phase}-USER-SETUP.md](./{phase}-USER-SETUP.md) for:
-- Environment variables to add
-- Dashboard configuration steps
-- Verification commands
-
-[If no USER-SETUP.md:]
-None - no external service configuration required.
-
-## Next Phase Readiness
-[What's ready for next phase]
-[Any blockers or concerns]
-
----
-*Phase: XX-name*
-*Completed: [date]*
+[So se houve. Por decisao: Decisao / Recomendo / Porque / Alternativas. Sem decisao: omita a secao.]
 ```
 
-<frontmatter_guidance>
-**Purpose:** Enable automatic context assembly via dependency graph. Frontmatter makes summary metadata machine-readable so plan-phase can scan all summaries quickly and select relevant ones based on dependencies.
-
-**Fast scanning:** Frontmatter is first ~25 lines, cheap to scan across all summaries without reading full content.
-
-**Dependency graph:** `requires`/`provides`/`affects` create explicit links between phases, enabling transitive closure for context selection.
-
-**Subsystem:** Primary categorization for detecting related phases.
-
-**Tags:** Searchable technical keywords for tech stack awareness.
-
-**Key-files:** Important files for @context references in PLAN.md.
-
-**Patterns:** Established conventions future phases should maintain.
-</frontmatter_guidance>
-
-<one_liner_rules>
-The one-liner MUST be substantive:
-
-**Good:**
-- "JWT auth with refresh rotation using jose library"
-- "Prisma schema with User, Session, and Product models"
-- "Dashboard with real-time metrics via Server-Sent Events"
-
-**Bad:**
-- "Phase complete"
-- "Authentication implemented"
-- "Foundation finished"
-- "All tasks done"
-
-The one-liner should tell someone what actually shipped.
-</one_liner_rules>
-
-<guidelines>
-**Frontmatter:** MANDATORY - complete all fields. Enables automatic context assembly for future planning.
-
-**One-liner:** Must be substantive. "JWT auth with refresh rotation using jose library" not "Authentication implemented".
-
-**Decisions section:**
-- Key decisions made during execution with rationale
-- Extracted to STATE.md accumulated context
-- Use "None - followed plan as specified" if no deviations
-
-**After creation:** STATE.md updated with position, decisions, issues.
-</guidelines>
+`## Prova` e obrigatoria. Prova nao rodada: escreva "nao rodada" e o motivo, nunca invente resultado.
