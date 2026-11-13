@@ -141,7 +141,7 @@ Esta é a lista fechada:
 | brainstorm.checkpoint | Brainstorm | up/skills/up-brainstorm/SKILL.md | Fechar a rodada ou continuar perguntando |
 | plan.intake-minimo | Planejamento | up/workflows/plan.md | O que falta para planejar quando não há briefing |
 | plan.decisoes-escaladas | Planejamento | up/workflows/plan.md | As decisões que os agentes escalaram |
-| plan.revisor-bloqueou | Planejamento | up/workflows/plan.md | O que fazer quando a revisão do planejamento bloqueia |
+| plan.revisor-bloqueou | Planejamento | up/workflows/plan-profundo.md | O que fazer quando a revisão do planejamento bloqueia |
 | build.iniciar-execucao | Confirmação de início | up/workflows/build.md | Iniciar a execução |
 | build.onda-falhou | Confirmação de início | up/workflows/build.md | Como seguir quando uma onda inteira falha |
 | build.estatica-falhou | Fechamento de fase | up/workflows/build.md | Como seguir quando a prova estática ainda falha depois da correção |

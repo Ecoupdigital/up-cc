@@ -26,6 +26,7 @@ const REGEX_TAG = /<pergunta id="([^"]+)">([\s\S]*?)<\/pergunta>/g;
 const ARQUIVOS_SUPERFICIE = [
   'up/workflows/up.md',
   'up/workflows/plan.md',
+  'up/workflows/plan-profundo.md',
   'up/workflows/build.md',
   'up/workflows/build-optins.md',
   'up/workflows/auditar.md',
