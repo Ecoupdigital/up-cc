@@ -404,6 +404,12 @@ function main() {
       break;
     }
 
+    // ==================== PLAN (v4: PLAN-READY gerado em codigo) ====================
+    case 'plan': {
+      require('./lib/plan.cjs').run(cwd, args.slice(1));
+      break;
+    }
+
     // ==================== MULTICA (Fase 5: board OPT-IN) ====================
     case 'multica': {
       cmdMultica(cwd, args.slice(1), raw);
@@ -2723,6 +2729,14 @@ function cmdValidatePlan(cwd, args, raw) {
     suggestions.push('Add a <verification> block or must_haves frontmatter so the verifier can check completion.');
   }
 
+  // Plano concreto (v4): entrega sem `Onde:` ou sem comando em `Prova:` vira aviso. Nao
+  // mexe em `pass`: plano antigo sem `Onde:` continua executavel.
+  const concreto = require('./lib/plan.cjs').deliveryWarnings(content);
+  for (const w of concreto) {
+    const falta = w.missing.map(x => (x === 'onde' ? '`Onde:` (arquivos ou areas)' : 'comando em `Prova:`')).join(' e ');
+    suggestions.push(`Entrega "${w.delivery}" sem ${falta}.`);
+  }
+
   const pass = issues.length === 0;
 
   output(
@@ -2733,6 +2747,7 @@ function cmdValidatePlan(cwd, args, raw) {
       tasks,
       frontmatter_keys: fmKeys,
       has_verification: hasVerification,
+      delivery_warnings: concreto,
       issues,
       suggestions,
       limits: { max_bytes: flags.maxBytes, max_tasks: flags.maxTasks },
