@@ -477,11 +477,19 @@ function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
 
       const stratFlag = mergeStrategy === 'merge' ? '--merge' : mergeStrategy === 'rebase' ? '--rebase' : '--squash';
       const mergeTarget = pr ? String(pr) : branch;
-      const merge = execGh(cwd, ['pr', 'merge', mergeTarget, stratFlag, '--delete-branch']);
-      if (merge.exitCode !== 0) {
-        warnings.push('pr_merge_failed: ' + (merge.stderr || merge.stdout));
-      } else {
+      // Sem --delete-branch: o gh tenta apagar a branch LOCAL, que falha enquanto a
+      // worktree existe e devolve erro mesmo com o PR mergeado. A branch remota e a
+      // local saem abaixo, depois do cleanup da worktree.
+      const merge = execGh(cwd, ['pr', 'merge', mergeTarget, stratFlag]);
+      let merged = merge.exitCode === 0;
+      if (!merged) {
+        const view = execGh(cwd, ['pr', 'view', mergeTarget, '--json', 'state', '-q', '.state']);
+        merged = view.exitCode === 0 && view.stdout.trim() === 'MERGED';
+        if (!merged) warnings.push('pr_merge_failed: ' + (merge.stderr || merge.stdout));
+      }
+      if (merged) {
         entry.status = 'merged';
+        entry.delete_remote = true;
       }
     } else {
       // FAIL-OPEN: merge LOCAL (sem remote/gh)
@@ -505,7 +513,29 @@ function finishPhase({ cwd, phase, mode = 'menu', strategy }) {
       }
     }
 
+    const headRes = execGit(cwd, ['rev-parse', '--verify', '-q', branch]);
+    const branchHead = headRes.exitCode === 0 ? headRes.stdout.trim() : null;
+
     cleanupWorktreeBranch(cwd, worktree, branch, warnings);
+
+    if (entry.delete_remote) {
+      delete entry.delete_remote;
+      const delRemote = execGit(cwd, ['push', 'origin', '--delete', branch]);
+      if (delRemote.exitCode !== 0 && !/remote ref does not exist/.test(delRemote.stderr + delRemote.stdout)) {
+        warnings.push('remote_branch_delete_failed: ' + (delRemote.stderr || delRemote.stdout));
+      }
+      // Traz o merge do PR pra base local. Fast-forward quando da; senao, se todo
+      // commit local da base ja estava na branch da fase (o squash do PR os contem),
+      // alinha a base com o remoto via reset --keep (preserva mudancas nao commitadas).
+      execGit(cwd, ['fetch', 'origin', base]);
+      const ff = execGit(cwd, ['merge', '--ff-only', `origin/${base}`]);
+      if (ff.exitCode !== 0) {
+        const contido = branchHead
+          && execGit(cwd, ['merge-base', '--is-ancestor', base, branchHead]).exitCode === 0;
+        const reset = contido ? execGit(cwd, ['reset', '--keep', `origin/${base}`]) : null;
+        if (!reset || reset.exitCode !== 0) warnings.push('base_ff_failed: rode git pull na ' + base);
+      }
+    }
 
     entry.pr = pr;
     entry.pr_url = prUrl;
