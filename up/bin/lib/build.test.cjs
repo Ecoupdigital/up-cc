@@ -103,6 +103,13 @@ t('open --local: ondas, build_model default e lock', () => {
   assert.ok(fs.existsSync(path.join(dir, '.plano', 'runtime', 'build.lock.json')), 'lock nao escrito');
 });
 
+t('open: plano pouco concreto abre igual, com aviso', () => {
+  const dir = mkProject(); // fixture: "Prova: teste." sem comando
+  const r = build.openPhase({ cwd: dir, phase: '1', local: true });
+  assert.deepStrictEqual(r.pending_plans, ['01-01']);
+  assert.ok(r.warnings.some(w => /01-01 pouco concreto/.test(w)), r.warnings.join(' | '));
+});
+
 t('open: build_model vem do config', () => {
   const dir = mkProject({ config: { build_model: 'sonnet' } });
   const r = build.openPhase({ cwd: dir, phase: '1', local: true });
