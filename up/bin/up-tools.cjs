@@ -20,6 +20,7 @@
  *   timestamp [full|date|filename]
  *   slug <text>
  *   phase-plan-index <phase>
+ *   build open|close --phase N (cerimonia do /up:build)
  *   state-snapshot
  *   summary-extract <path> [--fields field1,field2]
  */
@@ -394,6 +395,12 @@ function main() {
       } else {
         error('Unknown github subcommand. Available: start-phase, finish-phase, record-issue, record-pr, status');
       }
+      break;
+    }
+
+    // ==================== BUILD (Fase 23: cerimonia do /up:build em dois verbos) ====================
+    case 'build': {
+      require('./lib/build.cjs').run(cwd, args.slice(1));
       break;
     }
 
@@ -3307,164 +3314,20 @@ function cmdAnalyzeRouting(cwd, raw) {
  * Each check's full output is written to .plano/runtime/verify-static-<check>.log
  */
 function cmdVerifyStatic(cwd, args, raw) {
-  const flags = {
-    lint: false,
-    typecheck: false,
-    test: false,
-    audit: false,
-    all: false,
-    skipMissing: false,
+  const opts = {
+    lint: args.includes('--lint'),
+    typecheck: args.includes('--typecheck'),
+    test: args.includes('--test'),
+    audit: args.includes('--audit'),
+    all: args.includes('--all'),
+    skipMissing: args.includes('--skip-missing'),
   };
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i];
-    if (a === '--lint') flags.lint = true;
-    else if (a === '--typecheck') flags.typecheck = true;
-    else if (a === '--test') flags.test = true;
-    else if (a === '--audit') flags.audit = true;
-    else if (a === '--all') flags.all = true;
-    else if (a === '--skip-missing') flags.skipMissing = true;
-  }
-  // Default: run all, skip if script missing
-  if (!flags.lint && !flags.typecheck && !flags.test && !flags.audit && !flags.all) {
-    flags.all = true;
-    flags.skipMissing = true;
-  }
-
-  const { execSync } = require('child_process');
-  const runtimeDir = path.join(cwd, '.plano', 'runtime');
-  try { fs.mkdirSync(runtimeDir, { recursive: true }); } catch {}
-
-  // Read package.json scripts to know what's available
-  let scripts = {};
-  try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));
-    scripts = pkg.scripts || {};
-  } catch {}
-
-  const checks = [];
-  const start = Date.now();
-
-  function runCheck(name, cmd, condition) {
-    if (!condition) return null;
-    const logPath = path.join(runtimeDir, `verify-static-${name}.log`);
-    try {
-      const out = execSync(cmd, {
-        cwd,
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        timeout: 300000, // 5min cap per check
-      });
-      fs.writeFileSync(logPath, out);
-      return {
-        name,
-        status: 'pass',
-        exit_code: 0,
-        summary: `${name} passed`,
-        output_path: path.relative(cwd, logPath),
-      };
-    } catch (err) {
-      const out = (err.stdout || '') + (err.stderr || '');
-      fs.writeFileSync(logPath, out);
-      // Extract short summary: last few non-empty lines or error counts
-      const lines = out.split('\n').filter(l => l.trim());
-      const tail = lines.slice(-5).join(' | ').slice(0, 300);
-      return {
-        name,
-        status: 'fail',
-        exit_code: err.status || 1,
-        summary: tail || err.message,
-        output_path: path.relative(cwd, logPath),
-      };
-    }
-  }
-
-  function maybeSkip(name) {
-    if (flags.skipMissing) {
-      return { name, status: 'skip', exit_code: null, summary: 'script not found in package.json', output_path: null };
-    }
-    return null;
-  }
-
-  // Lint
-  if (flags.all || flags.lint) {
-    if (scripts.lint) {
-      checks.push(runCheck('lint', 'npm run lint --silent', true));
-    } else {
-      const skip = maybeSkip('lint');
-      if (skip) checks.push(skip);
-    }
-  }
-
-  // Typecheck
-  if (flags.all || flags.typecheck) {
-    const cmd = scripts.typecheck ? 'npm run typecheck --silent' :
-                scripts['type-check'] ? 'npm run type-check --silent' :
-                fs.existsSync(path.join(cwd, 'tsconfig.json')) ? 'npx tsc --noEmit' : null;
-    if (cmd) {
-      checks.push(runCheck('typecheck', cmd, true));
-    } else {
-      const skip = maybeSkip('typecheck');
-      if (skip) checks.push(skip);
-    }
-  }
-
-  // Test — detect runner and pick the right non-interactive flag
-  if (flags.all || flags.test) {
-    if (scripts.test) {
-      // Read deps to detect vitest (default watch mode needs --run to exit)
-      let testCmd = 'npm test --silent';
-      try {
-        const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));
-        const allDeps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
-        if (allDeps.vitest) testCmd = 'npm test --silent -- --run';
-        // jest, mocha, jasmine, ava, tap, etc. exit on completion by default
-      } catch {}
-      // Allow override via env: UP_VERIFY_TEST_CMD
-      if (process.env.UP_VERIFY_TEST_CMD) testCmd = process.env.UP_VERIFY_TEST_CMD;
-      checks.push(runCheck('test', testCmd, true));
-    } else {
-      const skip = maybeSkip('test');
-      if (skip) checks.push(skip);
-    }
-  }
-
-  // Audit
-  if (flags.all || flags.audit) {
-    // npm audit always runs if package.json exists
-    if (Object.keys(scripts).length > 0 || fs.existsSync(path.join(cwd, 'package.json'))) {
-      checks.push(runCheck('audit', 'npm audit --audit-level=high --silent', true));
-    } else {
-      const skip = maybeSkip('audit');
-      if (skip) checks.push(skip);
-    }
-  }
-
-  const duration = Math.round((Date.now() - start) / 1000);
-
-  const failed = checks.filter(c => c.status === 'fail');
-  const passed = checks.filter(c => c.status === 'pass');
-  const skipped = checks.filter(c => c.status === 'skip');
-
-  let overall;
-  if (failed.length > 0) overall = 'fail';
-  else if (passed.length > 0) overall = 'pass';
-  else overall = 'skip';
-
-  const result = {
-    overall,
-    checks,
-    duration_secs: duration,
-    counts: {
-      passed: passed.length,
-      failed: failed.length,
-      skipped: skipped.length,
-    },
-  };
-
+  const result = require('./lib/build.cjs').runVerifyStatic(cwd, opts);
+  const { overall, counts, duration_secs } = result;
   output(
     result,
     raw,
-    `verify-static: ${overall} (${passed.length} passed, ${failed.length} failed, ${skipped.length} skipped, ${duration}s)`
+    `verify-static: ${overall} (${counts.passed} passed, ${counts.failed} failed, ${counts.skipped} skipped, ${duration_secs}s)`
   );
 }
 
