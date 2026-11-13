@@ -30,7 +30,7 @@
 - [x] **Fase 20: Névoa e fronteira do roadmap** - CANCELADA em 2026-09-16 (direção leve; motivo em `.plano/fora-de-escopo/`)
 - [x] **Fase 21: UP leve (v3)** - Corte da máquina de verificação: sem gate, sem log de aprovações, sem fronteiras, prova por tipo no SUMMARY (completed 2026-09-11)
 - [x] **Fase 22: Plan e build leves** - Plano de uma página escrito na sessão, limite de fase, build na sessão com 1 plano, padrão de Product Engineer no executor (v3.1.0) (completed 2026-09-16)
-- [ ] **Fase 23: Build rápido** - `build open/close` no up-tools, executor de uma página, SUMMARY curto, `build_model` configurável, verify-static trava o merge
+- [x] **Fase 23: Build rápido** - `build open/close` no up-tools, executor de uma página, SUMMARY curto, `build_model` configurável, verify-static trava o merge (completed 2026-11-13)
 - [ ] **Fase 24: Plano concreto e /up:auto** - `Onde:` e comando de prova por entrega, `/up:auto`, `--profundo` em arquivo separado, corte de agentes e verbos legados
 
 ## Detalhes das Fases
@@ -438,5 +438,5 @@ De onde a posse de arquivo passa a vir em tempo de execução, agora que a regra
 | 20. Névoa e fronteira do roadmap | 0/5 | Cancelada | 2026-09-16 |
 | 21. UP leve (v3) | 1/1 | Completa | 2026-09-11 |
 | 22. Plan e build leves | 1/1 | Completa | 2026-09-16 |
-| 23. Build rápido | 0/1 | Planejada | - |
+| 23. Build rápido | 1/1 | Completa | 2026-11-13 |
 | 24. Plano concreto e /up:auto | 0/? | Pendente | - |

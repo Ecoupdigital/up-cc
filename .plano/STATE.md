@@ -10,7 +10,7 @@
 
 **Fase**: 23 de 24 (planejada). 17, 18 e 20 canceladas; 19 e 24 pendentes
 **Plano**: 23-01 (onda 1) planejado, contrato em `.plano/BRIEFING-v4-build-rapido.md`
-**Status**: Fase 22 completa em 2026-09-16 (plano 22-01, único plano da fase). `/up:plan` e `/up:build` leves por padrão (sem `up-planejador`/spawn de `up-executor` em onda de 1 plano), `--profundo` restaura o pipeline pesado. Padrão de Product Engineer em `up/references/product-engineering.md`, carregado pelo executor. Versão 3.1.0. Fase 21 mergeada (PR #19) e publicada no npm 3.0.0
+**Status**: Fase 23 completa em 2026-11-13 (build close)
 **Progresso**:
 ```
 Ciclo 1: fases 1 a 10               [████████████████████] Concluido (detalhe no ROADMAP.md)
