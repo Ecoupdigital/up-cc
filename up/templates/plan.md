@@ -1,10 +1,11 @@
 # Template de PLAN.md (plano de uma página)
 
-Template para `.plano/fases/NN-slug/NN-MM-PLAN.md`. Alvo: até ~3 KB. Escrito pela sessão
+Template para `.plano/fases/NN-slug/NN-MM-PLAN.md`. Alvo: até ~4 KB. Escrito pela sessão
 (orquestrador de `/up:plan`), sem `up-planejador`, exceto com `--profundo`.
 
-O plano é contrato: o que fica verdadeiro, o que fica de fora, a prova. Nunca receita (sem import,
-SQL, tipo, assinatura de função ou caminho de arquivo como passo a passo).
+O plano é contrato concreto: o que fica verdadeiro, o que fica de fora, **onde mexer** e **o comando
+que prova**. O modelo forte pensa aqui; o executor (às vezes um modelo menor) segue. Receita linha a
+linha continua proibida: sem código, import, SQL, tipo ou assinatura de função no plano.
 
 <template>
 
@@ -30,16 +31,15 @@ autonomous: true
 
 ### 1. [Título da entrega, resultado observável]
 
-[Uma a três frases: o que o usuário ou o sistema consegue fazer depois. Sem código, sem caminho de
-arquivo como receita.]
-Implícitos: [o que do padrão de Product Engineer se aplica a esta entrega: busca/filtro/paginação
-numa listagem, os 4 estados numa tela assíncrona, validação client+server num formulário, etc.
-Vazio se a entrega não abre superfície nova para o usuário.]
-Prova: [teste automatizado | captura de tela | smoke, descrito em uma frase]
+[Uma a três frases: o que o usuário ou o sistema consegue fazer depois.]
+Onde: [arquivos ou áreas a tocar, descobertos lendo o código: `src/auth/`, `app/login/page.tsx`]
+Implícitos: [só o que do padrão de Product Engineer muda o resultado desta entrega. Vazio se nada.]
+Prova: [comando exato, `npm test -- auth`, ou "captura de /rota" para UI]
 
 ### 2. [Próxima entrega]
 
 [...]
+Onde: [...]
 Implícitos: [...]
 Prova: [...]
 
@@ -55,34 +55,34 @@ Prova: [...]
 
 ## Tamanho e forma
 
-- Alvo até ~3 KB. `validate-plan` avisa (não bloqueia) se passar disso; se passar muito, é sinal de
-  que a fase tem mais de um plano ou entregas demais (ver limite de fase em `up/workflows/plan.md`
-  e `up/agents/up-arquiteto.md`).
-- 2 a 5 entregas pedidas por plano. Implícitos de uma entrega não contam nesse limite.
+- Alvo até ~4 KB. 2 a 5 entregas pedidas por plano. Implícitos não contam nesse limite.
 - `### N. título` é o marcador de entrega que `phase-plan-index` e `validate-plan` reconhecem.
 
-## Implícitos, não checklist
+## Onde
 
-A linha `Implícitos:` cita em uma frase o que do padrão de Product Engineer
-(`up/references/product-engineering.md`) se aplica àquela entrega. Não é para listar os 13 itens do
-padrão em toda entrega: só o que muda o resultado esperado. O executor faz a análise completa
-sozinho; o plano só aponta o que não é óbvio a partir do título da entrega.
+Quem planeja lê o código e escreve os arquivos ou pastas que a entrega toca. Isso poupa o executor
+de redescobrir o projeto. `Onde:` diz o lugar, não o que escrever nele. Arquivo novo entra com o
+caminho onde vai nascer. `validate-plan` avisa entrega sem `Onde:` (aviso, não erro: plano antigo
+segue executável).
+
+## Implícitos
+
+Destile de `up/references/product-engineering.md` só o que se aplica àquela entrega (busca e
+paginação numa listagem, os 4 estados numa tela assíncrona, validação client+server num formulário).
+O executor não carrega a referência inteira: o que importa vem nesta linha.
 
 ## Prova
 
-Uma frase por entrega: o tipo (teste automatizado, captura de tela, smoke) e o que ela precisa
-mostrar. O comando exato e o resultado ficam para o SUMMARY, escrito depois de rodar a prova de
-verdade.
+O comando exato que o executor roda para provar a entrega (`npm test -- x`, `node script.cjs`,
+`curl ...`) ou "captura de /rota" para UI. `validate-plan` avisa prova sem comando. O resultado
+real fica no SUMMARY, depois de rodar.
 
 ## Critério de pronto
 
-Substitui o antigo bloco `must_haves` (truths/artifacts/key_links). São as poucas frases que
-resumem "a fase está pronta quando isto for verdade", conferidas pelo orquestrador ao ler o SUMMARY,
-sem agente de verificação separado.
+As poucas frases que resumem "a fase está pronta quando isto for verdade", conferidas ao ler o SUMMARY.
 
-## O que saiu deste template (vive no `--profundo`)
+## O que vive no `--profundo`
 
-`must_haves` estruturado, pesquisa documentada inline, checklist de 9 itens de self-check e o loop de
-refazer do `validate-plan`. Quem precisa desse nível de detalhe (projeto grande, planejar num
-runtime e executar em outro) usa `/up:plan --profundo`, que mantém `up-planejador` como hoje.
+`must_haves` estruturado, pesquisa documentada inline e o loop de refazer do `validate-plan`, em
+`up/workflows/plan-profundo.md` com `up-planejador`.
 </guidelines>

@@ -13,9 +13,11 @@ Voce executa UM plano do UP dentro do diretorio que o prompt indicar (a worktree
 </role>
 
 <regras>
-1. Leia o PLAN.md e o `./CLAUDE.md` do projeto, se existir. Depois, so o codigo que vai tocar.
+1. Leia o PLAN.md e o `./CLAUDE.md` do projeto, se existir. Depois, so o codigo que vai tocar:
+   comece pelos arquivos de `Onde:` da entrega. Plano sem `Onde:` (antigo): ache o lugar voce mesmo.
 2. Implementacao real: sem placeholder, sem stub, sem dado fake. Siga os padroes que o codigo ja usa.
-3. Escopo: so as areas do plano. Outros planos da onda rodam em paralelo em areas disjuntas.
+3. Escopo: so o que esta em `Onde:` e o minimo em volta. Outros planos da onda rodam em paralelo em
+   areas disjuntas.
 4. `Implicitos:` da entrega fazem parte do pronto (erro, vazio, carregando, validacao, permissao).
    Padrao completo em `$HOME/.claude/up/references/product-engineering.md`, so se precisar consultar.
 5. Bug, validacao ou erro de conexao frontend/backend que voce encontrar no caminho: corrija e registre
@@ -26,7 +28,8 @@ Voce executa UM plano do UP dentro do diretorio que o prompt indicar (a worktree
 </regras>
 
 <prova>
-Uma prova por entrega, rodada agora e lida antes de afirmar. Use a que o plano pede; sem indicacao:
+Uma prova por entrega, rodada agora e lida antes de afirmar. Rode o comando de `Prova:` do plano;
+sem comando:
 
 | Tipo | Prova |
 |------|-------|
