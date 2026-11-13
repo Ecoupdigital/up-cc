@@ -4,6 +4,41 @@ Todas as mudancas relevantes do `up-cc` ficam documentadas aqui. O formato segue
 o espirito de [Keep a Changelog](https://keepachangelog.com/) e o versionamento
 e [SemVer](https://semver.org/). v2.0.0 e um **major** (breaking change).
 
+## 3.2.0
+
+> Funciona bem, mas o build era lento e caro: antes da primeira linha de codigo o modelo lia ~82 KB de
+> instrucao e fazia ~20 idas e voltas ao `up-tools` so de cerimonia. A cerimonia vira codigo e o
+> executor vira uma pagina, para o build rodar bem num modelo menor. Primeira metade da v4 (fase 23).
+
+### Adicionado
+
+- **`up-tools build open --phase N [--local] [--solo]`.** Um comando resolve modo, lock (retoma a
+  fase se o build caiu), worktree, branch, issue e ondas, e devolve JSON com `root`, planos por onda,
+  `build_model` e o objetivo da fase.
+- **`up-tools build close --phase N --land merge|keep|discard|local [--board]`.** Confere SUMMARY com
+  `## Prova` em todo plano, roda `verify-static` (falhou = nao mergeia), marca STATE e ROADMAP,
+  commita na branch da fase e aterrissa (PR + merge squash com `gh`, merge local sem remote).
+- **`build_model` no `.plano/config.json`** (`inherit` default, `sonnet`/`haiku`/`opus`). Diferente
+  do modelo da sessao: o `up-executor` roda nesse modelo, ate em onda de 1 plano; a sessao so abre,
+  confere e fecha.
+
+### Mudado
+
+- **`/up:build` enxuto.** Comando + workflow de ~34 KB para ~10 KB. Caminho padrao: `build open`,
+  ondas, teste visual (fase de UI), `build close`. `--review` e `--testar` foram para
+  `up/workflows/build-optins.md`, carregado so com a flag. Sai o reassessment do roadmap.
+- **`up-executor` de uma pagina** (287 para 55 linhas, `model: inherit`). A execucao inline nao
+  recarrega o executor nem o `product-engineering.md` inteiro; o padrao fica para consulta.
+- **SUMMARY curto:** uma linha, `## Prova`, commits, desvios e decisoes escaladas. Sai o checklist de
+  completude.
+- **`verify-static`** virou funcao reusada pelo `build close`. `npm audit` sem lockfile agora pula em
+  vez de falhar (sem lock nao ha o que auditar; antes travaria todo merge).
+
+### Removido
+
+- Perguntas `build.runtime-divergente`, `build.plano-incompleto` e `build.replan-esgotado` (a
+  checagem virou codigo ou caiu junto com a cerimonia).
+
 ## 3.1.0
 
 > O planejador demora demais e sempre monta uma fase gigantesca: `up-beauty` fase 14 saiu com 16
