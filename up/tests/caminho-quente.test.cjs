@@ -129,37 +129,12 @@ t('build default nao exige DCRV nem revisor two-stage', () => {
   );
 });
 
-t('plan default nao spawna pesquisador, roteirista nem sintetizador', () => {
+t('plan default spawna so o arquiteto e mantem --review opt-in', () => {
   const wf = ler(PLAN);
   const cmd = ler(CMD_PLAN);
-  assert.ok(
-    !/4x `up-pesquisador`|4 `up-pesquisador`|4x up-pesquisador/.test(wf),
-    'plan.md ainda manda spawnar 4 pesquisadores'
-  );
-  assert.ok(
-    !/subagent_type="up-sintetizador"/.test(wf),
-    'plan.md ainda spawna up-sintetizador'
-  );
-  assert.ok(
-    !/subagent_type="up-roteirista"/.test(wf),
-    'plan.md ainda spawna up-roteirista'
-  );
-  assert.ok(
-    /up-arquiteto/.test(wf),
-    'plan.md precisa continuar spawnando o arquiteto'
-  );
-  assert.ok(
-    /--review/.test(wf) || /--review/.test(cmd),
-    'plan perdeu --review como opt-in da revisao'
-  );
-});
-
-t('porta unica nao spawna 4 pesquisadores em paralelo', () => {
-  const wf = ler(UP);
-  assert.ok(
-    !/4 `up-pesquisador`|4x `up-pesquisador`/.test(wf),
-    'up.md ainda spawna 4 pesquisadores'
-  );
+  const spawns = (wf.match(/subagent_type="([a-z-]+)"/g) || []).map((x) => x.split('"')[1]);
+  assert.deepStrictEqual(spawns, ['up-arquiteto'], 'plan.md padrao spawna: ' + spawns.join(', '));
+  assert.ok(/--review/.test(wf) || /--review/.test(cmd), 'plan perdeu --review como opt-in da revisao');
 });
 
 console.log('');

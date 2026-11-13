@@ -121,7 +121,7 @@ t('product-engineering.md existe, cobre a analise e o DoD, e esta no manifesto d
   const m = tools.match(/'up-executor':\s*\[([^\]]*)\]/);
   assert.ok(m, 'manifesto do up-executor nao encontrado em up-tools.cjs');
   assert.ok(/product-engineering/.test(m[1]), 'manifesto do up-executor nao lista product-engineering');
-  for (const agente of ['up-arquiteto', 'up-sintetizador', 'up-verificador', 'up-revisor', 'up-tester']) {
+  for (const agente of ['up-arquiteto', 'up-verificador', 'up-revisor', 'up-tester']) {
     const mm = tools.match(new RegExp(`'${agente}':\\s*\\[([^\\]]*)\\]`));
     assert.ok(mm, `manifesto de ${agente} nao encontrado`);
     assert.ok(/product-engineering/.test(mm[1]), `manifesto de ${agente} nao lista product-engineering`);

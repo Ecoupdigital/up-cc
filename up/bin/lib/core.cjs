@@ -86,15 +86,12 @@ const MODEL_PRESETS = {
   },
 };
 
-// Map agent names to their model role (12 agentes — onda 2 do corte)
+// Map agent names to their model role (9 agentes, v4)
 const AGENT_ROLE_MAP = {
   // Planning
   'up-planejador': 'planning',
   'up-arquiteto': 'planning',
-  'up-roteirista': 'planning',
-  'up-sintetizador': 'planning',
   'up-mapeador-codigo': 'planning',
-  'up-pesquisador': 'planning',
   // Execution (up-executor roteia frontend/backend/database por contexto)
   'up-executor': 'execution',
   'up-depurador': 'execution',
