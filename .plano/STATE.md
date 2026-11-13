@@ -4,12 +4,12 @@
 
 **Projeto**: UP (up-cc)
 **Valor Central**: Pipeline autônomo confiável exige perguntar o suficiente antes de agir, lembrar do que já foi decidido e recusado, e provar o que afirma. Na v3, provar é uma regra (prova fresca por tipo no SUMMARY), não uma máquina de gates.
-**Foco Atual**: Fase 22 (plan e build leves, v3.1.0) completa. Fase 19 (auditoria escopada) segue pendente; proximo passo e `/up "proxima ideia"` ou `/up:plan 19`
+**Foco Atual**: Fase 23 (build rápido, v4) planejada em 2026-11-13. Fase 24 (plano concreto e /up:auto) pendente. Próximo passo: `/up:build`
 
 ## Posicao Atual
 
-**Fase**: 22 de 22 (completa). 17, 18 e 20 canceladas em 2026-09-16; 19 pendente
-**Plano**: 22-01 (onda 1) completo, contrato em `.plano/BRIEFING-plan-build-leve.md`
+**Fase**: 23 de 24 (planejada). 17, 18 e 20 canceladas; 19 e 24 pendentes
+**Plano**: 23-01 (onda 1) planejado, contrato em `.plano/BRIEFING-v4-build-rapido.md`
 **Status**: Fase 22 completa em 2026-09-16 (plano 22-01, único plano da fase). `/up:plan` e `/up:build` leves por padrão (sem `up-planejador`/spawn de `up-executor` em onda de 1 plano), `--profundo` restaura o pipeline pesado. Padrão de Product Engineer em `up/references/product-engineering.md`, carregado pelo executor. Versão 3.1.0. Fase 21 mergeada (PR #19) e publicada no npm 3.0.0
 **Progresso**:
 ```
@@ -26,6 +26,8 @@ Fase 19: Auditoria escopada         [░░░░░░░░░░░░░░�
 Fase 20: Nevoa e fronteira          [░░░░░░░░░░░░░░░░░░░░] Cancelada
 Fase 21: UP leve (v3)               [████████████████████] Completa (PR #19 mergeado)
 Fase 22: Plan e build leves         [████████████████████] Completa (1/1 plano)
+Fase 23: Build rápido               [░░░░░░░░░░░░░░░░░░░░] Planejada (0/1)
+Fase 24: Plano concreto e /up:auto  [░░░░░░░░░░░░░░░░░░░░] Pendente
 ```
 
 ## Metricas de Performance
