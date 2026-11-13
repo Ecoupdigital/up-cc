@@ -250,8 +250,7 @@ Migrado de novo-projeto.md (4 pesquisadores) e do research-inline do builder.md.
 
 **Greenfield + dominio desconhecido (ou usuario pediu):** o orquestrador (ou o `up-arquiteto` no
 `/up:plan`) faz UM passe de pesquisa inline (web search) e escreve `.plano/pesquisa/SUMMARY.md`.
-Nao spawnar `up-pesquisador`. Nao spawnar `up-sintetizador`. Para tarefa trivial/pequena, pular
-a pesquisa.
+Sem agente de pesquisa separado. Para tarefa trivial/pequena, pular a pesquisa.
 
 ```bash
 mkdir -p .plano/pesquisa

@@ -121,7 +121,7 @@ const UP_LEGACY_SKILLS = ['up-tdd', 'up-verificar-antes-de-concluir'];
 // nativo mas NAO importa ~/.claude/commands/; a skill fecha esse furo, tornando
 // os comandos invocaveis no Grok). Nome = up-<comando>. Espelha up/commands/*.md.
 // So o install/uninstall do runtime claude mexe nessas pastas.
-const UP_COMMAND_SKILLS = ['up-up', 'up-plan', 'up-build', 'up-testar', 'up-auditar', 'up-depurar', 'up-rapido'];
+const UP_COMMAND_SKILLS = ['up-up', 'up-plan', 'up-build', 'up-auto', 'up-testar', 'up-auditar', 'up-depurar', 'up-rapido'];
 
 // ── Runtime Helpers ──
 
@@ -402,14 +402,14 @@ function convertCommandToGeminiToml(content) {
  * Supervisors/auditors/reviewers get read-only.
  */
 function getCodexSandboxMode(agentName) {
-  // 12 agentes (onda 2 do corte). up-executor roteia frontend/backend/database
+  // 9 agentes (v4). up-executor roteia frontend/backend/database
   // por contexto; up-tester funde visual + exhaustive + api num spawn multi-pass
   // (precisa de workspace-write pra escrever reports).
   const writeAgents = [
-    'up-executor', 'up-arquiteto', 'up-roteirista', 'up-sintetizador',
+    'up-executor', 'up-arquiteto',
     'up-tester',
     'up-depurador', 'up-verificador', 'up-planejador', 'up-mapeador-codigo',
-    'up-pesquisador', 'up-revisor', 'up-auditor',
+    'up-revisor', 'up-auditor',
   ];
   return writeAgents.includes(agentName) ? 'workspace-write' : 'read-only';
 }
@@ -855,7 +855,7 @@ function buildUpBootstrapBlock(runtime, pathPrefix) {
     '5. VOCABULÁRIO ÚNICO: os termos do UP (fase, plano, onda, evidência, worktree, escape hatch,',
     '   verificação, laço DCRV) têm definição única. Ref: ' + refs + '/glossario-up.md. Use o termo, não redefina.',
     '',
-    'Porta unica: ' + entry + ' "sua ideia". Comandos: ' + cmd + 'up, ' + cmd + 'plan, ' + cmd + 'build, ' + cmd + 'testar, ' + cmd + 'auditar, ' + cmd + 'depurar, ' + cmd + 'rapido.',
+    'Porta unica: ' + entry + ' "sua ideia". Comandos: ' + cmd + 'up, ' + cmd + 'plan, ' + cmd + 'build, ' + cmd + 'auto, ' + cmd + 'testar, ' + cmd + 'auditar, ' + cmd + 'depurar, ' + cmd + 'rapido.',
     UP_BOOTSTRAP_END,
   ].join('\n');
 }

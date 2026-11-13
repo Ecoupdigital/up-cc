@@ -4,13 +4,13 @@
 
 **Projeto**: UP (up-cc)
 **Valor Central**: Pipeline autônomo confiável exige perguntar o suficiente antes de agir, lembrar do que já foi decidido e recusado, e provar o que afirma. Na v3, provar é uma regra (prova fresca por tipo no SUMMARY), não uma máquina de gates.
-**Foco Atual**: Fase 23 (build rápido, v4) planejada em 2026-11-13. Fase 24 (plano concreto e /up:auto) pendente. Próximo passo: `/up:build`
+**Foco Atual**: Fase 23 (build rápido) mergeada em 2026-11-13 (PR #23). Fase 24 (plano concreto, /up:auto e corte) planejada em 2026-11-13. Próximo passo: `/up:build`
 
 ## Posicao Atual
 
-**Fase**: 23 de 24 (planejada). 17, 18 e 20 canceladas; 19 e 24 pendentes
-**Plano**: 23-01 (onda 1) planejado, contrato em `.plano/BRIEFING-v4-build-rapido.md`
-**Status**: Fase 23 completa em 2026-11-13 (build close)
+**Fase**: 24 de 24 (planejada). 17, 18 e 20 canceladas; 19 pendente
+**Plano**: 24-01 (onda 1) planejado, contrato em `.plano/BRIEFING-v4-build-rapido.md`
+**Status**: Fase 24 completa em 2026-11-13 (build close)
 **Progresso**:
 ```
 Ciclo 1: fases 1 a 10               [████████████████████] Concluido (detalhe no ROADMAP.md)
@@ -26,8 +26,8 @@ Fase 19: Auditoria escopada         [░░░░░░░░░░░░░░�
 Fase 20: Nevoa e fronteira          [░░░░░░░░░░░░░░░░░░░░] Cancelada
 Fase 21: UP leve (v3)               [████████████████████] Completa (PR #19 mergeado)
 Fase 22: Plan e build leves         [████████████████████] Completa (1/1 plano)
-Fase 23: Build rápido               [░░░░░░░░░░░░░░░░░░░░] Planejada (0/1)
-Fase 24: Plano concreto e /up:auto  [░░░░░░░░░░░░░░░░░░░░] Pendente
+Fase 23: Build rápido               [████████████████████] Completa (PR #23)
+Fase 24: Plano concreto e /up:auto  [░░░░░░░░░░░░░░░░░░░░] Planejada (0/1)
 ```
 
 ## Metricas de Performance

@@ -63,13 +63,14 @@ Apos instalar, reinicie o CLI e digite `/up` para comecar de onde parou (ou desc
 
 ---
 
-## Os 7 comandos
+## Os 8 comandos
 
 | Comando | O que faz |
 |---------|-----------|
 | **`/up`** | Porta unica. Sem argumento, continua de onde parou (le `STATE.md` e roteia). Com descricao, dispara o brainstorm escalado e roteia greenfield/brownfield/clone. Tambem e a casa de `estado` e `config` (subverbos). |
-| **`/up:plan`** | Planeja projeto ou fase (deteccao automatica). Research inline + self-check. Quebra fase grande em varios planos por dominio organizados em waves. Gera `PLAN-READY.md` executavel, inclusive em outro runtime. |
+| **`/up:plan`** | Planeja projeto ou fase (deteccao automatica). Plano concreto: cada entrega diz onde mexer e o comando que prova, para o build rodar bem ate num modelo menor. `up-tools plan close` gera o `PLAN-READY.md`, executavel inclusive em outro runtime. `--profundo` planeja todas as fases com o `up-planejador`. |
 | **`/up:build`** | Executa o que foi planejado. **GitHub-nativo por padrao** (via `gh` OU MCP do GitHub): por fase abre worktree + issue + branch, executa, testa o visual e oferece menu de fim de fase (merge local, PR, deixa a branch, descarta). Flags: `--solo` (autonomo total: mantem GitHub, sem menu nem gate visual), `--auto` (pula so o menu), `--local` (escape hatch, commit na branch atual sem GitHub), `--board` (espelha no Multica). |
+| **`/up:auto`** | Plan e build numa porta: brainstorm minimo, plan e `build --solo` fase a fase. Para em `verify-static` falhando, decisao que muda escopo ou credencial. |
 | **`/up:testar`** | Loop DCRV unico (detectar, corrigir, reverificar) num passe. Default roda tudo: visual, interacao, API, UX, mobile, E2E. Flags `--ux`/`--mobile`/`--e2e` focam. |
 | **`/up:depurar`** | Depuracao sistematica (causa raiz, hipotese, fix com teste de regressao) com estado persistente entre `/clear`. |
 | **`/up:auditar`** | Auditoria priorizada num passe (UX, performance, modernidade). Flag `--features` ativa pesquisa de mercado para sugerir features novas. |
@@ -178,9 +179,9 @@ Espelha o progresso das fases no board do [Multica](https://multica.ai) (issue t
 
 ---
 
-## Os 12 agentes
+## Os 9 agentes
 
-O UP usa 12 agentes especializados que rodam como subprocessos. Os antigos specialists (frontend/backend/database) fundiram no `up-executor`, que roteia dominio por contexto.
+O UP usa 9 agentes especializados que rodam como subprocessos. Os antigos specialists (frontend/backend/database) fundiram no `up-executor`, que roteia dominio por contexto.
 
 | Agente | Funcao | Caminho quente |
 |--------|--------|----------------|
@@ -190,12 +191,9 @@ O UP usa 12 agentes especializados que rodam como subprocessos. Os antigos speci
 | **up-verificador** | Verificacao goal-backward e clone-fidelity | opt-in (`--review`) ou clone |
 | **up-mapeador-codigo** | Analisa codebases existentes (e extrai design no modo clone) | brownfield / clone |
 | **up-depurador** | Investigacao de bugs com metodo cientifico | `/up:depurar` |
-| **up-pesquisador** | Pesquisa isolada de dominio e mercado | fora do pipeline |
 | **up-revisor** | Review two-stage (spec + qualidade) | opt-in (`--review`) |
 | **up-tester** | Playwright em 3 passes (visual, exhaustive, API) | `/up:testar` ou `--testar` |
 | **up-auditor** | Auditoria UX + performance + modernidade + RELATORIO.md | `/up:auditar` |
-| **up-sintetizador** | Consolidacao isolada | fora do pipeline |
-| **up-roteirista** | Roadmap isolado | fora do pipeline (arquiteto absorveu) |
 
 ## Hooks
 
@@ -243,7 +241,7 @@ O UP sobrevive a `/clear` e reinicializacoes do CLI. Todo estado fica em disco n
 | OpenCode | `/up-X` | Convertido (`command/up-*.md`, object tools). Bootstrap injetado no `AGENTS.md` |
 | Codex | `$up-X` | Convertido (skills + `config.toml [agents]`). Bootstrap injetado no `AGENTS.md` |
 
-Os 12 agentes sao convertidos para todos os runtimes. Fora do Claude nao ha hook nem skills nativas, mas a doutrina brainstorm-first carrega sempre via arquivo de instrucoes.
+Os 9 agentes sao convertidos para todos os runtimes. Fora do Claude nao ha hook nem skills nativas, mas a doutrina brainstorm-first carrega sempre via arquivo de instrucoes.
 
 Requisitos: Node.js >= 16.7.0
 

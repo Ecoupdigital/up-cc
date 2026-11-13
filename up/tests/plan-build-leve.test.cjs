@@ -81,20 +81,12 @@ if (ausentes.length > 0) {
   process.exit(2);
 }
 
-t('plan.md sem flag nao spawna up-planejador (so dentro do bloco --profundo)', () => {
+t('plan.md sem flag nao spawna up-planejador; --profundo vive em plan-profundo.md', () => {
   const wf = ler(WF_PLAN);
-  const idxProfundo = wf.indexOf('2.5.b');
-  assert.ok(idxProfundo > 0, 'plan.md perdeu o bloco 2.5.b (--profundo)');
-  const antesDoProfundo = wf.slice(0, idxProfundo);
-  assert.ok(
-    !/subagent_type="up-planejador"/.test(antesDoProfundo),
-    'plan.md spawna up-planejador fora do bloco --profundo'
-  );
-  const depoisDoProfundo = wf.slice(idxProfundo);
-  assert.ok(
-    /subagent_type="up-planejador"/.test(depoisDoProfundo),
-    'plan.md nao spawna up-planejador nem dentro do bloco --profundo'
-  );
+  assert.ok(!/subagent_type="up-planejador"/.test(wf), 'plan.md spawna up-planejador no caminho padrao');
+  assert.ok(/plan-profundo\.md/.test(wf), 'plan.md nao aponta para plan-profundo.md');
+  const prof = ler(path.join(path.dirname(WF_PLAN), 'plan-profundo.md'));
+  assert.ok(/subagent_type="up-planejador"/.test(prof), 'plan-profundo.md nao spawna up-planejador');
 });
 
 t('--profundo existe e documentado no workflow e no comando', () => {
@@ -129,7 +121,7 @@ t('product-engineering.md existe, cobre a analise e o DoD, e esta no manifesto d
   const m = tools.match(/'up-executor':\s*\[([^\]]*)\]/);
   assert.ok(m, 'manifesto do up-executor nao encontrado em up-tools.cjs');
   assert.ok(/product-engineering/.test(m[1]), 'manifesto do up-executor nao lista product-engineering');
-  for (const agente of ['up-arquiteto', 'up-sintetizador', 'up-verificador', 'up-revisor', 'up-tester']) {
+  for (const agente of ['up-arquiteto', 'up-verificador', 'up-revisor', 'up-tester']) {
     const mm = tools.match(new RegExp(`'${agente}':\\s*\\[([^\\]]*)\\]`));
     assert.ok(mm, `manifesto de ${agente} nao encontrado`);
     assert.ok(/product-engineering/.test(mm[1]), `manifesto de ${agente} nao lista product-engineering`);

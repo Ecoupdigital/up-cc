@@ -189,38 +189,14 @@ function main() {
         case 'planejar-fase':
           cmdInitPlanejarFase(cwd, args[2], raw);
           break;
-        case 'executar-fase':
-          cmdInitExecutarFase(cwd, args[2], raw);
-          break;
-        case 'novo-projeto':
-          cmdInitNovoProjeto(cwd, raw);
-          break;
         case 'rapido':
           cmdInitRapido(cwd, args.slice(2).join(' '), raw);
-          break;
-        case 'retomar':
-          cmdInitRetomar(cwd, raw);
           break;
         case 'operacao-fase':
           cmdInitOperacaoFase(cwd, args[2], raw);
           break;
-        case 'progresso':
-          cmdInitProgresso(cwd, raw);
-          break;
-        case 'verificar-trabalho':
-          cmdInitVerificarTrabalho(cwd, args[2], raw);
-          break;
-        case 'melhorias':
-          cmdInitMelhorias(cwd, raw);
-          break;
-        case 'ideias':
-          cmdInitIdeias(cwd, raw);
-          break;
-        case 'iniciar':
-          cmdInitIniciar(cwd, raw);
-          break;
         default:
-          error(`Unknown init workflow: ${workflow}\nAvailable: planejar-fase, executar-fase, novo-projeto, rapido, retomar, operacao-fase, progresso, verificar-trabalho, melhorias, ideias, iniciar`);
+          error(`Unknown init workflow: ${workflow}\nAvailable: planejar-fase, rapido, operacao-fase`);
       }
       break;
     }
@@ -404,6 +380,12 @@ function main() {
       break;
     }
 
+    // ==================== PLAN (v4: PLAN-READY gerado em codigo) ====================
+    case 'plan': {
+      require('./lib/plan.cjs').run(cwd, args.slice(1));
+      break;
+    }
+
     // ==================== MULTICA (Fase 5: board OPT-IN) ====================
     case 'multica': {
       cmdMultica(cwd, args.slice(1), raw);
@@ -434,12 +416,6 @@ function main() {
       break;
     }
 
-    // ==================== BUDGET ====================
-    case 'budget': {
-      cmdBudget(cwd, raw);
-      break;
-    }
-
     // ==================== STATUS (headless aggregator) ====================
     case 'status': {
       cmdStatus(cwd, raw);
@@ -461,24 +437,6 @@ function main() {
     // ==================== CLASSIFY-TASK (Wave 5) ====================
     case 'classify-task': {
       cmdClassifyTask(cwd, args.slice(1), raw);
-      break;
-    }
-
-    // ==================== RESOLVE-MODEL-FOR-PLAN (Wave 5) ====================
-    case 'resolve-model-for-plan': {
-      cmdResolveModelForPlan(cwd, args.slice(1), raw);
-      break;
-    }
-
-    // ==================== ROUTING-LOG (Wave 5) ====================
-    case 'routing-log': {
-      cmdRoutingLog(cwd, args.slice(1), raw);
-      break;
-    }
-
-    // ==================== ANALYZE-ROUTING (Wave 5) ====================
-    case 'analyze-routing': {
-      cmdAnalyzeRouting(cwd, raw);
       break;
     }
 
@@ -579,133 +537,8 @@ function cmdInitPlanejarFase(cwd, phase, raw) {
   output(result, raw);
 }
 
-function cmdInitExecutarFase(cwd, phase, raw) {
-  if (!phase) error('phase required for init executar-fase');
 
-  const config = loadConfig(cwd);
-  const phaseInfo = findPhaseInternal(cwd, phase);
 
-  const result = {
-    commit_docs: config.commit_docs,
-    paralelizacao: config.paralelizacao,
-
-    phase_found: !!phaseInfo,
-    phase_dir: phaseInfo?.directory || null,
-    phase_number: phaseInfo?.phase_number || null,
-    phase_name: phaseInfo?.phase_name || null,
-    phase_slug: phaseInfo?.phase_slug || null,
-
-    plans: phaseInfo?.plans || [],
-    incomplete_plans: phaseInfo?.incomplete_plans || [],
-    plan_count: phaseInfo?.plans?.length || 0,
-    incomplete_count: phaseInfo?.incomplete_plans?.length || 0,
-
-    state_exists: pathExistsInternal(cwd, '.plano/STATE.md'),
-    roadmap_exists: pathExistsInternal(cwd, '.plano/ROADMAP.md'),
-  };
-
-  output(result, raw);
-}
-
-function cmdInitNovoProjeto(cwd, raw) {
-  const config = loadConfig(cwd);
-  const { execSync } = require('child_process');
-
-  let hasCode = false;
-  try {
-    const files = execSync('find . -maxdepth 3 \\( -name "*.ts" -o -name "*.js" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.swift" -o -name "*.java" \\) 2>/dev/null | grep -v node_modules | grep -v .git | head -5', {
-      cwd,
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    hasCode = files.trim().length > 0;
-  } catch {}
-
-  // Check if codebase mapping exists
-  const hasCodebaseMap = pathExistsInternal(cwd, '.plano/codebase');
-  let codebaseFiles = [];
-  if (hasCodebaseMap) {
-    try {
-      const fs = require('fs');
-      codebaseFiles = fs.readdirSync(path.join(cwd, '.plano/codebase'))
-        .filter(f => f.endsWith('.md'))
-        .map(f => `.plano/codebase/${f}`);
-    } catch {}
-  }
-
-  const result = {
-    commit_docs: config.commit_docs,
-    project_exists: pathExistsInternal(cwd, '.plano/PROJECT.md'),
-    planning_exists: pathExistsInternal(cwd, '.plano'),
-    has_existing_code: hasCode,
-    has_codebase_map: hasCodebaseMap,
-    codebase_files: codebaseFiles,
-    has_git: pathExistsInternal(cwd, '.git'),
-    project_path: '.plano/PROJECT.md',
-  };
-
-  output(result, raw);
-}
-
-function cmdInitIniciar(cwd, raw) {
-  const config = loadConfig(cwd);
-  const { execSync } = require('child_process');
-
-  let hasCode = false;
-  try {
-    const files = execSync('find . -maxdepth 3 \\( -name "*.ts" -o -name "*.js" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.swift" -o -name "*.java" \\) 2>/dev/null | grep -v node_modules | grep -v .git | head -5', {
-      cwd,
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    hasCode = files.trim().length > 0;
-  } catch {}
-
-  const hasCodebaseMap = pathExistsInternal(cwd, '.plano/codebase');
-  let codebaseFiles = [];
-  if (hasCodebaseMap) {
-    try {
-      codebaseFiles = fs.readdirSync(path.join(cwd, '.plano/codebase'))
-        .filter(f => f.endsWith('.md'))
-        .map(f => `.plano/codebase/${f}`);
-    } catch {}
-  }
-
-  // Stack hints from package.json
-  const pkgPath = path.join(cwd, 'package.json');
-  let stackHints = {};
-  try {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-    const allDeps = Object.assign({}, pkg.dependencies || {}, pkg.devDependencies || {});
-    stackHints = {
-      has_react: !!allDeps.react,
-      has_next: !!allDeps.next,
-      has_vue: !!allDeps.vue,
-      has_nuxt: !!allDeps.nuxt,
-      has_svelte: !!allDeps.svelte,
-      has_tailwind: !!allDeps.tailwindcss,
-      has_prisma: !!(allDeps['@prisma/client'] || allDeps.prisma),
-      has_typescript: !!(allDeps.typescript || pathExistsInternal(cwd, 'tsconfig.json')),
-      type_module: pkg.type === 'module',
-    };
-  } catch {}
-
-  const result = {
-    commit_docs: config.commit_docs,
-    project_exists: pathExistsInternal(cwd, '.plano/PROJECT.md'),
-    planning_exists: pathExistsInternal(cwd, '.plano'),
-    has_existing_code: hasCode,
-    has_codebase_map: hasCodebaseMap,
-    codebase_files: codebaseFiles,
-    has_git: pathExistsInternal(cwd, '.git'),
-    has_package_json: pathExistsInternal(cwd, 'package.json'),
-    has_readme: pathExistsInternal(cwd, 'README.md') || pathExistsInternal(cwd, 'readme.md'),
-    stack_hints: stackHints,
-    project_path: '.plano/PROJECT.md',
-  };
-
-  output(result, raw);
-}
 
 function cmdInitRapido(cwd, description, raw) {
   const config = loadConfig(cwd);
@@ -739,19 +572,6 @@ function cmdInitRapido(cwd, description, raw) {
   output(result, raw);
 }
 
-function cmdInitRetomar(cwd, raw) {
-  const config = loadConfig(cwd);
-
-  const result = {
-    state_exists: pathExistsInternal(cwd, '.plano/STATE.md'),
-    roadmap_exists: pathExistsInternal(cwd, '.plano/ROADMAP.md'),
-    project_exists: pathExistsInternal(cwd, '.plano/PROJECT.md'),
-    planning_exists: pathExistsInternal(cwd, '.plano'),
-    commit_docs: config.commit_docs,
-  };
-
-  output(result, raw);
-}
 
 function cmdInitOperacaoFase(cwd, phase, raw) {
   const config = loadConfig(cwd);
@@ -815,187 +635,9 @@ function cmdInitOperacaoFase(cwd, phase, raw) {
   output(result, raw);
 }
 
-function cmdInitProgresso(cwd, raw) {
-  const config = loadConfig(cwd);
-  const milestone = getMilestoneInfo(cwd);
 
-  const fasesDir = path.join(cwd, '.plano', 'fases');
-  const phases = [];
-  let currentPhase = null;
-  let nextPhase = null;
 
-  try {
-    const entries = fs.readdirSync(fasesDir, { withFileTypes: true });
-    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
 
-    for (const dir of dirs) {
-      const match = dir.match(/^(\d+(?:\.\d+)*)-?(.*)/);
-      const phaseNumber = match ? match[1] : dir;
-      const phaseName = match && match[2] ? match[2] : null;
-
-      const phasePath = path.join(fasesDir, dir);
-      const phaseFiles = fs.readdirSync(phasePath);
-
-      const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
-      const summaries = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
-      const hasResearch = phaseFiles.some(f => f.endsWith('-RESEARCH.md') || f === 'RESEARCH.md');
-
-      const status = summaries.length >= plans.length && plans.length > 0 ? 'complete' :
-                     plans.length > 0 ? 'in_progress' :
-                     hasResearch ? 'researched' : 'pending';
-
-      const phaseInfo = {
-        number: phaseNumber,
-        name: phaseName,
-        directory: '.plano/fases/' + dir,
-        status,
-        plan_count: plans.length,
-        summary_count: summaries.length,
-        has_research: hasResearch,
-      };
-
-      phases.push(phaseInfo);
-
-      if (!currentPhase && (status === 'in_progress' || status === 'researched')) {
-        currentPhase = phaseInfo;
-      }
-      if (!nextPhase && status === 'pending') {
-        nextPhase = phaseInfo;
-      }
-    }
-  } catch {}
-
-  let pausedAt = null;
-  try {
-    const state = fs.readFileSync(path.join(cwd, '.plano', 'STATE.md'), 'utf-8');
-    const pauseMatch = state.match(/\*\*Paused At:\*\*\s*(.+)/);
-    if (pauseMatch) pausedAt = pauseMatch[1].trim();
-  } catch {}
-
-  const result = {
-    commit_docs: config.commit_docs,
-    milestone_version: milestone.version,
-    milestone_name: milestone.name,
-    phases,
-    phase_count: phases.length,
-    completed_count: phases.filter(p => p.status === 'complete').length,
-    in_progress_count: phases.filter(p => p.status === 'in_progress').length,
-    current_phase: currentPhase,
-    next_phase: nextPhase,
-    paused_at: pausedAt,
-    has_work_in_progress: !!currentPhase,
-    state_exists: pathExistsInternal(cwd, '.plano/STATE.md'),
-    roadmap_exists: pathExistsInternal(cwd, '.plano/ROADMAP.md'),
-    project_exists: pathExistsInternal(cwd, '.plano/PROJECT.md'),
-    state_path: '.plano/STATE.md',
-    roadmap_path: '.plano/ROADMAP.md',
-    project_path: '.plano/PROJECT.md',
-  };
-
-  output(result, raw);
-}
-
-function cmdInitVerificarTrabalho(cwd, phase, raw) {
-  if (!phase) error('phase required for init verificar-trabalho');
-
-  const config = loadConfig(cwd);
-  const phaseInfo = findPhaseInternal(cwd, phase);
-
-  let hasVerification = false;
-  if (phaseInfo?.directory) {
-    try {
-      const files = fs.readdirSync(path.join(cwd, phaseInfo.directory));
-      hasVerification = files.some(f => f.endsWith('-VERIFICATION.md') || f === 'VERIFICATION.md');
-    } catch {}
-  }
-
-  const result = {
-    commit_docs: config.commit_docs,
-    phase_found: !!phaseInfo,
-    phase_dir: phaseInfo?.directory || null,
-    phase_number: phaseInfo?.phase_number || null,
-    phase_name: phaseInfo?.phase_name || null,
-    has_verification: hasVerification,
-  };
-
-  output(result, raw);
-}
-
-function cmdInitMelhorias(cwd, raw) {
-  const config = loadConfig(cwd);
-  const now = new Date();
-
-  // Detectar stack hints do projeto para ajustar auditoria
-  const pkgPath = path.join(cwd, 'package.json');
-  let stackHints = {};
-  try {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-    const allDeps = Object.assign({}, pkg.dependencies || {}, pkg.devDependencies || {});
-    stackHints = {
-      has_react: !!allDeps.react,
-      has_next: !!allDeps.next,
-      has_vue: !!allDeps.vue,
-      has_nuxt: !!allDeps.nuxt,
-      has_svelte: !!allDeps.svelte,
-      has_tailwind: !!allDeps.tailwindcss,
-      has_prisma: !!(allDeps['@prisma/client'] || allDeps.prisma),
-      has_typescript: !!(allDeps.typescript || pathExistsInternal(cwd, 'tsconfig.json')),
-      type_module: pkg.type === 'module',
-    };
-  } catch {}
-
-  const result = {
-    planning_exists: pathExistsInternal(cwd, '.plano'),
-    melhorias_dir: '.plano/melhorias',
-    melhorias_exists: pathExistsInternal(cwd, '.plano/melhorias'),
-    has_claude_md: pathExistsInternal(cwd, 'CLAUDE.md'),
-    has_package_json: pathExistsInternal(cwd, 'package.json'),
-    date: now.toISOString().split('T')[0],
-    timestamp: now.toISOString(),
-    commit_docs: config.commit_docs,
-    stack_hints: stackHints,
-  };
-
-  output(result, raw);
-}
-
-function cmdInitIdeias(cwd, raw) {
-  const config = loadConfig(cwd);
-  const now = new Date();
-
-  // Detectar stack hints do projeto para contextualizar analise
-  const pkgPath = path.join(cwd, 'package.json');
-  let stackHints = {};
-  try {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-    const allDeps = Object.assign({}, pkg.dependencies || {}, pkg.devDependencies || {});
-    stackHints = {
-      has_react: !!allDeps.react,
-      has_next: !!allDeps.next,
-      has_vue: !!allDeps.vue,
-      has_nuxt: !!allDeps.nuxt,
-      has_svelte: !!allDeps.svelte,
-      has_tailwind: !!allDeps.tailwindcss,
-      has_prisma: !!(allDeps['@prisma/client'] || allDeps.prisma),
-      has_typescript: !!(allDeps.typescript || pathExistsInternal(cwd, 'tsconfig.json')),
-      type_module: pkg.type === 'module',
-    };
-  } catch {}
-
-  const result = {
-    planning_exists: pathExistsInternal(cwd, '.plano'),
-    ideias_dir: '.plano/ideias',
-    ideias_exists: pathExistsInternal(cwd, '.plano/ideias'),
-    has_claude_md: pathExistsInternal(cwd, 'CLAUDE.md'),
-    has_package_json: pathExistsInternal(cwd, 'package.json'),
-    date: now.toISOString().split('T')[0],
-    timestamp: now.toISOString(),
-    commit_docs: config.commit_docs,
-    stack_hints: stackHints,
-  };
-
-  output(result, raw);
-}
 
 // =====================================================================
 // STATE COMMANDS
@@ -2573,63 +2215,6 @@ function cmdCommit(cwd, message, files, raw) {
 // BUDGET COMMAND
 // =====================================================================
 
-function cmdBudget(cwd, raw) {
-  const config = loadConfig(cwd);
-  const ceiling = config.budget_ceiling;
-
-  // Spawn up-instrument.cjs report --json to get current spend
-  const { execSync } = require('child_process');
-  const instrumentPath = path.join(__dirname, 'up-instrument.cjs');
-
-  let spend = 0;
-  let agentCount = 0;
-  let report = null;
-
-  try {
-    const out = execSync(`node "${instrumentPath}" report --json --all-sessions`, {
-      cwd,
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-      timeout: 30000, // 30s cap — fail open if jsonl scan is slow
-    });
-    report = JSON.parse(out);
-    spend = report.total_cost_usd ?? 0;
-    agentCount = (report.agents ?? []).reduce((sum, a) => sum + (a.invocations || 0), 0);
-  } catch (err) {
-    // instrumentation may fail on non-Claude Code runtimes or timeout — return zero spend
-    spend = 0;
-  }
-
-  const result = {
-    spend_usd: Number(spend.toFixed(4)),
-    ceiling_usd: ceiling,
-    agent_invocations: agentCount,
-    status: 'unknown',
-    percent_used: null,
-  };
-
-  if (ceiling === null || ceiling === undefined) {
-    result.status = 'no_ceiling';
-  } else if (ceiling <= 0) {
-    result.status = 'no_ceiling';
-  } else {
-    const pct = (spend / ceiling) * 100;
-    result.percent_used = Number(pct.toFixed(1));
-    if (pct >= 100) result.status = 'over_budget';
-    else if (pct >= 90) result.status = 'critical_90';
-    else if (pct >= 75) result.status = 'warning_75';
-    else if (pct >= 50) result.status = 'warning_50';
-    else result.status = 'under_budget';
-  }
-
-  output(
-    result,
-    raw,
-    ceiling
-      ? `Spent: $${result.spend_usd} / $${ceiling} (${result.percent_used}%) [${result.status}]`
-      : `Spent: $${result.spend_usd} (no ceiling configured)`
-  );
-}
 
 // =====================================================================
 // VALIDATE-PLAN COMMAND (Wave 6 — iron rule)
@@ -2723,6 +2308,14 @@ function cmdValidatePlan(cwd, args, raw) {
     suggestions.push('Add a <verification> block or must_haves frontmatter so the verifier can check completion.');
   }
 
+  // Plano concreto (v4): entrega sem `Onde:` ou sem comando em `Prova:` vira aviso. Nao
+  // mexe em `pass`: plano antigo sem `Onde:` continua executavel.
+  const concreto = require('./lib/plan.cjs').deliveryWarnings(content);
+  for (const w of concreto) {
+    const falta = w.missing.map(x => (x === 'onde' ? '`Onde:` (arquivos ou areas)' : 'comando em `Prova:`')).join(' e ');
+    suggestions.push(`Entrega "${w.delivery}" sem ${falta}.`);
+  }
+
   const pass = issues.length === 0;
 
   output(
@@ -2733,6 +2326,7 @@ function cmdValidatePlan(cwd, args, raw) {
       tasks,
       frontmatter_keys: fmKeys,
       has_verification: hasVerification,
+      delivery_warnings: concreto,
       issues,
       suggestions,
       limits: { max_bytes: flags.maxBytes, max_tasks: flags.maxTasks },
@@ -2758,9 +2352,6 @@ const SKILL_MANIFEST = {
   // Planning agents — fokus em arquitetura + reqs
   'up-planejador': ['engineering-principles-compressed'],
   'up-arquiteto': ['engineering-principles-compressed', 'product-engineering'],
-  'up-roteirista': [],
-  'up-pesquisador': [],
-  'up-sintetizador': ['product-engineering'],
   'up-mapeador-codigo': [],
 
   // Review & Testing — fokus em quality.
@@ -3072,218 +2663,16 @@ function classifyContent(content) {
 // RESOLVE-MODEL-FOR-PLAN (Wave 5 — combined router)
 // =====================================================================
 
-/**
- * Resolve which model to use for an agent given a plan context.
- * Combines per-role routing (existing) with complexity routing (new).
- *
- * Routing modes (config.modelos.routing):
- *   per-role (default)   -> use existing resolveAgentModel
- *   complexity           -> use classify-task suggestion
- *   complexity-with-cap  -> use classify-task BUT cap by per-role
- *                           (e.g., per-role says haiku, complexity says
- *                            opus -> use haiku since user budget says so)
- *
- * Usage:
- *   up-tools.cjs resolve-model-for-plan <plan-path> <agent-name>
- */
-function cmdResolveModelForPlan(cwd, args, raw) {
-  const [planPath, agentName] = args;
-  if (!planPath || !agentName) error('Usage: resolve-model-for-plan <plan-path> <agent-name>');
-
-  const config = loadConfig(cwd);
-  const routingMode = (config.modelos && config.modelos.routing) || 'per-role';
-  const perRoleModel = resolveAgentModel(cwd, agentName);
-
-  if (routingMode === 'per-role') {
-    output({ model: perRoleModel || 'default', source: 'per-role' }, raw, perRoleModel || 'default');
-    return;
-  }
-
-  // Need to classify the plan
-  const fullPath = path.isAbsolute(planPath) ? planPath : path.join(cwd, planPath);
-  let content;
-  try {
-    content = fs.readFileSync(fullPath, 'utf-8');
-  } catch {
-    output({ model: perRoleModel || 'default', source: 'per-role-fallback' }, raw, perRoleModel || 'default');
-    return;
-  }
-
-  const cls = classifyContent(content);
-  const complexityModel = cls.suggested_model;
-
-  if (routingMode === 'complexity') {
-    output(
-      { model: complexityModel, source: 'complexity', complexity: cls.complexity, score: cls.score },
-      raw,
-      complexityModel
-    );
-    return;
-  }
-
-  if (routingMode === 'complexity-with-cap') {
-    // Order: haiku < sonnet < opus
-    const order = { haiku: 1, sonnet: 2, opus: 3 };
-    const finalModel =
-      perRoleModel && order[perRoleModel]
-        ? (order[complexityModel] <= order[perRoleModel] ? complexityModel : perRoleModel)
-        : complexityModel;
-    output(
-      { model: finalModel, source: 'complexity-with-cap', complexity: cls.complexity, capped_by: perRoleModel },
-      raw,
-      finalModel
-    );
-    return;
-  }
-
-  output({ model: perRoleModel || 'default', source: 'unknown-mode-fallback' }, raw, perRoleModel || 'default');
-}
 
 // =====================================================================
 // ROUTING-LOG (Wave 5 — append routing decision + outcome)
 // =====================================================================
 
-/**
- * Append a routing decision to .plano/governance/routing-history.log
- * for later analysis.
- *
- * Usage:
- *   up-tools.cjs routing-log --plan <path> --agent <name> --model <m>
- *                            --complexity <c> [--score N]
- *                            [--outcome success|rework|abort]
- *                            [--rework-cycles N]
- */
-function cmdRoutingLog(cwd, args, raw) {
-  const flags = { update: false };
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--update') {
-      flags.update = true;
-    } else if (args[i].startsWith('--')) {
-      flags[args[i].replace(/^--/, '')] = args[i + 1];
-      i++;
-    }
-  }
-
-  const govDir = path.join(cwd, '.plano', 'governance');
-  try { fs.mkdirSync(govDir, { recursive: true }); } catch {}
-  const logPath = path.join(govDir, 'routing-history.log');
-
-  const ts = new Date().toISOString();
-  const line = [
-    ts,
-    flags.plan || '',
-    flags.agent || '',
-    flags.model || '',
-    flags.complexity || '',
-    flags.score || '',
-    flags.outcome || 'pending',
-    flags['rework-cycles'] || '0',
-  ].join(' | ');
-
-  // --update: find last entry for (plan, agent) and rewrite it instead of appending.
-  // Used to patch outcome from "pending" to success/rework/abort once a phase finishes.
-  if (flags.update && flags.plan && flags.agent) {
-    let existing = '';
-    try {
-      existing = fs.readFileSync(logPath, 'utf-8');
-    } catch {
-      existing = '';
-    }
-    const lines = existing.split('\n').filter(Boolean);
-    let lastMatchIdx = -1;
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const parts = lines[i].split('|').map(s => s.trim());
-      if (parts[1] === flags.plan && parts[2] === flags.agent) {
-        lastMatchIdx = i;
-        break;
-      }
-    }
-    if (lastMatchIdx >= 0) {
-      lines[lastMatchIdx] = line;
-      fs.writeFileSync(logPath, lines.join('\n') + '\n');
-      output({ updated: true, path: path.relative(cwd, logPath), line }, raw, line);
-      return;
-    }
-    // No match found — fall through to append
-  }
-
-  fs.appendFileSync(logPath, line + '\n');
-  output({ logged: true, path: path.relative(cwd, logPath), line }, raw, line);
-}
 
 // =====================================================================
 // ANALYZE-ROUTING (Wave 5 — post-mortem of routing decisions)
 // =====================================================================
 
-/**
- * Aggregate routing-history.log to suggest classifier adjustments.
- *
- * Usage:
- *   up-tools.cjs analyze-routing
- *
- * Output:
- *   - per-complexity success rate
- *   - which complexity buckets had high rework
- *   - suggestions: bump up to bigger model, or downgrade
- */
-function cmdAnalyzeRouting(cwd, raw) {
-  const logPath = path.join(cwd, '.plano', 'governance', 'routing-history.log');
-  let lines = [];
-  try {
-    lines = fs.readFileSync(logPath, 'utf-8').split('\n').filter(l => l.includes('|'));
-  } catch {
-    output({ entries: 0, message: 'no_history' }, raw, 'no routing history yet');
-    return;
-  }
-
-  // Dedupe by (plan, agent) — keep latest entry. Without this, --update vs
-  // append confusion or duplicate logs would inflate counts.
-  const latestByKey = new Map();
-  for (const line of lines) {
-    const parts = line.split('|').map(s => s.trim());
-    const [ts, plan, agent] = parts;
-    const dedupeKey = `${plan}|${agent}`;
-    latestByKey.set(dedupeKey, parts); // last-write-wins
-  }
-
-  const stats = {};
-  for (const parts of latestByKey.values()) {
-    const [ts, plan, agent, model, complexity, score, outcome, rework] = parts;
-    const key = `${complexity}|${model}`;
-    if (!stats[key]) stats[key] = { total: 0, success: 0, rework: 0, abort: 0, pending: 0, rework_cycles_total: 0 };
-    stats[key].total++;
-    if (outcome === 'success') stats[key].success++;
-    else if (outcome === 'rework') stats[key].rework++;
-    else if (outcome === 'abort') stats[key].abort++;
-    else if (outcome === 'pending') stats[key].pending++;
-    stats[key].rework_cycles_total += parseInt(rework || '0', 10);
-  }
-
-  const summary = [];
-  const suggestions = [];
-  for (const [key, s] of Object.entries(stats)) {
-    const [complexity, model] = key.split('|');
-    const successRate = s.total ? (s.success / s.total * 100).toFixed(1) : '0.0';
-    const avgRework = s.total ? (s.rework_cycles_total / s.total).toFixed(2) : '0';
-    summary.push({ complexity, model, total: s.total, success_rate: Number(successRate), avg_rework_cycles: Number(avgRework), aborts: s.abort });
-
-    if (Number(successRate) < 60 && s.total >= 3) {
-      suggestions.push(`${complexity}+${model}: success rate ${successRate}% (${s.total} runs) — consider bumping to bigger model`);
-    }
-    if (Number(avgRework) >= 1.5 && s.total >= 3) {
-      suggestions.push(`${complexity}+${model}: avg ${avgRework} rework cycles — model may be undersized for this complexity`);
-    }
-    if (s.abort > 0 && s.total >= 3 && (s.abort / s.total) > 0.2) {
-      suggestions.push(`${complexity}+${model}: ${s.abort}/${s.total} aborts — review timeout config or upgrade model`);
-    }
-  }
-
-  output(
-    { entries: lines.length, summary, suggestions },
-    raw,
-    `analyzed ${lines.length} entries — ${summary.length} buckets, ${suggestions.length} suggestions`
-  );
-}
 
 // =====================================================================
 // VERIFY-STATIC COMMAND (Wave 4 — deterministic verification ladder)

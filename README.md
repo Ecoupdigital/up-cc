@@ -95,13 +95,14 @@ O hook **up-context-monitor** avisa quando o contexto enche e sugere `/clear` (o
 
 **Separacao plan/build.** Planeje no modelo forte (Claude), execute em runtime barato. O `PLAN-READY.md` e portavel: gera num lugar, roda em outro.
 
-## Os 7 comandos
+## Os 8 comandos
 
 | Comando | O que faz |
 |---------|-----------|
 | **`/up`** | Porta unica. Sem argumento: continua de onde parou (le STATE.md e roteia). Com descricao: dispara brainstorm e roteia greenfield, brownfield ou clone. Subverbos: `estado`, `config`. |
-| **`/up:plan`** | Planeja projeto OU fase (detecta automaticamente). Sem flag, escreve o plano de uma pagina na sessao, so da proxima fase. Gera `.plano/PLAN-READY.md`. Nao executa nada. Flag `--profundo` restaura o pipeline pesado (planejador, todas as fases). |
+| **`/up:plan`** | Planeja projeto OU fase (detecta automaticamente). Sem flag, a sessao le o codigo e escreve um plano concreto de uma pagina (onde mexer e comando de prova por entrega), so da proxima fase. `up-tools plan close` gera e commita o `.plano/PLAN-READY.md`. Nao executa nada. Flag `--profundo` restaura o pipeline pesado (planejador, todas as fases). |
 | **`/up:build`** | Executa o que foi planejado. Onda de 1 plano roda na sessao; 2+ planos em paralelo. GitHub-nativo por fase (worktree, issue, teste visual, PR, merge). Flags `--solo`, `--board`, `--auto`. |
+| **`/up:auto`** | Tudo no automatico: brainstorm minimo, plan e build `--solo` fase a fase, parando so em `verify-static` falhando, decisao que muda escopo ou credencial. `/up:plan` e `/up:build` continuam separados. |
 | **`/up:testar`** | Loop DCRV unico (Detectar, Corrigir, Re-verificar): visual, interacao, API, UX, mobile e E2E num passe. Flags `--ux`, `--mobile`, `--e2e`, `--no-fix`. |
 | **`/up:auditar`** | Auditoria UX, performance e modernidade num passe, priorizada por ICE. Flag `--features` ativa pesquisa de mercado pra sugerir features novas. |
 | **`/up:depurar`** | Debug sistematico com metodo cientifico. Estado persistente entre `/clear`. |
@@ -149,13 +150,13 @@ Mesma doutrina em todos. O que muda: o Claude Code tem suporte nativo (hook + sk
 | Runtime | Invocacao | Como carrega o UP |
 |---------|-----------|-------------------|
 | **Claude Code** | `/up:X` | Completo. Hook SessionStart injeta o bootstrap `usando-up`; 3 skills ativam por contexto; statusLine + context-monitor. |
-| **Gemini CLI** | `/up:X` | Comandos convertidos pra TOML + 12 agentes convertidos. Brainstorm-first via bootstrap no `GEMINI.md`. |
+| **Gemini CLI** | `/up:X` | Comandos convertidos pra TOML + 9 agentes convertidos. Brainstorm-first via bootstrap no `GEMINI.md`. |
 | **OpenCode** | `/up-X` | Comandos achatados (`command/up-X.md`) + agentes convertidos. Bootstrap no `AGENTS.md`. |
 | **Codex CLI** | `$up-X` | Comandos viram skills + `config.toml [agents] max_depth`. Bootstrap no `AGENTS.md`. |
 
 As **3 skills** (camada de ativacao por contexto, nativas no Claude Code): `usando-up` (bootstrap), `up-brainstorm`, `up-prova`.
 
-Os **12 agentes**: `up-arquiteto`, `up-planejador`, `up-executor`, `up-verificador`, `up-mapeador-codigo`, `up-depurador`, `up-pesquisador`, `up-revisor`, `up-auditor`, `up-sintetizador`, `up-roteirista`, `up-tester`.
+Os **9 agentes**: `up-arquiteto`, `up-planejador`, `up-executor`, `up-verificador`, `up-mapeador-codigo`, `up-depurador`, `up-revisor`, `up-auditor`, `up-tester`.
 
 ## Documentacao
 

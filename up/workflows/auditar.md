@@ -3,7 +3,7 @@ Workflow `/up:auditar` — Auditoria priorizada de produto num passe unico.
 
 Funde melhorias.md + ideias.md. Spawna `up-auditor` (1x, passe unico de UX + performance +
 modernidade + consolidacao do RELATORIO.md). Com `--features`, o mesmo auditor pesquisa mercado
-inline. Sem `up-sintetizador`. Sem `up-pesquisador`.
+inline, sem agente extra.
 
 Standalone: nao requer projeto UP inicializado.
 </purpose>
@@ -15,7 +15,6 @@ Antes eram 3 auditores (ux/perf/modernidade) + 1 sintetizador-melhorias para `/u
 analista-codigo + pesquisador-mercado + consolidador-ideias para `/up:ideias`. Agora:
 - `up-auditor` faz o passe unico das 3 dimensoes e escreve o RELATORIO.md consolidado.
 - Com `--features`, o mesmo auditor pesquisa mercado (WebSearch) e inclui ICE + anti-features.
-- Nao spawnar `up-pesquisador` nem `up-sintetizador`.
 
 Relatorio e informativo. NAO commitar automaticamente. NAO mexer em STATE.md (auditoria e standalone).
 
@@ -111,7 +110,7 @@ obrigatorio. Salvar resultado por dimensao.
 
 ## Passo 3b: Pesquisa de mercado (SO com --features)
 
-Nao spawnar `up-pesquisador`. O prompt do auditor no passo 3 ja pede WebSearch e a secao de
+O prompt do auditor no passo 3 ja pede WebSearch e a secao de
 features no RELATORIO.md. Este passo so confirma que a secao existe; se faltar, o orquestrador
 faz um passe curto de WebSearch e emenda o relatorio, sem agente extra.
 
@@ -134,7 +133,7 @@ disponiveis (o sintetizador aceita subconjunto).
 
 ## Passo 5: Relatorio consolidado (o auditor ja escreveu)
 
-Nao spawnar `up-sintetizador`. O `up-auditor` escreve `.plano/auditar/RELATORIO.md` no mesmo
+O `up-auditor` escreve `.plano/auditar/RELATORIO.md` no mesmo
 passe (dedup, matriz esforco x impacto, e ICE/anti-features se `--features`).
 
 Se o RELATORIO.md nao existir, o orquestrador consolida as sugestoes inline e escreve o arquivo
@@ -217,7 +216,7 @@ Substituir `approved_ids` pela selecao real. Apresentar resumo das fases criadas
 - [ ] Init auditar retornou JSON valido; flag --features detectada
 - [ ] Diretorio .plano/auditar/ criado (standalone)
 - [ ] up-auditor rodou o passe unico (UX + performance + modernidade; + gaps/mercado se --features)
-- [ ] Sem spawn de up-pesquisador e sem spawn de up-sintetizador
+- [ ] Um so agente (up-auditor), sem spawn extra de pesquisa ou consolidacao
 - [ ] Pelo menos 1 arquivo de sugestoes gerado
 - [ ] RELATORIO.md gerado pelo auditor (ou fallback do orquestrador)
 - [ ] Relatorio apresentado; NAO commitado; STATE.md intocado

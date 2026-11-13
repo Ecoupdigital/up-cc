@@ -243,6 +243,13 @@ function openPhase({ cwd, phase, local = false, solo = false }) {
   if (!idx.plans.length) warnings.push('fase sem PLAN.md: rode /up:plan ' + phase);
 
   const pending = idx.plans.filter(p => !p.done);
+  // Plano antigo (sem `Onde:` ou sem comando de prova) executa igual, com aviso: o executor
+  // vai precisar achar o lugar sozinho, o que pesa mais num build_model menor.
+  const { deliveryWarnings } = require('./plan.cjs');
+  for (const p of pending) {
+    const w = deliveryWarnings(fs.readFileSync(path.join(root, p.plan), 'utf-8'));
+    if (w.length) warnings.push(`plano ${p.id} pouco concreto: ${w.length} entrega(s) sem Onde ou sem comando de prova`);
+  }
   const waveKeys = Object.keys(idx.waves).map(Number).sort((a, b) => a - b);
   const waves = waveKeys.map(w => ({
     wave: w,
