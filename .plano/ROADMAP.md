@@ -376,7 +376,7 @@
   3. `/up:plan` padrão carrega <= ~12 KB; `--profundo` vive em arquivo próprio
   4. `up-pesquisador`, `up-sintetizador`, `up-roteirista` e os verbos legados do `up-tools` removidos sem referência sobrando
 **Prova exigida**: teste e smoke de instalação
-**Planos**: a planejar
+**Planos**: 1 plano (24-01), onda 1
 
 ## Grafo de bloqueio do ciclo 2
 
@@ -439,4 +439,4 @@ De onde a posse de arquivo passa a vir em tempo de execução, agora que a regra
 | 21. UP leve (v3) | 1/1 | Completa | 2026-09-11 |
 | 22. Plan e build leves | 1/1 | Completa | 2026-09-16 |
 | 23. Build rápido | 1/1 | Completa | 2026-11-13 |
-| 24. Plano concreto e /up:auto | 0/? | Pendente | - |
+| 24. Plano concreto e /up:auto | 0/1 | Planejada | - |
