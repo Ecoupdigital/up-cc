@@ -136,13 +136,12 @@ t('product-engineering.md existe, cobre a analise e o DoD, e esta no manifesto d
   }
 });
 
-t('executor carrega o padrao completo, honra Implicitos e fecha com checklist de completude', () => {
+t('executor consulta o padrao sob demanda e honra Implicitos (fase 23: SUMMARY curto, sem checklist)', () => {
   const executor = ler(EXECUTOR);
   assert.ok(/product-engineering\.md/.test(executor), 'executor nao referencia product-engineering.md');
   assert.ok(/Implicitos/i.test(executor), 'executor nao honra a linha Implicitos do plano');
-  assert.ok(/Checklist de completude/.test(executor), 'executor nao fecha o SUMMARY com checklist de completude');
   const summary = ler(TPL_SUMMARY);
-  assert.ok(/Checklist de completude/.test(summary), 'template de summary nao ganhou a secao de checklist');
+  assert.ok(/## Prova/.test(summary), 'template de summary perdeu a secao Prova');
 });
 
 t('nenhuma superficie viva cita production-requirements', () => {

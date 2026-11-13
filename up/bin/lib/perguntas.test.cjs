@@ -27,6 +27,7 @@ const ARQUIVOS_SUPERFICIE = [
   'up/workflows/up.md',
   'up/workflows/plan.md',
   'up/workflows/build.md',
+  'up/workflows/build-optins.md',
   'up/workflows/auditar.md',
   'up/skills/up-brainstorm/SKILL.md',
 ];
@@ -34,7 +35,9 @@ const ARQUIVOS_SUPERFICIE = [
 // Piso de contagem: protege contra inventario que perde linhas, ou uma superficie inteira, sem que o
 // texto correspondente pare de existir no produto. Sobe junto com o inventario real quando pontos
 // legitimos forem adicionados; nunca desce sozinho.
-const PONTOS_MINIMOS = 20;
+// Fase 23 (v4): build.runtime-divergente, build.plano-incompleto e build.replan-esgotado sairam
+// junto com a cerimonia que virou codigo (build open/close). Piso desceu de 20 para 17 de proposito.
+const PONTOS_MINIMOS = 17;
 const SUPERFICIES_MINIMAS = 7;
 
 // Conjunto fechado dos identificadores esperados. O piso de CONTAGEM sozinho e furavel por delecao
@@ -54,10 +57,7 @@ const IDENTIFICADORES_ESPERADOS = [
   'build.fechamento-fase',
   'build.iniciar-execucao',
   'build.onda-falhou',
-  'build.plano-incompleto',
-  'build.replan-esgotado',
   'build.revisor-bloqueou',
-  'build.runtime-divergente',
   'build.testar-antes-do-merge',
   'plan.decisoes-escaladas',
   'plan.intake-minimo',
