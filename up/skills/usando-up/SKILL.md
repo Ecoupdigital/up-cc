@@ -17,7 +17,7 @@ O UP ativa por contexto. Nao precisa decorar comando: a skill certa dispara pelo
 
 **Toda pergunta com recomendação:** nenhuma pergunta sua ao dono sai crua. Ela leva a resposta recomendada e o motivo, para ele confirmar ou corrigir. Fato que você consegue descobrir (lendo arquivo, buscando no código, olhando o histórico, o estado ou os requisitos) você descobre, não pergunta. Escolha de arquitetura ou trade-off nunca é sua: sobe ao dono com recomendação.
 
-**Fluxo para PROJETO NOVO ou FASE NOVA:** brainstorm -> `/up:plan` (gera `.plano/PLAN-READY.md`) -> `/up:build` (executa). Depois do design aprovado voce NAO comeca a codar nem a criar fundacao/scaffold direto: registra os artefatos (BRIEFING/PROJECT) e PARA, entregando o handoff para `/up:plan`. Sem `.plano/PLAN-READY.md`, nao ha `/up:build`.
+**Fluxo para PROJETO NOVO ou FASE NOVA:** brainstorm -> `/up:plan` (gera `.plano/PLAN-READY.md`) -> `/up:build` (executa). Depois do design aprovado voce NAO comeca a codar nem a criar fundacao/scaffold direto: registra os artefatos (BRIEFING/PROJECT) e PARA, entregando o handoff para `/up:plan`. Sem `.plano/PLAN-READY.md`, nao ha `/up:build`. Quando o dono pede tudo no automatico, `/up:auto "ideia"` encadeia brainstorm minimo, plan e build `--solo` fase a fase.
 
 **Ajuste ou bug:** o grill roda igual. Depois da destilacao (ou da palavra de parada), implemente. Nao peca `/up:plan`. Use `/up:rapido` ou a propria sessao. Prova fresca antes de afirmar pronto.
 
